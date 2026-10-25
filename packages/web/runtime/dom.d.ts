@@ -61,6 +61,20 @@ export function spread(el: any, obj: any, asProps: any): void;
  * effect disposer so the caller (component lifecycle) can stop updates.
  */
 export function bindText(node: any, fn: any): () => void;
+/** A JSX value from a hydrate build: builds fresh nodes, or adopts server-rendered ones. */
+export interface HydratableNode {
+  build(): Node | Node[] | null;
+  adopt(cursor: { node: Node | null }, nodes: Node[]): Node | Node[] | null;
+}
+/** Wrap a JSX value's build and adopt functions so a receiving hole can hydrate it. */
+export function hydratableNode(
+  build: HydratableNode["build"],
+  adopt: HydratableNode["adopt"],
+): HydratableNode;
+/** Whether `value` is a {@link hydratableNode}. */
+export function isHydratable(value: unknown): value is HydratableNode;
+/** Children read as a value during hydration: keeps the server nodes it adopts. */
+export function adoptedChildren(): HydratableNode;
 /**
  * Wire an element attribute/prop to a reactive expression. Returns the disposer.
  *

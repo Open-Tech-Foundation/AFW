@@ -65,10 +65,11 @@ which case components only ever adopt (the build arm is dead and can later be dr
 > shared cursor — pages via a `DocumentFragment` lifecycle carrier), and **JSX-value locals**
 > (`const body = <jsx>`, `const body = cond ? <a/> : <b/>`, `cond && <a/>` — rendered at a
 > `{body}` hole or a bare dynamic-node branch, the layout idiom — adopting the server subtree in
-> place via `hydrateHole`) all hydrate.
-> **Not yet:** a JSX value in a non-*positional* shape (`const map = { a: <A/> }`, an array) and
-> spread props in a view — both fall back to a clean CSR build
-> (`RebuildIfServerChildren`), which now preserves the slotted children (§3.5).
+> place via `hydrateHole`) all hydrate, as do **JSX values passed as data** — a JSX prop value,
+> JSX inside module-level or component-local data (`const tabs = [{ content: <A/> }]`), and a
+> component's children read as a value — which adopt wherever they are rendered (2.1f).
+> **Not yet:** spread props in a view — it falls back to a clean CSR build
+> (`RebuildIfServerChildren`), which preserves the slotted children (§3.5).
 
 | Mode | Nav | First paint | Subsequent nav | Components |
 |---|---|---|---|---|
@@ -462,6 +463,7 @@ which is what makes the open items in §6 observable in an ordinary native esdev
 | **2.1c** | **layout-chain / `{children}`-slot hydration** ✓ — a page/layout emits `hydrateAt(cursor, props)` (walk) + a `hydrate(root, props)` wrapper; SSG brackets the `{children}` slot with `<!--[-->…<!--]-->`; the router's `hydrateRouteNode` threads one cursor through the chain, each layout handing its cursor to the nested route's adopt thunk at the slot. Codegen tests, a router chain-adopt unit test (+ non-adoptable-layout fallback), a compiled-layout ssg→hydrate happy-dom round-trip, and a real-browser (CDP) layout-chain e2e ✓ |
 | **2.1d** | **component `{children}`-slot hydration** ✓ — a component's light-DOM slot is bracketed by distinct `<!--c[-->…<!--c]-->` markers; the component steps over it (`skipSlot`) while the composing parent locates the slot by its marker (`hydrateSlot`) and adopts the slotted content's reactivity (which it owns). Order-independent of the component's upgrade (adoption only wires, never moves, nodes). Codegen tests (component skipSlot + parent hydrateSlot), a happy-dom parent-slot-adoption round-trip, and a real-browser (CDP) `<Card>`-with-slotted-button e2e ✓ |
 | **2.1e** | **JSX-value-local hydration** ✓ — the docs-layout idiom `const body = <jsx>` referenced from a `{body}` hole or a bare-identifier dynamic-node branch. `hydrate.rs` emits the local as a dual `{ build, adopt }` object; a `{body}` hole adopts the server subtree in place (`hydrateHole`, wrapping the `<!--$-->…<!--/-->` markers) instead of the claimText strip-and-rebuild that flashed and cascaded rebuilds through nested islands, and a bare branch reference adopts off the region cursor. Only the bare `const NAME = <jsx>` shape is adoptable (a JSX value inside an object/array/ternary stays on the safe `RebuildIfServerChildren` fallback). Codegen tests (hole adopt, bare-branch adopt/build, component-with-slot, object-embedded fallback) + a real-browser (CDP) `<Framed>` island (the DocsLayout shape wrapping a `<Tree>` → `<Link>`) proving the value-local adopts in place with its nested islands, alongside a still-non-adoptable `<Panel>` guarding the `runBuild` cascade ✓ |
+| **2.1f** | **JSX values as data** ✓ — a JSX node that is not in a node position (a prop value, an element of module-level or component-local data, `content: props.children`) becomes `hydratableNode(build, adopt)` in the hydrate build. The receiving component's text hole keeps the server content (`claimText` no longer strips it); `bindText` adopts it when the value is the server's `{ __html }` stand-in or a hydratable, so a later update from the parent wires its reactivity onto the same nodes. Children read only as a value become `adoptedChildren()`, which keeps the server nodes found in that hole. Client builds are unchanged. During hydration these values are render-only objects, not DOM nodes. Runtime DOM tests, codegen tests, and real-browser cases (typed-before-hydration inputs, reactive content, module and component-local data, children as a value, the docs installation-page shape) ✓ |
 | **2.2** | per-component island recovery wired into the dev overlay |
 | **2.3** _(deferred)_ | lazy/partial island directives (`client:idle` / `visible` / `media`) — leveraging the custom-element lifecycle. **Not in Phase 2**; revisited once core hydration is solid. |
 
@@ -572,17 +574,9 @@ whitespace nodes, double mounts). The bar:
 
 - **Spread props in a view** (`<div {...rest}/>`) make a component non-adoptable — it falls back
   to a clean CSR build. The remaining first-paint rebuilds on the docs site are all this.
-- **A JSX value in a non-positional shape** — `const map = { a: <A/> }`, `const tabs = [<A/>, <B/>]`
-  — stays on the rebuild fallback. Only shapes where every node sits in a *node position* (a bare
-  node, a conditional's branches) can have adopt calls substituted into them. The *value* now
-  crosses correctly, which it did not before: the server renders such a node to HTML and passes
-  it as an `{ __html }` marker (`ssgText` splices it raw), and the client runtime materializes
-  that marker back into nodes — previously it fell through to `String(value)` and the page
-  rendered a literal `[object Object]` wherever the data was read (an MDX `<Tabs tabs={[{ content:
-  <CodeBlock/> }]} />` panel, say). Islands *inside* such markup are self-contained too: JSX held
-  in module-level data is rendered at import time, before any `beginHydrationCollect` bracket, so
-  those hosts carry their props inline as `data-hp` instead of an id into the payload. The subtree
-  is still rebuilt rather than adopted — that is what this open item is about.
+- **JSX values are render-only during hydration.** A JSX value used as data (2.1f) is a
+  `hydratableNode` in the hydrate build, not a DOM node: render it with `{value}`. Code that
+  manipulates such a value imperatively (`icon.cloneNode()`) works only in client builds.
 - **A client-derived island has nothing to adopt.** `<Toc>` builds its outline from the rendered
   headings at `onMount`, so the server ships an empty `<nav>` and the outline pops in (CLS).
   Fixing it means feeding the page's `toc` export in as data rather than reading the DOM —

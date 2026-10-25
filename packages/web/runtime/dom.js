@@ -4,7 +4,7 @@
 
 import { DEV, warnOnce } from "../core/dev.js";
 import { effect, scope, signal } from "../core/signals.js";
-import { claimRegionEnd, claimRegionStart } from "./hydrate.js";
+import { claimRegionEnd, claimRegionStart, HydrationMismatch, isHydrating } from "./hydrate.js";
 
 /** Distinguishes items that carry identity (objects) from interchangeable primitives. */
 const hasIdentity = (v) => v !== null && (typeof v === "object" || typeof v === "function");
@@ -270,8 +270,47 @@ export function bindText(node, fn) {
   let inserted = [];
   let lastText; // undefined sentinel — toText() never returns undefined
   let lastNodeValue; // the node/array/marker currently rendered, for the re-run check
+  // Hydration: server content left in a node-valued hole (see `claimText`). `adoptable`
+  // marks `inserted` as untouched server nodes a hydratable value may still adopt.
+  let serverNodes = node.__otfwServerNodes ?? null;
+  if (serverNodes) delete node.__otfwServerNodes;
+  let adoptable = false;
+  const removeInserted = () => {
+    for (const n of inserted) if (n.parentNode) n.parentNode.removeChild(n);
+    inserted = [];
+  };
   return effect(() => {
     const value = fn();
+
+    if (serverNodes) {
+      const server = serverNodes;
+      serverNodes = null;
+      inserted = server;
+      adoptable = true;
+      // The server's `{ __html }` stand-in describes exactly these nodes: keep them.
+      if (isHtmlMarker(value)) {
+        lastText = undefined;
+        lastNodeValue = value;
+        return;
+      }
+    }
+    // A hydratable JSX value adopts the server nodes still in place instead of
+    // rebuilding them — on the first run, or when the parent supplies it after the
+    // child already kept the server's stand-in.
+    if (adoptable && isHydratable(value) && isHydrating()) {
+      adoptable = false;
+      try {
+        const adopted = value.adopt({ node: inserted[0] ?? null }, inserted);
+        inserted = adopted == null ? [] : Array.isArray(adopted) ? adopted : [adopted];
+        lastText = undefined;
+        lastNodeValue = value;
+        return;
+      } catch (error) {
+        if (!(error instanceof HydrationMismatch)) throw error;
+        // Fall through: rebuild below, which removes the server nodes first.
+      }
+    }
+    adoptable = false;
 
     // A server `{__html}` marker (see `isHtmlMarker`) renders as the nodes it describes —
     // and it is immutable, so re-running with the same marker keeps what is already there
@@ -281,15 +320,12 @@ export function bindText(node, fn) {
     // Primitive text: the common case. Skip the write when the rendered string
     // is unchanged (a shared dependency can re-run this effect with the same
     // result), so unchanged text nodes don't churn.
-    if (!(value instanceof Node) && !Array.isArray(value) && !isHtmlMarker(value)) {
+    if (!(value instanceof Node) && !Array.isArray(value) && !isHtmlMarker(value) && !isHydratable(value)) {
       const text = toText(value);
       if (text === lastText) return;
       lastText = text;
       lastNodeValue = undefined;
-      for (const n of inserted) {
-        if (n.parentNode) n.parentNode.removeChild(n);
-      }
-      inserted = [];
+      removeInserted();
       node.data = text;
       return;
     }
@@ -298,10 +334,7 @@ export function bindText(node, fn) {
     // text anchor. Reset the text memo so a later primitive value re-applies.
     lastText = undefined;
     lastNodeValue = value;
-    for (const n of inserted) {
-      if (n.parentNode) n.parentNode.removeChild(n);
-    }
-    inserted = [];
+    removeInserted();
     node.data = "";
     const parent = node.parentNode;
     if (parent) {
@@ -348,6 +381,33 @@ export function bindAttr(el, name, fn) {
 const isHtmlMarker = (v) => v !== null && typeof v === "object" && typeof v.__html === "string";
 
 /** Parse a trusted server-rendered HTML string into the nodes it describes. */
+const HYDRATABLE = Symbol.for("otfw.hydratable");
+
+/**
+ * A JSX value from the hydrate build: `build()` creates fresh nodes (client render),
+ * `adopt(cursor)` claims the server-rendered nodes in place and wires their bindings.
+ * A hole that receives one during hydration adopts; any other time it builds.
+ */
+export function hydratableNode(build, adopt) {
+  return Object.freeze({ [HYDRATABLE]: true, build, adopt });
+}
+
+/**
+ * A component's light-DOM children read as a value (`content: props.children`) during
+ * hydration. The server rendered them inside the receiving hole, so `adopt` keeps
+ * whatever nodes it is handed there, and `build` returns those same nodes for a later
+ * render. Before adoption there is nothing to show.
+ */
+export function adoptedChildren() {
+  let kept = [];
+  return hydratableNode(() => kept, (_cursor, nodes) => (kept = nodes));
+}
+
+/** Is this a {@link hydratableNode} value? */
+export function isHydratable(value) {
+  return value != null && typeof value === "object" && value[HYDRATABLE] === true;
+}
+
 function htmlToNodes(html) {
   const tpl = document.createElement("template");
   tpl.innerHTML = html;
@@ -366,6 +426,7 @@ function toNodes(value) {
   }
   if (value instanceof Node) return [value];
   if (isHtmlMarker(value)) return htmlToNodes(value.__html);
+  if (isHydratable(value)) return toNodes(value.build());
   return [document.createTextNode(String(value))];
 }
 

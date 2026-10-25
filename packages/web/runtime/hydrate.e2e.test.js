@@ -29,6 +29,7 @@ import {
 import "../server/builtins.js";
 import {
   __resetHydrationPayload,
+  adoptedChildren,
   afterHydration,
   beginHydration,
   bindAttr,
@@ -47,6 +48,7 @@ import {
   hydrateHole,
   hydrateList,
   hydrateSlot,
+  hydratableNode,
   hydrationProps,
   isHydrating,
   runBuild,
@@ -100,6 +102,8 @@ function loadComponent(code, name, bindings) {
     .replace(/export class /g, "class ")
     .replace(/export function /g, "function ")
     .replace(/^export default \w+;$/gm, "");
+  // Helpers every hydrate build may reference, supplied unless a test overrides them.
+  bindings = { hydratableNode, adoptedChildren, ...bindings };
   const names = Object.keys(bindings);
   return new Function(...names, `${body}\n; return ${name};`)(...names.map((n) => bindings[n]));
 }
@@ -118,6 +122,8 @@ function loadModule(code, bindings) {
     // NameElement;`); drop the `export` so the class registers via its own `define`.
     .replace(/export class /g, "class ")
     .replace(/^export default \w+;$/gm, "");
+  // Helpers every hydrate build may reference, supplied unless a test overrides them.
+  bindings = { hydratableNode, adoptedChildren, ...bindings };
   const names = Object.keys(bindings);
   const ret =
     "\n; return {" +

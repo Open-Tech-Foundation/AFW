@@ -294,11 +294,10 @@ export function claimElement(cur, tag) {
  * A text hole may hold a *node*, not text: `{expr}` whose value is a JSX element or an
  * array of them (e.g. a code example stored in a data array and rendered `{ex.body}`).
  * The compiler can't distinguish that statically, so it emits the text path for both; the
- * SSG backend renders such a value's markup inline in the hole, and `bindText`'s node arm
- * *rebuilds* it fresh on the client (dom.js) rather than adopting. So any element/comment
- * left inside the hole is server content the client will not reuse — it must be removed
- * here, or it lingers beside the rebuilt node as a duplicate (the whole example appears
- * twice). Only a single text node is a genuine adopt target; strip everything else.
+ * SSG backend renders such a value's markup inline in the hole. That server content is
+ * left in place and recorded on the returned anchor: `bindText` (dom.js) adopts it when
+ * the value is the server's `{ __html }` stand-in or a `hydratableNode`, and removes it
+ * otherwise, so it never lingers beside a rebuilt copy.
  */
 export function claimText(cur) {
   const start = cur.node;
@@ -306,23 +305,21 @@ export function claimText(cur) {
     throw new HydrationMismatch(`expected a text-hole marker, found ${describe(start)}`);
   }
   let node = start.nextSibling;
-  let textNode = null;
-  const stray = []; // node-valued-hole server content bindText rebuilds — not adopted
+  const content = [];
   while (node && !(node.nodeType === COMMENT && node.data === HOLE_END)) {
-    const next = node.nextSibling;
-    if (node.nodeType === TEXT && !textNode) textNode = node;
-    else stray.push(node);
-    node = next;
+    content.push(node);
+    node = node.nextSibling;
   }
   const end = node; // the `<!--/-->` marker (or null if the markup is malformed)
-  for (const n of stray) if (n.parentNode) n.parentNode.removeChild(n);
-  if (!textNode) {
-    // Empty or node-valued hole: synthesize the anchor bindText will write into.
-    textNode = document.createTextNode("");
-    (start.parentNode || document).insertBefore(textNode, end);
-  }
   cur.node = end ? end.nextSibling : null;
-  return textNode;
+  if (content.length === 1 && content[0].nodeType === TEXT) return content[0];
+  // Empty or node-valued hole (JSX stored as a value): bind onto an empty anchor after
+  // the server content. The content stays in place for `bindText` to adopt when the
+  // value describes it, and is removed only if the value turns out to be something else.
+  const anchor = document.createTextNode("");
+  (start.parentNode || document).insertBefore(anchor, end);
+  if (content.length) anchor.__otfwServerNodes = content;
+  return anchor;
 }
 
 /**

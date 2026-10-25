@@ -4,11 +4,21 @@
 
 ### Added
 
+- `hydratableNode(build, adopt)` and `adoptedChildren()`: JSX values passed as data
+  (a prop, module or component-local data, children read as a value) hydrate in place.
 - Development route refresh rebuilds only the edited page or layout. Its `$state`
   carries over while the declarations match; outer layouts keep their nodes and
   state, and an edited layout reuses the existing page view as `children`, so the
   page and its components keep their state. A failed layout rebuild leaves the
   current view in place. Needs the matching `@opentf/web-compiler` (`otfwc`).
+
+### Fixed
+
+- A text hole holding server-rendered elements (JSX passed as a value, such as a `Tabs`
+  panel's content) no longer discards them on hydration. `claimText` keeps the server
+  nodes and `bindText` adopts them when the value is the server's `{ __html }` stand-in
+  or a hydratable value, so inputs, focus and other state from before hydration survive.
+  Other values still replace the server content.
 
 ## [0.32.0] - 2026-10-07
 
