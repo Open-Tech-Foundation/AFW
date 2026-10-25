@@ -345,7 +345,9 @@ element/fragment value:
 ```
 
 Each embedded element is templated into a node-builder so it evaluates in the scope where
-it was written.
+it was written. On a server-rendered page, the receiving component adopts that markup in
+place during hydration, wherever it renders the value. Treat such values as render-only:
+render them with `{value}` rather than calling DOM methods on them.
 
 ## Refs
 

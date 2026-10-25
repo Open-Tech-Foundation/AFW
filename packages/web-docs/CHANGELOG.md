@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- `Tabs` follows later changes to its `tabs` prop. It read the prop once on connect, so
+  an update from the parent (including the one hydration delivers) was ignored.
 - `Tabs` follows the WAI-ARIA tabs pattern: `tab`/`tabpanel` roles, `aria-selected`,
   tab-to-panel links, one tab stop with roving `tabindex`, and Arrow Left/Right
   (wrapping), Home and End to move and select. Hidden panels use `hidden`, and a new

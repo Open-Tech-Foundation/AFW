@@ -191,18 +191,95 @@ const CASES = [
     })()`,
   },
   {
+    name: "JSX prop value adopts in place (Tabs content with an input)",
+    imports: `import Tabs from "${COMPONENTS}/Tabs.jsx";`,
+    body: `<Tabs label="Example" tabs={[{ label: "One", content: <input class="probe" value="" /> }, { label: "Two", content: "second" }]} />`,
+    props: {},
+    // The input is the parent's own JSX passed in a prop: it must be adopted, not rebuilt,
+    // so a value typed before hydration survives.
+    noSlot: true,
+    expectMarkup: [/<input class="probe"/],
+    preHydrate: `document.querySelector("input.probe").value = "typed early";`,
+    interact: `(async () => {
+      const input = document.querySelector("input.probe");
+      const tabs = [...document.querySelectorAll('[role="tab"]')];
+      tabs[1].click();
+      await new Promise((r) => setTimeout(r, 30));
+      return document.querySelectorAll("input.probe").length === 1 && input.value === "typed early"
+        && input.closest('[role="tabpanel"]').hidden && tabs[1].getAttribute("aria-selected") === "true";
+    })()`,
+  },
+  {
+    name: "Adopted JSX prop value stays reactive to the parent's state",
+    imports: `import Tabs from "${COMPONENTS}/Tabs.jsx";`,
+    setup: `let n = $state(1);`,
+    body: `<div><button class="inc" onclick={() => n++}>more</button><Tabs tabs={[{ label: "One", content: <p class="count">count {n}</p> }, { label: "Two", content: "second" }]} /></div>`,
+    props: {},
+    noSlot: true,
+    expectMarkup: [/<p class="count">count <!--\$-->1<!--\/--><\/p>/],
+    interact: `(async () => {
+      const p = document.querySelector("p.count");
+      const wasServer = !!p.__server;
+      document.querySelector("button.inc").click();
+      await new Promise((r) => setTimeout(r, 30));
+      return wasServer && document.querySelector("p.count") === p && p.textContent === "count 2";
+    })()`,
+  },
+  {
+    name: "CodeBlock prop values adopt in place (the installation page shape)",
+    imports: `import Tabs from "${COMPONENTS}/Tabs.jsx";\nimport CodeBlock from "${COMPONENTS}/CodeBlock.jsx";`,
+    body: `<Tabs tabs={[{ label: "npm", content: <CodeBlock code="npm i x" lang="bash" /> }, { label: "pnpm", content: <div><CodeBlock code="pnpm add x" lang="bash" /><p>Note</p></div> }]} />`,
+    props: {},
+    noSlot: true,
+    expectMarkup: [/<pre/],
+    interact: `(() => document.querySelectorAll("pre").length === 2 && [...document.querySelectorAll("pre")].every((pre) => pre.__server))()`,
+  },
+  {
+    name: "Module-level JSX data in a prop adopts in place (installTabs pattern)",
+    imports: `import Tabs from "${COMPONENTS}/Tabs.jsx";\nimport CodeBlock from "${COMPONENTS}/CodeBlock.jsx";`,
+    consts: `const TABS = [{ label: "npm", content: <CodeBlock code="npm i x" lang="bash" /> }, { label: "Input", content: <input class="probe" value="" /> }];`,
+    body: `<Tabs tabs={TABS} />`,
+    props: {},
+    noSlot: true,
+    expectMarkup: [/<pre/, /<input class="probe"/],
+    preHydrate: `document.querySelector("input.probe").value = "typed early";`,
+    interact: `(() => {
+      const input = document.querySelector("input.probe");
+      return document.querySelectorAll("input.probe").length === 1 && input.__server && input.value === "typed early"
+        && [...document.querySelectorAll("pre")].every((pre) => pre.__server);
+    })()`,
+  },
+  {
+    name: "Component-local JSX data in a prop adopts in place",
+    imports: `import Tabs from "${COMPONENTS}/Tabs.jsx";`,
+    setup: `let n = $state(1); const tabs = [{ label: "One", content: <div><input class="probe" value="" /><span class="count">{n}</span></div> }, { label: "Two", content: "second" }];`,
+    body: `<div><button class="inc" onclick={() => n++}>more</button><Tabs tabs={tabs} /></div>`,
+    props: {},
+    noSlot: true,
+    expectMarkup: [/<input class="probe"/],
+    preHydrate: `document.querySelector("input.probe").value = "typed early";`,
+    interact: `(async () => {
+      const input = document.querySelector("input.probe");
+      document.querySelector("button.inc").click();
+      await new Promise((r) => setTimeout(r, 30));
+      return input.__server && input.value === "typed early" && document.querySelector("span.count").textContent === "2";
+    })()`,
+  },
+  {
     name: "props.children passed as a prop value (Tabs content)",
     imports: `import Tabs from "${COMPONENTS}/Tabs.jsx";`,
     body: `<Tabs label="Example" tabs={[{ label: "One", content: props.children }, { label: "Two", content: "second" }]} />`,
     props: {},
-    // The children reach Tabs as a prop, not through a `{children}` slot: the server
-    // renders them as trusted HTML and the client rebuilds that panel content.
+    // The children reach Tabs as a prop, not through a `{children}` slot. The server renders
+    // them inside the panel, and hydration keeps those nodes in place.
     noSlot: true,
-    rebuildsContent: true,
-    expectMarkup: [/<b class="probe">PROBE<\/b>/],
+    children: '<input class="probe" value="">',
+    expectMarkup: [/<input class="probe"/],
+    preHydrate: `document.querySelector("input.probe").value = "typed early";`,
     interact: `(() => {
       const probes = document.querySelectorAll(".probe");
-      return probes.length === 1 && probes[0].textContent === "PROBE" && !!probes[0].closest('[role="tabpanel"]');
+      return probes.length === 1 && probes[0].__server && probes[0].value === "typed early"
+        && !!probes[0].closest('[role="tabpanel"]');
     })()`,
   },
   {
@@ -261,7 +338,7 @@ async function buildCase(kase, i) {
   const harness = `${TMP}/${name}.jsx`;
   await write(
     harness,
-    `${kase.imports}\n${kase.consts ?? ""}\nexport default function ${name}(props) {\n  return ${kase.body};\n}\n`,
+    `${kase.imports}\n${kase.consts ?? ""}\nexport default function ${name}(props) {\n  ${kase.setup ?? ""}\n  return ${kase.body};\n}\n`,
   );
 
   // Rich props (`frame={false}`, `config`, …) cross to the client through the serialized
@@ -317,10 +394,13 @@ const OBSERVER = `
   console.error = (...a) => { window.__errors.push(a.map(String).join(" ")); _ce(...a); };
 `;
 
-const pageHTML = (markup, payload, clientBundle) =>
+// `preHydrate` runs after the server markup is parsed and before the client bundle,
+// standing in for a reader who interacts before hydration finishes.
+const pageHTML = (markup, payload, clientBundle, preHydrate = "") =>
   `<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8">
 <script>${OBSERVER}</script><style>${themeCSS}</style></head>
 <body><div id="app" data-otfw-hydrate>${markup}</div>
+<script>${preHydrate}</script>
 <script type="application/json" id="__otfw_h">${payload}</script>
 <script type="module">${clientBundle}</script></body></html>`;
 
@@ -432,7 +512,7 @@ try {
       assert(!re.test(markup), `${kase.name}: server HTML does not match ${re}`);
     }
 
-    currentHTML = pageHTML(markup, payload, clientBundle);
+    currentHTML = pageHTML(markup, payload, clientBundle, kase.preHydrate);
     await client.send("Page.navigate", { url: `${origin}/?c=${i}` });
     await sleep(900);
     const s = await evalJS(client, probeExpr(kase.slotSelector));
@@ -443,7 +523,7 @@ try {
       `${kase.name}: nothing logged during hydration${s.errors.length ? ` — ${JSON.stringify(s.errors.slice(0, 1))}` : ""}`,
       kase.known,
     );
-    if (!kase.rebuildsContent) assert(
+    assert(
       s.removed.length === 0,
       `${kase.name}: no server node torn out${s.removed.length ? ` — removed ${JSON.stringify(s.removed.slice(0, 4))}` : ""}`,
       kase.known,

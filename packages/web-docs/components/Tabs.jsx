@@ -14,7 +14,7 @@ let instances = 0;
 export default function Tabs(props) {
   let active = $state(0);
   let list = $ref();
-  const tabs = props.tabs || [];
+  const tabs = $derived(props.tabs || []);
 
   onMount(() => {
     const id = `otfw-tabs-${++instances}`;
