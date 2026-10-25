@@ -11,6 +11,9 @@
 - `BlogLayout` shows "Last updated" only when a post's update falls on a later
   calendar day (UTC) than its publish date. An update dated before publication, such
   as a stale git timestamp or a backdated post, previously showed as well.
+- Date-only values (`YYYY-MM-DD`) passed to the shared date formatter keep their
+  calendar day in time zones behind UTC instead of rendering one day earlier. The
+  formatter now uses the Temporal API.
 
 ## [0.30.0] - 2026-10-07
 
