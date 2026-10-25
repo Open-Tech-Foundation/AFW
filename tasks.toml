@@ -99,8 +99,11 @@ deps = ["build-compiler"]
 run = "esdev test --config=esdev.test.json --dom --setup=@opentf/web-test/setup packages/web-test/tests/render.test.js packages/web-test/tests/setup.test.js packages/web-test/tests/types.test.js packages/web-test/tests/browser/user-event.test.js"
 
 # Website demo behavior, against the site's own installed packages (`tsr site-install`).
+# One file at a time until the site uses an @opentf/web-compiler release with atomic
+# binary extraction: on a fresh install, two files unpacking the compiler at once failed
+# with "Text file busy". Drop `--jobs=1` after that release.
 [tasks.test-site]
-run = "esdev test --dom tests"
+run = "esdev test --dom --jobs=1 tests"
 dir = "website"
 
 [tasks.test-benchmark-tooling]

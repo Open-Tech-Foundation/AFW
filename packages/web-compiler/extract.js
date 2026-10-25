@@ -7,7 +7,7 @@
 // It runs under the ES-Runtime alongside the rest of the toolchain, so package
 // installation needs no Node lifecycle hook.
 
-import { chmod, exists, file, write } from "runtime:fs";
+import { chmod, exists, file, remove, rename, write } from "runtime:fs";
 import { dirname, fromFileURL, join } from "runtime:path";
 import { arch, env, platform } from "runtime:process";
 import { resolve } from "runtime:build";
@@ -50,13 +50,46 @@ function hostBinPath({ binaryDir = packageDirectory(), os = platform, cpuArch = 
   return join(binaryDir, "bin", key, os === "windows" ? "otfwc.exe" : "otfwc");
 }
 
-/** Decompress the host's `.br` archive to a runnable binary; returns its path. */
-async function decompress(out, os = platform) {
-  const compressed = await file(`${out}.br`).stream();
-  const plain = compressed.pipeThrough(new DecompressionStream("brotli"));
-  await write(out, new Uint8Array(await new Response(plain).arrayBuffer()));
-  if (os !== "windows") await chmod(out, 0o755);
-  return out;
+// Extractions in progress in this process, by output path, so concurrent first uses
+// share one decompression.
+const pending = new Map();
+
+/**
+ * Decompress the host's `.br` archive to a runnable binary; returns its path.
+ *
+ * The binary is written to a uniquely named sibling file and renamed into place, so
+ * `out` only ever appears complete. Writing `out` directly let a concurrent first use
+ * (another test file, another process) see the half-written file and fail to spawn it
+ * with "Text file busy". Processes racing each other each write their own temporary
+ * file; the rename is atomic, so whichever lands last replaces an identical binary.
+ */
+function decompress(out, os = platform) {
+  let job = pending.get(out);
+  if (!job) {
+    job = decompressOnce(out, os).finally(() => pending.delete(out));
+    pending.set(out, job);
+  }
+  return job;
+}
+
+async function decompressOnce(out, os) {
+  const temp = `${out}.${crypto.randomUUID()}.tmp`;
+  try {
+    const compressed = await file(`${out}.br`).stream();
+    const plain = compressed.pipeThrough(new DecompressionStream("brotli"));
+    await write(temp, new Uint8Array(await new Response(plain).arrayBuffer()));
+    if (os !== "windows") await chmod(temp, 0o755);
+    try {
+      await rename(temp, out);
+    } catch (error) {
+      // Windows refuses to replace an executable that is running; another process
+      // already put a complete binary there.
+      if (!(await exists(out))) throw error;
+    }
+    return out;
+  } finally {
+    await remove(temp).catch(() => {});
+  }
 }
 
 /**

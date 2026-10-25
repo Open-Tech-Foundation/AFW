@@ -11,6 +11,11 @@
 
 ### Fixed
 
+- Extracting the `otfwc` binary on first use is atomic: it is unpacked into a
+  temporary file and renamed into place, and concurrent first uses in one process
+  share the extraction. Two compilers starting together on a fresh install (parallel
+  test files, a CI run) could spawn the half-written binary and fail with
+  "Text file busy".
 - Hydrate builds adopt JSX passed as data instead of rebuilding the component: a JSX
   prop value (`tabs={[{ content: <CodeBlock/> }]}`), JSX inside module-level or
   component-local data, and children read as a value. Each becomes

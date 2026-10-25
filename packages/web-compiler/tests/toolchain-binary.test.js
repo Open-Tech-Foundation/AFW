@@ -78,3 +78,49 @@ console.log(JSON.stringify({ binary, payload: await file(binary).text() }));
     expect(await file(binary).text()).toBe('search-binary');
   } finally { await remove(dir, { recursive: true }); }
 });
+
+// A real executable (a shell script, padded so writing it takes a moment) packed the
+// way the package ships it, in a fresh copy of the package with nothing extracted yet.
+async function packedToolchain(prefix) {
+  const dir = await makeTempDir({ dir: here, prefix });
+  for (const name of ['package.json', 'index.js', 'extract.js']) {
+    await copy(join(here, '..', name), join(dir, name));
+  }
+  await mkdir(join(dir, 'bin/linux-x64'), { recursive: true });
+  const script = `#!/bin/sh\necho toolchain-ok\nexit 0\n# ${'x'.repeat(4 * 1024 * 1024)}\n`;
+  const packed = new Blob([script]).stream().pipeThrough(new CompressionStream('brotli'));
+  await write(join(dir, 'bin/linux-x64/otfwc.br'), new Uint8Array(await new Response(packed).arrayBuffer()));
+  await write(join(dir, 'probe.mjs'), `
+import { otfwcPath } from './index.js';
+import { Command } from 'runtime:system';
+const options = { binaryDir: ${JSON.stringify(dir)}, os: 'linux', cpuArch: 'x86_64', environment: {} };
+const paths = await Promise.all(Array.from({ length: 4 }, () => otfwcPath(options)));
+for (const path of paths) {
+  const run = await new Command(path, { stdout: 'piped', stderr: 'piped' }).output();
+  if (!run.success) throw new Error(new TextDecoder().decode(run.stderr));
+  console.log(new TextDecoder().decode(run.stdout).trim());
+}
+`);
+  return dir;
+}
+
+test('concurrent first uses all get a complete, runnable binary', async () => {
+  if (platform !== 'linux') return; // the fixture is a shell script
+  const dir = await packedToolchain('toolchain-race-');
+  try {
+    // Several processes extract and immediately run the binary at the same moment, each
+    // also racing four calls of its own, like parallel test files on a fresh install.
+    const runs = await Promise.all(Array.from({ length: 6 }, () => new Command(env.ESDEV_BIN || 'esdev', {
+      args: ['probe.mjs'], cwd: dir, inheritEnv: true, stdout: 'piped', stderr: 'piped',
+    }).output()));
+    for (const run of runs) {
+      const stderr = new TextDecoder().decode(run.stderr);
+      expect(stderr.includes('Text file busy')).toBe(false);
+      expect(run.success).toBe(true);
+      expect(new TextDecoder().decode(run.stdout).trim().split('\n')).toEqual(Array(4).fill('toolchain-ok'));
+    }
+    const leftovers = [];
+    for await (const entry of await (await import('runtime:fs')).readDir(join(dir, 'bin/linux-x64'))) leftovers.push(entry.name);
+    expect(leftovers.sort()).toEqual(['otfwc', 'otfwc.br']);
+  } finally { await remove(dir, { recursive: true }); }
+});
