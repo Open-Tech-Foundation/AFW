@@ -12,8 +12,9 @@
   calendar day (UTC) than its publish date. An update dated before publication, such
   as a stale git timestamp or a backdated post, previously showed as well.
 - Date-only values (`YYYY-MM-DD`) passed to the shared date formatter keep their
-  calendar day in time zones behind UTC instead of rendering one day earlier. The
-  formatter now uses the Temporal API.
+  calendar day in time zones behind UTC instead of rendering one day earlier.
+  Timestamps, epoch milliseconds and `Date` objects still render in the viewer's
+  zone, and an impossible date such as `2026-02-30` renders as written.
 - `lastUpdatedPlugin` resolves a relative `appDir` (such as `"app"`) against the
   project directory. Git ran from each page's folder with a relative page path, so
   the browser build's `@opentf/web-docs/updated` map was empty while the prerender,
