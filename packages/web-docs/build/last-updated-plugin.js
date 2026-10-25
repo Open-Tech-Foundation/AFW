@@ -8,7 +8,8 @@
 // The same map is needed by the SSG step for the `article:modified_time` SEO tag, so
 // the scan is exposed as a callable (`loadLastUpdated`) too.
 
-import { join, relative } from "runtime:path";
+import { join, relative, resolve } from "runtime:path";
+import { cwd } from "runtime:process";
 
 import { readEntries, runOut } from "./host.js";
 import { readFrontmatter } from "./frontmatter.js";
@@ -64,6 +65,10 @@ export async function loadLastUpdated({ appDir, exclude = new Set() } = {}) {
 const gitRoot = (dir) => runOut("git", ["rev-parse", "--show-toplevel"], dir);
 
 async function collect(appDir, exclude, watch) {
+  // Plugin options are plain config data, so a relative `appDir` ("app") is relative
+  // to the project directory plugins run in. Resolve it here: git runs from each
+  // page's own folder, where a relative page path would point somewhere else.
+  appDir = resolve(cwd(), appDir);
   const updated = {};
   const editPaths = {};
   const root0 = await gitRoot(appDir);

@@ -14,6 +14,11 @@
 - Date-only values (`YYYY-MM-DD`) passed to the shared date formatter keep their
   calendar day in time zones behind UTC instead of rendering one day earlier. The
   formatter now uses the Temporal API.
+- `lastUpdatedPlugin` resolves a relative `appDir` (such as `"app"`) against the
+  project directory. Git ran from each page's folder with a relative page path, so
+  the browser build's `@opentf/web-docs/updated` map was empty while the prerender,
+  which passes an absolute path, had dates. Every page showing "Last updated" failed
+  hydration and was rebuilt on the client.
 
 ## [0.30.0] - 2026-10-07
 
