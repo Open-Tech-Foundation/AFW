@@ -11,6 +11,12 @@
 
 ### Fixed
 
+- Hydrate builds adopt JSX passed as data instead of rebuilding the component: a JSX
+  prop value (`tabs={[{ content: <CodeBlock/> }]}`), JSX inside module-level or
+  component-local data, and children read as a value. Each becomes
+  `hydratableNode(build, adopt)`, and the "JSX-valued props" / "JSX-as-value is not
+  supported yet" warnings are gone. Client builds are unchanged. Requires the matching
+  `@opentf/web` runtime.
 - A component reading its children as a value, such as
   `<Tabs tabs={[{ content: props.children }]} />`, threw `props is not defined` on
   the client and rendered nothing on the server. The client `props` alias now

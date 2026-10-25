@@ -89,6 +89,8 @@ struct Uses {
     skip_slot: bool,
     hydrate_slot: bool,
     hydrate_hole: bool,
+    hydratable_node: bool,
+    adopted_children: bool,
 }
 
 fn merge_uses(into: &mut Uses, from: &Uses) {
@@ -103,6 +105,8 @@ fn merge_uses(into: &mut Uses, from: &Uses) {
     into.skip_slot |= from.skip_slot;
     into.hydrate_slot |= from.hydrate_slot;
     into.hydrate_hole |= from.hydrate_hole;
+    into.hydratable_node |= from.hydratable_node;
+    into.adopted_children |= from.adopted_children;
 }
 
 /// Emit a whole module for the **hydrate target**. Calls `csr` to emit the build
@@ -182,8 +186,50 @@ pub fn emit_module(
         }
     }
 
-    let base =
-        csr::emit_module_with_adopt(components, module_stmts, module_exprs, &views, &templates);
+    // 3. Module-level JSX values (`const TABS = [{ content: <CodeBlock/> }]`): an adopt fn
+    // per node, so the value can claim the server nodes wherever it is rendered. A
+    // statement whose walk can't be emitted keeps its eager build.
+    let shell = crate::lower::module_shell("", module_exprs.clone(), module_stmts.to_vec());
+    let mut module_adopts: Vec<csr::ModuleValueAdopt> = Vec::new();
+    let mut module_adopt_count = 0;
+    for item in &shell.body {
+        let BodyItem::Jsx { nodes, .. } = item else { continue };
+        let mut fns = Vec::with_capacity(nodes.len());
+        let mut ok = true;
+        let mut stmt_uses = Uses::default();
+        let mut stmt_templates = Vec::new();
+        for node in nodes {
+            let name = format!("__otfw_madopt{module_adopt_count}");
+            let mut e = Emitter::new(&shell, None);
+            e.base = format!("__otfw_m{module_adopt_count}");
+            module_adopt_count += 1;
+            e.emit_value_adopt_fn(&name, node);
+            if !e.errors.is_empty() {
+                ok = false;
+                break;
+            }
+            merge_uses(&mut stmt_uses, &e.uses);
+            stmt_templates.extend(e.templates);
+            fns.push((name, e.lines));
+        }
+        if ok {
+            merge_uses(&mut uses, &stmt_uses);
+            templates.extend(stmt_templates);
+            uses.hydratable_node = true;
+            module_adopts.push(Some(fns));
+        } else {
+            module_adopts.push(None);
+        }
+    }
+
+    let base = csr::emit_module_with_adopt(
+        components,
+        module_stmts,
+        module_exprs,
+        &views,
+        &templates,
+        &module_adopts,
+    );
     let mut code = base.code;
     errors.extend(base.errors);
 
@@ -200,6 +246,31 @@ pub fn emit_module(
 /// Import only the hydrate-exclusive claim helpers (the reactive helpers are already
 /// imported by the CSR part). Safe to append after all code — ES imports hoist, so the
 /// bindings are live when `customElements.define` upgrades a server element mid-module.
+/// Whether the component places a `{children}` slot anywhere: in its returned view or in a
+/// JSX value it stores in a local (`const body = <div>{children}</div>`).
+fn uses_children_slot(lowered: &Lowered) -> bool {
+    has_children_slot(&lowered.ir.view)
+        || lowered.body.iter().any(|item| match item {
+            BodyItem::Jsx { nodes, .. } => nodes.iter().any(has_children_slot),
+            _ => false,
+        })
+}
+
+/// Whether `node` places a `{children}` slot anywhere in its tree.
+fn has_children_slot(node: &ViewNode) -> bool {
+    match node {
+        ViewNode::Children => true,
+        ViewNode::Element { children, .. } | ViewNode::Component { children, .. } | ViewNode::Fragment(children) => {
+            children.iter().any(has_children_slot)
+        }
+        ViewNode::DynamicNode { branches, .. } => branches.iter().any(has_children_slot),
+        ViewNode::List { source_branches, item, .. } => {
+            source_branches.iter().any(has_children_slot) || has_children_slot(item)
+        }
+        _ => false,
+    }
+}
+
 fn claim_import(uses: &Uses) -> String {
     let mut names = Vec::new();
     if uses.cursor {
@@ -235,6 +306,12 @@ fn claim_import(uses: &Uses) -> String {
     }
     if uses.hydrate_hole {
         names.push("hydrateHole");
+    }
+    if uses.hydratable_node {
+        names.push("hydratableNode");
+    }
+    if uses.adopted_children {
+        names.push("adoptedChildren");
     }
     if names.is_empty() {
         return String::new();
@@ -472,7 +549,15 @@ impl<'a> Emitter<'a> {
         // up front (before the body decls that emit those build fns) and let the walk's
         // `skipSlot` fill it with the real slotted nodes.
         if let Some(local) = lowered.children_local.clone() {
-            self.line(format!("let {local} = [];"));
+            if uses_children_slot(lowered) {
+                self.line(format!("let {local} = [];"));
+            } else {
+                // No slot: the children are only read as a value, which the server rendered
+                // wherever that value landed (another component's hole). Hand that hole a
+                // value that keeps the server nodes it finds there.
+                self.uses.adopted_children = true;
+                self.line(format!("let {local} = adoptedChildren();"));
+            }
         }
         for item in lowered.body.clone() {
             self.emit_decl_item(&item);
@@ -551,13 +636,13 @@ impl<'a> Emitter<'a> {
                 // and the condition is deterministic across server and client (the same
                 // hydration assumption everything else rests on), so evaluating the adopt
                 // template picks the same one. Any other JSX-embedding statement
-                // (`const map = { a: <A/> }`) isn't positional — keep the safe rebuild fallback.
+                // (`const tabs = [{ content: <A/> }]`) turns each node into
+                // `hydratableNode(build, adopt)`: whichever hole renders it adopts the server
+                // subtree there (see `bindText`), and builds it at any later render.
                 let plain = crate::sourcemap::plain(self.lowered.exprs.source_map.as_deref(), template);
                 match value_local(&plain) {
                     Some((name, rhs)) => self.emit_jsx_value_local(&name, &rhs, nodes),
-                    None => self
-                        .errors
-                        .push("hydrate: JSX-as-value is not supported yet (Phase 2.1)".into()),
+                    None => self.emit_hydratable_stmt(template, nodes),
                 }
             }
         }
@@ -1147,11 +1232,57 @@ impl<'a> Emitter<'a> {
                     self.bind(format!("effect(() => {{ setProp({el}, {}, ({code})); }})", js_string(&prop.name)));
                 }
             }
-            PropValue::DynamicNode { .. } => {
-                self.errors
-                    .push("hydrate: JSX-valued props are not supported yet (Phase 2.1)".into());
+            PropValue::DynamicNode { expr, branches } => {
+                let code = self.hydratable_value(*expr, branches);
+                self.bind(format!("effect(() => {{ setProp({el}, {}, ({code})); }})", js_string(&prop.name)));
             }
         }
+    }
+
+    /// A JSX value in prop position (`content={<CodeBlock/>}`, `tabs={[{ content: <p/> }]}`):
+    /// each embedded JSX becomes `hydratableNode(build, adopt)`. The receiving component's
+    /// hole adopts the server-rendered nodes with `adopt` during hydration (see `bindText`)
+    /// and calls `build` for any later render, so passing markup as a prop no longer forces
+    /// this component to rebuild.
+    fn hydratable_value(&mut self, expr: ExpressionId, branches: &[ViewNode]) -> String {
+        let mut values = Vec::with_capacity(branches.len());
+        for branch in branches {
+            let n = self.list_counter;
+            self.list_counter += 1;
+            let build_fn = format!("{}_pbuild{}", self.base, n);
+            let adopt_fn = format!("{}_padopt{}", self.base, n);
+            let (build_lines, tmpls) = csr::emit_build_node_fn(self.lowered, &build_fn, branch);
+            self.templates.extend(tmpls);
+            for l in build_lines {
+                self.line(l);
+            }
+            self.emit_value_adopt_fn(&adopt_fn, branch);
+            values.push(format!("hydratableNode({build_fn}, {adopt_fn})"));
+        }
+        self.uses.hydratable_node = true;
+        let template = self.code(expr);
+        substitute_branches_pub(&template, &values)
+    }
+
+    /// A JSX-embedding statement in a non-positional shape: each node becomes
+    /// `hydratableNode(build, adopt)` in place.
+    fn emit_hydratable_stmt(&mut self, template: &str, nodes: &[ViewNode]) {
+        let mut values = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let n = self.list_counter;
+            self.list_counter += 1;
+            let build_fn = format!("{}_sbuild{}", self.base, n);
+            let adopt_fn = format!("{}_sadopt{}", self.base, n);
+            let (build_lines, tmpls) = csr::emit_build_node_fn(self.lowered, &build_fn, node);
+            self.templates.extend(tmpls);
+            for l in build_lines {
+                self.line(l);
+            }
+            self.emit_value_adopt_fn(&adopt_fn, node);
+            values.push(format!("hydratableNode({build_fn}, {adopt_fn})"));
+        }
+        self.uses.hydratable_node = true;
+        self.line(substitute_branches_pub(template, &values));
     }
 
     /// `on*:mod={fn}` → `addEventListener`, collecting a remove-disposer in a component
@@ -1622,22 +1753,21 @@ mod tests {
     #[test]
     fn a_build_that_can_run_mid_hydration_is_wrapped_in_run_build() {
         // Regression (docs/HYDRATION.md §3.5): a component the hydrate backend can't adopt —
-        // here because it binds JSX inside an object literal (`const parts = { body: <jsx/> }`),
-        // which isn't a single positional node to claim — falls to `RebuildIfServerChildren`
-        // and rebuilds on first paint. (The plain `const body = <jsx/>` idiom that took down the
-        // docs site *does* adopt now, Phase 2.1e; this uses a shape that still can't.) That
-        // rebuild runs while `isHydrating()` is still set, so its fresh child islands must
-        // build, not adopt DOM this component just created. Codegen brackets the build in
-        // `runBuild(() => …)`, which clears the flag for the build's synchronous span.
+        // here because it spreads props onto an element, which the adopt walk can't claim yet —
+        // falls to `RebuildIfServerChildren` and rebuilds on first paint. That rebuild runs
+        // while `isHydrating()` is still set, so its fresh child islands must build, not adopt
+        // DOM this component just created. Codegen brackets the build in `runBuild(() => …)`,
+        // which clears the flag for the build's synchronous span.
         let m = emit_component(
-            "export default function Panel({ framed, children }){ const parts = { body: <div class=\"b\">{children}</div> }; \
-             return framed ? <section>{parts.body}</section> : parts.body; }",
+            "export default function Panel({ framed, children, ...rest }){ \
+             return framed ? <section {...rest}><div class=\"b\">{children}</div></section> : <div class=\"b\">{children}</div>; }",
         );
-        // JSX-as-value is a *non-fatal* adopt error: it's reported (so the gap is visible) but
-        // the module still emits — with this component demoted to `RebuildIfServerChildren`.
+        // An unsupported shape is a *non-fatal* adopt error: it's reported (so the gap is
+        // visible) but the module still emits — with this component demoted to
+        // `RebuildIfServerChildren`.
         assert!(
-            m.errors.iter().any(|e| e.contains("JSX-as-value")),
-            "the object-embedded JSX makes it non-adoptable:\n{:?}",
+            m.errors.iter().any(|e| e.contains("spread props")),
+            "the spread makes it non-adoptable:\n{:?}",
             m.errors,
         );
         // The RebuildIfServerChildren build is wrapped in runBuild.
@@ -1830,28 +1960,33 @@ mod tests {
     }
 
     #[test]
-    fn array_embedded_jsx_value_stays_non_adoptable() {
-        // A placeholder that isn't in a node position of a conditional — an array element —
-        // stays on the rebuild fallback: substituting an adopt call there would claim DOM that
-        // isn't at the cursor.
+    fn array_embedded_jsx_values_become_hydratable() {
+        // A JSX node that isn't in a node position — an array element — can't be claimed off the
+        // statement's cursor. It becomes `hydratableNode(build, adopt)` instead: whichever hole
+        // renders it adopts the server nodes there.
         let m = emit_component(
             "export default function C(props){ const tabs = [<a>1</a>, <b>2</b>]; \
              return <section>{tabs[0]}</section>; }",
         );
-        assert!(m.errors.iter().any(|e| e.contains("JSX-as-value")), "still errors:\n{:?}", m.errors);
-        assert!(!m.code.contains("hydrateHole"), "no in-place adoption:\n{}", m.code);
+        assert!(m.errors.is_empty(), "adoptable:\n{:?}", m.errors);
+        assert!(
+            m.code.contains("const tabs = [hydratableNode(default_sbuild0, default_sadopt0), hydratableNode(default_sbuild1, default_sadopt1)];"),
+            "code:\n{}",
+            m.code
+        );
     }
 
     #[test]
-    fn object_embedded_jsx_value_stays_non_adoptable() {
-        // Only the bare `const NAME = <jsx>` shape is adoptable. A JSX value inside an object
-        // (or array, or ternary) isn't one positional node — it stays on the rebuild fallback.
+    fn object_embedded_jsx_value_with_a_slot_becomes_hydratable() {
+        // A JSX value inside an object is hydratable too, and its `{children}` slot still
+        // counts as the component's slot, so the slot capture is kept.
         let m = emit_component(
             "export default function C({ children }){ const o = { body: <div>{children}</div> }; \
              return <section>{o.body}</section>; }",
         );
-        assert!(m.errors.iter().any(|e| e.contains("JSX-as-value")), "still errors:\n{:?}", m.errors);
-        assert!(!m.code.contains("hydrateHole"), "no in-place adoption:\n{}", m.code);
+        assert!(m.errors.is_empty(), "adoptable:\n{:?}", m.errors);
+        assert!(m.code.contains("const o = { body: hydratableNode(default_sbuild0, default_sadopt0) };"), "code:\n{}", m.code);
+        assert!(m.code.contains("let children = [];"), "code:\n{}", m.code);
     }
 
     #[test]
@@ -2123,5 +2258,58 @@ mod tests {
         assert!(m.is_complete(), "errors: {:?}", m.errors);
         let hyd = hydrate_fn(&m.code);
         assert!(hyd.contains("(x, _index) => (x)"), "key fn threaded to hydrateList:\n{}", hyd);
+    }
+
+    #[test]
+    fn jsx_prop_value_is_hydratable_instead_of_forcing_a_rebuild() {
+        let m = emit_component(
+            "import Tabs from \"./Tabs.jsx\";\nexport default function H() { let n = $state(1); \
+             return <Tabs tabs={[{ label: \"A\", content: <p class=\"x\">count {n}</p> }]} />; }",
+        );
+        assert!(m.errors.is_empty(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("hydratableNode(default_pbuild0, default_padopt0)"), "code:\n{}", m.code);
+        assert!(m.code.contains("const default_padopt0 = (__vc) => {"), "code:\n{}", m.code);
+        assert!(m.code.contains("claimElement(__vc, \"p\")"), "code:\n{}", m.code);
+        assert!(m.code.contains("hydratableNode } from \"@opentf/web\"") || m.code.contains(", hydratableNode"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn module_level_jsx_values_are_hydratable_in_the_hydrate_build_only() {
+        let source = "import CodeBlock from \"./CodeBlock.jsx\";\n\
+             const TABS = [{ label: \"npm\", content: <CodeBlock code=\"npm i x\" /> }];\n\
+             export default function Page() { return <div>{TABS.length}</div>; }";
+        let m = emit(source);
+        assert!(m.errors.is_empty(), "errors: {:?}", m.errors);
+        assert!(
+            m.code.contains("const TABS = [{ label: \"npm\", content: hydratableNode(__otfw_mbuild0_0, __otfw_madopt0) }];"),
+            "code:\n{}",
+            m.code
+        );
+        assert!(m.code.contains("const __otfw_madopt0 = (__vc) => {"), "code:\n{}", m.code);
+        let session = ParseSession::new();
+        let parsed = session.parse(Path::new("/app/page.tsx"), source);
+        let lowered = lower_module("/app/page.tsx", &parsed.program, source, true).expect("lowered");
+        let csr = csr::emit_module(&lowered.components, &lowered.module_stmts, &lowered.module_exprs);
+        assert!(!csr.code.contains("hydratableNode"), "client build stays eager:\n{}", csr.code);
+    }
+
+    #[test]
+    fn children_read_only_as_a_value_adopt_the_server_nodes() {
+        let m = emit_component(
+            "import Tabs from \"./Tabs.jsx\";\nexport default function H(props) { \
+             return <Tabs tabs={[{ label: \"A\", content: props.children }]} />; }",
+        );
+        assert!(m.errors.is_empty(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("let __children = adoptedChildren();"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn a_children_slot_inside_a_value_local_keeps_the_slot_capture() {
+        let m = emit_component(
+            "export default function Panel(props) { const body = <div class=\"b\">{props.children}</div>; \
+             return props.frame ? <section>{body}</section> : body; }",
+        );
+        assert!(m.code.contains("let __children = [];"), "code:\n{}", m.code);
+        assert!(!m.code.contains("adoptedChildren()"), "code:\n{}", m.code);
     }
 }

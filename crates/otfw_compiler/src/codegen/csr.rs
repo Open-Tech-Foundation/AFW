@@ -666,13 +666,13 @@ pub fn emit_module(
     module_stmts: &[BodyItem],
     module_exprs: &ExprTable,
 ) -> CsrModule {
-    emit_module_inner(components, module_stmts, module_exprs, &[], &[])
+    emit_module_inner(components, module_stmts, module_exprs, &[], &[], &[])
 }
 
 /// Development CSR. Page factories and mixed export modules remain reload boundaries.
 pub fn emit_hot_module(components: &[Lowered], module_stmts: &[BodyItem], module_exprs: &ExprTable) -> CsrModule {
     let views = vec![ComponentView::Hot; components.len()];
-    emit_module_inner(components, module_stmts, module_exprs, &views, &[])
+    emit_module_inner(components, module_stmts, module_exprs, &views, &[], &[])
 }
 
 /// Like `emit_module`, but each component may carry a [`ComponentView`] (aligned with
@@ -684,14 +684,19 @@ pub fn emit_hot_module(components: &[Lowered], module_stmts: &[BodyItem], module
 /// the hydrate backend's adopt bodies and page factories embed CSR build functions
 /// (via [`emit_build_item_fn`] / [`emit_build_node_fn`]) whose stamped subtrees need
 /// their `const` declared here, ahead of every `customElements.define`.
+/// Adopt functions for the JSX nodes of one module-level value statement, in node order:
+/// `(fn name, declaration lines)`. `None` keeps that statement's eager build.
+pub(crate) type ModuleValueAdopt = Option<Vec<(String, Vec<String>)>>;
+
 pub(crate) fn emit_module_with_adopt(
     components: &[Lowered],
     module_stmts: &[BodyItem],
     module_exprs: &ExprTable,
     views: &[ComponentView],
     extra_templates: &[Template],
+    module_adopts: &[ModuleValueAdopt],
 ) -> CsrModule {
-    emit_module_inner(components, module_stmts, module_exprs, views, extra_templates)
+    emit_module_inner(components, module_stmts, module_exprs, views, extra_templates, module_adopts)
 }
 
 /// Emit a standalone build function for a **list item** — `function name(itemSig, index)
@@ -779,6 +784,7 @@ fn emit_module_inner(
     module_exprs: &ExprTable,
     views: &[ComponentView],
     extra_templates: &[Template],
+    module_adopts: &[ModuleValueAdopt],
 ) -> CsrModule {
     let mut combined = Uses::default();
     let mut errors = Vec::new();
@@ -833,11 +839,41 @@ fn emit_module_inner(
     // the shared import header).
     let shell = module_shell("", module_exprs.clone(), module_stmts.to_vec());
     let mut me = Emitter::new(&shell, Disposal::None);
+    let mut jsx_index = 0;
     for item in shell.body.clone() {
         match item {
             BodyItem::Signal(decl) => me.emit_decl(&decl),
             BodyItem::Raw(stmt) => me.line(stmt),
-            BodyItem::Jsx { template, nodes } => me.emit_value_stmt(&template, &nodes),
+            BodyItem::Jsx { template, nodes } => {
+                let adopts = module_adopts.get(jsx_index).cloned().flatten();
+                jsx_index += 1;
+                match adopts {
+                    // Hydrate build: each JSX value becomes `hydratableNode(build, adopt)`, so
+                    // a hole receiving it adopts the server nodes instead of a node built
+                    // once at import time. The eager form still runs (and is dropped) to
+                    // collect its imports.
+                    Some(adopts) if adopts.len() == nodes.len() => {
+                        let before = me.lines.len();
+                        me.emit_value_stmt(&template, &nodes);
+                        me.lines.truncate(before);
+                        let mut calls = Vec::with_capacity(nodes.len());
+                        for (i, (node, (adopt_fn, adopt_lines))) in nodes.iter().zip(adopts).enumerate() {
+                            let build_fn = format!("__otfw_mbuild{}_{i}", jsx_index - 1);
+                            let (lines, tmpls) = emit_build_node_fn(&shell, &build_fn, node);
+                            me.templates.extend(tmpls);
+                            for l in lines {
+                                me.line(l);
+                            }
+                            for l in adopt_lines {
+                                me.line(l);
+                            }
+                            calls.push(format!("hydratableNode({build_fn}, {adopt_fn})"));
+                        }
+                        me.line(substitute_branches(&template, &calls));
+                    }
+                    _ => me.emit_value_stmt(&template, &nodes),
+                }
+            }
         }
     }
     let module_code = me.render("");
