@@ -38,6 +38,10 @@
 * [ ] Original Markdown/MDX source maps: current maps target the generated `?otfw-jsx` intermediate. The Markdown front end still needs to supply the preceding mapping.
 * [x] Native esdev starters (spa, fullstack, docs, library) verified on esdev 0.16. Open upstream issues: [ESDEV_MIGRATION.md](ESDEV_MIGRATION.md).
 
+## Streaming (for future review)
+* [ ] Streamed SSR. Today `renderRoute()` returns one complete HTML string and loaders block rendering.
+* [ ] Evaluate [Declarative Partial Updates](https://github.com/WICG/declarative-partial-updates/blob/main/patching-explainer.md) (`<?start>`/`<?marker>` placeholders filled by `<template for>`) for out-of-order streaming. A WICG proposal shipping in one browser so far; the hydration walk would need to adopt content the parser moves into place.
+
 ## Known issues
 Open items carried over from the 2026-10 site and HMR audits.
 * [ ] SSG omits spread attributes and multi-node (fragment) roots; the client restores them after hydration.
