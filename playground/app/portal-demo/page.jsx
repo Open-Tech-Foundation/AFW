@@ -2,7 +2,7 @@
 // contrasted with a native <dialog> (the top layer) — which for modals
 // specifically is the simpler, built-in alternative to a portal.
 
-import { Portal } from "@opentf/web";
+import { Portal } from "@opentf/afw";
 
 export default function PortalDemoPage() {
   let open = $state(false);

@@ -1,0 +1,430 @@
+//! `$state` holds a signal whose value is *replaced*, never mutated: reactivity
+//! fires on `signal.value = …`, not on mutating the object the value points at.
+//! Writing `list.push(x)`, `list[0] = x`, `obj.a.b = x`, `obj.n++`, etc. therefore
+//! updates the data but notifies no effect — the change is silently lost. These
+//! tests pin the compile-time diagnostic that rejects such mutations with the
+//! immutable-update / `reactive()` fix (SPEC §3.4), and confirm the legal patterns
+//! (immutable reassignment, primitive updates, read methods, non-`$state` locals,
+//! `$ref` DOM writes) still pass clean.
+use std::path::Path;
+
+use afw_compiler::lower::state_mutation_diagnostic;
+use afw_compiler::parse::ParseSession;
+
+/// The diagnostic message for `source`, or `None` when the module is clean.
+fn diagnose(source: &str) -> Option<String> {
+    let session = ParseSession::new();
+    let parsed = session.parse(Path::new("C.tsx"), source);
+    assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+    // The diagnostic carries its source offset; these tests assert on the message.
+    state_mutation_diagnostic(&parsed.program, source).map(|(_, msg)| msg)
+}
+
+/// Assert `source` is rejected and the guidance names the immutable escape hatches.
+fn assert_rejected(source: &str) -> String {
+    let msg = diagnose(source).unwrap_or_else(|| panic!("expected rejection for:\n{source}"));
+    assert!(msg.contains("$state"), "message names $state:\n{msg}");
+    assert!(msg.contains("reactive()"), "message points to reactive():\n{msg}");
+    msg
+}
+
+/// Assert `source` compiles clean (no mutation diagnostic).
+fn assert_clean(source: &str) {
+    if let Some(msg) = diagnose(source) {
+        panic!("expected clean, got diagnostic:\n{msg}\n\nfor source:\n{source}");
+    }
+}
+
+// ── Rejected: in-place mutation of a `$state` value ──────────────────────────
+
+// The original report: `.push()` on a `$state` array is a silent no-op.
+#[test]
+fn rejects_array_push() {
+    let msg = assert_rejected(
+        "export default function List() {\n\
+         \x20 const myList = $state([]);\n\
+         \x20 const add = () => { myList.push(\"Random\"); };\n\
+         \x20 return <button onClick={add}>New</button>;\n\
+         }",
+    );
+    assert!(msg.contains("myList.push"), "snippet is quoted back:\n{msg}");
+}
+
+#[test]
+fn rejects_all_array_mutators() {
+    for m in ["pop()", "shift()", "unshift(1)", "splice(0, 1)", "reverse()", "sort()", "fill(0)"] {
+        assert_rejected(&format!(
+            "export default function C() {{\n\
+             \x20 const xs = $state([1, 2, 3]);\n\
+             \x20 const go = () => {{ xs.{m}; }};\n\
+             \x20 return <button onClick={{go}}>x</button>;\n\
+             }}"
+        ));
+    }
+}
+
+#[test]
+fn rejects_index_assignment() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const xs = $state([1]);\n\
+         \x20 const go = () => { xs[0] = 9; };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+#[test]
+fn rejects_length_assignment() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const xs = $state([1, 2]);\n\
+         \x20 const clear = () => { xs.length = 0; };\n\
+         \x20 return <button onClick={clear}>x</button>;\n\
+         }",
+    );
+}
+
+#[test]
+fn rejects_object_property_write() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const user = $state({ name: \"a\", meta: { age: 1 } });\n\
+         \x20 const go = () => { user.meta.age = 2; };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+#[test]
+fn rejects_map_and_set_mutators() {
+    for (init, call) in [
+        ("new Map()", "m.set(\"k\", 1)"),
+        ("new Map([[\"k\", 1]])", "m.delete(\"k\")"),
+        ("new Set()", "m.add(1)"),
+        ("new Set([1])", "m.clear()"),
+    ] {
+        assert_rejected(&format!(
+            "export default function C() {{\n\
+             \x20 const m = $state({init});\n\
+             \x20 const go = () => {{ {call}; }};\n\
+             \x20 return <button onClick={{go}}>x</button>;\n\
+             }}"
+        ));
+    }
+}
+
+#[test]
+fn rejects_delete_operator() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const user = $state({ name: \"a\", tmp: 1 });\n\
+         \x20 const go = () => { delete user.tmp; };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+#[test]
+fn rejects_member_increment() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const s = $state({ n: 0 });\n\
+         \x20 const go = () => { s.n++; };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+// ── Clean: the legal ways to update state ────────────────────────────────────
+
+// The prescribed fix — reassigning the signal with a new array — is legal.
+#[test]
+fn allows_immutable_reassignment() {
+    assert_clean(
+        "export default function List() {\n\
+         \x20 let myList = $state([]);\n\
+         \x20 const add = () => { myList = [...myList, \"Random\"]; };\n\
+         \x20 return <button onClick={add}>New</button>;\n\
+         }",
+    );
+}
+
+// Primitive updates are `.value` reassignments, not mutations — always legal.
+#[test]
+fn allows_primitive_reassignment_and_update() {
+    assert_clean(
+        "export default function C() {\n\
+         \x20 let count = $state(0);\n\
+         \x20 const inc = () => { count++; count = count + 1; };\n\
+         \x20 return <button onClick={inc}>{count}</button>;\n\
+         }",
+    );
+}
+
+// Read methods are how JSX and `_mapped()` consume the list — must stay legal.
+#[test]
+fn allows_read_methods() {
+    assert_clean(
+        "export default function List() {\n\
+         \x20 const items = $state([1, 2, 3]);\n\
+         \x20 return <ul>{items.filter((i) => i > 1).map((i) => <li>{i}</li>)}</ul>;\n\
+         }",
+    );
+}
+
+// Map/Set read methods (`get`, `has`, `size`) are reads, not mutations — legal.
+#[test]
+fn allows_map_read_methods() {
+    assert_clean(
+        "export default function C() {\n\
+         \x20 const m = $state(new Map([[\"k\", 1]]));\n\
+         \x20 return <span>{m.has(\"k\") ? m.get(\"k\") : 0}</span>;\n\
+         }",
+    );
+}
+
+// An array mutator on a `$state` of *unknown* shape (initializer isn't a literal)
+// is still flagged — `push`/`pop`/… are effectively array-specific.
+#[test]
+fn rejects_array_mutator_on_unknown_shape() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const xs = $state(makeList());\n\
+         \x20 const go = () => { xs.push(1); };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+// A written TS type argument upgrades an otherwise-unknown initializer: with
+// `$state<Map<…>>(makeStore())` the compiler knows it's a Map and flags `.set()`.
+#[test]
+fn rejects_collection_mutator_with_ts_type_arg() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const m = $state<Map<string, number>>(makeStore());\n\
+         \x20 const go = () => { m.set(\"k\", 1); };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+// A binding annotation does the same: `const m: Set<number> = $state(load())`.
+#[test]
+fn rejects_collection_mutator_with_ts_annotation() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const m: Set<number> = $state(load());\n\
+         \x20 const go = () => { m.add(1); };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+// A written type also *narrows away* a false positive: `$state<Store>()` where
+// `Store` is a custom object type keeps `.set()` legal even if the value is a Map at
+// runtime — the written type is what the author declared, so we honor it.
+#[test]
+fn allows_collection_mutator_with_custom_ts_type() {
+    assert_clean(
+        "export default function C() {\n\
+         \x20 const s = $state<Store>(makeStore());\n\
+         \x20 const go = () => { s.set(\"k\", 1); };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+// A written array type flags a mutator even when the initializer is opaque.
+#[test]
+fn rejects_array_mutator_with_ts_type() {
+    assert_rejected(
+        "export default function C() {\n\
+         \x20 const xs: string[] = $state(load());\n\
+         \x20 const go = () => { xs.push(\"x\"); };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+// The false-positive guard: `set`/`add`/`delete`/`clear` are common object method
+// names, so they are only flagged when the initializer is a real `Map`/`Set`. A
+// plain object exposing a `set` method is NOT flagged.
+#[test]
+fn allows_object_method_named_like_collection_mutator() {
+    assert_clean(
+        "export default function C() {\n\
+         \x20 const store = $state({ set: (k, v) => k });\n\
+         \x20 const go = () => { store.set(\"k\", 1); };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+// Likewise, a collection mutator on an unknown-shape `$state` is not flagged —
+// the name is too ambiguous to assume Map/Set without a static hint.
+#[test]
+fn allows_collection_mutator_on_unknown_shape() {
+    assert_clean(
+        "export default function C() {\n\
+         \x20 const s = $state(makeStore());\n\
+         \x20 const go = () => { s.add(1); };\n\
+         \x20 return <button onClick={go}>x</button>;\n\
+         }",
+    );
+}
+
+// A plain local (not `$state`) may be mutated freely — e.g. building an array.
+#[test]
+fn allows_mutation_of_non_state_local() {
+    assert_clean(
+        "export default function C() {\n\
+         \x20 const build = () => { const parts = []; parts.push(1); return parts; };\n\
+         \x20 return <button onClick={build}>x</button>;\n\
+         }",
+    );
+}
+
+// A local that shadows a `$state` name is a different symbol — not flagged.
+#[test]
+fn allows_shadowed_local_mutation() {
+    assert_clean(
+        "export default function C() {\n\
+         \x20 const xs = $state([1]);\n\
+         \x20 const go = () => { const xs = []; xs.push(2); };\n\
+         \x20 return <button onClick={go}>{xs.length}</button>;\n\
+         }",
+    );
+}
+
+// `$ref` holds a DOM node; imperative DOM writes on it are legitimate, not state
+// mutations, so they must not be flagged.
+#[test]
+fn allows_ref_dom_write() {
+    assert_clean(
+        "export default function C() {\n\
+         \x20 let box = $ref(null);\n\
+         \x20 onMount(() => { box.scrollTop = 0; });\n\
+         \x20 return <div ref={box} />;\n\
+         }",
+    );
+}
+
+// A module with no `$state` at all is trivially clean (fast path).
+#[test]
+fn allows_module_without_state() {
+    assert_clean("export default function C() { return <div>hi</div>; }");
+}
+
+// ── Rejected: mutation through a local that aliases into a `$state` value ────
+// The mutation's member root is the local, not the `$state` symbol, so these read
+// as ordinary locals — but they hand back the very object the signal holds, so the
+// write is lost just the same. Reported from the field: a `.map` callback that
+// marks its argument dirty updated nothing, with no diagnostic to explain why.
+
+#[test]
+fn rejects_mutation_of_a_map_callback_param() {
+    let msg = assert_rejected(
+        "export default function C() {
+           const tabs = $state([{ id: 1, dirty: false }]);
+           const mark = () => tabs.map((t) => { t.dirty = true; });
+           return <div onClick={mark}>{tabs.length}</div>;
+         }",
+    );
+    assert!(msg.contains("t.dirty = true"), "names the offending write:\n{msg}");
+}
+
+#[test]
+fn rejects_mutation_of_a_foreach_callback_param() {
+    assert_rejected(
+        "export default function C() {
+           const tabs = $state([{ id: 1 }]);
+           const mark = () => tabs.forEach((t) => { t.dirty = true; });
+           return <div onClick={mark}>{tabs.length}</div>;
+         }",
+    );
+}
+
+#[test]
+fn rejects_mutation_through_a_member_chain_alias() {
+    assert_rejected(
+        "export default function C() {
+           const s = $state({ user: { name: 'a' } });
+           const rename = () => { const u = s.user; u.name = 'b'; };
+           return <div onClick={rename}>{s.user.name}</div>;
+         }",
+    );
+}
+
+#[test]
+fn rejects_array_mutator_on_a_whole_value_alias() {
+    // `const tmp = list` aliases the whole value, so it keeps the Array shape and
+    // the array-mutator gate still applies.
+    assert_rejected(
+        "export default function C() {
+           const list = $state([1]);
+           const add = () => { const tmp = list; tmp.push(2); };
+           return <div onClick={add}>{list.length}</div>;
+         }",
+    );
+}
+
+#[test]
+fn rejects_mutation_of_a_for_of_binding() {
+    assert_rejected(
+        "export default function C() {
+           const tabs = $state([{ id: 1 }]);
+           const mark = () => { for (const t of tabs) { t.dirty = true; } };
+           return <div onClick={mark}>{tabs.length}</div>;
+         }",
+    );
+}
+
+// ── Clean: aliases that are only read, or that point at fresh values ─────────
+
+#[test]
+fn allows_reading_a_map_callback_param() {
+    assert_clean(
+        "export default function C() {
+           const tabs = $state([{ id: 1, name: 'a' }]);
+           return <ul>{tabs.map((t) => <li key={t.id}>{t.name}</li>)}</ul>;
+         }",
+    );
+}
+
+#[test]
+fn allows_a_map_callback_that_returns_a_new_object() {
+    // The immutable update the diagnostic steers toward — the param is copied, not
+    // written through.
+    assert_clean(
+        "export default function C() {
+           let tabs = $state([{ id: 1, dirty: false }]);
+           const mark = () => { tabs = tabs.map((t) => ({ ...t, dirty: true })); };
+           return <div onClick={mark}>{tabs.length}</div>;
+         }",
+    );
+}
+
+#[test]
+fn allows_mutating_a_freshly_derived_array() {
+    // `.map()` returns a new array; it is not the signal's value, so mutating the
+    // local loses nothing.
+    assert_clean(
+        "export default function C() {
+           const tabs = $state([{ id: 1, name: 'a' }]);
+           const names = () => { const out = tabs.map((t) => t.name); out.push('z'); return out; };
+           return <div onClick={names}>{tabs.length}</div>;
+         }",
+    );
+}
+
+#[test]
+fn allows_callback_params_of_a_non_state_source() {
+    assert_clean(
+        "export default function C(props) {
+           const mark = () => props.rows.forEach((r) => { r.dirty = true; });
+           return <div onClick={mark}>x</div>;
+         }",
+    );
+}

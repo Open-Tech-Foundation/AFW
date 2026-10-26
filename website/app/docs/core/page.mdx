@@ -1,11 +1,11 @@
 ---
 title: Runtime API
-description: Values and components exported from @opentf/web.
+description: Values and components exported from @opentf/afw.
 ---
 
 # Runtime API
 
-These are imported from `@opentf/web`. (Reactive primitives are also what the macros
+These are imported from `@opentf/afw`. (Reactive primitives are also what the macros
 compile to — prefer the macros in components.)
 
 ## Reactivity
@@ -37,9 +37,9 @@ or nested data you update by mutation.
 ### Internationalization
 
 URL path-prefix locale routing. Enable via `mountApp({ i18n: { locales, defaultLocale } })`
-using settings from the [`otfw.config` `i18n` block](/docs/configuration#i18n).
+using settings from the [`afw.config` `i18n` block](/docs/configuration#i18n).
 The entry must pass those settings explicitly. Messages and formatters live
-in [`@opentf/web-i18n`](/api/web-i18n).
+in [`@opentf/afw-i18n`](/api/afw-i18n).
 
 | Export | Signature | Description |
 | --- | --- | --- |

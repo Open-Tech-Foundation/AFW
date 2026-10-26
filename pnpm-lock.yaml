@@ -8,24 +8,24 @@ importers:
 
   .:
     devDependencies:
-      '@opentf/esdev-plugin-web':
+      '@opentf/afw-cli':
         specifier: workspace:*
-        version: link:packages/esdev-plugin-web
+        version: link:packages/afw-cli
+      '@opentf/afw-docs':
+        specifier: workspace:*
+        version: link:packages/afw-docs
+      '@opentf/afw-test':
+        specifier: workspace:*
+        version: link:packages/afw-test
+      '@opentf/esdev-plugin-afw':
+        specifier: workspace:*
+        version: link:packages/esdev-plugin-afw
       '@opentf/esrun-types':
         specifier: ^0.4.0
         version: 0.4.0
       '@opentf/std':
         specifier: ^0.19.0
         version: 0.19.0
-      '@opentf/web-cli':
-        specifier: workspace:*
-        version: link:packages/web-cli
-      '@opentf/web-docs':
-        specifier: workspace:*
-        version: link:packages/web-docs
-      '@opentf/web-test':
-        specifier: workspace:*
-        version: link:packages/web-test
       tailwindcss:
         specifier: ^4.2.2
         version: 4.2.2
@@ -39,18 +39,18 @@ importers:
         specifier: ^4.3.6
         version: 4.6.2
 
-  benchmarks/otfw:
+  benchmarks/afw:
     dependencies:
-      '@opentf/web':
+      '@opentf/afw':
         specifier: workspace:*
-        version: link:../../packages/web
+        version: link:../../packages/afw
     devDependencies:
-      '@opentf/esdev-plugin-web':
+      '@opentf/afw-cli':
         specifier: workspace:*
-        version: link:../../packages/esdev-plugin-web
-      '@opentf/web-cli':
+        version: link:../../packages/afw-cli
+      '@opentf/esdev-plugin-afw':
         specifier: workspace:*
-        version: link:../../packages/web-cli
+        version: link:../../packages/esdev-plugin-afw
 
   benchmarks/react:
     dependencies:
@@ -80,69 +80,63 @@ importers:
         specifier: ^5.16.0
         version: 5.57.0
 
-  packages/esdev-plugin-web:
+  packages/afw: {}
+
+  packages/afw-cli:
     dependencies:
-      '@opentf/web-compiler':
+      '@opentf/afw':
         specifier: workspace:*
-        version: link:../web-compiler
+        version: link:../afw
+      '@opentf/esdev-plugin-afw':
+        specifier: workspace:*
+        version: link:../esdev-plugin-afw
 
-  packages/web: {}
+  packages/afw-compiler: {}
 
-  packages/web-cli:
+  packages/afw-docs:
     dependencies:
-      '@opentf/esdev-plugin-web':
+      '@opentf/afw-compiler':
         specifier: workspace:*
-        version: link:../esdev-plugin-web
-      '@opentf/web':
-        specifier: workspace:*
-        version: link:../web
-
-  packages/web-compiler: {}
-
-  packages/web-docs:
-    dependencies:
-      '@opentf/web-compiler':
-        specifier: workspace:*
-        version: link:../web-compiler
+        version: link:../afw-compiler
     devDependencies:
-      '@opentf/web':
+      '@opentf/afw':
         specifier: workspace:*
-        version: link:../web
-      '@opentf/web-test':
+        version: link:../afw
+      '@opentf/afw-test':
         specifier: workspace:*
-        version: link:../web-test
+        version: link:../afw-test
 
-  packages/web-form:
+  packages/afw-form:
     dependencies:
       '@opentf/std':
         specifier: ^0.19.0
         version: 0.19.0
     devDependencies:
-      '@opentf/web':
+      '@opentf/afw':
         specifier: workspace:*
-        version: link:../web
-      '@opentf/web-test':
+        version: link:../afw
+      '@opentf/afw-test':
         specifier: workspace:*
-        version: link:../web-test
+        version: link:../afw-test
 
-  packages/web-i18n:
+  packages/afw-i18n:
     dependencies:
       intl-messageformat:
         specifier: ^10.7.0
         version: 10.7.18
     devDependencies:
-      '@opentf/web':
+      '@opentf/afw':
         specifier: workspace:*
-        version: link:../web
-      '@opentf/web-test':
+        version: link:../afw
+      '@opentf/afw-test':
         specifier: workspace:*
-        version: link:../web-test
+        version: link:../afw-test
 
-  packages/web-test:
+  packages/afw-test:
     dependencies:
-      '@opentf/web':
+      '@opentf/afw':
         specifier: workspace:*
-        version: link:../web
+        version: link:../afw
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.1
@@ -150,17 +144,23 @@ importers:
         specifier: ^14.6.1
         version: 14.6.7(@testing-library/dom@10.4.1)
 
+  packages/esdev-plugin-afw:
+    dependencies:
+      '@opentf/afw-compiler':
+        specifier: workspace:*
+        version: link:../afw-compiler
+
   playground:
     dependencies:
       '@monaco-editor/loader':
         specifier: ^1.4.0
         version: 1.7.0
-      '@opentf/web':
+      '@opentf/afw':
         specifier: workspace:*
-        version: link:../packages/web
-      '@opentf/web-form':
+        version: link:../packages/afw
+      '@opentf/afw-form':
         specifier: workspace:*
-        version: link:../packages/web-form
+        version: link:../packages/afw-form
       monaco-editor:
         specifier: ^0.52.2
         version: 0.52.2
@@ -171,12 +171,37 @@ importers:
         specifier: ^4.3.6
         version: 4.6.2
     devDependencies:
-      '@opentf/esdev-plugin-web':
+      '@opentf/afw-cli':
         specifier: workspace:*
-        version: link:../packages/esdev-plugin-web
-      '@opentf/web-cli':
+        version: link:../packages/afw-cli
+      '@opentf/esdev-plugin-afw':
         specifier: workspace:*
-        version: link:../packages/web-cli
+        version: link:../packages/esdev-plugin-afw
+
+  website:
+    dependencies:
+      '@opentf/afw':
+        specifier: workspace:*
+        version: link:../packages/afw
+      '@opentf/afw-docs':
+        specifier: workspace:*
+        version: link:../packages/afw-docs
+      '@opentf/afw-form':
+        specifier: workspace:*
+        version: link:../packages/afw-form
+      '@opentf/afw-i18n':
+        specifier: workspace:*
+        version: link:../packages/afw-i18n
+    devDependencies:
+      '@opentf/afw-cli':
+        specifier: workspace:*
+        version: link:../packages/afw-cli
+      '@opentf/esdev-plugin-afw':
+        specifier: workspace:*
+        version: link:../packages/esdev-plugin-afw
+      tailwindcss:
+        specifier: 4.2.2
+        version: 4.2.2
 
 packages:
 

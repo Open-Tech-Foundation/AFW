@@ -1,9 +1,9 @@
 <!--
   Svelte 5 implementation of the js-framework-benchmark (krausest) operation set.
-  Mirrors benchmarks/otfw exactly. `$state.raw` is the fair choice for `rows`:
+  Mirrors benchmarks/afw exactly. `$state.raw` is the fair choice for `rows`:
   every operation replaces the whole array (never mutates in place), so deep
   proxying each of 10,000 rows would add overhead the pattern never uses — raw
-  state tracks the reassignment, matching how React/Solid/OTF Web update here.
+  state tracks the reassignment, matching how React/Solid/AFW update here.
 -->
 <script>
   import { onMount } from "svelte";

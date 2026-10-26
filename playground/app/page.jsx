@@ -1,10 +1,10 @@
 // Home — the demo index. Every example in the playground is reachable from here
 // as a card, so the top nav can stay minimal. Cards are <Link>s (SPA navigation).
 
-import { Link } from "@opentf/web";
+import { Link } from "@opentf/afw";
 
 export const metadata = {
-  title: "OTF Web — fullstack framework demos",
+  title: "AFW — fullstack framework demos",
   description:
     "A fullstack web framework with a from-scratch IR compiler and a signal-based runtime. Browse the live demos.",
   canonical: "/",
@@ -13,7 +13,7 @@ export const metadata = {
 const demos = [
   { href: "/counter", title: "Counter", desc: "$state, $derived, $effect, lifecycle hooks", tag: "Reactivity" },
   { href: "/flight-booking", title: "Flight Booking", desc: "Multi-step wizard: one shared form, card-pick UI, live dev panel", tag: "Forms" },
-  { href: "/forms-demo", title: "Forms Features", desc: "@opentf/web-form: validation, modes, dynamic arrays", tag: "Forms" },
+  { href: "/forms-demo", title: "Forms Features", desc: "@opentf/afw-form: validation, modes, dynamic arrays", tag: "Forms" },
   { href: "/products", title: "Perf Benchmark", desc: "Keyed list reconciliation over 5,000 rows", tag: "Reactivity" },
   { href: "/context-demo", title: "Context API", desc: "Scoped provider + $context with overrides", tag: "Reactivity" },
   { href: "/dnd-demo", title: "Drag & Drop", desc: "Native HTML5 drag events + keyed lists", tag: "Events" },
@@ -36,7 +36,7 @@ export default function Home() {
     <div class="space-y-8">
       <header class="space-y-2">
         <h1 class="text-4xl font-black tracking-tight bg-gradient-to-r from-indigo-400 to-sky-400 bg-clip-text text-transparent">
-          OTF Web
+          AFW
         </h1>
         <p class="text-slate-400">
           A fullstack framework with a from-scratch IR compiler and a signal-based

@@ -1,4 +1,4 @@
-import { signal, effect } from "@opentf/web";
+import { signal, effect } from "@opentf/afw";
 
 // Global store
 export const globalCount = signal(0);

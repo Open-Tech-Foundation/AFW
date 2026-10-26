@@ -1,13 +1,13 @@
 ---
 title: Server API
-description: The @opentf/web/server surface — middleware, cookies, API routes, createFetchHandler, and runtime adapters.
+description: The @opentf/afw/server surface — middleware, cookies, API routes, createFetchHandler, and runtime adapters.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Server API
 
-The `@opentf/web/server` entry powers [middleware](/docs/routing/middleware) and file-based
+The `@opentf/afw/server` entry powers [middleware](/docs/routing/middleware) and file-based
 [API routes](/docs/routing/api-routes). Your server entry composes these helpers,
 or your build script emits a handler bundle. The browser compiler plugin does not
 create a request server. See [Server setup](/docs/deployment/server).
@@ -23,7 +23,7 @@ import type {
   ApiContext,
   RouteParams,
   RequestHandler,
-} from "@opentf/web/server";
+} from "@opentf/afw/server";
 ```
 
 | Type | Description |
@@ -70,7 +70,7 @@ When `options.middleware` is set, the runner wraps **both** API dispatch and the
 
 ```js
 import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/web/server";
+import { createFetchHandler } from "@opentf/afw/server";
 
 export default {
   fetch: createFetchHandler(apiRoutes, {
@@ -96,7 +96,7 @@ Derives the folder route a `_middleware` file governs (`app/admin/_middleware.js
 
 Standards-based `Cookie` / `Set-Cookie` helpers for [middleware](/docs/routing/middleware),
 [API routes](/docs/routing/api-routes), and [loaders](/docs/data-fetching). Guide:
-[Cookies](/docs/routing/cookies). Shipped in `@opentf/web@0.16.0`.
+[Cookies](/docs/routing/cookies). Shipped in `@opentf/afw@0.16.0`.
 
 ```js
 import {
@@ -105,11 +105,11 @@ import {
   setCookie,
   deleteCookie,
   serializeCookie,
-} from "@opentf/web/server";
+} from "@opentf/afw/server";
 ```
 
 ```ts
-import type { CookieOptions, CookieSource, CookieTarget } from "@opentf/web/server";
+import type { CookieOptions, CookieSource, CookieTarget } from "@opentf/afw/server";
 ```
 
 | Function | Description |
@@ -152,8 +152,8 @@ Fetch-native runtimes use `createFetchHandler` as above. Node uses the `node:htt
 ```js
 import { createServer } from "node:http";
 import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/web/server";
-import { toNodeListener } from "@opentf/web/server/adapters/node";
+import { createFetchHandler } from "@opentf/afw/server";
+import { toNodeListener } from "@opentf/afw/server/adapters/node";
 
 const fetch = createFetchHandler(apiRoutes, { middleware });
 createServer(toNodeListener(fetch)).listen(3000);
@@ -161,6 +161,6 @@ createServer(toNodeListener(fetch)).listen(3000);
 
 | Export | From | Purpose |
 | --- | --- | --- |
-| `toNodeListener(handler, opts?)` | `@opentf/web/server/adapters/node` | Fetch handler → Node `(req, res)` listener. |
-| `toWebRequest(req)` | `@opentf/web/server/adapters/node` | Node `IncomingMessage` → `Request`. |
-| `sendWebResponse(res, webRes)` | `@opentf/web/server/adapters/node` | Write a `Response` to a Node `ServerResponse`. |
+| `toNodeListener(handler, opts?)` | `@opentf/afw/server/adapters/node` | Fetch handler → Node `(req, res)` listener. |
+| `toWebRequest(req)` | `@opentf/afw/server/adapters/node` | Node `IncomingMessage` → `Request`. |
+| `sendWebResponse(res, webRes)` | `@opentf/afw/server/adapters/node` | Write a `Response` to a Node `ServerResponse`. |

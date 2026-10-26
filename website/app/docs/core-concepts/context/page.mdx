@@ -3,7 +3,7 @@ title: Context
 description: Scoped dependency injection with createContext, ContextProvider, and $context — share values down the tree without prop drilling.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 import ContextDemo from "../../../components/ContextDemo.jsx";
 
 # Context
@@ -13,7 +13,7 @@ intermediate prop. A parent wraps descendants in `<ContextProvider>`, and any ne
 component reads the value with `$context`. A closer provider overrides an outer one —
 useful for themes, locale, feature flags, or shared UI state.
 
-Because OTF Web components compile to Custom Elements, the component tree **is** the DOM
+Because AFW components compile to Custom Elements, the component tree **is** the DOM
 tree. The runtime resolves the nearest provider with DOM ancestry — no separate context
 graph to maintain.
 
@@ -34,7 +34,7 @@ Create a token with a default fallback. Export it from a module so providers and
 share the same reference:
 
 ```js
-import { createContext } from "@opentf/web";
+import { createContext } from "@opentf/afw";
 
 export const ThemeContext = createContext("dark");
 ```
@@ -47,7 +47,7 @@ Wrap the subtree that should see the value. `value` can be plain data or reactiv
 from `$state` — the provider stores it as a signal, so consumers update when it changes:
 
 ```jsx
-import { ContextProvider } from "@opentf/web";
+import { ContextProvider } from "@opentf/afw";
 import { ThemeContext } from "./theme.js";
 
 export default function App() {
@@ -125,4 +125,4 @@ Macro reference: [`$context`](/docs/macros#context).
 - [Portal](/docs/core-concepts/portal) — relocate UI while keeping context.
 - [Reactivity](/docs/core-concepts/reactivity) — `$state` for local state; `reactive()` for shared mutable stores.
 - [Components](/docs/core-concepts/components) — props vs children vs context.
-- [Runtime API](/docs/core) — full `@opentf/web` exports.
+- [Runtime API](/docs/core) — full `@opentf/afw` exports.

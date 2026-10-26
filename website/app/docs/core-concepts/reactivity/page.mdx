@@ -3,7 +3,7 @@ title: Reactivity
 description: Signal-based state with $state, $derived, and $effect — no .value boilerplate.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Reactivity
 
@@ -90,7 +90,7 @@ proxy over a plain object or array: reading a property inside an effect subscrib
 just that path, and writing it notifies only the readers of that path.
 
 ```js
-import { reactive } from "@opentf/web";
+import { reactive } from "@opentf/afw";
 
 const store = reactive({ todos: [], user: { name: "Ada" } });
 
@@ -121,6 +121,6 @@ Helpers that ship alongside it:
 
 ## Single source of reactivity
 
-Use one resolved copy of `@opentf/web` throughout the app. Duplicate copies can
+Use one resolved copy of `@opentf/afw` throughout the app. Duplicate copies can
 create separate signal and router state, so avoid aliases or package links that
 resolve the same runtime through different paths.

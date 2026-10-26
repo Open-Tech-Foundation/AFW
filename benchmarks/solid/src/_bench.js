@@ -1,6 +1,6 @@
 // Pure, framework-agnostic benchmark helpers — kept identical across every case
 // so engines are compared on the same row data, sample counts, and timing.
-// (Verbatim copy of benchmarks/otfw/app/_bench.js; see benchmarks/README.md.)
+// (Verbatim copy of benchmarks/afw/app/_bench.js; see benchmarks/README.md.)
 
 const ADJECTIVES = [
   "pretty", "large", "big", "small", "tall", "short", "long", "handsome",

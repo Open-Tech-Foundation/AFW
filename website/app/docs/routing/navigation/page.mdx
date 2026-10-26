@@ -3,7 +3,7 @@ title: Navigation
 description: Client-side navigation with the Link component and the reactive router API.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Navigation
 
@@ -13,7 +13,7 @@ import { Callout } from "@opentf/web-docs";
 anchor, so modified clicks (new tab, etc.) still work.
 
 ```jsx
-import { Link } from "@opentf/web";
+import { Link } from "@opentf/afw";
 
 <Link href="/about">About</Link>
 ```
@@ -23,7 +23,7 @@ import { Link } from "@opentf/web";
 The global `router` is reactive — read its fields directly (no `.value`):
 
 ```jsx
-import { router } from "@opentf/web";
+import { router } from "@opentf/afw";
 
 <nav class={router.pathname === "/" ? "home" : ""}>…</nav>
 ```
@@ -49,13 +49,13 @@ navigation in the active locale. Build a localized URL yourself with `localizePa
 for a language switcher:
 
 ```jsx
-import { Link, localizePath, router } from "@opentf/web";
+import { Link, localizePath, router } from "@opentf/afw";
 
 // The current page under another locale:
 <Link href={localizePath(router.pathname, "fr")}>Français</Link>
 ```
 
-See the [Locale Routing guide](/packages/web-i18n/routing) for the full model
+See the [Locale Routing guide](/packages/afw-i18n/routing) for the full model
 (`prefix_except_default`, per-locale SSG/SSR, detection), and the
-[`@opentf/web` API reference](/docs/core#routing) for `localizePath`, `setLocale`, and the
+[`@opentf/afw` API reference](/docs/core#routing) for `localizePath`, `setLocale`, and the
 other locale exports.

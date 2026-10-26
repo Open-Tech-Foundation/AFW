@@ -1,22 +1,22 @@
 # Benchmarks
 
-Performance benchmark suite for OTF Web, covering **rendering**, **update
+Performance benchmark suite for AFW, covering **rendering**, **update
 latency**, and (later) **memory**.
 
 > **What is being compared here: libraries, not frameworks.** The cases are the
 > React, Solid and Svelte 5 *libraries* (`react`+`react-dom`, `solid-js`,
 > `svelte`) — not Next.js, SolidStart or SvelteKit. What they are matched against
-> is OTF Web's **rendering layer**: the case is a single page of reactive list
+> is AFW's **rendering layer**: the case is a single page of reactive list
 > updates, so no router, build step or SSG code runs on any side. That is the
 > honest comparand for these operations, but it means a win or loss here says
-> nothing about OTF Web *as a framework*.
+> nothing about AFW *as a framework*.
 >
 > The framework-level comparison is **build** cost — peak memory and wall time for
-> `otfw build --ssg` against Astro, Next.js, TanStack Start and Vite — in
+> `afw build --ssg` against Astro, Next.js, TanStack Start and Vite — in
 > [`ssg-build/README.md`](./ssg-build/README.md). The two are independent; neither
 > says anything about the other.
 
-> **Status:** four cases run through one harness — **OTF Web**, **React**,
+> **Status:** four cases run through one harness — **AFW**, **React**,
 > **Solid**, and **Svelte 5** — with an automated runner, 4× CPU throttling,
 > and a significance-aware side-by-side comparison. Timing is still the
 > double-`rAF` proxy (see the caveat below); tracing-based timing is the next
@@ -54,7 +54,7 @@ the same technique js-framework-benchmark uses). For one sample we:
 3. garbage-collect (`--js-flags=--expose-gc`), so earlier samples' garbage is
    never billed to this one,
 4. record `performance.now()`, perform the operation (a synchronous reactive
-   write — OTF Web flushes synchronously), then
+   write — AFW flushes synchronously), then
 5. wait for the **next painted frame** (double `requestAnimationFrame`) and
    record the elapsed time.
 
@@ -85,9 +85,9 @@ area is identical across engines and runs.
 From the repo root:
 
 ```bash
-tsr bench --                      # the OTF Web case, headless, with a table
+tsr bench --                      # the AFW case, headless, with a table
 tsr bench -- react                # a single sibling case
-tsr bench -- otfw react solid svelte   # several cases + a comparison table
+tsr bench -- afw react solid svelte   # several cases + a comparison table
 tsr bench -- all                  # every case directory, compared
 tsr bench -- --headful         # watch it run in a real browser window
 tsr bench -- --no-build        # reuse existing dist/ (skip the compile step)
@@ -98,17 +98,17 @@ With more than one case the runner appends a side-by-side comparison (median per
 operation, fastest in **bold**) and writes a `comparison-<timestamp>.json`.
 
 The runner (`benchmarks/run.mjs`) is dependency-free: it builds the case with the
-native esdev configuration for OTF Web (other cases retain their own builds), serves `dist/`, drives a headless Chrome/Chromium over
+native esdev configuration for AFW (other cases retain their own builds), serves `dist/`, drives a headless Chrome/Chromium over
 the DevTools Protocol (no Playwright/Puppeteer install), collects the in-page
 results, writes `benchmarks/results/<case>-<timestamp>.json`, and prints a
 Markdown table.
 
-The OTF case builds and runs on esdev 0.16. The website tables predate the esdev
+The AFW case builds and runs on esdev 0.16. The website tables predate the esdev
 migration; re-run every engine under the same conditions before replacing them.
 
 ### Pooling runs for the website table
 
-**One run is not enough to name a winner.** On the create rows OTF Web, Solid and
+**One run is not enough to name a winner.** On the create rows AFW, Solid and
 Svelte sit within about 20 ms of each other while the double-rAF quantum is 8.3 ms,
 and each engine's own median drifts a few percent between runs — Solid's swung 13%
 (231–262 ms) across three back-to-back runs on an idle machine. Those three runs
@@ -133,7 +133,7 @@ should not be what gets published.
 ### Manual run (no runner)
 
 ```bash
-tsr bench-otfw-dev     # from the repo root; http://localhost:3010
+tsr bench-afw-dev     # from the repo root; http://localhost:3010
 ```
 
 Click **▶ Run all (measured)**, or load `http://localhost:3010/?autorun` to run
@@ -147,7 +147,7 @@ benchmarks/
   README.md         ← this file
   run.mjs           ← dependency-free CDP runner (build → serve → drive → compare)
   results/          ← JSON result files (git-ignored)
-  otfw/             ← OTF Web implementation (built with esdev.bench.json)
+  afw/             ← AFW implementation (built with esdev.bench.json)
     index.html
     app/page.jsx    ← the benchmark component + in-page harness
     app/_bench.js   ← pure helpers (row data, median, frame waiting)
@@ -159,7 +159,7 @@ benchmarks/
     build.mjs · src/main.js · src/App.svelte · src/_bench.js · global.css
 ```
 
-Each non-OTF case carries its own Bun `build.mjs` (the OTF case uses the native
+Each non-AFW case carries its own Bun `build.mjs` (the AFW case uses the native
 esdev toolchain) and a verbatim copy of `_bench.js`. The runner is engine-agnostic: it
 only relies on the in-page contract below.
 
@@ -193,7 +193,7 @@ of rows) equivalent across cases so the comparison is apples-to-apples.
 4. **Memory** — heap snapshots after _create 10k_ / _clear_ via CDP
    `HeapProfiler`.
 5. **Startup / bundle size** — measure shipped JS per case (compiler output is a
-   first-class differentiator for OTF Web).
+   first-class differentiator for AFW).
 6. **CI regression gate** — fail a PR if any median regresses beyond a threshold
    vs. a committed baseline.
 </content>
@@ -202,7 +202,7 @@ of rows) equivalent across cases so the comparison is apples-to-apples.
 ## Toolchain migration
 
 The shared runner and report aggregator use esdev and `runtime:*` modules. The
-OTF case builds with esdev. React, Solid and Svelte retain their Bun build scripts
+AFW case builds with esdev. React, Solid and Svelte retain their Bun build scripts
 and package dependencies so changing our orchestration does not alter their
 comparison toolchains. Install Bun only when building those comparison cases.
 Set `CHROME_BIN` to select a Chrome/Chromium executable for the shared runner.

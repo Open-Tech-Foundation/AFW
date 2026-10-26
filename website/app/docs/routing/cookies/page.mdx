@@ -1,13 +1,13 @@
 ---
 title: Cookies
-description: Read and write cookies in middleware, API routes, and loaders with RFC 6265 helpers from @opentf/web/server.
+description: Read and write cookies in middleware, API routes, and loaders with RFC 6265 helpers from @opentf/afw/server.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Cookies
 
-`@opentf/web/server` ships standards-based helpers for the `Cookie` and `Set-Cookie`
+`@opentf/afw/server` ships standards-based helpers for the `Cookie` and `Set-Cookie`
 headers (RFC 6265). Use them anywhere you hold a `Request` or build a `Response` —
 [middleware](/docs/routing/middleware), [API routes](/docs/routing/api-routes), and
 [route loaders](/docs/data-fetching) — without hand-rolling header parsing or serialization.
@@ -19,11 +19,11 @@ import {
   setCookie,
   deleteCookie,
   serializeCookie,
-} from "@opentf/web/server";
+} from "@opentf/afw/server";
 ```
 
 ```ts
-import type { CookieOptions, CookieSource, CookieTarget } from "@opentf/web/server";
+import type { CookieOptions, CookieSource, CookieTarget } from "@opentf/afw/server";
 ```
 
 ## Reading cookies
@@ -95,7 +95,7 @@ Read the incoming session, gate protected paths, and stamp a response cookie aft
 
 ```js
 // app/_middleware.js
-import { getCookie, setCookie } from "@opentf/web/server";
+import { getCookie, setCookie } from "@opentf/afw/server";
 
 export default async function (request, context, next) {
   const path = new URL(request.url).pathname;
@@ -122,7 +122,7 @@ response directly:
 
 ```js
 // app/api/login/route.js
-import { setCookie } from "@opentf/web/server";
+import { setCookie } from "@opentf/afw/server";
 
 export async function POST(request) {
   const { email } = await request.json();
@@ -141,7 +141,7 @@ Loaders are server-only modules — safe to read cookies from the request when p
 
 ```js
 // app/account/loader.js
-import { getCookie } from "@opentf/web/server";
+import { getCookie } from "@opentf/afw/server";
 
 export default async function ({ request }) {
   // Static prerendering has no incoming request or session cookie.

@@ -29,14 +29,14 @@ test('native report aggregation pools samples and respects the timing resolution
   const tmp = await makeTempDir({ dir: join(root, '.cache'), prefix: 'benchmark-report-' });
   try {
     const first = join(tmp, 'first.json'), second = join(tmp, 'second.json'), out = join(tmp, 'report.json');
-    const record = (values) => ({ engines: ['otfw', 'react'], results: values.map((samples, i) => ({ engine: ['otfw', 'react'][i], cases: [{ label: 'create', samples, median: samples[0] }] })) });
+    const record = (values) => ({ engines: ['afw', 'react'], results: values.map((samples, i) => ({ engine: ['afw', 'react'][i], cases: [{ label: 'create', samples, median: samples[0] }] })) });
     await write(first, JSON.stringify(record([[10, 20], [100, 110]])));
     await write(second, JSON.stringify(record([[30, 40], [120, 130]])));
     await run('benchmarks/aggregate.mjs', [first, second, `--out=${out}`]);
     const result = await file(out).json();
     expect(result.runs).toBe(2);
-    expect(result.rows[0].values).toEqual({ otfw: 25, react: 115 });
-    expect(result.rows[0].best).toBe('otfw');
+    expect(result.rows[0].values).toEqual({ afw: 25, react: 115 });
+    expect(result.rows[0].best).toBe('afw');
     await write(second, JSON.stringify(record([[10, 20], [11, 21]])));
     await run('benchmarks/aggregate.mjs', [second, `--out=${out}`]);
     expect((await file(out).json()).rows[0].best).toBeNull();

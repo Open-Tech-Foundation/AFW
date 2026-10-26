@@ -1,0 +1,29 @@
+// Admonition / callout box. `type` is note | tip | info | warning | danger.
+//
+//   <Callout type="warning" title="Heads up">…</Callout>
+
+const ICONS = {
+  note: "✎",
+  tip: "💡",
+  info: "🛈",
+  warning: "⚠",
+  danger: "⛔",
+};
+
+export default function Callout(props) {
+  const type = props.type || "note";
+  const title = props.title || type.charAt(0).toUpperCase() + type.slice(1);
+  const icon = ICONS[type] || ICONS.note;
+
+  return (
+    <div class={"afw-callout afw-callout-" + type}>
+      <span class="afw-callout-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <div class="afw-callout-content">
+        <div class="afw-callout-title">{title}</div>
+        <div class="afw-callout-body">{props.children}</div>
+      </div>
+    </div>
+  );
+}

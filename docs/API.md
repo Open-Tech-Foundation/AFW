@@ -19,7 +19,7 @@ run unchanged on Bun, Node 20+, Cloudflare Workers, and Deno.
 
 Because they're plain server code, they're discovered and bundled by the JS
 toolchain (not the Rust compiler). A project build can call `emitApiBundle` from
-`@opentf/web-cli/ssg` to emit `dist/server/api.js`; an app-owned server or deploy
+`@opentf/afw-cli/ssg` to emit `dist/server/api.js`; an app-owned server or deploy
 adapter serves its Fetch handlers. The compiler plugin does not start a server.
 
 ## 2. File-based routing
@@ -94,7 +94,7 @@ at the top of a handler.
 
 Cookie handling is covered by the standards-based helpers `getCookie` /
 `getCookies` / `setCookie` / `deleteCookie` / `serializeCookie` from
-`@opentf/web/server` — see [`MIDDLEWARE.md`](./MIDDLEWARE.md) §3.
+`@opentf/afw/server` — see [`MIDDLEWARE.md`](./MIDDLEWARE.md) §3.
 
 ## 5. TypeScript
 
@@ -102,13 +102,13 @@ Author handlers in `.ts` and annotate the exports:
 
 ```ts
 // app/api/users/[id]/route.ts
-import type { ApiHandler, Middleware } from "@opentf/web/server";
+import type { ApiHandler, Middleware } from "@opentf/afw/server";
 
 export const GET: ApiHandler = (request, { params }) => Response.json({ id: params.id });
 ```
 
 `ApiHandler`, `Middleware`, `ApiContext`, and `RouteParams` are exported from
-`@opentf/web/server`.
+`@opentf/afw/server`.
 
 ## 6. Running & deploying
 
@@ -135,7 +135,7 @@ too, so page URLs served from `ASSETS` are still guarded:
 ```js
 // Cloudflare Workers / Bun / Deno
 import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/web/server";
+import { createFetchHandler } from "@opentf/afw/server";
 export default {
   fetch: createFetchHandler(apiRoutes, {
     middleware, // omit if the app has none
@@ -149,19 +149,19 @@ Node uses the `node:http` adapter:
 ```js
 import { createServer } from "node:http";
 import { apiHandler } from "./dist/server/api.js";
-import { toNodeListener } from "@opentf/web/server/adapters/node";
+import { toNodeListener } from "@opentf/afw/server/adapters/node";
 createServer(toNodeListener(apiHandler)).listen(3000);
 ```
 
 For a full full-stack Fetch-handler setup (entry file, static assets, platform bindings,
-and forwarding to a platform dev server), see the website's [Fetch handler](https://github.com/Open-Tech-Foundation/Web-App-Framework/blob/main/website/app/docs/deployment/fetch-handler/page.mdx)
+and forwarding to a platform dev server), see the website's [Fetch handler](https://github.com/Open-Tech-Foundation/afw/blob/main/website/app/docs/deployment/fetch-handler/page.mdx)
 deployment guide.
 
 ### Development with bindings (D1) — the dev proxy
 
 Bindings like D1 exist inside the Workers runtime. Run the API with `wrangler dev`
 and configure forwarding in your app server or an external proxy. The retired
-`otfw.config.js` `proxy` setting is not implemented by the compiler plugin or
+`afw.config.js` `proxy` setting is not implemented by the compiler plugin or
 esdev's static development server.
 
 ## 7. Environment variables

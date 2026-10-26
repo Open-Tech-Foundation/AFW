@@ -2,10 +2,10 @@
 """Run a build command and report its peak memory and wall time.
 
     python3 measure.py <label> <outdir> -- <command...>
-    -> {"label": "otfw-1x", "exit": 0, "peak_mb": 267.5, "wall_s": 0.51}
+    -> {"label": "afw-1x", "exit": 0, "peak_mb": 267.5, "wall_s": 0.51}
 
 Peak RSS is summed over the whole **process tree**, not just the launched
-process: every tool here forks (Next.js prerenders with a worker pool, otfw runs
+process: every tool here forks (Next.js prerenders with a worker pool, afw runs
 the compiler as a subprocess), so measuring one PID would miss most of the
 memory. The result is also written to `<outdir>/<label>.json` and the command's
 own output to `<outdir>/<label>.log`.

@@ -18,7 +18,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
-      # esdev.test.json loads the OTF plugin to compile JSX imports. The Rust
+      # esdev.test.json loads the AFW plugin to compile JSX imports. The Rust
       # toolchain is required; the `test` task's cargo build produces the binary.
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -94,9 +94,9 @@ jobs:
           # A missing/incorrect binary makes the suites *skip* (exit 0), which would be a false
           # green — so print the version first: a bad path fails the step loudly here.
           CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
-          OTFWC_BIN: ${{ github.workspace }}/target/debug/otfwc
-        # `tsr test-e2e` runs the web-docs suites. Each declares the
-        # `build-compiler` dep that produces OTFWC_BIN, de-duplicated to a single cargo build.
+          AFWC_BIN: ${{ github.workspace }}/target/debug/afwc
+        # `tsr test-e2e` runs the afw-docs suites. Each declares the
+        # `build-compiler` dep that produces AFWC_BIN, de-duplicated to a single cargo build.
         run: |
           echo "Chrome: $CHROME_BIN"
           "$CHROME_BIN" --version

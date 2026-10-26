@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
-@import "@opentf/web-docs/theme";
+@import "@opentf/afw-docs/theme";
 
 @theme {
   --color-accent: #ff851b;
@@ -19,21 +19,21 @@ h1[tabindex='-1']:focus {
 }
 
 /* Demo component hosts behave as blocks. Hosts are addressed by the stable
- * `web-<kebab>` class the compiler stamps on every component (the element tag is
- * module-hashed for collision-freedom, so it is not a reliable selector). `.web-link`
- * is intentionally left to the web-docs theme (display: contents) so the navbar's
+ * `afw-<kebab>` class the compiler stamps on every component (the element tag is
+ * module-hashed for collision-freedom, so it is not a reliable selector). `.afw-link`
+ * is intentionally left to the afw-docs theme (display: contents) so the navbar's
  * <a> participates directly in the flex layout. */
-.web-reactive-trace {
+.afw-reactive-trace {
   display: block;
 }
-.web-counter-demo {
+.afw-counter-demo {
   display: block;
 }
 
 /* Flight-booking demo: make native date inputs adopt the active theme so the
  * calendar picker indicator stays visible in dark mode (it's near-black on the
  * dark surface by default). */
-[data-theme='dark'] .web-flight-demo input[type='date'] {
+[data-theme='dark'] .afw-flight-demo input[type='date'] {
   color-scheme: dark;
 }
 
@@ -534,7 +534,7 @@ body {
 }
 
 /* Site footer — Open Tech Foundation org link (footer is always dark). */
-.otfw-footer-org-link {
+.afw-footer-org-link {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -542,10 +542,10 @@ body {
   text-decoration: none;
   transition: color 0.15s;
 }
-.otfw-footer-org-link:hover {
+.afw-footer-org-link:hover {
   color: #f1f5f9;
 }
-.otfw-footer-org-logo {
+.afw-footer-org-logo {
   display: block;
   flex-shrink: 0;
   opacity: 0.92;
@@ -692,7 +692,7 @@ body {
 }
 /* ── Render-pipeline (hero) ────────────────────────────────────────────────────
    Two always-dark cards around a "vs" pill: auto-touring framework stack left,
-   OTF pinned right. Runtime chips flash top to bottom (WAAPI from
+   AFW pinned right. Runtime chips flash top to bottom (WAAPI from
    RenderPipeline.jsx); build steps stay static. The cards use a dark palette in
    both themes. */
 .pipe-duel {

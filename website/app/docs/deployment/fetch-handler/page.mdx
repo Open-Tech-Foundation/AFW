@@ -1,18 +1,18 @@
 ---
 title: Fetch handler
-description: Deploy full-stack OTF Web apps to any Fetch-native runtime — static assets plus middleware and API routes, with platform bindings via context.env.
+description: Deploy full-stack AFW apps to any Fetch-native runtime — static assets plus middleware and API routes, with platform bindings via context.env.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Fetch handler
 
-OTF Web handlers are standard **`Request → Response`** functions. They never import a
+AFW handlers are standard **`Request → Response`** functions. They never import a
 platform SDK, so the same `route.*`, `loader.*`, and `_middleware.*` code runs in
 an app-owned development server, in tests, and in production — on **any** host that exposes the Fetch API:
 Cloudflare Workers, Deno Deploy, Bun, Vercel Edge, Netlify Edge, and others.
 
-An explicit build script can call `emitApiBundle` from `@opentf/web-cli/ssg` to emit a self-contained **`dist/server/api.js`**. Pair it with the static
+An explicit build script can call `emitApiBundle` from `@opentf/afw-cli/ssg` to emit a self-contained **`dist/server/api.js`**. Pair it with the static
 `dist/` output and a small **entry file** on your platform: wire
 `createFetchHandler` to the runtime's `fetch`, serve `dist/` through the host's static
 layer, and read databases or secrets from `context.env` when the platform provides them.
@@ -33,7 +33,7 @@ app — [middleware](/docs/routing/middleware) on pages, loader data, and API ro
 ```js
 // server.js — adapt the filename to your platform
 import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/web/server";
+import { createFetchHandler } from "@opentf/afw/server";
 
 export default {
   fetch: createFetchHandler(apiRoutes, {
@@ -95,7 +95,7 @@ export async function POST(request, { env }) {
 Authoring in TypeScript? Type the bindings once and cast `env`:
 
 ```ts
-import type { ApiHandler } from "@opentf/web/server";
+import type { ApiHandler } from "@opentf/afw/server";
 
 interface Env { DB: D1Database }
 
@@ -116,7 +116,7 @@ environment variables where the runtime provides them.
 ## Development
 
 Platform bindings often exist only inside the host's dev runtime, so a common pattern is
-**two processes**: the OTF Web dev server for the SPA, and the platform's local server for
+**two processes**: the AFW dev server for the SPA, and the platform's local server for
 the API.
 
 **1. Run your API on the platform's dev command** (e.g. `wrangler dev`, `deno task dev`):
@@ -128,7 +128,7 @@ wrangler dev
 ```
 
 **2. Configure forwarding in your app server or an external proxy.** The retired
-CLI's `otfw.config.js` proxy setting is not consumed by esdev. Your server entry
+CLI's `afw.config.js` proxy setting is not consumed by esdev. Your server entry
 owns the browser endpoint, asset serving and backend forwarding in fullstack mode.
 See [Server](/docs/deployment/server).
 
@@ -182,7 +182,7 @@ the same `fetch` handler.
 
 ```js
 import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/web/server";
+import { createFetchHandler } from "@opentf/afw/server";
 
 export default {
   fetch: createFetchHandler(apiRoutes, {
@@ -236,7 +236,7 @@ directory when possible. See Cloudflare's official
 
 **Development forwarding:** run `wrangler dev` on port 8787 and configure forwarding
 in your app-owned server or an external proxy. Adding a legacy `proxy` block to
-`otfw.config.js` does not configure esdev.
+`afw.config.js` does not configure esdev.
 
 ### Other Fetch-native hosts
 

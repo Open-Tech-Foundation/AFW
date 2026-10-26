@@ -1,8 +1,8 @@
 <div align="center">
 
-# OTF Web
+# AFW — App Framework for the Web
 
-[🌐 https://web.opentechf.org](https://web.opentechf.org/)
+[🌐 https://afw.opentechf.org](https://afw.opentechf.org/)
 
 ### The native-first fullstack framework for modern web apps.
 
@@ -18,7 +18,7 @@ Built on signals and standard Web Components.
 
 ## What it is
 
-OTF Web is a fullstack web framework on a Rust foundation. A single compiler and
+AFW is a fullstack web framework on a Rust foundation. A single compiler and
 toolchain spans the entire application: JSX components, client-side rendering,
 hydration, static generation (SSG), server-side rendering (SSR), and server
 endpoints are all produced from one source. The compiler analyzes your JSX
@@ -38,12 +38,12 @@ Install [ES-Runtime](https://esrun.opentechf.org/) (`esdev` 0.17 or newer) and
 add the runtime and compiler/routes plugin to your app:
 
 ```bash
-pnpm add @opentf/web
-pnpm add -D @opentf/esdev-plugin-web
+pnpm add @opentf/afw
+pnpm add -D @opentf/esdev-plugin-afw
 ```
 
 Configure the HTML entry, client entry and `esdev.json` as shown in the
-[plugin setup guide](packages/esdev-plugin-web/README.md), then run `esdev start`.
+[plugin setup guide](packages/esdev-plugin-afw/README.md), then run `esdev start`.
 Or generate a project with `esdev create <dir> --template=spa` (also `fullstack`,
 `docs` and `library`).
 
@@ -83,28 +83,28 @@ touches exactly that text node and nothing else.
 The runtime is a rendering-layer comparison against the React, Solid, and
 Svelte 5 libraries. It's an honest one — no single operation is fastest, and the
 create-row ops are ties at this timing resolution. See the
-[benchmarks page](https://web.opentechf.org/benchmarks) for the full tables,
+[benchmarks page](https://afw.opentechf.org/benchmarks) for the full tables,
 methodology, and caveats. Reproduce locally with `tsr bench -- all`.
 
 ## Ecosystem
 
 | Package | Purpose |
 | --- | --- |
-| [`@opentf/web`](packages/web) | Runtime — signals, DOM operations, router, SSG. |
-| [`@opentf/web-cli`](packages/web-cli) | SSG helpers and release output hooks for esdev builds. |
-| [`@opentf/web-compiler`](packages/web-compiler) | Native toolchain (`otfwc`) — compilation, docs indexing and binary resolution. |
-| [`@opentf/web-form`](packages/web-form) | Reactive forms with async validation. |
-| [`@opentf/web-test`](packages/web-test) | Testing utilities for native components. |
-| [`@opentf/web-docs`](packages/web-docs) | MDX documentation theme — sidebar, callouts, TOC. |
-| [`@opentf/web-i18n`](packages/web-i18n) | Internationalization — ICU messages, Intl formatters, URL-prefix locale routing. |
+| [`@opentf/afw`](packages/afw) | Runtime — signals, DOM operations, router, SSG. |
+| [`@opentf/afw-cli`](packages/afw-cli) | SSG helpers and release output hooks for esdev builds. |
+| [`@opentf/afw-compiler`](packages/afw-compiler) | Native toolchain (`afwc`) — compilation, docs indexing and binary resolution. |
+| [`@opentf/afw-form`](packages/afw-form) | Reactive forms with async validation. |
+| [`@opentf/afw-test`](packages/afw-test) | Testing utilities for native components. |
+| [`@opentf/afw-docs`](packages/afw-docs) | MDX documentation theme — sidebar, callouts, TOC. |
+| [`@opentf/afw-i18n`](packages/afw-i18n) | Internationalization — ICU messages, Intl formatters, URL-prefix locale routing. |
 
 ## Repository map
 
 | Path | What's here |
 | --- | --- |
-| `crates/` | The Rust compiler and toolchain — parsing, semantic analysis, IRs, codegen, the `otfwc` binary. |
+| `crates/` | The Rust compiler and toolchain — parsing, semantic analysis, IRs, codegen, the `afwc` binary. |
 | `packages/` | Published JS packages — runtime, toolchain, forms, testing, docs, i18n. |
-| `website/` | This project's docs site and playground (deployed at web.opentechf.org). |
+| `website/` | This project's docs site and playground (deployed at afw.opentechf.org). |
 | `benchmarks/` | The js-framework-benchmark harness and aggregation scripts. |
 
 ## Documentation
@@ -139,9 +139,9 @@ The script installs esdev 0.17.0 (override with `ESDEV_VERSION`), installs the
 website's locked dependencies, and builds `website/dist`. Keep the existing
 Cloudflare deployment command; the root `wrangler.jsonc` points to that output.
 
-Component sources compile on import through `@opentf/esdev-plugin-web` in
-esdev's DOM realm: `tsr test-web-docs-dom`, `tsr test-web-form`, and
-`tsr test-web-i18n` run them individually. Each test file runs in a separate
+Component sources compile on import through `@opentf/esdev-plugin-afw` in
+esdev's DOM realm: `tsr test-afw-docs-dom`, `tsr test-afw-form`, and
+`tsr test-afw-i18n` run them individually. Each test file runs in a separate
 process, with a 30-second timeout and strict compiler errors configured in
 [`esdev.test.json`](esdev.test.json). The comparison benchmark toolchains still require Bun.
 
@@ -150,7 +150,7 @@ The configs follow the official [project build configuration](https://esrun.open
 `plugins` also apply to [tests](https://esrun.opentechf.org/esdev/test/configuration).
 [Tailwind v4](https://esrun.opentechf.org/esdev/build/tailwind) is compiled by esdev directly from the CSS import.
 
-Full guides, API reference, and a live playground at **[https://web.opentechf.org/docs](https://web.opentechf.org/docs)**.
+Full guides, API reference, and a live playground at **[https://afw.opentechf.org/docs](https://afw.opentechf.org/docs)**.
 
 Verified esdev behavior and open upstream issues are tracked in
 [the esdev migration status](docs/ESDEV_MIGRATION.md).

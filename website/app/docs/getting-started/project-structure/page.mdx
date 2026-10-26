@@ -1,13 +1,13 @@
 ---
 title: Project Structure
-description: How an OTF Web project is laid out and which files have special meaning.
+description: How an AFW project is laid out and which files have special meaning.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Project Structure
 
-OTF Web supports browser apps, fullstack apps, documentation sites and component
+AFW supports browser apps, fullstack apps, documentation sites and component
 libraries. The layouts below match the projects `esdev create` generates; see
 [Installation](/docs/getting-started/installation).
 Apps and docs sites share the same `app/` routing layout; libraries ship source
@@ -33,7 +33,7 @@ my-app/
 └─ package.json
 ```
 
-Add an optional `otfw.config.js` at the root when you need `site.url` (for
+Add an optional `afw.config.js` at the root when you need `site.url` (for
 a prerender target), or i18n — see [Configuration](/docs/configuration).
 
 ## Fullstack (browser + server)
@@ -68,7 +68,7 @@ Provide a native server entry to compose per-request rendering, loaders and API 
 
 ## Documentation site
 
-Docs projects add `otfw.config.js` and an `app/docs/` section for MDX content. Add `app/blog/` when you need posts — see [web-docs → Blog](/packages/web-docs/blog).
+Docs projects add `afw.config.js` and an `app/docs/` section for MDX content. Add `app/blog/` when you need posts — see [afw-docs → Blog](/packages/afw-docs/blog).
 
 ```text
 my-docs/
@@ -84,7 +84,7 @@ my-docs/
 ├─ esdev.json             # browser + prerender targets
 ├─ entry.js               # client bootstrap
 ├─ ssg.js                 # staged release prerender step
-├─ otfw.config.js         # site URL, docs/blog sections (@opentf/web-docs)
+├─ afw.config.js         # site URL, docs/blog sections (@opentf/afw-docs)
 ├─ index.html
 └─ package.json
 ```
@@ -122,17 +122,17 @@ Files the toolchain recognizes beyond ordinary components. Extensions `.js`, `.t
 | `route.js` | An [API endpoint](/docs/routing/api-routes). The folder is the URL (`app/api/hello/route.js` → `/api/hello`). A folder holds a `page.*` or a `route.*`, never both. |
 | `loader.js` | A [route loader](/docs/data-fetching) sibling to a `page.*`. Runs server-side before the page renders; its return value is `router.data`. Requires a matching `page.*` in the same folder. |
 | `_middleware.js` | [Middleware](/docs/routing/middleware) for its folder and everything nested under it (pages, API, loader data, SSR). |
-| `_meta.js` | Docs sidebar order and labels for a folder (`@opentf/web-docs`). Supports `.js`, `.mjs` and `.json` today. |
+| `_meta.js` | Docs sidebar order and labels for a folder (`@opentf/afw-docs`). Supports `.js`, `.mjs` and `.json` today. |
 
 ### Project root
 
 | File / folder | Role |
 | --- | --- |
 | `esdev.json` | Compiler plugins, build targets, output locations and development settings. |
-| `entry.js` | Client bootstrap: imports @otfw/routes and calls mountApp. |
+| `entry.js` | Client bootstrap: imports @afw/routes and calls mountApp. |
 | `index.html` | The HTML shell with an explicit module script. Your entry mounts into `#app`; esdev bundles the module script. |
 | `public/` | Static assets copied to `dist/` at build time and served at the site root (`public/favicon.svg` → `/favicon.svg`). Overrides generated files when names collide (e.g. a hand-written `public/robots.txt`). |
-| `otfw.config.js` | Optional for SPA/fullstack (`site.url`, `i18n`). Required for docs/blog production builds and drives `@opentf/web-docs` (navbar, search, feeds). See [Configuration](/docs/configuration). |
+| `afw.config.js` | Optional for SPA/fullstack (`site.url`, `i18n`). Required for docs/blog production builds and drives `@opentf/afw-docs` (navbar, search, feeds). See [Configuration](/docs/configuration). |
 | `dist/` | Build output — created by `esdev build`. Not checked in; safe to delete and rebuild. |
 
 Every other PascalCase `.jsx`/`.tsx` file under `app/` is a reusable component — no
@@ -146,6 +146,6 @@ registration needed (see [Components](/docs/core-concepts/components)).
 
 <Callout type="info" title="TypeScript">
   Choose TypeScript at the scaffold prompt to get `.tsx` pages, `.ts` API routes and
-  loaders, `tsconfig.json`, and macro typings (`app/otfw-env.d.ts`). Docs sites keep
-  `otfw.config.js` and `_meta.js` as JavaScript — the toolchain reads those today.
+  loaders, `tsconfig.json`, and macro typings (`app/afw-env.d.ts`). Docs sites keep
+  `afw.config.js` and `_meta.js` as JavaScript — the toolchain reads those today.
 </Callout>

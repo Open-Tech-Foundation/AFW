@@ -3,7 +3,7 @@ title: Components
 description: Every component compiles to a standard Custom Element. Props are reactive and children are slotted.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Components
 
@@ -21,7 +21,7 @@ export default function App() {
 ```
 
 `Badge.jsx` compiles to a Custom Element registered under a **module-scoped tag** such as
-`web-badge-4e54f4d4` (the hash avoids collisions across files). In JSX you always write
+`afw-badge-4e54f4d4` (the hash avoids collisions across files). In JSX you always write
 `<Badge>` — the compiler addresses `Badge.tag` for you.
 
 ## Props
@@ -98,20 +98,20 @@ bare `web-<name>` you might guess from the component identifier:
 
 ```html
 <!-- After your bundle registers Badge -->
-<web-badge-4e54f4d4 label="Beta"></web-badge-4e54f4d4>
+<afw-badge-4e54f4d4 label="Beta"></afw-badge-4e54f4d4>
 ```
 
 Read the exact tag from the exported class (`Badge.tag`) or from DevTools after a build.
 For **host styling**, the compiler also stamps a stable class hook on every instance
-(`web-badge` for `Badge`) so CSS does not need the hash:
+(`afw-badge` for `Badge`) so CSS does not need the hash:
 
 ```css
-.web-badge {
+.afw-badge {
   display: inline-block;
 }
 ```
 
 <Callout type="note" title="Compose with JSX in app code">
-  Inside OTF Web, always use `<Badge … />`. Embed the raw custom-element tag only when
-  dropping a pre-built component into a non-OTF page.
+  Inside AFW, always use `<Badge … />`. Embed the raw custom-element tag only when
+  dropping a pre-built component into a non-AFW page.
 </Callout>

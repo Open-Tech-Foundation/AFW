@@ -5,7 +5,7 @@
 //     subscriber (even another framework) can listen with addEventListener.
 // A page subscribes to the event with `onRate:listen={...}` (see events-demo).
 
-import { emit } from "@opentf/web";
+import { emit } from "@opentf/afw";
 
 export default function StarRating(props) {
   let value = $state(0);

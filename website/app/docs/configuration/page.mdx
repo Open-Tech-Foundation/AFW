@@ -1,23 +1,23 @@
 ---
 title: Project Configuration
-description: Use esdev.json for tooling and otfw.config.js for site, docs, blog and locale settings.
+description: Use esdev.json for tooling and afw.config.js for site, docs, blog and locale settings.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Project Configuration
 
 Use **esdev.json** for build targets, compiler plugins and the development loop.
-Use **otfw.config.js** for site/theme settings read by the project's prerender
-script and `@opentf/web-docs` components. Neither replaces the other.
+Use **afw.config.js** for site/theme settings read by the project's prerender
+script and `@opentf/afw-docs` components. Neither replaces the other.
 
 For the build-target and browser-entry setup, follow
 [Production Build](/docs/deployment/build). The settings below apply when your
 project uses prerendering, the docs theme or locale routing.
 
 ```js
-// otfw.config.js
-import { defineDocsConfig } from "@opentf/web-docs/config";
+// afw.config.js
+import { defineDocsConfig } from "@opentf/afw-docs/config";
 
 export default defineDocsConfig({
   site: { url: "https://example.com" },
@@ -48,7 +48,7 @@ your editor full type hints.
 | `site` | Canonical origin — `{ url }`. Drives absolute canonicals, the sitemap, blog feeds, and LLM context links. |
 | `docs` | The documentation section (sidebar, navbar, search). |
 | `blog` | An optional blog section (post list, banners, feeds). |
-| `i18n` | Internationalization — locales for URL-prefix routing (`@opentf/web-i18n`). |
+| `i18n` | Internationalization — locales for URL-prefix routing (`@opentf/afw-i18n`). |
 | `proxy` | Legacy CLI setting; it is not consumed by the native esdev compiler plugin. |
 
 ## `site`
@@ -66,7 +66,7 @@ The `docs` block supplies branding, navigation, footer and search settings to
 `DocsLayout`. Pass it to the layout explicitly; add the build plugins for generated
 navigation, timestamps and search output.
 
-See [Docs Configuration](/packages/web-docs/configuration) for the settings,
+See [Docs Configuration](/packages/afw-docs/configuration) for the settings,
 plugin registration and per-folder `_meta.js` ordering.
 
 ## Multiple sections
@@ -78,8 +78,8 @@ becomes its own section with its own generated sidebar, breadcrumbs, prev/next, 
 main docs.
 
 ```jsx app/api/layout.jsx
-import { DocsLayout } from "@opentf/web-docs";
-import config from "../../otfw.config.js";
+import { DocsLayout } from "@opentf/afw-docs";
+import config from "../../afw.config.js";
 
 export default function (props) {
   return (
@@ -99,7 +99,7 @@ of this file.
 
 Supplies settings for the blog components and release output. Register
 `blogPostsPlugin` explicitly to generate the post list. See
-[Packages → web-docs → Blog](/packages/web-docs/blog).
+[Packages → afw-docs → Blog](/packages/afw-docs/blog).
 
 ```js
 blog: { dir: "blog", title: "My Blog", lastUpdated: true }
@@ -107,7 +107,7 @@ blog: { dir: "blog", title: "My Blog", lastUpdated: true }
 
 ## `i18n`
 
-Describes URL path-prefix locale routing for `@opentf/web-i18n`. Pass these settings
+Describes URL path-prefix locale routing for `@opentf/afw-i18n`. Pass these settings
 to the client `mountApp` and your prerender script to generate a static page per
 locale. Per-locale SSR requires locale detection in the request server.
 
@@ -123,12 +123,12 @@ i18n: {
 | `locales` | string[] | All supported locales. |
 | `defaultLocale` | string | Served at the bare path; others are prefixed (`/fr/…`). |
 
-See [Packages → web-i18n → Locale Routing](/packages/web-i18n/routing) for the full
+See [Packages → afw-i18n → Locale Routing](/packages/afw-i18n/routing) for the full
 routing model and the message/formatting API.
 
 ## Server routing and the legacy proxy setting
 
-The old CLI interpreted `otfw.config.js`'s `proxy` map. The native compiler plugin
+The old CLI interpreted `afw.config.js`'s `proxy` map. The native compiler plugin
 and esdev do not apply that setting. A fullstack app's server entry owns backend
 routing, static assets and any forwarding to another runtime.
 
@@ -138,7 +138,7 @@ adding the old proxy key to enable it in esdev. See
 [Server](/docs/deployment/server) and [Fetch handler](/docs/deployment/fetch-handler).
 
 <Callout type="info" title="Tooling and theme configuration">
-  esdev.json controls compilation, outputs and the development loop. otfw.config.js
+  esdev.json controls compilation, outputs and the development loop. afw.config.js
   supplies theme and prerender data; adding docs, blog or i18n there does not
   automatically install plugins or generate server entries.
 </Callout>

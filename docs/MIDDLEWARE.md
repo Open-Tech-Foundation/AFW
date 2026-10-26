@@ -25,7 +25,7 @@ export (or named `middleware` export) has the signature `(request, context, next
 
 ```js
 // app/_middleware.js
-import { getCookie } from "@opentf/web/server";
+import { getCookie } from "@opentf/afw/server";
 
 export default async function (request, context, next) {
   const session = verify(getCookie(request, "session"));
@@ -69,11 +69,11 @@ body once, read it in every `route.*` handler and `loader.*` downstream.
 
 ## 3. Cookies
 
-`@opentf/web/server` ships standards-based cookie helpers, so nothing hand-rolls
+`@opentf/afw/server` ships standards-based cookie helpers, so nothing hand-rolls
 `Cookie` / `Set-Cookie` header handling:
 
 ```js
-import { getCookie, getCookies, setCookie, deleteCookie } from "@opentf/web/server";
+import { getCookie, getCookies, setCookie, deleteCookie } from "@opentf/afw/server";
 
 // read — works on a Request, a Headers, or the raw header string
 const theme = getCookie(request, "theme");        // string | undefined
@@ -112,7 +112,7 @@ establish that a request is for a public asset.
 
 ## 5. Where it runs
 
-A project build can call `emitApiBundle` from `@opentf/web-cli/ssg` to emit:
+A project build can call `emitApiBundle` from `@opentf/afw-cli/ssg` to emit:
 
 - `middleware` — the pipeline runner (`createMiddleware`).
 - `apiRoutes` — the routes-only API dispatcher, for servers that run middleware
@@ -126,7 +126,7 @@ its fallback too:
 
 ```js
 import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/web/server";
+import { createFetchHandler } from "@opentf/afw/server";
 export default {
   fetch: createFetchHandler(apiRoutes, {
     middleware,
@@ -150,7 +150,7 @@ guard keeps the SPA feel.
 
 ```ts
 // app/_middleware.ts
-import type { Middleware } from "@opentf/web/server";
+import type { Middleware } from "@opentf/afw/server";
 
 const guard: Middleware = (request, context, next) => {
   context.locals.user = "ada";
@@ -160,5 +160,5 @@ export default guard;
 ```
 
 `Middleware`, `MiddlewareContext`, `NextFn`, and `MiddlewareRunner` are exported
-from `@opentf/web/server`, as are the cookie types (`CookieOptions`,
+from `@opentf/afw/server`, as are the cookie types (`CookieOptions`,
 `CookieSource`, `CookieTarget`).

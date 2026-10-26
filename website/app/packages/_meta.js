@@ -1,7 +1,7 @@
 export default {
   index: "Overview",
-  "web-form": "web-form",
-  "web-i18n": "web-i18n",
-  "web-test": "web-test",
-  "web-docs": "web-docs",
+  "afw-form": "afw-form",
+  "afw-i18n": "afw-i18n",
+  "afw-test": "afw-test",
+  "afw-docs": "afw-docs",
 };

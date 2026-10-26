@@ -3,7 +3,7 @@ title: Static Generation
 description: Prerender routes during esdev build with an explicit SSG target.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Static Generation
 
@@ -12,13 +12,13 @@ composes routes and layouts into HTML without a server-side DOM.
 
 ## Configure the build
 
-Use the default OTF plugin with `mode: "ssg"` and add a second build target:
+Use the default AFW plugin with `mode: "ssg"` and add a second build target:
 
 ```json esdev.json
 {
   "plugins": [
-    { "module": "@opentf/esdev-plugin-web", "options": { "mode": "ssg" } },
-    { "module": "@opentf/web-cli/ssg", "export": "siteOutputPlugin",
+    { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
+    { "module": "@opentf/afw-cli/ssg", "export": "siteOutputPlugin",
       "options": { "target": "web", "prerenderTarget": "prerender" } }
   ],
   "build": {
@@ -30,9 +30,9 @@ Use the default OTF plugin with `mode: "ssg"` and add a second build target:
 }
 ```
 
-Provide `ssg.js`: it imports helpers from `@opentf/web-cli/ssg`, locates the staged
+Provide `ssg.js`: it imports helpers from `@opentf/afw-cli/ssg`, locates the staged
 site, discovers pages/loaders, and calls `runPrerender`. This repo's `website/ssg.js`
-is a working example. Install `@opentf/web-cli` as a development dependency
+is a working example. Install `@opentf/afw-cli` as a development dependency
 and provide the browser entry from [Production Build](/docs/deployment/build). Call `writePrerenderReport(outDir, result)` with the
 `runPrerender` result so the finish plugin receives resolved site metadata.
 The script is required; the compiler plugin does not generate it. The output plugin

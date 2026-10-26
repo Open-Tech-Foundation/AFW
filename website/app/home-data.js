@@ -56,7 +56,7 @@ export const capabilities = [
   {
     category: "Tooling & DX",
     items: [
-      { name: "esdev templates", status: "partial", desc: "Native plugin setup is available; embedded OTF templates await their upstream migration." },
+      { name: "esdev templates", status: "partial", desc: "Native plugin setup is available; embedded AFW templates await their upstream migration." },
       { name: "Dev server + reload on save", status: "supported", desc: "esdev watches and rebuilds configured targets, refreshing accepted modules or reloading the page." },
       { name: "CSS hot updates", status: "supported", desc: "Global stylesheet edits update in place and keep page state." },
       { name: "JavaScript module HMR", status: "supported", desc: "esdev hot-swaps JavaScript modules that explicitly accept updates." },
@@ -78,11 +78,11 @@ export const capabilities = [
     category: "Full-stack",
     items: [
       { name: "Middleware", status: "supported", desc: "Server middleware for pages, APIs and loader data when included in the request pipeline." },
-      { name: "Cookie helpers", status: "supported", desc: "getCookie / setCookie / deleteCookie on @opentf/web/server — RFC 6265 helpers for middleware, API routes, and loaders." },
-      { name: "Reactive forms", status: "beta", desc: "@opentf/web-form — nested reactive values, validation and submit state." },
+      { name: "Cookie helpers", status: "supported", desc: "getCookie / setCookie / deleteCookie on @opentf/afw/server — RFC 6265 helpers for middleware, API routes, and loaders." },
+      { name: "Reactive forms", status: "beta", desc: "@opentf/afw-form — nested reactive values, validation and submit state." },
       { name: "API routes", status: "supported", desc: "File-based route.js / route.ts endpoints — standard Request/Response and dynamic params." },
       { name: "Data fetching", status: "supported", desc: "Route loaders (loader.js → router.data across SSR/SSG/SPA) + client-side resource(); queries and actions planned." },
-      { name: "Internationalization", status: "beta", desc: "@opentf/web-i18n — URL-prefix locale routing, ICU messages, and Intl formatters (Phase 1)." },
+      { name: "Internationalization", status: "beta", desc: "@opentf/afw-i18n — URL-prefix locale routing, ICU messages, and Intl formatters (Phase 1)." },
       { name: "Accessibility helpers", status: "planned", desc: "ARIA helpers and a11y defaults." },
     ],
   },

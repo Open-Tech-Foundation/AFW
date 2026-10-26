@@ -1,0 +1,3031 @@
+//! CSR backend — View IR → client-side JS that builds the DOM (ARCHITECTURE.md §6).
+//!
+//! Two emit shapes share one view-builder (the hybrid model, see
+//! `new-runtime-decisions`):
+//!
+//! - [`emit_page`] — pages/layouts compile to a **factory function** that builds
+//!   the DOM and returns the root node. Effects live for the app's lifetime.
+//! - [`emit_component`] — UI components compile to a **Custom Element** class
+//!   (`afw-*`) whose `connectedCallback` builds the DOM and whose effect
+//!   disposers are collected and torn down in `disconnectedCallback`.
+//!
+//! Both emit reactive text holes (`bindText`), dynamic attributes (`bindAttr`),
+//! event handlers, signal declarations, and compose child components by tag.
+//!
+//! Member-expression component names (`<Foo.Bar/>`) are unsupported *by design* —
+//! components are Custom Elements addressed by a static tag, so a dotted runtime
+//! value has no tag to resolve (SPEC §4.0.1). It is reported as a diagnostic.
+
+use afw_ir::reactivity::SignalKind;
+use afw_ir::view::{Prop, PropValue, ViewNode};
+use afw_ir::ExpressionId;
+
+use crate::codegen::static_tree;
+use crate::codegen::tags;
+use crate::lower::{module_shell, BodyItem, EffectCb, ExprTable, Lowered, SignalDecl};
+
+/// How many build statements a static subtree must replace before a hoisted
+/// `<template>` is worth it. A clone costs one module-level `const` plus a call, so
+/// below this the per-node build is both smaller and one less indirection.
+const TEMPLATE_MIN_STMTS: usize = 3;
+
+/// `AFWC_NO_TEMPLATES=1` compiles every static subtree node by node.
+///
+/// Templating rests on an analysis of when the HTML parser leaves markup alone
+/// (`codegen::static_tree`); this is the way out if that analysis is ever wrong for
+/// some app's markup, and it is what
+/// `packages/afw-cli/tests/e2e/template-parity.mjs` compiles the *other* build of
+/// each fixture with so the two DOMs can be diffed in a real engine.
+fn templates_disabled() -> bool {
+    std::env::var_os("AFWC_NO_TEMPLATES").is_some_and(|v| v != "0")
+}
+
+/// The SVG namespace; elements under `<svg>` are created with `createElementNS`
+/// (SPEC §5.8).
+const SVG_NS: &str = "http://www.w3.org/2000/svg";
+
+/// The CSR output for one component.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CsrModule {
+    /// Generated JavaScript: imports + a factory function or Custom Element class.
+    pub code: String,
+    /// Diagnostics for constructs this pass cannot emit yet.
+    pub errors: Vec<String>,
+}
+
+impl CsrModule {
+    /// True when the whole component was emitted with no unsupported constructs.
+    pub fn is_complete(&self) -> bool {
+        self.errors.is_empty()
+    }
+}
+
+/// Which runtime helpers the generated code references (drives the import header).
+#[derive(Default, Clone)]
+struct Uses {
+    signal: bool,
+    computed: bool,
+    effect: bool,
+    bind_text: bool,
+    bind_attr: bool,
+    bind_list: bool,
+    bind_child: bool,
+    spread: bool,
+    handle_error: bool,
+    host: bool,
+    set_prop: bool,
+    read_context: bool,
+    /// A static subtree is stamped from a hoisted `<template>` rather than built node
+    /// by node (see [`Emitter::emit_template`]).
+    template: bool,
+    /// The dual component's adopt/build discriminator + per-component mismatch recovery
+    /// (hydrate target only; a pure-CSR `Build` component references none of these).
+    is_hydrating: bool,
+    hydration_mismatch: bool,
+    report_error: bool,
+    /// A build path that can run mid-hydration (`RebuildIfServerChildren`, or the `__build`
+    /// recovery of a dual `Adopt` component) brackets its DOM construction in `runBuild` so
+    /// the fresh subtree's child islands build (not adopt) — the flag tracks server DOM, and
+    /// what we just `createElement`'d isn't server DOM.
+    run_build: bool,
+    /// The build path rescues the server-rendered `{children}` slot before rebuilding
+    /// (`slotChildren`) — hydrate target only.
+    slot_children: bool,
+    /// The constructor reads rich island props from the serialized payload (hydrate
+    /// target only; a CSR `Build` component reads attributes as before).
+    hydration_props: bool,
+    hot: bool,
+}
+
+impl Uses {
+    /// Union another unit's helper usage into this one (for module-level headers).
+    fn merge(&mut self, o: &Uses) {
+        self.signal |= o.signal;
+        self.computed |= o.computed;
+        self.effect |= o.effect;
+        self.bind_text |= o.bind_text;
+        self.bind_attr |= o.bind_attr;
+        self.bind_list |= o.bind_list;
+        self.bind_child |= o.bind_child;
+        self.spread |= o.spread;
+        self.handle_error |= o.handle_error;
+        self.host |= o.host;
+        self.set_prop |= o.set_prop;
+        self.read_context |= o.read_context;
+        self.template |= o.template;
+        self.is_hydrating |= o.is_hydrating;
+        self.hydration_mismatch |= o.hydration_mismatch;
+        self.report_error |= o.report_error;
+        self.run_build |= o.run_build;
+        self.slot_children |= o.slot_children;
+        self.hydration_props |= o.hydration_props;
+        self.hot |= o.hot;
+    }
+}
+
+/// Build the `import { … } from "@opentf/afw";` header for the given helper usage,
+/// merged with the source's own runtime imports (deduped).
+fn import_header(uses: &Uses, runtime_imports: &[String]) -> String {
+    let mut names = Vec::new();
+    if uses.signal {
+        names.push("signal");
+    }
+    if uses.computed {
+        names.push("computed");
+    }
+    if uses.effect {
+        names.push("effect");
+    }
+    if uses.bind_text {
+        names.push("bindText");
+    }
+    if uses.bind_attr {
+        names.push("bindAttr");
+    }
+    if uses.bind_list {
+        names.push("bindList");
+    }
+    if uses.bind_child {
+        names.push("bindChild");
+    }
+    if uses.spread {
+        names.push("spread");
+    }
+    if uses.handle_error {
+        names.push("handleError");
+    }
+    if uses.host {
+        names.push("enterHost");
+        names.push("exitHost");
+    }
+    if uses.set_prop {
+        names.push("setProp");
+    }
+    if uses.read_context {
+        names.push("readContext");
+    }
+    if uses.template {
+        names.push("template");
+    }
+    if uses.is_hydrating {
+        names.push("isHydrating");
+    }
+    if uses.run_build {
+        names.push("runBuild");
+    }
+    if uses.slot_children {
+        names.push("slotChildren");
+    }
+    if uses.hydration_mismatch {
+        names.push("HydrationMismatch");
+    }
+    if uses.report_error {
+        names.push("reportError");
+    }
+    if uses.hydration_props {
+        names.push("hydrationProps");
+    }
+    let mut merged: Vec<String> = names.into_iter().map(str::to_string).collect();
+    for name in runtime_imports {
+        if !merged.contains(name) {
+            merged.push(name.clone());
+        }
+    }
+    let mut header = if merged.is_empty() { String::new() } else {
+        format!("import {{ {} }} from \"@opentf/afw\";\n", merged.join(", "))
+    };
+    if uses.hot {
+        header.push_str("import { hotRouteState, hotState, registerHotModule, registerHotRoute } from \"@opentf/afw/hmr\";\n");
+    }
+    header
+}
+
+/// Emit a page/layout as a factory function returning the root DOM node.
+pub fn emit_page(lowered: &Lowered) -> CsrModule {
+    let (e, body) = page_body(lowered, false);
+    let code =
+        format!("{}{}{}{}", e.user_imports(), e.imports(), render_templates(&e.templates), body);
+    let mut errors = lowered.errors.clone();
+    errors.extend(e.errors);
+    CsrModule { code, errors }
+}
+
+/// Build a page factory body (everything after the import header).
+/// `hot_route` emits development route output: `$state` declarations keep their
+/// values in the route view's refresh slots (`hotRouteState`).
+fn page_body(lowered: &Lowered, hot_route: bool) -> (Emitter<'_>, String) {
+    let mut e = Emitter::new(lowered, Disposal::None);
+    e.hot_route = hot_route;
+    let root = e.emit_all();
+    e.emit_effects();
+    if !lowered.props.is_empty() {
+        e.errors.push("page/factory props not supported yet (use a component)".into());
+    }
+    if !lowered.exposes.is_empty() {
+        e.errors.push("$expose is only supported in components (no element to expose on)".into());
+    }
+
+    // Lifecycle: a factory has no element to own teardown, so it attaches a
+    // `__lifecycle` record to the root node. `mount` runs the `onMount` callbacks
+    // after insertion; the router runs `cleanups` when navigating away. The DOM
+    // hooks (`onResize`/`onVisibilityChange`/`onMediaQuery`) desugar to mount
+    // closures returning their disposer, so they ride the same record. A non-element
+    // root can't host the observer hooks: warn and skip them (like `$expose`).
+    let hook_error = dom_hook_root_error(lowered);
+    if let Some(err) = &hook_error {
+        e.errors.push(err.clone());
+    }
+    let mut lifecycle = String::new();
+    if e.has_lifecycle() {
+        lifecycle.push_str("  const __lifecycle = { mounts: [], cleanups: [] };\n");
+        let cleanup_stmts = e.on_cleanup_stmts("__lifecycle.cleanups");
+        lifecycle.push_str(&e.render_stmts("  ", &cleanup_stmts));
+        let mount_stmts = e.on_mount_stmts("__lifecycle.mounts");
+        lifecycle.push_str(&e.render_stmts("  ", &mount_stmts));
+        for closure in e.dom_hook_closures(&root, hook_error.is_none()) {
+            lifecycle.push_str(&format!("  __lifecycle.mounts.push({closure});\n"));
+        }
+        lifecycle.push_str(&format!("  {root}.__lifecycle = __lifecycle;\n"));
+    }
+
+    // Pages/layouts receive a plain props object (`{ params, query, children }`)
+    // from the router; emit the declared parameter name so `props.*` resolves.
+    let param = lowered.page_param.as_deref().unwrap_or("");
+    let export = &lowered.ir.id.export;
+    let header = if export == "default" {
+        format!("export default function ({param}) {{\n")
+    } else {
+        format!("export function {export}({param}) {{\n")
+    };
+    let body = format!("{header}{}{lifecycle}  return {root};\n}}\n", e.render("  "));
+    (e, body)
+}
+
+/// [`Emitter::dom_hook_closures`] for the hydrate backend (which has no CSR
+/// emitter). Helper imports for callbacks embedding JSX are covered by the dual
+/// module's CSR arm, like [`effect_code_pub`].
+pub(crate) fn dom_hook_closures_pub(
+    lowered: &Lowered,
+    host: &str,
+    observers: bool,
+) -> (Vec<String>, Vec<Template>) {
+    let mut e = Emitter::new(lowered, Disposal::None);
+    let closures = e.dom_hook_closures(host, observers);
+    (closures, e.templates)
+}
+
+/// The observer hooks need an Element to observe; a page whose root is a
+/// fragment/text/dynamic node has none (`onMediaQuery` never touches the root,
+/// so it stays allowed). Components always observe their custom-element host.
+pub(crate) fn dom_hook_root_error(lowered: &Lowered) -> Option<String> {
+    if lowered.on_resizes.is_empty() && lowered.on_visibility_changes.is_empty() {
+        return None;
+    }
+    match &lowered.ir.view {
+        ViewNode::Element { .. } | ViewNode::Component { .. } => None,
+        _ => Some(
+            "onResize/onVisibilityChange require a single element root — wrap the page view in a container element".into(),
+        ),
+    }
+}
+
+/// Emit a UI component as a Custom Element class + `customElements.define`.
+pub fn emit_component(lowered: &Lowered) -> CsrModule {
+    let (e, body) = component_body(lowered);
+    let code =
+        format!("{}{}{}{}", e.user_imports(), e.imports(), render_templates(&e.templates), body);
+    let mut errors = lowered.errors.clone();
+    errors.extend(e.errors);
+    CsrModule { code, errors }
+}
+
+/// How a component's `connectedCallback` constructs its view. CSR always *builds*; the
+/// hydrate backend hands in an alternate body for the server-rendered case. csr only
+/// splices the provided adopt body behind the `isHydrating()` discriminator (and, for
+/// `Adopt`, the mismatch-recovery scaffold) — it never generates or interprets the adopt
+/// *walk* itself; that is entirely the hydrate backend's contribution.
+#[derive(Clone, Copy)]
+pub(crate) enum ComponentView<'a> {
+    /// Pure CSR: build the subtree and append it. No server DOM is ever present, and no
+    /// hydration helper is referenced (a CSR-only app stays free of `isHydrating` etc.).
+    Build,
+    /// Development-only CSR with compatible state slots and refresh registration.
+    Hot,
+    /// Hydrate target, adoptable:
+    /// `if (isHydrating() && this.firstChild) { <adopt> } else { <build> }` — adopt the
+    /// server DOM on first paint, build fresh on client navigation. An adopt-time
+    /// `HydrationMismatch` is reported and the component rebuilds via CSR (§3.5).
+    Adopt(&'a str),
+    /// Hydrate target, not adoptable yet: rebuild. A component with no `{children}` slot
+    /// discards any pre-existing children unconditionally; one *with* a slot discards only
+    /// the server DOM (gated on `isHydrating()`), leaving call-site children for the nav
+    /// capture. A flash, but correct — a server-rendered host never double-renders.
+    RebuildIfServerChildren,
+}
+
+/// Build a Custom Element class body (everything after the import header). Returns the
+/// class declaration (`default_export` adds `export default <Class>;`) and, separately,
+/// its `customElements.define` statement so the caller controls registration order.
+fn component_body_ex<'a>(
+    lowered: &'a Lowered,
+    default_export: bool,
+    view: ComponentView<'_>,
+) -> (Emitter<'a>, String, String) {
+    // Tag/class come from the function name (not the export), so `export default
+    // function Counter` registers `afw-counter` to match a page's `<Counter/>`.
+    let export = lowered.name.clone();
+    let props = &lowered.props;
+    // Hydrate-target components (anything but pure CSR `Build`) initialize prop signals
+    // from the serialized rich-props payload; a CSR-only build reads attributes as before.
+    let hot = matches!(view, ComponentView::Hot);
+    let hydratable = !matches!(view, ComponentView::Build | ComponentView::Hot);
+
+    let mut e = Emitter::new(lowered, Disposal::Sink("this._cleanups"));
+    e.hot = hot;
+    e.uses.hot = hot;
+    // A hydrate-target build can run over a server-rendered host (rebuild fallback / mismatch
+    // recovery), where the slotted children must be recovered from the slot markers.
+    e.emit_children_capture(hydratable && lowered.children_local.is_some());
+    e.emit_prop_aliases();
+    e.emit_prop_snapshots();
+    e.emit_rest();
+    let root = e.emit_all();
+    e.emit_effects();
+    e.emit_exposes();
+    // `onCleanup` teardown is registered during connect (run on disconnect).
+    for stmt in e.on_cleanup_stmts("this._cleanups") {
+        e.line(stmt);
+    }
+    if !props.is_empty() {
+        e.uses.signal = true; // the constructor initializes prop signals
+    }
+
+    let class = format!("{export}Element");
+    let tag = tags::def_tag(&export, &lowered.ir.id.module);
+    let body = e.render("    ");
+    // `onMount` callbacks run after the view is appended; a returned function is
+    // collected as additional teardown. The DOM hooks desugar to closures that
+    // observe the host and return their disposer, so they share the wrapper.
+    let mut mounts = String::new();
+    let mount_codes: Vec<String> =
+        lowered.on_mounts.iter().map(|cb| e.effect_code(cb)).collect();
+    for cb in mount_codes.into_iter().chain(e.dom_hook_closures("this", true)) {
+        mounts.push_str(&format!(
+            "    {{ const __d = ({cb})(); if (typeof __d === \"function\") this._cleanups.push(__d); }}\n"
+        ));
+    }
+
+    let mut code = String::new();
+    code.push_str(&format!("export class {class} extends HTMLElement {{\n"));
+    // Module-namespaced Custom Element tag (collision-free). Call sites address
+    // this component through the binding's `.tag` rather than recomputing it.
+    code.push_str(&format!("  static tag = {};\n", js_string(&tag)));
+
+    if !props.is_empty() {
+        let attrs = props.iter().map(|p| js_string(&p.attr)).collect::<Vec<_>>().join(", ");
+        code.push_str(&format!("  static observedAttributes = [{attrs}];\n"));
+
+        // Initialize prop signals before connect. The hydrate target prefers the rich
+        // value from the serialized island payload (real objects/arrays/numbers — no
+        // string round-trip, no flash), keyed by this host's `data-h` id; it falls back
+        // to the attribute/default when the payload has no entry for it (a client-created
+        // element on SPA navigation, or a prop the payload didn't carry). A CSR-only build
+        // has no payload and reads the attribute directly.
+        code.push_str("  constructor() {\n    super();\n");
+        if hydratable {
+            e.uses.hydration_props = true;
+            code.push_str("    const __h = hydrationProps(this);\n");
+        }
+        code.push_str("    this._props = {\n");
+        for p in props {
+            let attr_read = match &p.default {
+                Some(d) => format!("this.getAttribute({}) ?? ({d})", js_string(&p.attr)),
+                None => format!("this.getAttribute({})", js_string(&p.attr)),
+            };
+            let init = if hydratable {
+                let key = js_string(&p.attr);
+                format!("__h && {key} in __h ? __h[{key}] : ({attr_read})")
+            } else {
+                attr_read
+            };
+            code.push_str(&format!("      {}: signal({init}),\n", p.attr));
+        }
+        code.push_str("    };\n");
+        // A `class` prop shares the host's `class` attribute with the styling hook. On a
+        // hydrating upgrade the server-rendered host already carries `class="afw-<name>"`
+        // (the hook), so the Custom Elements spec fires `attributeChangedCallback("class",
+        // …)` for that pre-existing attribute *after* this constructor — which would
+        // overwrite the prop signal we just initialized from the rich payload with the hook
+        // string. Latch the same guard the runtime stamp uses so that upgrade-time callback
+        // is ignored; `connectedCallback` clears it after stamping the hook. (The consumer's
+        // real `class` rides the payload, not the attribute, so nothing is lost.)
+        //
+        // The latch is conditional on a payload being present: with no payload there is
+        // nothing to protect, and an unconditional latch would swallow pre-connect
+        // `setAttribute` calls (createElement + set + append), which the CSR backend honors.
+        if hydratable && props.iter().any(|p| p.attr == "class") {
+            code.push_str("    this._stampingHostClass = __h != null;\n");
+        }
+        code.push_str("  }\n");
+
+        // Property get/set bridge so `el.attr = x` updates the signal.
+        for p in props {
+            let k = js_string(&p.attr);
+            code.push_str(&format!(
+                "  get {attr}() {{ return this._props[{k}].value; }}\n  set {attr}(v) {{ this._props[{k}].value = v; }}\n",
+                attr = p.attr
+            ));
+        }
+    }
+
+    // The build (view + bindings + mounts) is wrapped so a throwing component
+    // fails soft — `handleError(this, …)` reports it (surfacing in the dev overlay)
+    // and walks up to the nearest <ErrorBoundary>, which shows its fallback instead
+    // of breaking sibling components mid-render. A context-consuming component also
+    // brackets the build with the host stack so `$context` can resolve its
+    // provider via the DOM (`closest`), even across nested connects.
+    e.uses.handle_error = true;
+    let host = lowered.needs_host;
+    if host {
+        e.uses.host = true;
+    }
+    code.push_str("  connectedCallback() {\n");
+    // A synchronous DOM move fires disconnect→connect in the same task; cancel any
+    // teardown scheduled by that disconnect so the component (and its live effects)
+    // survives the move instead of being torn down and left mounted-but-dead.
+    code.push_str("    this._pendingTeardown = false;\n");
+    code.push_str("    if (this._mounted) return;\n");
+    code.push_str("    this._mounted = true;\n");
+    code.push_str("    this._cleanups = [];\n");
+    if hot {
+        code.push_str("    if (!this._hotRefreshing) this._hotState = new Map();\n");
+    }
+    // Stable styling hook (additive — never clobbers a consumer's class): lets CSS
+    // target the host by a readable name even though the registry tag is hashed.
+    // When the component declares a `class` prop, the hook lives on the same observed
+    // attribute as that prop, so the `classList.add` below would re-enter
+    // `attributeChangedCallback` and overwrite the prop signal (which the consumer set
+    // via the property bridge, not the attribute) with the post-stamp string. Bracket
+    // the stamp with a flag so that one synthetic mutation is ignored by the prop sync.
+    let guards_class = props.iter().any(|p| p.attr == "class");
+    if guards_class {
+        code.push_str("    this._stampingHostClass = true;\n");
+    }
+    code.push_str(&format!("    this.classList.add({});\n", js_string(&tags::css_hook(&export))));
+    if guards_class {
+        code.push_str("    this._stampingHostClass = false;\n");
+    }
+    if host {
+        code.push_str("    enterHost(this);\n");
+    }
+    code.push_str("    try {\n");
+    match view {
+        ComponentView::Build | ComponentView::Hot => {
+            code.push_str(&body);
+            code.push_str(&format!("    this.appendChild({root});\n"));
+            code.push_str(&mounts);
+        }
+        ComponentView::RebuildIfServerChildren => {
+            if lowered.children_local.is_some() {
+                // Has a `{children}` slot but isn't adoptable yet (Phase 2.1). During
+                // first-paint hydration the server DOM is the *rendered* view, not the
+                // original slot children — so pull the slotted nodes out of the view by their
+                // `<!--c[…-->` markers first and hand them to the capture (`this._serverSlot`),
+                // then discard the rest and rebuild. The rebuild is still a flash, but the
+                // content the parent slotted in survives it (it used to be thrown away with
+                // the view). On client navigation `isHydrating()` is false, so the call-site
+                // light-DOM children are left in place for the capture to slot as usual.
+                e.uses.is_hydrating = true;
+                e.uses.slot_children = true;
+                code.push_str(
+                    "    if (isHydrating() && this.firstChild) { this._serverSlot = slotChildren(this); this.replaceChildren(); }\n",
+                );
+            } else {
+                // No slot to preserve — discard any pre-existing children (server DOM on
+                // hydration, or unused call-site children on navigation) before building.
+                code.push_str("    if (this.firstChild) this.replaceChildren();\n");
+            }
+            // This build can run mid-hydration (the server DOM above wasn't adoptable), so
+            // bracket it in `runBuild`: the child islands it `createElement`s must build, not
+            // adopt a subtree that was never server-rendered (docs/HYDRATION.md §3.5).
+            e.uses.run_build = true;
+            code.push_str("    runBuild(() => {\n");
+            code.push_str(&body);
+            code.push_str(&format!("    this.appendChild({root});\n"));
+            code.push_str(&mounts);
+            code.push_str("    });\n");
+        }
+        ComponentView::Adopt(adopt_body) => {
+            // Adopt the server DOM during the first-paint hydration pass; build fresh on a
+            // client navigation. `this.firstChild` can't discriminate on its own — a
+            // client-`createElement`'d host handed call-site children also has one — so gate
+            // on the global hydration flag (docs/HYDRATION.md §3.4). The CSR build is
+            // factored into `__build` so both the navigation path and mismatch recovery
+            // share it without duplicating the (possibly large) view body.
+            e.uses.is_hydrating = true;
+            e.uses.hydration_mismatch = true;
+            e.uses.report_error = true;
+            e.uses.run_build = true;
+            // The build closure runs on client navigation (flag already clear) and as
+            // mismatch recovery *during* hydration. In the latter case the flag is still set,
+            // so bracket the build in `runBuild`: the recovered subtree is freshly built, and
+            // its child islands must build too rather than re-adopt server DOM this component
+            // just tore down (docs/HYDRATION.md §3.5). On navigation `runBuild` is a no-op.
+            code.push_str("    const __build = () => runBuild(() => {\n");
+            code.push_str(&body);
+            code.push_str(&format!("    this.appendChild({root});\n"));
+            // `onMount` runs after the view is in place. Both the build closure and the
+            // adopt branch declare the component's locals in their own scope, so the mount
+            // callbacks — which close over those locals — must be emitted *inside* each
+            // path, not hoisted after the switch (where the locals don't exist).
+            code.push_str(&mounts);
+            code.push_str("    });\n");
+            code.push_str("    if (isHydrating() && this.firstChild) {\n");
+            code.push_str("      try {\n");
+            code.push_str(adopt_body);
+            code.push_str(&mounts);
+            code.push_str("      } catch (__e) {\n");
+            code.push_str("        if (!(__e instanceof HydrationMismatch)) throw __e;\n");
+            // Per-component recovery (docs/HYDRATION.md §3.5): report the mismatch (never
+            // silent) and rebuild THIS component via CSR; the rest of the page stays
+            // hydrated. `replaceChildren()` clears the mismatched server DOM first.
+            code.push_str(&format!(
+                "        reportError(__e, {{ phase: \"hydrate\", component: {} }});\n",
+                js_string(&export)
+            ));
+            if lowered.children_local.is_some() {
+                // Rescue the slotted content before clearing: it is the *parent's* JSX and
+                // has nothing to do with this component's mismatch, so the rebuild re-slots
+                // the same nodes instead of dropping them.
+                e.uses.slot_children = true;
+                code.push_str("        this._serverSlot = slotChildren(this);\n");
+            }
+            code.push_str("        this.replaceChildren();\n");
+            code.push_str("        __build();\n");
+            code.push_str("      }\n");
+            code.push_str("    } else {\n");
+            code.push_str("      __build();\n");
+            code.push_str("    }\n");
+        }
+    }
+    code.push_str("    } catch (e) {\n");
+    code.push_str(&format!(
+        "      handleError(this, e, {{ phase: \"render\", component: {} }});\n",
+        js_string(&export)
+    ));
+    code.push_str("    }");
+    if host {
+        code.push_str(" finally {\n      exitHost();\n    }");
+    }
+    code.push('\n');
+    code.push_str("  }\n");
+
+    if !props.is_empty() {
+        code.push_str("  attributeChangedCallback(name, _old, value) {\n");
+        if guards_class {
+            // Ignore the host-class hook's own `classList.add` (see connectedCallback).
+            code.push_str("    if (this._stampingHostClass) return;\n");
+        }
+        code.push_str("    const sig = this._props[name];\n");
+        code.push_str("    if (sig) sig.value = value;\n");
+        code.push_str("  }\n");
+    }
+
+    // Defer teardown to a microtask so a same-task reconnect (a DOM move, e.g. a layout
+    // slotting `{props.children}` into its own subtree) can cancel it. Only a real
+    // removal — still disconnected when the microtask runs — disposes effects and clears
+    // `_mounted`, allowing a later genuine remount to re-initialize.
+    code.push_str("  disconnectedCallback() {\n");
+    code.push_str("    this._pendingTeardown = true;\n");
+    code.push_str("    const __teardown = () => {\n");
+    code.push_str("      if (!this._pendingTeardown) return;\n");
+    code.push_str("      this._pendingTeardown = false;\n");
+    code.push_str("      if (this._cleanups) for (const dispose of this._cleanups) dispose();\n");
+    code.push_str("      this._cleanups = [];\n");
+    code.push_str("      this._mounted = false;\n");
+    if hot {
+        code.push_str("      this._hotState = null; this._hotChildren = null;\n");
+    }
+    // Drop the built subtree so a reused element instance remounts clean. Most hosts are
+    // discarded with their parent on removal, but a module-level JSX node held in a
+    // `const` and re-inserted across client navigations is the same instance each time —
+    // without this, `connectedCallback`'s build would `appendChild` over the stale
+    // subtree and accumulate one copy per visit. Guarded by `_pendingTeardown` above, so
+    // a same-task move (which keeps `_mounted`) never reaches here and never clears.
+    code.push_str("      this.replaceChildren();\n");
+    code.push_str("    };\n");
+    code.push_str("    if (typeof queueMicrotask !== \"undefined\") queueMicrotask(__teardown);\n");
+    code.push_str("    else Promise.resolve().then(__teardown);\n");
+    code.push_str("  }\n");
+    code.push_str("}\n");
+    if default_export {
+        // Default-export the class so a consumer's `import Counter from "./Counter"`
+        // resolves (the binding is unused — the component is referenced by tag — but
+        // the import pulls the module in so its `define` runs).
+        code.push_str(&format!("export default {class};\n"));
+    }
+    if lowered.is_named_export && export != "default" {
+        // Re-export the class under the source's export name so a consumer's
+        // `import { Icon }` resolves and `<Icon/>` addresses it by `Icon.tag`
+        // (the class carries the module-namespaced tag). Importing it also pulls the
+        // module in so its `define` runs. Utility `.jsx` modules (icon sets) can thus
+        // ship several named components from one file.
+        code.push_str(&format!("export {{ {class} as {export} }};\n"));
+    }
+
+    // Idempotent registration: a tag is reused when the same module is evaluated in
+    // more than one chunk, and built-ins (`afw-link`) may already be defined. Returned
+    // *separately* from the class body so a multi-component module can emit every class
+    // declaration before any `define` (see `emit_module`): `customElements.define`
+    // synchronously upgrades any matching pre-rendered (SSR/SSG) element, and that
+    // element's `connectedCallback` may compose a sibling component by `Sibling.tag`. If
+    // the define ran inline, a component declared before a sibling it renders would touch
+    // that sibling's class while it is still in its temporal dead zone — a runtime
+    // `Cannot read properties of undefined (reading 'tag')` on first paint.
+    let define = format!(
+        "if (typeof customElements !== \"undefined\" && !customElements.get({class}.tag)) customElements.define({class}.tag, {class});\n"
+    );
+
+    (e, code, define)
+}
+
+/// Single-component module: a Custom Element class with a default export. The lone
+/// component's registration can follow its own class directly (no siblings to outrun).
+fn component_body(lowered: &Lowered) -> (Emitter<'_>, String) {
+    let (e, mut code, define) = component_body_ex(lowered, true, ComponentView::Build);
+    code.push_str(&define);
+    (e, code)
+}
+
+/// Emit a whole module: any preserved top-level statements (helper data,
+/// module-level stores) followed by every component — the page factory (its
+/// `is_page` flag) and co-located Custom Elements — under one merged import
+/// header. This is the multi-component path used by the toolchain.
+pub fn emit_module(
+    components: &[Lowered],
+    module_stmts: &[BodyItem],
+    module_exprs: &ExprTable,
+) -> CsrModule {
+    emit_module_inner(components, module_stmts, module_exprs, &[], &[], &[])
+}
+
+/// Development CSR. Page factories and mixed export modules remain reload boundaries.
+pub fn emit_hot_module(components: &[Lowered], module_stmts: &[BodyItem], module_exprs: &ExprTable) -> CsrModule {
+    let views = vec![ComponentView::Hot; components.len()];
+    emit_module_inner(components, module_stmts, module_exprs, &views, &[], &[])
+}
+
+/// Like `emit_module`, but each component may carry a [`ComponentView`] (aligned with
+/// `components` by index) so the hydrate backend can splice an adopt body into the
+/// `connectedCallback`. Pages ignore their slot; a missing/empty slot is `Build` (CSR).
+/// csr stays hydration-agnostic — it only places the caller's body behind the switch.
+///
+/// `extra_templates` are hoisted alongside the ones this module's own units register:
+/// the hydrate backend's adopt bodies and page factories embed CSR build functions
+/// (via [`emit_build_item_fn`] / [`emit_build_node_fn`]) whose stamped subtrees need
+/// their `const` declared here, ahead of every `customElements.define`.
+/// Adopt functions for the JSX nodes of one module-level value statement, in node order:
+/// `(fn name, declaration lines)`. `None` keeps that statement's eager build.
+pub(crate) type ModuleValueAdopt = Option<Vec<(String, Vec<String>)>>;
+
+pub(crate) fn emit_module_with_adopt(
+    components: &[Lowered],
+    module_stmts: &[BodyItem],
+    module_exprs: &ExprTable,
+    views: &[ComponentView],
+    extra_templates: &[Template],
+    module_adopts: &[ModuleValueAdopt],
+) -> CsrModule {
+    emit_module_inner(components, module_stmts, module_exprs, views, extra_templates, module_adopts)
+}
+
+/// Emit a standalone build function for a **list item** — `function name(itemSig, index)
+/// { …; return root; }` — reusing the full CSR build machinery. The hydrate backend calls
+/// this for the `renderItem` its list-reconcile effect needs when items appear *after*
+/// first paint (adoption can only claim server nodes, it can't build new ones). Returns
+/// the function's source lines. The same item subtree is also built in the component/page's
+/// own CSR arm, so its helper imports are already covered by that module's header. `base`
+/// is set to the (unique) `fn_name` so any nested list/dynamic builders inside get
+/// collision-free names within the hydrate factory's scope.
+pub(crate) fn emit_build_item_fn(
+    lowered: &Lowered,
+    fn_name: &str,
+    item: &ViewNode,
+    item_param: &str,
+    index_param: Option<&str>,
+    preamble: &[String],
+) -> (Vec<String>, Vec<Template>) {
+    let mut e = Emitter::new(lowered, Disposal::None);
+    e.base = fn_name.to_string();
+    e.build_item_fn(fn_name, item, item_param, index_param, preamble);
+    (e.lines, e.templates)
+}
+
+/// Emit a standalone build function for a **conditional/dynamic-node branch** —
+/// `function name() { …; return root; }` — reusing the CSR build machinery. The hydrate
+/// backend calls this for the `buildFn` its `hydrateChild` swaps to when a later reactive
+/// change selects a different branch (adoption can only claim the branch the server
+/// rendered). Returns the function's source lines; `base` is set to the unique `fn_name`
+/// so nested builders inside get collision-free names. See [`emit_build_item_fn`].
+pub(crate) fn emit_build_node_fn(
+    lowered: &Lowered,
+    fn_name: &str,
+    node: &ViewNode,
+) -> (Vec<String>, Vec<Template>) {
+    let mut e = Emitter::new(lowered, Disposal::None);
+    e.base = fn_name.to_string();
+    e.build_fn(fn_name, node, "", &[]);
+    (e.lines, e.templates)
+}
+
+/// Substitute node-builder calls into a JSX-embedding expression template (the
+/// `\u{0}i\u{0}` placeholders the lowering leaves for each branch). Shared with the
+/// hydrate backend, which substitutes adopt-branch calls for the same placeholders.
+pub(crate) fn substitute_branches_pub(template: &str, calls: &[String]) -> String {
+    substitute_branches(template, calls)
+}
+
+/// A `$effect` callback's source with any embedded JSX substituted as inline CSR
+/// node-builder IIFEs — for the hydrate backend. Effects always *build* fresh
+/// nodes (SSG doesn't run effects, so there is nothing to adopt); helper imports
+/// are covered by the dual module's CSR arm, like [`emit_build_node_fn`].
+pub(crate) fn effect_code_pub(lowered: &Lowered, cb: &EffectCb) -> (String, Vec<Template>) {
+    let mut e = Emitter::new(lowered, Disposal::None);
+    let code = e.effect_code(cb);
+    (code, e.templates)
+}
+
+/// The props-object alias (`function C(props)`): the keyed prop signals, plus
+/// `children` when the component reads it, so `props.children` used as a value
+/// (`<Tabs tabs={[{ content: props.children }]} />`) resolves to the captured
+/// light-DOM nodes. A getter reads the children local lazily: hydration adoption
+/// fills that local after the alias is declared.
+pub(crate) fn props_object_alias(props_local: &str, lowered: &Lowered) -> Option<String> {
+    let children = lowered.children_local.as_deref()
+        .map(|local| format!("get children() {{ return {local}; }}"));
+    match (lowered.props.is_empty(), children) {
+        (true, None) => None,
+        (false, None) => Some(format!("const {props_local} = this._props;")),
+        (true, Some(children)) => Some(format!("const {props_local} = {{ {children} }};")),
+        (false, Some(children)) => Some(format!("const {props_local} = {{ ...this._props, {children} }};")),
+    }
+}
+
+/// `name:Kind` for every signal declaration — the refresh compatibility shape.
+fn state_shape(c: &Lowered) -> Vec<String> {
+    c.body.iter().filter_map(|item| match item {
+        BodyItem::Signal(d) => Some(format!("{}:{:?}", d.name, d.kind)), _ => None,
+    }).collect()
+}
+
+fn emit_module_inner(
+    components: &[Lowered],
+    module_stmts: &[BodyItem],
+    module_exprs: &ExprTable,
+    views: &[ComponentView],
+    extra_templates: &[Template],
+    module_adopts: &[ModuleValueAdopt],
+) -> CsrModule {
+    let mut combined = Uses::default();
+    let mut errors = Vec::new();
+    let mut bodies = Vec::new();
+    let mut defines = Vec::new();
+    let mut templates: Vec<Template> = extra_templates.to_vec();
+    if !templates.is_empty() {
+        combined.template = true;
+    }
+    for (i, c) in components.iter().enumerate() {
+        // Lowering diagnostics (skipped unsupported constructs, bad hook arity, …)
+        // surface alongside codegen errors so the CLI's warning channel sees them.
+        errors.extend(c.errors.iter().cloned());
+        if c.is_page {
+            let hot_route = views.get(i).is_some_and(|v| matches!(v, ComponentView::Hot)) && c.ir.id.export == "default";
+            let (mut e, mut body) = page_body(c, hot_route);
+            if hot_route {
+                e.uses.hot = true;
+                body = body.replacen("export default function (", "function __afwRoute(", 1);
+                let safe = hot_boundary_safe(components, module_stmts, module_exprs);
+                // State names and kinds decide whether a refresh may reuse the view's
+                // slots; initializer edits are excluded, so existing values win.
+                let shape = format!("{:?}", state_shape(c));
+                body.push_str(&format!(
+                    "export default registerHotRoute(import.meta.hot, __afwRoute, {safe}, {});\n",
+                    js_string(&shape),
+                ));
+            }
+            combined.merge(&e.uses);
+            templates.extend(e.templates);
+            errors.extend(e.errors);
+            bodies.push(body);
+        } else {
+            // The source's `export default` component re-exports its class as the
+            // module default, so `import Counter from "./Counter"` resolves. The `define`
+            // is collected separately and emitted after every class in the module is
+            // declared, so a component that composes a sibling never registers (and
+            // upgrades a pre-rendered host) while that sibling's class is still in its
+            // temporal dead zone.
+            let view = views.get(i).copied().unwrap_or(ComponentView::Build);
+            let (e, body, define) = component_body_ex(c, c.is_default_export, view);
+            combined.merge(&e.uses);
+            templates.extend(e.templates);
+            errors.extend(e.errors);
+            bodies.push(body);
+            defines.push(define);
+        }
+    }
+
+    // Emit the preserved module-level statements through a module-scope context so
+    // any JSX-as-value declarations get their node-builders (and `Uses` merged into
+    // the shared import header).
+    let shell = module_shell("", module_exprs.clone(), module_stmts.to_vec());
+    let mut me = Emitter::new(&shell, Disposal::None);
+    let mut jsx_index = 0;
+    for item in shell.body.clone() {
+        match item {
+            BodyItem::Signal(decl) => me.emit_decl(&decl),
+            BodyItem::Raw(stmt) => me.line(stmt),
+            BodyItem::Jsx { template, nodes } => {
+                let adopts = module_adopts.get(jsx_index).cloned().flatten();
+                jsx_index += 1;
+                match adopts {
+                    // Hydrate build: each JSX value becomes `hydratableNode(build, adopt)`, so
+                    // a hole receiving it adopts the server nodes instead of a node built
+                    // once at import time. The eager form still runs (and is dropped) to
+                    // collect its imports.
+                    Some(adopts) if adopts.len() == nodes.len() => {
+                        let before = me.lines.len();
+                        me.emit_value_stmt(&template, &nodes);
+                        me.lines.truncate(before);
+                        let mut calls = Vec::with_capacity(nodes.len());
+                        for (i, (node, (adopt_fn, adopt_lines))) in nodes.iter().zip(adopts).enumerate() {
+                            let build_fn = format!("__afw_mbuild{}_{i}", jsx_index - 1);
+                            let (lines, tmpls) = emit_build_node_fn(&shell, &build_fn, node);
+                            me.templates.extend(tmpls);
+                            for l in lines {
+                                me.line(l);
+                            }
+                            for l in adopt_lines {
+                                me.line(l);
+                            }
+                            calls.push(format!("hydratableNode({build_fn}, {adopt_fn})"));
+                        }
+                        me.line(substitute_branches(&template, &calls));
+                    }
+                    _ => me.emit_value_stmt(&template, &nodes),
+                }
+            }
+        }
+    }
+    let module_code = me.render("");
+    combined.merge(&me.uses);
+    templates.extend(me.templates.clone());
+    errors.extend(me.errors.clone());
+
+    let mut code = String::new();
+    if let Some(first) = components.first() {
+        if !first.imports.is_empty() {
+            code.push_str(&first.imports.join("\n"));
+            code.push('\n');
+        }
+        code.push_str(&import_header(&combined, &first.runtime_imports));
+    }
+    // Ahead of the module's own statements, every class, and every `define` — see
+    // `render_templates` on why the ordering is load-bearing.
+    code.push_str(&render_templates(&templates));
+    if !module_code.is_empty() {
+        code.push_str(&module_code);
+        code.push('\n');
+    }
+    for body in bodies {
+        code.push_str(&body);
+    }
+    // All registrations last: every component class (and any module-level builder) is now
+    // declared, so defining a tag — which synchronously upgrades a matching SSR element
+    // and runs its `connectedCallback` — can safely reach any sibling component by `.tag`.
+    if views.iter().any(|v| matches!(v, ComponentView::Hot)) && components.iter().any(|c| !c.is_page) {
+        let entries = components.iter().filter(|c| !c.is_page).map(|c| {
+            // Changing constructor/observed attributes or state declarations is a reload.
+            // Initializer expressions are intentionally excluded: existing state wins.
+            let props = c.props.iter().map(|p| {
+                let default = p.default.as_ref()
+                    .map(|d| crate::sourcemap::plain(c.exprs.source_map.as_deref(), d));
+                format!("{}:{:?}", p.attr, default)
+            }).collect::<Vec<_>>();
+            let states = state_shape(c);
+            let signature = format!("{:?}|{:?}|{:?}|{}|{}",
+                props, states, c.children_local, c.is_default_export, c.is_named_export);
+            format!("[{}Element, {}]", c.name, js_string(&signature))
+        }).collect::<Vec<_>>().join(", ");
+        // Exposed APIs and exported helpers can affect importers beyond the view.
+        let safe = hot_boundary_safe(components, module_stmts, module_exprs);
+        let accept = if components.iter().any(|c| c.is_page) { ", false" } else { "" };
+        code.push_str(&format!("registerHotModule(import.meta.hot, [{entries}], {safe}{accept});\n"));
+    } else {
+        for define in defines { code.push_str(&define); }
+    }
+    if views.iter().any(|v| matches!(v, ComponentView::Hot)) &&
+        !components.iter().any(|c| c.is_page && c.ir.id.export == "default") {
+        code.push_str("if (import.meta.hot?.data.afwRouteBoundary) import.meta.hot.invalidate();\n");
+    }
+    CsrModule { code, errors }
+}
+
+fn hot_boundary_safe(components: &[Lowered], stmts: &[BodyItem], exprs: &ExprTable) -> bool {
+    components.iter().all(|c| c.exposes.is_empty()) && !stmts.iter().any(|stmt| {
+        let source = match stmt {
+            BodyItem::Raw(source) => source,
+            BodyItem::Jsx { template, .. } => template,
+            _ => return false,
+        };
+        crate::sourcemap::plain(exprs.source_map.as_deref(), source)
+            .trim_start().starts_with("export ")
+    })
+}
+
+/// Where effect disposers go: nowhere (page) or a collection sink (component).
+#[derive(Clone, Copy)]
+enum Disposal {
+    None,
+    Sink(&'static str),
+}
+
+struct Emitter<'a> {
+    lowered: &'a Lowered,
+    lines: Vec<String>,
+    errors: Vec<String>,
+    counter: u32,
+    uses: Uses,
+    disposal: Disposal,
+    /// Prefix for generated list item-render functions (the component name).
+    base: String,
+    /// Counter for unique node-builder function names (list items, dynamic nodes).
+    list_counter: u32,
+    /// Whether the current element context is inside an `<svg>` subtree, so
+    /// descendants are created with `createElementNS` (SPEC §5.8).
+    in_svg: bool,
+    hot: bool,
+    /// Development page/layout output: `$state` lives in the route view's slots.
+    hot_route: bool,
+    /// Static subtrees this unit stamps from a hoisted `<template>`, as
+    /// `(const name, HTML)` — drained by the module assembler (see [`Template`]).
+    templates: Vec<Template>,
+}
+
+/// One hoisted `const <name> = template("<html>");`.
+///
+/// The name is derived from a hash of the HTML rather than a counter, so units that
+/// never see each other — the page factory, each component class, and the standalone
+/// build functions the hydrate backend asks for — agree on a name for identical markup
+/// without having to share a counter. Deduplication then falls out of the name.
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct Template {
+    pub name: String,
+    pub html: String,
+}
+
+impl Template {
+    fn new(html: String) -> Self {
+        // FNV-1a over the markup. Not cryptographic and does not need to be: a
+        // collision between two *different* subtrees in one module would emit two
+        // `const`s with one name, which is a syntax error at bundle time rather than
+        // a silently wrong render.
+        let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+        for b in html.as_bytes() {
+            hash ^= u64::from(*b);
+            hash = hash.wrapping_mul(0x1000_0000_01b3);
+        }
+        Self { name: format!("_tmpl${hash:016x}"), html }
+    }
+}
+
+/// Render hoisted template declarations, deduped by name and ordered for stability.
+/// They must precede every `customElements.define` in the module: defining a tag
+/// synchronously upgrades a matching server-rendered element and runs its
+/// `connectedCallback`, so a `const` declared after the class is still in its temporal
+/// dead zone when the build path stamps from it.
+pub(crate) fn render_templates(templates: &[Template]) -> String {
+    let mut seen: Vec<&str> = Vec::new();
+    let mut out = String::new();
+    for t in templates {
+        if seen.contains(&t.name.as_str()) {
+            continue;
+        }
+        seen.push(&t.name);
+        out.push_str(&format!("const {} = template({});\n", t.name, js_string(&t.html)));
+    }
+    out
+}
+
+impl<'a> Emitter<'a> {
+    fn new(lowered: &'a Lowered, disposal: Disposal) -> Self {
+        let base = lowered.ir.id.export.clone();
+        Self {
+            lowered,
+            lines: Vec::new(),
+            errors: Vec::new(),
+            counter: 0,
+            uses: Uses::default(),
+            disposal,
+            base,
+            list_counter: 0,
+            in_svg: false,
+            hot: false,
+            hot_route: false,
+            templates: Vec::new(),
+        }
+    }
+
+    fn fresh(&mut self, prefix: &str) -> String {
+        let name = format!("{prefix}{}", self.counter);
+        self.counter += 1;
+        name
+    }
+
+    /// Push a complete statement (no indentation; rendered later).
+    fn line(&mut self, stmt: String) {
+        self.lines.push(stmt);
+    }
+
+    /// Push an effect-returning call, collecting its disposer for components.
+    fn bind(&mut self, call: String) {
+        match self.disposal {
+            Disposal::None => self.line(format!("{call};")),
+            Disposal::Sink(sink) => self.line(format!("{sink}.push({call});")),
+        }
+    }
+
+    fn render(&self, indent: &str) -> String {
+        self.render_stmts(indent, &self.lines)
+    }
+
+    /// Render the given statements, one per line at `indent`.
+    fn render_stmts(&self, indent: &str, stmts: &[String]) -> String {
+        let mut out = String::new();
+        for l in stmts {
+            out.push_str(indent);
+            out.push_str(l);
+            out.push('\n');
+        }
+        out
+    }
+
+    /// Capture the light-DOM children before the view is built, then clear them
+    /// from the host (they are re-placed at the `{children}` slot). Component
+    /// path only; no-op when the component doesn't take children.
+    /// Capture the call-site light-DOM children the view slots at `{children}`.
+    ///
+    /// `from_server_slot` is set for a hydrate-target component whose build can run against a
+    /// **server-rendered** host (`RebuildIfServerChildren`, or an `Adopt` component recovering
+    /// from a mismatch). There `this.childNodes` is the rendered view, not the slotted content
+    /// — so those paths stash the real slot nodes in `this._serverSlot` (via `slotChildren`)
+    /// before clearing, and the capture prefers them. Without this the rebuild silently
+    /// dropped everything the parent had slotted into the component.
+    fn emit_children_capture(&mut self, from_server_slot: bool) {
+        if let Some(local) = self.lowered.children_local.clone() {
+            if from_server_slot {
+                self.line(format!(
+                    "const {local} = this._serverSlot ?? Array.from(this.childNodes);"
+                ));
+                self.line("this._serverSlot = null;".to_string());
+            } else if self.hot {
+                self.line(format!("const {local} = this._hotChildren ??= Array.from(this.childNodes);"));
+            } else {
+                self.line(format!("const {local} = Array.from(this.childNodes);"));
+            }
+            self.line("this.replaceChildren();".to_string());
+        }
+    }
+
+    /// Alias the prop signals so view references resolve to them. For destructured
+    /// props, one binding per key (`const local = this._props["attr"];`). For the
+    /// props-object form, a single `const props = this._props;` so First-Access
+    /// references like `props.name.value` resolve to the keyed signal. Component
+    /// path only.
+    fn emit_prop_aliases(&mut self) {
+        if let Some(props_local) = self.lowered.props_object.clone() {
+            if let Some(alias) = props_object_alias(&props_local, self.lowered) {
+                self.lines.push(alias);
+            }
+            return;
+        }
+        for p in &self.lowered.props {
+            self.lines.push(format!("const {} = this._props[{}];", p.local, js_string(&p.attr)));
+        }
+    }
+
+    /// Emit one-time snapshots for nested destructuring patterns: destructure the
+    /// (eagerly evaluated) prop value into the inner bindings. Non-reactive by
+    /// design (SPEC §2.7 / `PropSnapshot`). Component path only.
+    fn emit_prop_snapshots(&mut self) {
+        for s in &self.lowered.prop_snapshots {
+            self.lines
+                .push(format!("const {} = ({}.value ?? {});", s.pattern, s.source, s.empty));
+        }
+    }
+
+    /// Emit the `...rest` snapshot: a plain object of the element's attributes
+    /// excluding the named props (SPEC §2.7). Non-reactive. Component path only.
+    fn emit_rest(&mut self) {
+        if let Some(rest) = &self.lowered.rest {
+            let excl =
+                rest.exclude.iter().map(|k| js_string(k)).collect::<Vec<_>>().join(", ");
+            self.lines.push(format!("const {} = {{}};", rest.name));
+            self.lines.push(format!(
+                "for (const __a of Array.from(this.attributes)) if (![{excl}].includes(__a.name)) {}[__a.name] = __a.value;",
+                rest.name
+            ));
+        }
+    }
+
+    /// Emit the body (signal declarations + preserved statements, in source order)
+    /// then the view, returning the root variable.
+    fn emit_all(&mut self) -> String {
+        for item in self.lowered.body.clone() {
+            match item {
+                BodyItem::Signal(decl) => self.emit_decl(&decl),
+                BodyItem::Raw(stmt) => self.line(stmt),
+                BodyItem::Jsx { template, nodes } => self.emit_value_stmt(&template, &nodes),
+            }
+        }
+        self.emit_node(&self.lowered.ir.view)
+    }
+
+    /// Emit top-level `$effect` callbacks, collecting disposers for cleanup
+    /// (page: run for the app's lifetime; SPEC §3.2). Emitted after the view so
+    /// effects can read refs assigned during the build.
+    fn emit_effects(&mut self) {
+        for cb in self.lowered.effects.clone() {
+            let code = self.effect_code(&cb);
+            self.uses.effect = true;
+            self.bind(format!("effect({code})"));
+        }
+    }
+
+    /// A `$effect`/`$expose`/lifecycle callback's source, with any embedded JSX
+    /// branch substituted as an inline node-builder IIFE (see
+    /// [`Self::inline_node_expr`]) so it evaluates in the scope the JSX was
+    /// written in (the callback's loop locals, params).
+    fn effect_code(&mut self, cb: &EffectCb) -> String {
+        if cb.nodes.is_empty() {
+            return cb.code.clone();
+        }
+        let mut calls = Vec::with_capacity(cb.nodes.len());
+        for node in &cb.nodes {
+            calls.push(self.inline_node_expr(node));
+        }
+        substitute_branches(&cb.code, &calls)
+    }
+
+    /// Emit `$expose(obj)` as `Object.assign(this, obj)`, publishing the object's
+    /// properties on the element (SPEC §3.2). Component path only.
+    fn emit_exposes(&mut self) {
+        for obj in self.lowered.exposes.clone() {
+            let code = self.effect_code(&obj);
+            self.line(format!("Object.assign(this, ({code}));"));
+        }
+    }
+
+    /// Desugar the DOM lifecycle hooks (`onResize`/`onVisibilityChange`/
+    /// `onMediaQuery`) into mount-shaped closures over `host` (a component's
+    /// `this`, a page's root var). Each closure returns its disposer, so cleanup
+    /// flows through the same path as an `onMount` return value (`_cleanups` /
+    /// `runMount`). `observers: false` skips the two observer hooks — a page whose
+    /// root isn't an Element has nothing to observe (the caller reports
+    /// `dom_hook_root_error`; emitting the closure anyway would throw
+    /// `observe(fragment)` at runtime).
+    fn dom_hook_closures(&mut self, host: &str, observers: bool) -> Vec<String> {
+        let mut closures = Vec::new();
+        if observers {
+            for cb in self.lowered.on_resizes.clone() {
+                let cb = self.effect_code(&cb);
+                closures.push(format!(
+                    "() => {{ const __cb = ({cb}); const __ro = new ResizeObserver((__entries) => {{ for (const __entry of __entries) __cb(__entry); }}); __ro.observe({host}); return () => __ro.disconnect(); }}"
+                ));
+            }
+            for cb in self.lowered.on_visibility_changes.clone() {
+                let cb = self.effect_code(&cb);
+                closures.push(format!(
+                    "() => {{ const __cb = ({cb}); const __io = new IntersectionObserver((__entries) => {{ for (const __entry of __entries) __cb(__entry.isIntersecting, __entry); }}); __io.observe({host}); return () => __io.disconnect(); }}"
+                ));
+            }
+        }
+        // The initial state is delivered synchronously at mount; the query
+        // expression is evaluated once (not reactive).
+        for (query, cb) in self.lowered.on_media_queries.clone() {
+            let cb = self.effect_code(&cb);
+            closures.push(format!(
+                "() => {{ const __cb = ({cb}); const __mql = window.matchMedia(({query})); __cb(__mql.matches, __mql); const __onchange = (__e) => __cb(__e.matches, __e); __mql.addEventListener(\"change\", __onchange); return () => __mql.removeEventListener(\"change\", __onchange); }}"
+            ));
+        }
+        closures
+    }
+
+    fn has_lifecycle(&self) -> bool {
+        !self.lowered.on_mounts.is_empty()
+            || !self.lowered.on_cleanups.is_empty()
+            || !self.lowered.on_resizes.is_empty()
+            || !self.lowered.on_visibility_changes.is_empty()
+            || !self.lowered.on_media_queries.is_empty()
+    }
+
+    /// `onCleanup(cb)` teardown registrations targeting `sink` (run when the
+    /// component/page is removed).
+    fn on_cleanup_stmts(&mut self, sink: &str) -> Vec<String> {
+        self.lowered
+            .on_cleanups
+            .clone()
+            .iter()
+            .map(|cb| {
+                let code = self.effect_code(cb);
+                format!("{sink}.push({code});")
+            })
+            .collect()
+    }
+
+    /// `onMount(cb)` callbacks pushed into `sink` (run after the view is inserted;
+    /// a returned function is collected as additional teardown by the runtime).
+    fn on_mount_stmts(&mut self, sink: &str) -> Vec<String> {
+        self.lowered
+            .on_mounts
+            .clone()
+            .iter()
+            .map(|cb| {
+                let code = self.effect_code(cb);
+                format!("{sink}.push({code});")
+            })
+            .collect()
+    }
+
+    /// The module's preserved top-level imports (e.g. composed components), one
+    /// per line, emitted before the runtime import so the bundler resolves them.
+    fn user_imports(&self) -> String {
+        if self.lowered.imports.is_empty() {
+            return String::new();
+        }
+        format!("{}\n", self.lowered.imports.join("\n"))
+    }
+
+    /// The `import { … } from "@opentf/afw";` header for the helpers used.
+    fn imports(&self) -> String {
+        import_header(&self.uses, &self.lowered.runtime_imports)
+    }
+
+    fn emit_decl(&mut self, decl: &SignalDecl) {
+        match decl.kind {
+            SignalKind::State => {
+                self.uses.signal = true;
+                if self.hot {
+                    self.line(format!("const {} = hotState(this, {}, () => signal({}));", decl.name, js_string(&decl.name), decl.init));
+                } else if self.hot_route {
+                    self.line(format!("const {} = hotRouteState({}, () => signal({}));", decl.name, js_string(&decl.name), decl.init));
+                } else {
+                    self.line(format!("const {} = signal({});", decl.name, decl.init));
+                }
+            }
+            SignalKind::Ref => {
+                self.uses.signal = true;
+                self.line(format!("const {} = signal(null);", decl.name));
+            }
+            // `$context(Ctx)` resolves the nearest provider's signal via the DOM;
+            // refs to the binding then read `.value` like any other signal.
+            SignalKind::Context => {
+                self.uses.read_context = true;
+                self.line(format!("const {} = readContext({});", decl.name, decl.init));
+            }
+            SignalKind::Derived => {
+                self.uses.computed = true;
+                let body = if decl.init_is_fn {
+                    decl.init.clone()
+                } else {
+                    format!("() => {}", decl.init)
+                };
+                self.line(format!("const {} = computed({});", decl.name, body));
+                if self.hot {
+                    self.line(format!("this._cleanups.push(() => {}.dispose());", decl.name));
+                }
+            }
+            // `Prop`-kind signals come from the (not yet implemented) props path.
+            SignalKind::Prop => {
+                self.errors.push(format!("prop signal not supported yet: {}", decl.name));
+            }
+        }
+    }
+
+    /// A static subtree worth stamping from a hoisted `<template>` instead of building
+    /// node by node: the expression that clones it, or `None` to build it as before.
+    ///
+    /// Three things have to hold. The subtree must be provably parser-neutral
+    /// ([`static_tree::template_html`] — the analysis that keeps this from changing what
+    /// any app renders). It must be big enough that one hoisted `const` plus a call beats
+    /// the statements it replaces, so a lone `<br/>` or `<span>hi</span>` stays inline.
+    /// And it must not sit inside an `<svg>`, where the CSR path builds through
+    /// `createElementNS` and the HTML parser would not.
+    fn template_expr(&mut self, node: &ViewNode) -> Option<String> {
+        let too_small = static_tree::build_stmt_count(node) < TEMPLATE_MIN_STMTS;
+        if templates_disabled() || self.in_svg || too_small {
+            return None;
+        }
+        let html = static_tree::template_html(node)?;
+        self.uses.template = true;
+        let tmpl = Template::new(html);
+        let call = format!("{}()", tmpl.name);
+        if !self.templates.contains(&tmpl) {
+            self.templates.push(tmpl);
+        }
+        Some(call)
+    }
+
+    /// Emit the statements that build `node` and return the variable holding it.
+    fn emit_node(&mut self, node: &ViewNode) -> String {
+        if let Some(clone) = self.template_expr(node) {
+            let var = self.fresh("el");
+            self.line(format!("const {var} = {clone};"));
+            return var;
+        }
+        match node {
+            ViewNode::Element { tag, props, children } => {
+                let var = self.fresh("el");
+                // `<svg>` (or any element within one) is created in the SVG
+                // namespace; `<foreignObject>` switches descendants back to HTML.
+                let is_svg = self.in_svg || tag == "svg";
+                let create = if is_svg {
+                    format!("document.createElementNS(\"{SVG_NS}\", {})", js_string(tag))
+                } else {
+                    format!("document.createElement({})", js_string(tag))
+                };
+                self.line(format!("const {var} = {create};"));
+                for prop in props {
+                    self.emit_element_prop(&var, prop);
+                }
+                let prev = self.in_svg;
+                self.in_svg = is_svg && tag != "foreignObject";
+                for child in children {
+                    self.emit_append(&var, child);
+                }
+                self.in_svg = prev;
+                var
+            }
+            ViewNode::Text(text) => {
+                let var = self.fresh("t");
+                self.line(format!("const {var} = document.createTextNode({});", js_string(text)));
+                var
+            }
+            ViewNode::Fragment(children) => {
+                let var = self.fresh("frag");
+                self.line(format!("const {var} = document.createDocumentFragment();"));
+                for child in children {
+                    self.emit_append(&var, child);
+                }
+                var
+            }
+            ViewNode::Dynamic { expr } => {
+                let code = self.lowered.exprs.code(*expr).unwrap_or("null").to_string();
+                let var = self.fresh("t");
+                self.line(format!("const {var} = document.createTextNode(\"\");"));
+                self.uses.bind_text = true;
+                self.bind(format!("bindText({var}, () => ({code}))"));
+                var
+            }
+            ViewNode::Component { name, props, children } => self.emit_component_use(name, props, children),
+            ViewNode::DynamicNode { expr, branches } => {
+                // A dynamic region as a node lives in its own fragment.
+                let frag = self.fresh("frag");
+                self.line(format!("const {frag} = document.createDocumentFragment();"));
+                self.emit_dynamic_node(&frag, *expr, branches);
+                frag
+            }
+            ViewNode::Children => {
+                let frag = self.fresh("frag");
+                self.line(format!("const {frag} = document.createDocumentFragment();"));
+                self.emit_children_slot(&frag);
+                frag
+            }
+            ViewNode::List { source, source_branches, item_param, index_param, item, key, preamble } => {
+                // A list as a node (e.g. a root list) lives in its own fragment.
+                let frag = self.fresh("frag");
+                self.line(format!("const {frag} = document.createDocumentFragment();"));
+                self.emit_list(&frag, *source, source_branches, item_param, index_param.as_deref(), item, *key, preamble);
+                frag
+            }
+        }
+    }
+
+    /// Emit a list into `parent`: a module-level item-render function + a
+    /// `bindList` call performing keyed reconciliation.
+    fn emit_list(
+        &mut self,
+        parent: &str,
+        source: ExpressionId,
+        source_branches: &[ViewNode],
+        item_param: &str,
+        index_param: Option<&str>,
+        item: &ViewNode,
+        key: Option<ExpressionId>,
+        preamble: &[String],
+    ) {
+        let fn_name = format!("{}_item{}", self.base, self.list_counter);
+        self.list_counter += 1;
+        self.build_item_fn(&fn_name, item, item_param, index_param, preamble);
+
+        let source_code = self.list_source_code(source, source_branches);
+        // The key expression is interned verbatim, so it references the callback's
+        // real item/index names — the key fn's params must use those same names (not
+        // a synthetic `_index`), or a `key={index}` reads an undefined binding.
+        let idx = index_param.unwrap_or("_index");
+        let key_fn = match key {
+            Some(k) => {
+                let code = self.lowered.exprs.code(k).unwrap_or("_index").to_string();
+                format!("({item_param}, {idx}) => ({code})")
+            }
+            None => "undefined".to_string(),
+        };
+        self.uses.bind_list = true;
+        self.bind(format!("bindList({parent}, () => ({source_code}), {fn_name}, {key_fn})"));
+    }
+
+    /// The list's data expression, with any JSX embedded in it (`[{ icon: <b/> }]`)
+    /// replaced by an inline node-builder IIFE — so a data-position element becomes
+    /// a real DOM node rather than falling through to a host `jsx-runtime`, and
+    /// evaluates in the scope its placeholder sits in (see [`Self::inline_node_expr`]).
+    fn list_source_code(&mut self, source: ExpressionId, source_branches: &[ViewNode]) -> String {
+        let template = self.lowered.exprs.code(source).unwrap_or("[]").to_string();
+        if source_branches.is_empty() {
+            return template;
+        }
+        let mut calls = Vec::with_capacity(source_branches.len());
+        for branch in source_branches {
+            calls.push(self.inline_node_expr(branch));
+        }
+        substitute_branches(&template, &calls)
+    }
+
+    /// Build a module-level `function {fn_name}(item, index) { … return root; }`
+    /// for a list item, accumulating it in `aux`. `preamble` are the callback's
+    /// local declarations (`.value`-injected), emitted before the item view so it
+    /// can reference them.
+    fn build_item_fn(
+        &mut self,
+        fn_name: &str,
+        item: &ViewNode,
+        item_param: &str,
+        index_param: Option<&str>,
+        preamble: &[String],
+    ) {
+        let index = index_param.unwrap_or("_index");
+        self.build_fn(fn_name, item, &format!("{item_param}, {index}"), preamble);
+    }
+
+    /// Emit a **local** `function {fn_name}({params}) { …preamble…; … return root; }`
+    /// that constructs `node`, into the current body so it closes over component
+    /// signals/props. Inner effects are not collected (they live and die with the
+    /// produced node). `preamble` lines (list-item locals) are emitted verbatim
+    /// before the constructed view.
+    fn build_fn(&mut self, fn_name: &str, node: &ViewNode, params: &str, preamble: &[String]) {
+        let saved_lines = std::mem::take(&mut self.lines);
+        let saved_counter = self.counter;
+        let saved_disposal = self.disposal;
+        self.counter = 0;
+        self.disposal = Disposal::None;
+
+        let root = self.emit_node(node);
+
+        let body_lines = std::mem::replace(&mut self.lines, saved_lines);
+        self.counter = saved_counter;
+        self.disposal = saved_disposal;
+
+        self.line(format!("function {fn_name}({params}) {{"));
+        for l in preamble {
+            self.line(format!("  {l}"));
+        }
+        for l in &body_lines {
+            self.line(format!("  {l}"));
+        }
+        self.line(format!("  return {root};"));
+        self.line("}".to_string());
+    }
+
+    /// Build `node` as an inline IIFE expression — `(() => { …; return root; })()`
+    /// — for substitution at a template placeholder. Unlike [`Self::build_fn`],
+    /// nothing is hoisted: the builder body evaluates in the scope where the
+    /// placeholder sits, so JSX written inside a loop or callback body captures
+    /// that scope's locals. Inner effects are not collected (they live and die
+    /// with the produced node), mirroring `build_fn`.
+    fn inline_node_expr(&mut self, node: &ViewNode) -> String {
+        let saved_lines = std::mem::take(&mut self.lines);
+        let saved_counter = self.counter;
+        let saved_disposal = self.disposal;
+        self.counter = 0;
+        self.disposal = Disposal::None;
+
+        let root = self.emit_node(node);
+
+        let body_lines = std::mem::replace(&mut self.lines, saved_lines);
+        self.counter = saved_counter;
+        self.disposal = saved_disposal;
+
+        let mut out = String::from("(() => {");
+        for l in &body_lines {
+            out.push('\n');
+            out.push_str(l);
+        }
+        out.push_str(&format!("\nreturn {root};\n}})()"));
+        out
+    }
+
+    /// Emit a dynamic node region (conditional/element-valued hole) into `parent`:
+    /// a comment anchor, a node-builder per embedded JSX branch, and a `bindChild`
+    /// over the templated expression with each placeholder calling its builder.
+    fn emit_dynamic_node(&mut self, parent: &str, expr: ExpressionId, branches: &[ViewNode]) {
+        let anchor = self.fresh("a");
+        self.line(format!("const {anchor} = document.createComment(\"\");"));
+        self.line(format!("{parent}.appendChild({anchor});"));
+
+        let mut calls = Vec::with_capacity(branches.len());
+        for branch in branches {
+            let fn_name = format!("{}_node{}", self.base, self.list_counter);
+            self.list_counter += 1;
+            self.build_fn(&fn_name, branch, "", &[]);
+            calls.push(format!("{fn_name}()"));
+        }
+
+        let template = self.lowered.exprs.code(expr).unwrap_or("null").to_string();
+        let code = substitute_branches(&template, &calls);
+        self.uses.bind_child = true;
+        self.bind(format!("bindChild({anchor}, () => ({code}))"));
+    }
+
+    /// Emit a preserved statement that embeds JSX as a value: each placeholder is
+    /// substituted with an inline node-builder IIFE (so `const icon = <Icon/>`
+    /// becomes `const icon = (() => { …; return el0; })();`). Inline — not a
+    /// hoisted builder — because the statement can put the placeholder inside a
+    /// scope the component body can't see (a `for` body's loop locals, a callback's
+    /// params); the IIFE evaluates exactly where the JSX was written.
+    fn emit_value_stmt(&mut self, template: &str, nodes: &[ViewNode]) {
+        let mut calls = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            calls.push(self.inline_node_expr(node));
+        }
+        self.line(substitute_branches(template, &calls));
+    }
+
+    /// Compose a child component: `<Foo .../>` → `document.createElement("afw-foo")`.
+    fn emit_component_use(&mut self, name: &str, props: &[Prop], children: &[ViewNode]) -> String {
+        let var = self.fresh("c");
+        if name.contains('.') {
+            // Unsupported by design: a dotted name is a runtime value with no static
+            // Custom Element tag to resolve (SPEC §4.0.1). Use a top-level component
+            // or children/$context composition instead.
+            self.errors.push(format!(
+                "member-expression component <{name}> is not supported \
+                 (components are addressed by a static tag — see SPEC §4.0.1); \
+                 give it its own component or compose via children/$context"
+            ));
+            self.line(format!("const {var} = document.createComment(\"component\");"));
+            return var;
+        }
+        // Address the component through a `.tag`-carrying binding: a built-in's
+        // literal, a same-module sibling's class (`{name}Element`), or an imported
+        // binding (`{name}`). See `codegen::tags`.
+        let tag_expr =
+            tags::use_tag_expr(name, &self.lowered.module_components, &format!("{name}Element"));
+        self.line(format!("const {var} = document.createElement({tag_expr});"));
+        for prop in props {
+            self.emit_component_prop(&var, prop);
+        }
+        // Children are appended as light DOM; the component captures them at
+        // connect and places them at its `{children}` slot (SPEC §4.5).
+        for child in children {
+            self.emit_append(&var, child);
+        }
+        var
+    }
+
+    /// Append `child` to `parent`, inlining static text-node creation and
+    /// wiring lists directly into the parent (no intermediate node).
+    fn emit_append(&mut self, parent: &str, child: &ViewNode) {
+        // A stamped subtree needs no local binding — append the clone directly.
+        if let Some(clone) = self.template_expr(child) {
+            self.line(format!("{parent}.appendChild({clone});"));
+            return;
+        }
+        match child {
+            ViewNode::Text(text) => {
+                self.line(format!(
+                    "{parent}.appendChild(document.createTextNode({}));",
+                    js_string(text)
+                ));
+            }
+            ViewNode::List { source, source_branches, item_param, index_param, item, key, preamble } => {
+                self.emit_list(parent, *source, source_branches, item_param, index_param.as_deref(), item, *key, preamble);
+            }
+            ViewNode::DynamicNode { expr, branches } => {
+                self.emit_dynamic_node(parent, *expr, branches);
+            }
+            // A text hole: append the anchor text node *before* binding so that a
+            // node-valued expression (JSX stored as a value) can insert before it on
+            // the first run (the anchor must already be attached).
+            ViewNode::Dynamic { expr } => {
+                let code = self.lowered.exprs.code(*expr).unwrap_or("null").to_string();
+                let var = self.fresh("t");
+                self.line(format!("const {var} = document.createTextNode(\"\");"));
+                self.line(format!("{parent}.appendChild({var});"));
+                self.uses.bind_text = true;
+                self.bind(format!("bindText({var}, () => ({code}))"));
+            }
+            ViewNode::Children => self.emit_children_slot(parent),
+            _ => {
+                let child_var = self.emit_node(child);
+                self.line(format!("{parent}.appendChild({child_var});"));
+            }
+        }
+    }
+
+    /// Place the children into `parent` at the `{children}` slot. Components splice
+    /// in their captured light-DOM nodes; page/layout factories append the node the
+    /// router passed as `props.children`.
+    fn emit_children_slot(&mut self, parent: &str) {
+        if let Some(local) = self.lowered.children_local.clone() {
+            let n = self.fresh("__c");
+            self.line(format!("for (const {n} of {local}) {parent}.appendChild({n});"));
+        } else if let Some(param) = self.lowered.page_param.clone() {
+            self.line(format!("if ({param}.children) {parent}.appendChild({param}.children);"));
+        } else {
+            self.errors.push("children slot outside a component with children".into());
+        }
+    }
+
+    /// `ref={expr}`: assign the node to the ref signal (`expr.value = el`,
+    /// SPEC §5.6). The expression is raw (no `.value` injection).
+    fn emit_ref(&mut self, el: &str, prop: &Prop) {
+        if let PropValue::Dynamic(expr) = &prop.value {
+            let code = self.lowered.exprs.code(*expr).unwrap_or("null").to_string();
+            self.line(format!("{code}.value = {el};"));
+        }
+    }
+
+    /// `onEvent:mod={fn}`: an `addEventListener` binding (the modifier path of the
+    /// hybrid event model). In a component the disposer is collected so the listener
+    /// is removed on disconnect; a page's node is discarded on navigation, so its
+    /// listener needs no teardown and the handler is inlined.
+    fn emit_event_listener(&mut self, el: &str, prop_name: &str, code: &str) {
+        let (event, opts) = event_options(prop_name);
+        let name = js_string(&event);
+        match self.disposal {
+            Disposal::None => {
+                self.line(format!("{el}.addEventListener({name}, {code}{opts});"));
+            }
+            Disposal::Sink(sink) => {
+                let h = self.fresh("__ev");
+                self.line(format!("const {h} = {code};"));
+                self.line(format!("{el}.addEventListener({name}, {h}{opts});"));
+                self.line(format!(
+                    "{sink}.push(() => {el}.removeEventListener({name}, {h}{opts}));"
+                ));
+            }
+        }
+    }
+
+    /// `{...obj}`: reactively apply the object's keys (SPEC §5.5). Wrapped in an
+    /// effect so a reactive source re-applies; `as_props` sets element properties
+    /// (components) vs attributes (host elements).
+    fn emit_spread(&mut self, el: &str, prop: &Prop, as_props: bool) {
+        if let PropValue::Dynamic(expr) = &prop.value {
+            let code = self.lowered.exprs.code(*expr).unwrap_or("null").to_string();
+            self.uses.effect = true;
+            self.uses.spread = true;
+            self.bind(format!("effect(() => spread({el}, ({code}), {as_props}))"));
+        }
+    }
+
+    /// Props on a host element: static → attribute, dynamic → reactive attribute,
+    /// `on*` → event handler (lowercased property, attached once), `on*:mod` →
+    /// `addEventListener` with options (the hybrid model's listener path).
+    fn emit_element_prop(&mut self, el: &str, prop: &Prop) {
+        if prop.name == "ref" {
+            self.emit_ref(el, prop);
+            return;
+        }
+        if prop.name.is_empty() {
+            self.emit_spread(el, prop, false);
+            return;
+        }
+        if let PropValue::Static(value) = &prop.value {
+            self.line(format!(
+                "{el}.setAttribute({}, {});",
+                js_string(&prop.name),
+                js_string(value)
+            ));
+            return;
+        }
+        // Never produced for DOM elements (valueless attrs stay `Static("")`), but
+        // set the presence attribute if it ever reaches here.
+        if matches!(prop.value, PropValue::Boolean) {
+            self.line(format!("{el}.setAttribute({}, \"\");", js_string(&prop.name)));
+            return;
+        }
+        let code = self.dynamic_prop_code(&prop.value);
+        if is_listener(&prop.name) {
+            self.emit_event_listener(el, &prop.name, &code);
+        } else if is_event(&prop.name) {
+            self.line(format!("{el}.{} = {code};", prop.name.to_ascii_lowercase()));
+        } else {
+            self.uses.bind_attr = true;
+            self.bind(format!("bindAttr({el}, {}, () => ({code}))", js_string(&prop.name)));
+        }
+    }
+
+    /// The JS source for a non-static prop value. For a [`PropValue::DynamicNode`]
+    /// each embedded JSX branch is substituted as an inline node-builder IIFE
+    /// (so `[{ content: <X/> }]` becomes `[{ content: (() => { …; return c0; })() }]`),
+    /// evaluating in the scope its placeholder sits in (see [`Self::inline_node_expr`]).
+    fn dynamic_prop_code(&mut self, value: &PropValue) -> String {
+        match value {
+            PropValue::Dynamic(expr) => {
+                self.lowered.exprs.code(*expr).unwrap_or("undefined").to_string()
+            }
+            PropValue::DynamicNode { expr, branches } => {
+                let mut calls = Vec::with_capacity(branches.len());
+                for branch in branches {
+                    calls.push(self.inline_node_expr(branch));
+                }
+                let template = self.lowered.exprs.code(*expr).unwrap_or("null").to_string();
+                substitute_branches(&template, &calls)
+            }
+            PropValue::Static(_) => unreachable!("static props are handled before this"),
+            PropValue::Boolean => unreachable!("boolean props are handled before this"),
+        }
+    }
+
+    /// Props on a child component: rich data is passed as **properties** —
+    /// static → attribute, dynamic → reactive property set. `on*` is a callback
+    /// prop (property, original case — the parent→child channel); `on*:mod`
+    /// subscribes to the component's dispatched events via `addEventListener`.
+    fn emit_component_prop(&mut self, el: &str, prop: &Prop) {
+        if prop.name == "ref" {
+            self.emit_ref(el, prop);
+            return;
+        }
+        if prop.name.is_empty() {
+            self.emit_spread(el, prop, true);
+            return;
+        }
+        // Component props go through `setProp` (property when the element exposes
+        // one, else attribute) so rich values reach component setters while plain
+        // attributes (class, data-*) still land correctly. `on*` handlers are set
+        // as properties verbatim — the component owns their event semantics.
+        if let PropValue::Static(value) = &prop.value {
+            self.uses.set_prop = true;
+            self.line(format!(
+                "setProp({el}, {}, {});",
+                js_string(&prop.name),
+                js_string(value)
+            ));
+            return;
+        }
+        // Valueless boolean prop (`<Foo disabled/>`): pass the boolean `true` so the
+        // component reads a truthy value (an empty string would read falsy).
+        if matches!(prop.value, PropValue::Boolean) {
+            self.uses.set_prop = true;
+            self.line(format!("setProp({el}, {}, true);", js_string(&prop.name)));
+            return;
+        }
+        let code = self.dynamic_prop_code(&prop.value);
+        if is_listener(&prop.name) {
+            self.emit_event_listener(el, &prop.name, &code);
+        } else if is_event(&prop.name) {
+            self.line(format!("{el}[{}] = {code};", js_string(&prop.name)));
+        } else {
+            self.uses.effect = true;
+            self.uses.set_prop = true;
+            self.bind(format!(
+                "effect(() => {{ setProp({el}, {}, ({code})); }})",
+                js_string(&prop.name)
+            ));
+        }
+    }
+}
+
+/// Replace each NUL-delimited slot placeholder (`\u{0}i\u{0}`) in a dynamic-node
+/// template with its branch node-builder call.
+fn substitute_branches(template: &str, calls: &[String]) -> String {
+    let mut out = template.to_string();
+    for (i, call) in calls.iter().enumerate() {
+        out = out.replace(&format!("\u{0}{i}\u{0}"), call);
+    }
+    out
+}
+
+/// True for an `on*` event-handler prop name (`onClick`, `onclick`,
+/// `onScroll:passive`, …). Shared with the Hydrate backend.
+pub(crate) fn is_event(prop: &str) -> bool {
+    prop.len() > 2 && prop.starts_with("on")
+}
+
+/// True when an `on*` name carries listener modifiers (`onScroll:passive`) — the
+/// `:` switches from the callback/property fast path to `addEventListener`.
+pub(crate) fn is_listener(prop: &str) -> bool {
+    prop.contains(':')
+}
+
+/// Parse `onScroll:once-passive` into the DOM event name and an `addEventListener`
+/// options argument: `("scroll", ", { once: true, passive: true }")`. Modifiers
+/// combine with `-`; `listen` forces the listener path with no options. An empty
+/// options string means the third argument is omitted. Shared with the Hydrate backend.
+pub(crate) fn event_options(prop: &str) -> (String, String) {
+    let (base, mods) = prop.split_once(':').unwrap_or((prop, ""));
+    let event = base.strip_prefix("on").unwrap_or(base).to_ascii_lowercase();
+    let opts: Vec<&str> = mods
+        .split('-')
+        .filter(|m| matches!(*m, "capture" | "passive" | "once"))
+        .collect();
+    let arg = if opts.is_empty() {
+        String::new()
+    } else {
+        let pairs = opts.iter().map(|o| format!("{o}: true")).collect::<Vec<_>>().join(", ");
+        format!(", {{ {pairs} }}")
+    };
+    (event, arg)
+}
+
+/// Render a Rust string as a double-quoted JavaScript string literal. Shared with
+/// the Hydrate backend.
+pub(crate) fn js_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for ch in s.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+    use crate::lower::lower_component;
+    use crate::parse::ParseSession;
+
+    fn lower(source: &str) -> Lowered {
+        let session = ParseSession::new();
+        let parsed = session.parse(Path::new("App.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        lower_component("/app/App.tsx", &parsed.program, source, false).expect("a component")
+    }
+
+    /// Lower in page/layout mode (plain props, no signals).
+    fn lower_page(source: &str) -> Lowered {
+        let session = ParseSession::new();
+        let parsed = session.parse(Path::new("page.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        lower_component("/app/page.tsx", &parsed.program, source, true).expect("a page")
+    }
+
+    #[test]
+    fn jsx_value_in_loop_body_captures_loop_locals() {
+        // JSX pushed from inside a `for` body references loop locals (`group`,
+        // `current`). The builder must be substituted inline at the push site —
+        // a builder hoisted to the component body would throw ReferenceError
+        // when its effect reads the loop local.
+        let m = emit_page(&lower(
+            "export default function P() {\n\
+               let searchResults = $state([]);\n\
+               function renderResultGroups() {\n\
+                 const groups = [];\n\
+                 let offset = 0;\n\
+                 for (let groupIndex = 0; groupIndex < searchResults.length; groupIndex++) {\n\
+                   const group = searchResults[groupIndex];\n\
+                   const current = offset + groupIndex;\n\
+                   groups.push(<Child group={group} idx={current} />);\n\
+                 }\n\
+                 return groups;\n\
+               }\n\
+               return <div>{renderResultGroups()}</div>;\n\
+             }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // No builder hoisted out of the loop's scope.
+        assert!(!m.code.contains("function default_value"), "hoisted builder:\n{}", m.code);
+        // The push site holds the inline IIFE, inside the loop body.
+        assert!(m.code.contains("groups.push((() => {"), "inline builder at push site:\n{}", m.code);
+        let loop_start = m.code.find("for (let groupIndex").unwrap();
+        let builder = m.code.find("groups.push((() => {").unwrap();
+        assert!(builder > loop_start, "builder inside loop:\n{}", m.code);
+        assert!(m.code.contains("setProp(c0, \"group\", (group));"), "loop local prop:\n{}", m.code);
+        assert!(m.code.contains("setProp(c0, \"idx\", (current));"), "loop local prop:\n{}", m.code);
+    }
+
+    #[test]
+    fn jsx_value_in_loop_body_captures_loop_locals_in_component() {
+        // Same shape inside a props component (`match`/`current` are loop locals
+        // used by a handler and a text hole).
+        let m = emit_component(&lower(
+            "export default function SearchResultGroup({ group, offset }) {\n\
+               function renderMatches() {\n\
+                 const buttons = [];\n\
+                 for (let matchIndex = 0; matchIndex < group.matches.length; matchIndex++) {\n\
+                   const match = group.matches[matchIndex];\n\
+                   const current = offset + matchIndex;\n\
+                   buttons.push(<button onClick={() => select(match, current)}>{match.title}</button>);\n\
+                 }\n\
+                 return buttons;\n\
+               }\n\
+               return <div>{renderMatches()}</div>;\n\
+             }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(!m.code.contains("function default_value"), "hoisted builder:\n{}", m.code);
+        assert!(m.code.contains("buttons.push((() => {"), "inline builder at push site:\n{}", m.code);
+        // Loop-local declarations are preserved before the push.
+        assert!(m.code.contains("const match = group.value.matches[matchIndex];"), "match decl:\n{}", m.code);
+        assert!(m.code.contains("const current = offset.value + matchIndex;"), "current decl:\n{}", m.code);
+        assert!(m.code.contains("el0.onclick = () => select(match, current);"), "handler captures locals:\n{}", m.code);
+        assert!(m.code.contains("bindText(t1, () => (match.title))"), "text hole captures local:\n{}", m.code);
+    }
+
+    #[test]
+    fn jsx_in_effect_loop_body_captures_loop_locals() {
+        // The reported shape: a plain `for` loop directly inside a `$effect`
+        // callback, pushing JSX that reads loop locals. The callback must be
+        // templated (no raw JSX leaking into output) and the builder must be
+        // an inline IIFE inside the loop body.
+        let m = emit_page(&lower(
+            "export default function BoardSearch() {\n\
+               let searchResults = $state([]);\n\
+               let container = $ref();\n\
+               $effect(() => {\n\
+                 const groups = [];\n\
+                 for (let groupIndex = 0; groupIndex < searchResults.length; groupIndex++) {\n\
+                   const group = searchResults[groupIndex];\n\
+                   groups.push(<Child group={group} idx={groupIndex} />);\n\
+                 }\n\
+                 container.replaceChildren(...groups);\n\
+               });\n\
+               return <div ref={container}></div>;\n\
+             }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // No raw JSX leaked into the emitted module.
+        assert!(!m.code.contains("<Child"), "raw JSX leaked:\n{}", m.code);
+        assert!(!m.code.contains("function default_value"), "hoisted builder:\n{}", m.code);
+        // The inline builder sits at the push site, inside the loop body.
+        assert!(m.code.contains("groups.push((() => {"), "inline builder at push site:\n{}", m.code);
+        let loop_start = m.code.find("for (let groupIndex").unwrap();
+        let builder = m.code.find("groups.push((() => {").unwrap();
+        assert!(builder > loop_start, "builder inside loop:\n{}", m.code);
+        // The child prop effects read the loop locals directly.
+        assert!(m.code.contains("setProp(c0, \"group\", (group));"), "loop local prop:\n{}", m.code);
+        assert!(m.code.contains("setProp(c0, \"idx\", (groupIndex));"), "loop local prop:\n{}", m.code);
+    }
+
+    #[test]
+    fn jsx_in_lifecycle_callbacks_is_templated() {
+        // `onMount` (and the other lifecycle hooks) take the same treatment as
+        // `$effect`: JSX inside the callback is templated as an inline IIFE, and
+        // signal reads still get `.value` injection.
+        let m = emit_page(&lower(
+            "export default function P() {\n\
+               let items = $state([]);\n\
+               let container = $ref();\n\
+               onMount(() => {\n\
+                 const nodes = [];\n\
+                 for (const item of items) { nodes.push(<Child item={item} />); }\n\
+                 container.replaceChildren(...nodes);\n\
+               });\n\
+               return <div ref={container}></div>;\n\
+             }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(!m.code.contains("<Child"), "raw JSX leaked:\n{}", m.code);
+        assert!(m.code.contains("nodes.push((() => {"), "inline builder at push site:\n{}", m.code);
+        assert!(m.code.contains("setProp(c0, \"item\", (item));"), "loop local prop:\n{}", m.code);
+        assert!(m.code.contains("of items.value)"), "signal injection in callback:\n{}", m.code);
+        // The generated helpers are imported even though only the mount uses them.
+        assert!(m.code.contains("setProp"), "setProp import:\n{}", m.code);
+    }
+
+    #[test]
+    fn a_static_page_stamps_one_template_and_needs_no_reactive_helpers() {
+        let m = emit_page(&lower(
+            "export function App() { return <div class=\"x\"><span>hi</span></div>; }",
+        ));
+        assert!(m.is_complete(), "unexpected errors: {:?}", m.errors);
+        assert_eq!(
+            m.code,
+            "import { template } from \"@opentf/afw\";\n\
+             const _tmpl$eaae55edd2ef4669 = \
+             template(\"<div class=\\\"x\\\"><span>hi</span></div>\");\n\
+             export function App() {\n  \
+             const el0 = _tmpl$eaae55edd2ef4669();\n  \
+             return el0;\n}\n"
+        );
+    }
+
+    #[test]
+    fn a_subtree_too_small_to_pay_for_a_template_is_still_built_node_by_node() {
+        // `<span>hi</span>` is two statements; a hoisted const plus a call is not cheaper.
+        let m = emit_page(&lower("export function App() { return <span>hi</span>; }"));
+        assert!(m.is_complete(), "unexpected errors: {:?}", m.errors);
+        assert_eq!(
+            m.code,
+            "export function App() {\n  \
+             const el0 = document.createElement(\"span\");\n  \
+             el0.appendChild(document.createTextNode(\"hi\"));\n  \
+             return el0;\n}\n"
+        );
+    }
+
+    #[test]
+    fn markup_the_html_parser_would_restructure_is_not_folded_into_one_template() {
+        // `<p><div/></p>` re-parses as `<p></p><div></div>`, so the pair cannot be one
+        // template. The `<p>` goes back to the build path; its child is stamped and
+        // *appended*, which is not a parse and so cannot be restructured. Same DOM either
+        // way — the rule only has to stop the two from being serialized together.
+        let m = emit_page(&lower(
+            "export function App() { return <p class=\"a\"><div id=\"b\">x</div></p>; }",
+        ));
+        assert!(m.is_complete(), "unexpected errors: {:?}", m.errors);
+        assert!(m.code.contains("document.createElement(\"p\")"), "p is built:\n{}", m.code);
+        assert!(!m.code.contains("template(\"<p"), "p is never serialized:\n{}", m.code);
+    }
+
+    #[test]
+    fn an_svg_subtree_keeps_createElementNS() {
+        // The HTML parser applies its own SVG attribute-case table; `setAttribute` does not.
+        let m = emit_page(&lower(
+            "export function App() { return <svg viewBox=\"0 0 8 8\"><circle cx=\"4\" cy=\"4\" r=\"2\"/></svg>; }",
+        ));
+        assert!(m.is_complete(), "unexpected errors: {:?}", m.errors);
+        assert!(!m.code.contains("template("), "must not be templated:\n{}", m.code);
+        assert!(m.code.contains("createElementNS"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn identical_static_subtrees_share_one_template() {
+        let m = emit_page(&lower(
+            "export function App() { return <div><p class=\"n\">same</p><p class=\"n\">same</p></div>; }",
+        ));
+        assert!(m.is_complete(), "unexpected errors: {:?}", m.errors);
+        assert_eq!(m.code.matches("= template(").count(), 1, "one declaration:\n{}", m.code);
+    }
+
+    #[test]
+    fn page_emits_reactive_counter() {
+        let m = emit_page(&lower(
+            "export function Counter() { let count = $state(0); return <button onclick={() => count++}>{count}</button>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert_eq!(
+            m.code,
+            "import { signal, bindText } from \"@opentf/afw\";\n\
+             export function Counter() {\n  \
+             const count = signal(0);\n  \
+             const el0 = document.createElement(\"button\");\n  \
+             el0.onclick = () => count.value++;\n  \
+             const t1 = document.createTextNode(\"\");\n  \
+             el0.appendChild(t1);\n  \
+             bindText(t1, () => (count.value));\n  \
+             return el0;\n}\n"
+        );
+    }
+
+    #[test]
+    fn component_emits_custom_element_class() {
+        let m = emit_component(&lower(
+            "export function Counter() { let count = $state(0); return <button onclick={() => count++}>{count}</button>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // `afw-counter-4e54f4d4`: FNV-1a hash of the module id ("/app/App.tsx", from
+        // the `lower` helper) namespaces the tag so same-named components don't collide.
+        assert_eq!(
+            m.code,
+            "import { signal, bindText, handleError } from \"@opentf/afw\";\n\
+             export class CounterElement extends HTMLElement {\n  \
+             static tag = \"afw-counter-4e54f4d4\";\n  \
+             connectedCallback() {\n    \
+             this._pendingTeardown = false;\n    \
+             if (this._mounted) return;\n    \
+             this._mounted = true;\n    \
+             this._cleanups = [];\n    \
+             this.classList.add(\"afw-counter\");\n    \
+             try {\n    \
+             const count = signal(0);\n    \
+             const el0 = document.createElement(\"button\");\n    \
+             el0.onclick = () => count.value++;\n    \
+             const t1 = document.createTextNode(\"\");\n    \
+             el0.appendChild(t1);\n    \
+             this._cleanups.push(bindText(t1, () => (count.value)));\n    \
+             this.appendChild(el0);\n    \
+             } catch (e) {\n      \
+             handleError(this, e, { phase: \"render\", component: \"Counter\" });\n    \
+             }\n  \
+             }\n  \
+             disconnectedCallback() {\n    \
+             this._pendingTeardown = true;\n    \
+             const __teardown = () => {\n      \
+             if (!this._pendingTeardown) return;\n      \
+             this._pendingTeardown = false;\n      \
+             if (this._cleanups) for (const dispose of this._cleanups) dispose();\n      \
+             this._cleanups = [];\n      \
+             this._mounted = false;\n      \
+             this.replaceChildren();\n    \
+             };\n    \
+             if (typeof queueMicrotask !== \"undefined\") queueMicrotask(__teardown);\n    \
+             else Promise.resolve().then(__teardown);\n  \
+             }\n\
+             }\n\
+             export default CounterElement;\n\
+             if (typeof customElements !== \"undefined\" && !customElements.get(CounterElement.tag)) customElements.define(CounterElement.tag, CounterElement);\n"
+        );
+    }
+
+    #[test]
+    fn page_composes_child_component_by_tag() {
+        let m = emit_page(&lower("export function App() { return <div><UserList/></div>; }"));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // `<UserList/>` is not a sibling here, so it's addressed via the imported
+        // binding's `.tag` (collision-free; the hash lives on UserList's own class).
+        assert!(m.code.contains("document.createElement(UserList.tag)"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn lowers_context_consumer() {
+        let m = emit_component(&lower(
+            "export function Badge() { const theme = $context(Ctx); return <span class={theme}>{theme}</span>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // `$context` lowers to a readContext binding, treated as a signal.
+        assert!(m.code.contains("const theme = readContext(Ctx);"), "code: {}", m.code);
+        // The connect is bracketed with the host stack so the resolver finds `this`.
+        assert!(m.code.contains("enterHost(this);"), "code: {}", m.code);
+        assert!(m.code.contains("exitHost();"), "code: {}", m.code);
+        // The bare binding reads `.value` (auto-injected like any signal).
+        assert!(m.code.contains("bindText(t1, () => (theme.value))"), "code: {}", m.code);
+        assert!(m.code.contains("import { bindText, bindAttr, handleError, enterHost, exitHost, readContext }"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn component_prop_dynamic_set_reactively() {
+        let m = emit_page(&lower(
+            "export function App() { let n = $state(1); return <Counter start={n}/>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(
+            m.code.contains("effect(() => { setProp(c0, \"start\", (n.value)); })"),
+            "code: {}",
+            m.code
+        );
+    }
+
+    #[test]
+    fn valueless_component_prop_passes_boolean_true() {
+        let m = emit_page(&lower(
+            "export function App() { return <Toggle disabled/>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // A valueless boolean prop must cross as `true`, not the (falsy) empty string.
+        assert!(m.code.contains("setProp(c0, \"disabled\", true);"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn valueless_element_attr_stays_empty_string() {
+        let m = emit_page(&lower(
+            "export function App() { return <input disabled/>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // DOM valueless attributes stay the empty-string presence attribute.
+        assert!(m.code.contains("setAttribute(\"disabled\", \"\")"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn component_emits_props_machinery() {
+        let m = emit_component(&lower(
+            "export function Greet({ name = \"World\" }) { return <div>{name}</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("static observedAttributes = [\"name\"];"), "code: {}", m.code);
+        assert!(
+            m.code.contains("name: signal(this.getAttribute(\"name\") ?? (\"World\")),"),
+            "code: {}",
+            m.code
+        );
+        assert!(m.code.contains("get name() { return this._props[\"name\"].value; }"), "code: {}", m.code);
+        assert!(m.code.contains("set name(v) { this._props[\"name\"].value = v; }"), "code: {}", m.code);
+        assert!(m.code.contains("const name = this._props[\"name\"];"), "code: {}", m.code);
+        assert!(
+            m.code.contains("attributeChangedCallback(name, _old, value)"),
+            "code: {}",
+            m.code
+        );
+        assert!(m.code.contains("bindText(t1, () => (name.value))"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn class_prop_host_stamp_is_guarded_against_prop_clobber() {
+        // A component whose root carries a `class` prop shares the attribute with the
+        // host-styling hook. The stamp must not re-enter attributeChangedCallback and
+        // overwrite the consumer's class — so it is bracketed by a guard flag.
+        let m = emit_component(&lower(
+            "export default function Link({ href, class: className, children }) { return <a href={href} class={className}>{children}</a>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("static observedAttributes = [\"href\", \"class\"];"), "code: {}", m.code);
+        assert!(m.code.contains("this._stampingHostClass = true;"), "code: {}", m.code);
+        assert!(m.code.contains("this._stampingHostClass = false;"), "code: {}", m.code);
+        assert!(m.code.contains("if (this._stampingHostClass) return;"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn no_class_prop_means_no_stamp_guard() {
+        // Components without a `class` prop keep the bare additive stamp — no guard.
+        let m = emit_component(&lower(
+            "export function Greet({ name }) { return <div>{name}</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(!m.code.contains("_stampingHostClass"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn component_props_object_single_alias_and_machinery() {
+        let m = emit_component(&lower(
+            "export function Card(props) { return <div>{props.title}{props.user.name}</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // Discovered keys drive the observed signals + bridge.
+        assert!(m.code.contains("static observedAttributes = [\"title\", \"user\"];"), "code: {}", m.code);
+        assert!(m.code.contains("get title()"), "code: {}", m.code);
+        // A single alias to the backing store, not per-key locals.
+        assert!(m.code.contains("const props = this._props;"), "code: {}", m.code);
+        assert!(!m.code.contains("const title = this._props"), "code: {}", m.code);
+        // First-Access references resolve through the alias.
+        assert!(m.code.contains("bindText(t1, () => (props.title.value))"), "code: {}", m.code);
+        assert!(m.code.contains("bindText(t2, () => (props.user.value.name))"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn props_children_as_a_value_reads_the_captured_children() {
+        let m = emit_component(&lower(
+            "export function Wrap(props) { return <div data-n={[props.children].length}></div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("const __children = Array.from(this.childNodes);"), "code: {}", m.code);
+        assert!(m.code.contains("const props = { get children() { return __children; } };"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn props_children_alias_keeps_the_keyed_prop_signals() {
+        let m = emit_component(&lower(
+            "export function Wrap(props) { return <div title={props.title} data-n={[props.children].length}></div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("const props = { ...this._props, get children() { return __children; } };"), "code: {}", m.code);
+        assert!(m.code.contains("props.title.value"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn props_without_children_keep_the_plain_alias() {
+        let m = emit_component(&lower("export function Card(props) { return <p>{props.title}</p>; }"));
+        assert!(m.code.contains("const props = this._props;"), "code: {}", m.code);
+        assert!(!m.code.contains("get children()"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn component_emits_rest_snapshot() {
+        let m = emit_component(&lower(
+            "export function C({ a, ...rest }) { return <p>{a}{rest.b}</p>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // `a` observed; `rest` is a plain attribute snapshot excluding `a`.
+        assert!(m.code.contains("static observedAttributes = [\"a\"];"), "code: {}", m.code);
+        assert!(m.code.contains("const rest = {};"), "code: {}", m.code);
+        assert!(
+            m.code.contains("for (const __a of Array.from(this.attributes)) if (![\"a\"].includes(__a.name)) rest[__a.name] = __a.value;"),
+            "code: {}",
+            m.code
+        );
+        // `rest.b` is a plain (non-signal) access — no `.value`.
+        assert!(m.code.contains("(rest.b)"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn component_emits_nested_snapshot() {
+        let m = emit_component(&lower(
+            "export function C({ user: { name } }) { return <p>{name}</p>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("static observedAttributes = [\"user\"];"), "code: {}", m.code);
+        assert!(m.code.contains("const user = this._props[\"user\"];"), "code: {}", m.code);
+        assert!(m.code.contains("const { name } = (user.value ?? {});"), "code: {}", m.code);
+        // Snapshot binding is non-reactive: a plain read.
+        assert!(m.code.contains("bindText(t1, () => (name))"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn preserves_body_statements_in_order() {
+        // Local data + a handler that mutates a signal must survive, in order,
+        // with `.value` injected — referenced by the view.
+        let m = emit_page(&lower(
+            "export function C() { const base = 10; let n = $state(base); const inc = () => { n = n + 1; }; return <button onclick={inc}>{n}</button>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        let base_at = m.code.find("const base = 10;").expect("base const");
+        let sig_at = m.code.find("const n = signal(base);").expect("signal init from base");
+        let inc_at = m.code.find("const inc = () => { n.value = n.value + 1; };").expect("handler");
+        assert!(base_at < sig_at, "base before signal:\n{}", m.code);
+        assert!(sig_at < inc_at, "signal before handler:\n{}", m.code);
+        assert!(m.code.contains("el0.onclick = inc;"), "handler wired:\n{}", m.code);
+    }
+
+    #[test]
+    fn listener_modifiers_emit_add_event_listener_with_cleanup() {
+        // A `:`-modified `on*` switches from the property fast path to
+        // `addEventListener`; in a component the disposer is collected for teardown.
+        let m = emit_component(&lower(
+            "export function C() { return <div onclick:capture={onOut} onScroll:once-passive={onScroll}>x</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(
+            m.code.contains("el0.addEventListener(\"click\", __ev1, { capture: true });"),
+            "capture listener:\n{}",
+            m.code
+        );
+        assert!(
+            m.code.contains("__ev2, { once: true, passive: true }"),
+            "combined options:\n{}",
+            m.code
+        );
+        assert!(
+            m.code.contains("this._cleanups.push(() => el0.removeEventListener(\"click\", __ev1, { capture: true }));"),
+            "listener cleanup:\n{}",
+            m.code
+        );
+        // A bare `on*` still uses the property fast path.
+        assert!(!m.code.contains("onclick:capture"), "modifier not leaked as a name:\n{}", m.code);
+    }
+
+    #[test]
+    fn member_expression_component_is_rejected_by_design() {
+        // <Foo.Bar/> has no static Custom Element tag (SPEC §4.0.1); it must be a
+        // diagnostic, not silently broken codegen.
+        let m = emit_component(&lower(
+            "export function C() { return <Foo.Bar a={1} />; }",
+        ));
+        assert!(!m.is_complete(), "should report a diagnostic:\n{}", m.code);
+        assert!(
+            m.errors.iter().any(|e| e.contains("Foo.Bar") && e.contains("not supported")),
+            "errors: {:?}",
+            m.errors
+        );
+    }
+
+    #[test]
+    fn page_listener_is_inlined_without_teardown() {
+        // A page's node is discarded on navigation, so the listener needs no
+        // disposer and the handler is inlined.
+        let m = emit_page(&lower(
+            "export function P() { return <div onclick:passive={fn}>x</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(
+            m.code.contains("el0.addEventListener(\"click\", fn, { passive: true });"),
+            "inlined listener:\n{}",
+            m.code
+        );
+        assert!(!m.code.contains("removeEventListener"), "no teardown on a page:\n{}", m.code);
+    }
+
+    #[test]
+    fn component_event_callback_prop_stays_a_property() {
+        // A bare `on*` on a child component is a callback prop (property), not a
+        // listener — the hybrid model's parent→child channel.
+        let m = emit_component(&lower(
+            "export function C() { return <Picker onSelect={pick} />; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("[\"onSelect\"] = pick;"), "callback prop:\n{}", m.code);
+        assert!(!m.code.contains("addEventListener"), "no listener for a callback prop:\n{}", m.code);
+    }
+
+    #[test]
+    fn page_uses_plain_props_no_value_injection() {
+        // props.params.* is a plain access (no `.value`); the factory takes the
+        // declared param.
+        let m = emit_page(&lower_page(
+            "export default function P(props) { return <h1>{props.params.id}</h1>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("export default function (props) {"), "code: {}", m.code);
+        assert!(m.code.contains("bindText(t1, () => (props.params.id))"), "code: {}", m.code);
+        assert!(!m.code.contains(".value"), "no signal .value on plain props:\n{}", m.code);
+    }
+
+    #[test]
+    fn layout_renders_props_children_slot() {
+        let m = emit_page(&lower_page(
+            "export default function L(props) { return <main>{props.children}</main>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(
+            m.code.contains("if (props.children) el0.appendChild(props.children);"),
+            "code: {}",
+            m.code
+        );
+    }
+
+    #[test]
+    fn maps_classname_to_class() {
+        let m = emit_page(&lower(
+            "export function C() { let x = $state(\"a\"); return <div className=\"a\" htmlFor=\"y\"><span className={x}>hi</span></div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("setAttribute(\"class\", \"a\")"), "code: {}", m.code);
+        assert!(m.code.contains("setAttribute(\"for\", \"y\")"), "code: {}", m.code);
+        // Dynamic className also binds the `class` attribute.
+        assert!(m.code.contains("bindAttr(el1, \"class\""), "code: {}", m.code);
+        assert!(!m.code.contains("className"), "no raw className left:\n{}", m.code);
+    }
+
+    #[test]
+    fn lowers_arrow_function_components() {
+        // `const Icon = (props) => <svg/>` and a page that uses it must lower the
+        // same as function-declaration components: a Custom Element + a factory.
+        let source = "const Icon = ({ size = 24 }) => <svg width={size}></svg>;\n\
+             export default function Page() { return <div><Icon size={32} /></div>; }";
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("page.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        let m = crate::lower::lower_module("/app/page.tsx", &parsed.program, source, true)
+            .expect("a module");
+        let out = emit_module(&m.components, &m.module_stmts, &m.module_exprs);
+        assert!(out.is_complete(), "errors: {:?}", out.errors);
+        // The arrow component becomes a Custom Element with its prop.
+        assert!(out.code.contains("class IconElement extends HTMLElement"), "icon CE:\n{}", out.code);
+        assert!(out.code.contains("static tag = \"afw-icon-"), "icon tag:\n{}", out.code);
+        assert!(out.code.contains("customElements.define(IconElement.tag, IconElement);"), "icon defined:\n{}", out.code);
+        assert!(out.code.contains("observedAttributes = [\"size\"]"), "icon prop:\n{}", out.code);
+        // No raw JSX survives into the output.
+        assert!(!out.code.contains("<svg"), "no raw JSX:\n{}", out.code);
+        assert!(!out.code.contains("=>") || !out.code.contains("<Icon"), "no raw <Icon:\n{}", out.code);
+    }
+
+    #[test]
+    fn lowers_jsx_stored_as_a_value() {
+        // JSX in a value position (object literal) is lowered to node-builders and
+        // the statement keeps the structure with builder calls — no raw JSX leaks.
+        let m = emit_page(&lower(
+            "export default function P() { const icon = <i>x</i>; const map = { a: <b>y</b> }; let s = $state(\"a\"); return <div>{icon}{map[s]}</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(!m.code.contains("<i>") && !m.code.contains("<b>"), "no raw JSX:\n{}", m.code);
+        // Each embedded JSX value becomes an inline builder IIFE.
+        assert!(m.code.contains("const icon = (() => {"), "inline value builder:\n{}", m.code);
+        assert!(m.code.contains("const icon = "), "icon kept:\n{}", m.code);
+        assert!(m.code.contains("const map = {"), "map kept:\n{}", m.code);
+        // The text-hole anchor is appended before binding (so node values insert).
+        let appended = m.code.find("appendChild(t").unwrap();
+        let bound = m.code.find("bindText(t").unwrap();
+        assert!(appended < bound, "anchor appended before bind:\n{}", m.code);
+    }
+
+    #[test]
+    fn lowers_module_level_jsx_value_map() {
+        // The classic `const iconMap = { a: <A/> }` at module scope: the map keeps
+        // its shape with module-scope node-builders; no raw JSX leaks.
+        let source = "const A = () => <i>a</i>;\n\
+             const map = { a: <A/> };\n\
+             export default function P() { let s = $state(\"a\"); return <div>{map[s]}</div>; }";
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("page.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        let m = crate::lower::lower_module("/app/page.tsx", &parsed.program, source, true)
+            .expect("a module");
+        let out = emit_module(&m.components, &m.module_stmts, &m.module_exprs);
+        assert!(out.is_complete(), "errors: {:?}", out.errors);
+        assert!(!out.code.contains("<i>") && !out.code.contains("<A/>"), "no raw JSX:\n{}", out.code);
+        assert!(out.code.contains("const map = { a: (() => {"), "map templated with inline builder:\n{}", out.code);
+    }
+
+    #[test]
+    fn lowers_arrow_default_export_page() {
+        // `export default () => <jsx>` is a valid page factory.
+        let m = emit_page(&lower_page(
+            "export default () => <main><h1>Hi</h1></main>;",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("export default function ("), "factory:\n{}", m.code);
+        // The whole view is static, so it is stamped from one template rather than built.
+        assert!(
+            m.code.contains("template(\"<main><h1>Hi</h1></main>\")"),
+            "builds view:\n{}",
+            m.code
+        );
+        assert!(!m.code.contains("return (<"), "no raw JSX:\n{}", m.code);
+    }
+
+    #[test]
+    fn emits_all_components_and_preserves_module_statements() {
+        // A page module declaring a co-located component, a module-level store, and
+        // a plain helper. emit_module must emit ONE runtime import header, the
+        // preserved top-level statements, the page factory (default export), and the
+        // co-located component as a Custom Element.
+        let source = "import { signal } from \"@opentf/afw\";\n\
+             export const store = signal(0);\n\
+             const LABEL = \"hi\";\n\
+             function Badge() { return <span>{store}</span>; }\n\
+             export default function Page() { return <div><span>{LABEL}</span></div>; }";
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("page.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        let m = crate::lower::lower_module("/app/page.tsx", &parsed.program, source, true)
+            .expect("a module");
+        let out = emit_module(&m.components, &m.module_stmts, &m.module_exprs);
+        assert!(out.is_complete(), "errors: {:?}", out.errors);
+        // Single merged runtime import header.
+        assert_eq!(
+            out.code.matches("from \"@opentf/afw\"").count(),
+            1,
+            "one runtime header:\n{}",
+            out.code
+        );
+        // Preserved module-level statements (verbatim).
+        assert!(out.code.contains("export const store = signal(0);"), "store kept:\n{}", out.code);
+        assert!(out.code.contains("const LABEL = \"hi\";"), "helper kept:\n{}", out.code);
+        // The co-located component becomes a Custom Element; the default export the page.
+        assert!(out.code.contains("class BadgeElement extends HTMLElement"), "badge CE:\n{}", out.code);
+        assert!(out.code.contains("customElements.define(BadgeElement.tag, BadgeElement);"), "badge defined:\n{}", out.code);
+        assert!(out.code.contains("export default function () {"), "page factory:\n{}", out.code);
+    }
+
+    #[test]
+    fn component_module_default_exports_the_main_class() {
+        // A component module (`export default function Counter`) plus a co-located
+        // helper component. The default-export component re-exports its class so a
+        // consumer's `import Counter from "./Counter"` resolves; the co-located one
+        // only registers its tag (no extra default export).
+        let source = "function Badge() { return <span>x</span>; }\n\
+             export default function Counter() { let n = $state(0); return <button onclick={() => n++}>{n}</button>; }";
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("Counter.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        let m = crate::lower::lower_module("/app/Counter.tsx", &parsed.program, source, false)
+            .expect("a module");
+        let out = emit_module(&m.components, &m.module_stmts, &m.module_exprs);
+        assert!(out.is_complete(), "errors: {:?}", out.errors);
+        assert_eq!(
+            out.code.matches("export default ").count(),
+            1,
+            "exactly one default export:\n{}",
+            out.code
+        );
+        assert!(out.code.contains("export default CounterElement;"), "default is the main class:\n{}", out.code);
+        assert!(out.code.contains("customElements.define(BadgeElement.tag, BadgeElement);"), "badge registered:\n{}", out.code);
+    }
+
+    #[test]
+    fn registers_every_component_after_all_classes_are_declared() {
+        // Regression: a file with several components where the *first* (a parent) composes
+        // a *later*-declared sibling by tag. `customElements.define` synchronously upgrades
+        // any matching pre-rendered element and runs its `connectedCallback`, which reads
+        // `Icon.tag`. If the parent's define were emitted inline (before `IconElement` is
+        // declared), that upgrade would hit `IconElement` in its temporal dead zone and
+        // throw on first paint. So every class must be declared before any define runs.
+        let source = "export default function Toggle() { return <button><Icon /></button>; }\n\
+             function Icon() { return <svg></svg>; }";
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("Toggle.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        let m = crate::lower::lower_module("/app/Toggle.tsx", &parsed.program, source, false)
+            .expect("a module");
+        let out = emit_module(&m.components, &m.module_stmts, &m.module_exprs);
+        assert!(out.is_complete(), "errors: {:?}", out.errors);
+
+        // Both components register, exactly once each.
+        assert_eq!(
+            out.code.matches("customElements.define(").count(),
+            2,
+            "two registrations:\n{}",
+            out.code
+        );
+
+        // Every class declaration precedes the first registration.
+        let first_define = out.code.find("customElements.define(").expect("a define");
+        let toggle_class = out.code.find("class ToggleElement extends").expect("Toggle class");
+        let icon_class = out.code.find("class IconElement extends").expect("Icon class");
+        assert!(
+            toggle_class < first_define && icon_class < first_define,
+            "all classes must be declared before any define:\nToggle@{toggle_class} Icon@{icon_class} firstDefine@{first_define}\n{}",
+            out.code
+        );
+    }
+
+    #[test]
+    fn merges_runtime_imports_without_duplicates() {
+        // The source imports `signal`/`router` from the runtime; the generated
+        // header also needs `signal`/`bindText`. They must merge into ONE import
+        // with no duplicate `signal`, and macros ($state) are dropped.
+        let m = emit_page(&lower(
+            "import { signal, router, $state } from \"@opentf/afw\";\nexport function C() { let n = $state(0); return <p>{n}</p>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        let count = m.code.matches("from \"@opentf/afw\"").count();
+        assert_eq!(count, 1, "expected a single runtime import:\n{}", m.code);
+        assert_eq!(m.code.matches("signal").count() > 0, true);
+        assert!(m.code.contains("router"), "router kept:\n{}", m.code);
+        assert!(!m.code.contains("$state"), "macro import dropped:\n{}", m.code);
+        // No duplicate `signal` specifier in the import list.
+        let header = m.code.lines().find(|l| l.contains("from \"@opentf/afw\"")).unwrap();
+        assert_eq!(header.matches("signal").count(), 1, "header: {header}");
+    }
+
+    #[test]
+    fn component_emits_lifecycle_hooks() {
+        let m = emit_component(&lower(
+            "export function C() { let n = $state(0); onMount(() => console.log(n)); onCleanup(() => console.log(\"bye\", n)); return <p>{n}</p>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // `onCleanup` registers teardown during connect (.value injected).
+        assert!(
+            m.code.contains("this._cleanups.push(() => console.log(\"bye\", n.value));"),
+            "code: {}",
+            m.code
+        );
+        // `onMount` runs after the view is appended, collecting a returned disposer.
+        let append = m.code.find("this.appendChild(el0);").expect("append");
+        let run = m
+            .code
+            .find("const __d = (() => console.log(n.value))();")
+            .expect("mount run");
+        assert!(run > append, "onMount must run after append:\n{}", m.code);
+    }
+
+    #[test]
+    fn page_emits_lifecycle_record() {
+        let m = emit_page(&lower(
+            "export function C() { let n = $state(0); onMount(() => console.log(n)); return <p>{n}</p>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("const __lifecycle = { mounts: [], cleanups: [] };"), "code: {}", m.code);
+        assert!(
+            m.code.contains("__lifecycle.mounts.push(() => console.log(n.value));"),
+            "code: {}",
+            m.code
+        );
+        assert!(m.code.contains("el0.__lifecycle = __lifecycle;"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn component_emits_dom_hooks() {
+        let m = emit_component(&lower(
+            "export function C() { let n = $state(0); onResize((entry) => console.log(n, entry)); onVisibilityChange((v) => n = v ? 1 : 0); onMediaQuery(\"(min-width: 768px)\", (matches) => console.log(matches)); return <p>{n}</p>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // Observers watch the custom-element host and run after the view is appended,
+        // their disposer collected through the shared `__d` wrapper.
+        let append = m.code.find("this.appendChild(el0);").expect("append");
+        for needle in [
+            "new ResizeObserver(",
+            "__ro.observe(this);",
+            "new IntersectionObserver(",
+            "__io.observe(this);",
+            "window.matchMedia((\"(min-width: 768px)\"));",
+        ] {
+            let at = m.code.find(needle).unwrap_or_else(|| panic!("missing {needle}:\n{}", m.code));
+            assert!(at > append, "{needle} must run after append:\n{}", m.code);
+        }
+        assert!(m.code.contains("(entry) => console.log(n.value, entry)"), "code: {}", m.code);
+        assert!(
+            m.code.contains("if (typeof __d === \"function\") this._cleanups.push(__d);"),
+            "code: {}",
+            m.code
+        );
+        // onMediaQuery delivers the initial state synchronously at mount.
+        assert!(m.code.contains("__cb(__mql.matches, __mql);"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn page_emits_dom_hooks() {
+        let m = emit_page(&lower(
+            "export function C() { onResize((entry) => console.log(entry)); onVisibilityChange((v) => console.log(v)); onMediaQuery(\"(min-width: 768px)\", (m) => console.log(m)); return <div>hi</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // The desugared closures ride the page's `__lifecycle.mounts`, observing the root.
+        assert!(m.code.contains("__lifecycle.mounts.push(() => { const __cb = ("), "code: {}", m.code);
+        assert!(m.code.contains("__ro.observe(el0);"), "code: {}", m.code);
+        assert!(m.code.contains("__io.observe(el0);"), "code: {}", m.code);
+        assert!(m.code.contains("return () => __ro.disconnect();"), "code: {}", m.code);
+        assert!(m.code.contains("__mql.removeEventListener(\"change\", __onchange);"), "code: {}", m.code);
+        assert!(m.code.contains("el0.__lifecycle = __lifecycle;"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn page_dom_hooks_require_element_root() {
+        let m = emit_page(&lower(
+            "export function C() { onResize((entry) => console.log(entry)); return <><p>a</p><p>b</p></>; }",
+        ));
+        assert!(
+            m.errors.iter().any(|e| e.contains("require a single element root")),
+            "expected element-root error, got: {:?}",
+            m.errors
+        );
+        // The diagnostic is a warning in the pipeline (code still ships), so the
+        // observer closure must be skipped — emitting it would throw
+        // `observe(fragment)` at runtime.
+        assert!(!m.code.contains("new ResizeObserver"), "observer closure must be skipped:\n{}", m.code);
+    }
+
+    #[test]
+    fn media_query_arity_error_reaches_module_diagnostics() {
+        // Lowering diagnostics must surface on the emitted module so the CLI's
+        // warning channel reports them (they were previously dropped).
+        let m = emit_page(&lower(
+            "export function C() { onMediaQuery(() => {}); return <p>hi</p>; }",
+        ));
+        assert!(
+            m.errors.iter().any(|e| e.contains("onMediaQuery(query, callback)")),
+            "expected arity diagnostic on the module, got: {:?}",
+            m.errors
+        );
+    }
+
+    #[test]
+    fn page_media_query_allowed_on_fragment_root() {
+        let m = emit_page(&lower(
+            "export function C() { onMediaQuery(\"(min-width: 768px)\", (m) => console.log(m)); return <><p>a</p><p>b</p></>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("window.matchMedia("), "code: {}", m.code);
+    }
+
+    #[test]
+    fn emits_ref_assignment() {
+        let m = emit_page(&lower(
+            "export function C() { let box = $ref(); return <div ref={box}>hi</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("const box = signal(null);"), "code: {}", m.code);
+        assert!(m.code.contains("box.value = el0;"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn emits_effect_with_disposal() {
+        // Page: effect runs for the app lifetime (no disposal collection).
+        let p = emit_page(&lower(
+            "export function C() { let n = $state(0); $effect(() => console.log(n)); return <p>{n}</p>; }",
+        ));
+        assert!(p.is_complete(), "errors: {:?}", p.errors);
+        assert!(p.code.contains("import { signal, effect, bindText }"), "code: {}", p.code);
+        assert!(p.code.contains("effect(() => console.log(n.value));"), "code: {}", p.code);
+
+        // Component: the disposer is collected for disconnectedCallback.
+        let c = emit_component(&lower(
+            "export function C() { let n = $state(0); $effect(() => console.log(n)); return <p>{n}</p>; }",
+        ));
+        assert!(c.is_complete(), "errors: {:?}", c.errors);
+        assert!(
+            c.code.contains("this._cleanups.push(effect(() => console.log(n.value)));"),
+            "code: {}",
+            c.code
+        );
+    }
+
+    #[test]
+    fn emits_conditional_dynamic_node() {
+        let m = emit_component(&lower(
+            "export function C() { let on = $state(true); let label = $state(\"hi\"); return <div>{on ? <strong>{label}</strong> : <em>off</em>}</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("import { signal, bindText, bindChild, handleError }"), "code: {}", m.code);
+        // Builders are LOCAL (inside connectedCallback) so they close over `label`.
+        assert!(m.code.contains("function C_node0() {"), "code: {}", m.code);
+        assert!(m.code.contains("function C_node1() {"), "code: {}", m.code);
+        // Inner reactive text inside a branch still wired.
+        assert!(m.code.contains("bindText(t1, () => (label.value))"), "code: {}", m.code);
+        // Anchor + bindChild over the templated expression with builder calls.
+        assert!(m.code.contains("const a1 = document.createComment(\"\");"), "code: {}", m.code);
+        assert!(
+            m.code.contains("bindChild(a1, () => (on.value ? C_node0() : C_node1()))"),
+            "code: {}",
+            m.code
+        );
+    }
+
+    #[test]
+    fn emits_svg_with_namespace() {
+        let m = emit_page(&lower(
+            "export function Icon() { return <svg viewBox=\"0 0 1 1\"><circle cx=\"5\"/><foreignObject><div>x</div></foreignObject></svg>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // `<svg>` and descendants use createElementNS; camelCase attrs keep case.
+        assert!(m.code.contains("document.createElementNS(\"http://www.w3.org/2000/svg\", \"svg\")"), "code: {}", m.code);
+        assert!(m.code.contains("document.createElementNS(\"http://www.w3.org/2000/svg\", \"circle\")"), "code: {}", m.code);
+        assert!(m.code.contains("setAttribute(\"viewBox\", \"0 0 1 1\")"), "code: {}", m.code);
+        // `<foreignObject>` is SVG, but its `<div>` child switches back to HTML.
+        assert!(m.code.contains("document.createElementNS(\"http://www.w3.org/2000/svg\", \"foreignObject\")"), "code: {}", m.code);
+        assert!(m.code.contains("document.createElement(\"div\")"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn emits_spread_props_and_children() {
+        let m = emit_component(&lower(
+            "export function C() { let o = $state({}); let xs = $state([]); return <div {...o} class=\"base\">{...xs}</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("import { signal, effect, bindChild, spread, handleError }"), "code: {}", m.code);
+        // Spread applied (effect), then the static class override — source order.
+        let spread_at = m.code.find("effect(() => spread(el0, (o.value), false))").expect("spread");
+        let class_at = m.code.find("el0.setAttribute(\"class\", \"base\")").expect("class");
+        assert!(spread_at < class_at, "spread must precede the override; code: {}", m.code);
+        // Spread child renders via bindChild over the array.
+        assert!(m.code.contains("bindChild(a1, () => (xs.value))"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn emits_component_spread_as_properties() {
+        let m = emit_page(&lower(
+            "export function App() { let o = $state({}); return <Card {...o}/>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // Component spread sets properties (asProps = true).
+        assert!(m.code.contains("effect(() => spread(c0, (o.value), true))"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn emits_expose_and_page_rejects_it() {
+        let c = emit_component(&lower(
+            "export function C() { let n = $state(0); $expose({ inc: () => n++ }); return <p>{n}</p>; }",
+        ));
+        assert!(c.is_complete(), "errors: {:?}", c.errors);
+        assert!(c.code.contains("Object.assign(this, ({ inc: () => n.value++ }));"), "code: {}", c.code);
+
+        let p = emit_page(&lower(
+            "export function P() { $expose({ a: 1 }); return <p>x</p>; }",
+        ));
+        assert!(!p.is_complete());
+        assert!(p.errors.iter().any(|e| e.contains("$expose is only supported in components")), "errors: {:?}", p.errors);
+    }
+
+    #[test]
+    fn preserves_module_imports() {
+        let m = emit_page(&lower(
+            "import Counter from \"../components/Counter\";\nexport default function App() { return <div><Counter/></div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // The user import is re-emitted (so the bundler pulls Counter in) ahead of
+        // the runtime import; the component is still referenced by tag.
+        let user_at = m.code.find("import Counter from \"../components/Counter\";").expect("user import");
+        let comp_at = m.code.find("document.createElement(Counter.tag)").expect("tag");
+        assert!(user_at < comp_at, "import must precede use; code: {}", m.code);
+    }
+
+    #[test]
+    fn page_with_props_reports_unsupported() {
+        let m = emit_page(&lower("export function P({ x }) { return <p>{x}</p>; }"));
+        assert!(!m.is_complete());
+        assert!(m.errors.iter().any(|e| e.contains("page/factory props")), "errors: {:?}", m.errors);
+    }
+
+    #[test]
+    fn emits_list_with_item_fn_and_bindlist() {
+        let m = emit_page(&lower(
+            "export function L() { let items = $state([]); return <ul>{items.map(i => <li>{i.name}</li>)}</ul>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("import { signal, bindText, bindList }"), "code: {}", m.code);
+        // Module-level item renderer with the item param treated as a signal.
+        assert!(m.code.contains("function L_item0(i, _index) {"), "code: {}", m.code);
+        assert!(m.code.contains("bindText(t1, () => (i.value.name))"), "code: {}", m.code);
+        // bindList wires source (outer signal) + renderer; no key → undefined.
+        assert!(
+            m.code.contains("bindList(el0, () => (items.value), L_item0, undefined)"),
+            "code: {}",
+            m.code
+        );
+    }
+
+    #[test]
+    fn index_key_fn_uses_the_real_index_param_name() {
+        // `key={idx}` where `idx` is the map's index param: the key fn's params must
+        // bind that same name, not a synthetic `_index`, or the key reads `undefined`.
+        let m = emit_page(&lower(
+            "export function L() { let items = $state([]); return <ul>{items.map((it, idx) => <li key={idx}>{it.name}</li>)}</ul>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("(it, idx) => (idx)"), "index key fn:\n{}", m.code);
+    }
+
+    #[test]
+    fn data_position_jsx_in_list_source_builds_a_node() {
+        // `[{ icon: <b/> }].map(…)`: JSX in the list's data expression must compile to
+        // a real DOM node-builder (not a host `jsx-runtime` call the item stringifies).
+        let m = emit_page(&lower(
+            "export function L() { return <ul>{[{icon: <b>ICON</b>}].map((t) => <li>{t.icon}</li>)}</ul>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // An inline node-builder IIFE is spliced into the source data — no raw JSX
+        // survives into the output.
+        assert!(
+            m.code.contains("bindList(el0, () => ([{icon: (() => {"),
+            "source substitution:\n{}",
+            m.code
+        );
+        assert!(!m.code.contains("<b>"), "no raw JSX in output:\n{}", m.code);
+    }
+
+    #[test]
+    fn emits_list_key_function() {
+        let m = emit_page(&lower(
+            "export function L() { let items = $state([]); return <ul>{items.map(i => <li key={i.id}>{i.name}</li>)}</ul>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(
+            m.code.contains("bindList(el0, () => (items.value), L_item0, (i, _index) => (i.id))"),
+            "code: {}",
+            m.code
+        );
+    }
+
+    #[test]
+    fn parent_appends_component_children_as_light_dom() {
+        let m = emit_page(&lower("export function App() { return <Wrap><span/></Wrap>; }"));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // The child is built and appended to the component element.
+        assert!(m.code.contains("document.createElement(Wrap.tag)"), "code: {}", m.code);
+        assert!(m.code.contains("document.createElement(\"span\")"), "code: {}", m.code);
+        assert!(m.code.contains(".appendChild(el1)"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn component_captures_and_places_children_slot() {
+        let m = emit_component(&lower(
+            "export function Wrap({ children }) { return <div class=\"box\">{children}</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // Captured before the view is built, then cleared from the host.
+        assert!(m.code.contains("const children = Array.from(this.childNodes);"), "code: {}", m.code);
+        assert!(m.code.contains("this.replaceChildren();"), "code: {}", m.code);
+        // `children` is NOT an observed attribute/signal.
+        assert!(!m.code.contains("observedAttributes"), "code: {}", m.code);
+        // The slot places the captured nodes into the box.
+        assert!(
+            m.code.contains("for (const __c1 of children) el0.appendChild(__c1);"),
+            "code: {}",
+            m.code
+        );
+    }
+
+    fn hot_page(source: &str) -> CsrModule {
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("page.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        let m = crate::lower::lower_module("/app/page.tsx", &parsed.program, source, true)
+            .expect("a module");
+        emit_hot_module(&m.components, &m.module_stmts, &m.module_exprs)
+    }
+
+    #[test]
+    fn hot_route_state_lives_in_refresh_slots() {
+        let out = hot_page(
+            "export default function Page() { let count = $state(1); let label = $state(\"a\"); \
+             const double = $derived(count * 2); return <p>{label}{double}</p>; }",
+        );
+        assert!(out.is_complete(), "errors: {:?}", out.errors);
+        assert!(out.code.contains("const count = hotRouteState(\"count\", () => signal(1));"), "code:\n{}", out.code);
+        assert!(out.code.contains("const label = hotRouteState(\"label\", () => signal(\"a\"));"), "code:\n{}", out.code);
+        // Derived values are recreated, not kept.
+        assert!(out.code.contains("const double = computed("), "code:\n{}", out.code);
+        assert!(
+            out.code.contains("registerHotRoute(import.meta.hot, __afwRoute, true, \"[\\\"count:State\\\", \\\"label:State\\\", \\\"double:Derived\\\"]\");"),
+            "code:\n{}",
+            out.code
+        );
+        assert!(out.code.contains("import { hotRouteState, hotState, registerHotModule, registerHotRoute } from \"@opentf/afw/hmr\";"), "code:\n{}", out.code);
+    }
+
+    #[test]
+    fn hot_route_shape_ignores_initializers() {
+        let a = hot_page("export default function Page() { let n = $state(1); return <p>{n}</p>; }");
+        let b = hot_page("export default function Page() { let n = $state(99); return <b>{n}</b>; }");
+        let shape = |code: &str| code.lines().find(|l| l.starts_with("export default registerHotRoute")).map(str::to_owned);
+        assert_eq!(shape(&a.code), shape(&b.code));
+    }
+
+    #[test]
+    fn production_page_state_stays_plain() {
+        let sess = ParseSession::new();
+        let source = "export default function Page() { let n = $state(1); return <p>{n}</p>; }";
+        let parsed = sess.parse(Path::new("page.tsx"), source);
+        let m = crate::lower::lower_module("/app/page.tsx", &parsed.program, source, true).expect("a module");
+        let out = emit_module(&m.components, &m.module_stmts, &m.module_exprs);
+        assert!(out.code.contains("const n = signal(1);"), "code:\n{}", out.code);
+        assert!(!out.code.contains("hotRouteState"), "code:\n{}", out.code);
+    }
+}

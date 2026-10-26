@@ -2,8 +2,8 @@
 // the /api section. DocsLayout sources the generated sidebar and scopes it to /api by
 // route; adding another section is just another folder with a layout like this.
 
-import { DocsLayout } from "@opentf/web-docs";
-import config from "../../otfw.config.js";
+import { DocsLayout } from "@opentf/afw-docs";
+import config from "../../afw.config.js";
 
 export default function ApiLayoutRoute(props) {
   return (

@@ -12,7 +12,7 @@ Two primitives, one per side of the network:
 - **Route loaders** — a server-only `loader.{js,ts}` file sibling to a `page.*`
   runs before the page renders (SSG build, SSR request, or SPA navigation) and
   its JSON result reaches the page as the reactive `router.data`.
-- **`resource()`** — a client-side primitive (`@opentf/web`) wrapping a fetcher
+- **`resource()`** — a client-side primitive (`@opentf/afw`) wrapping a fetcher
   in signals: `{ data, loading, error, refetch }`, with abort + staleness
   handling. For data the page can fetch *after* paint, or that changes with
   client state.
@@ -32,7 +32,7 @@ app/items/[id]/loader.ts  → dynamic params, same [param]/[...rest] rules
 
 Strictly `js|ts` (loaders are plain server modules, never JSX). A `loader.*`
 without a sibling `page.*` — including one placed next to a `route.*` endpoint —
-is a build error (`detectLoaderConflicts`, web-cli shared.js).
+is a build error (`detectLoaderConflicts`, afw-cli shared.js).
 
 ### Signature
 
@@ -59,18 +59,18 @@ graph from the render bundle, so:
 
 - the **caller** (serve/prerender) runs the loader and passes the result into
   `renderRoute(path, params, search, { data })` as a plain value;
-- cross-bundle error checks are **property-based** (`e.otfwNotFound === true`
+- cross-bundle error checks are **property-based** (`e.afwNotFound === true`
   via `isNotFound`), never `instanceof`.
 
-The registry (`createLoaderRegistry`, `@opentf/web/server`) owns matching
+The registry (`createLoaderRegistry`, `@opentf/afw/server`) owns matching
 (`[param]`/`[...rest]`, percent-decoding, trailing slashes, i18n locale-prefix
 stripping), running (`load`/`loadSerialized`), and the HTTP endpoint (`handle`).
 
 ### The wire format (D3/D4)
 
 - **First paint** (SSR and prerendered pages): the data is inlined as
-  `<script type="application/json" id="__otfw_data">…</script>` — a sibling of,
-  and independent from, the `__otfw_h` island-props payload. `<` is escaped to
+  `<script type="application/json" id="__afw_data">…</script>` — a sibling of,
+  and independent from, the `__afw_h` island-props payload. `<` is escaped to
   `<` (`serializeRouteData`) so the payload cannot close the script. The
   client router reads it once at hydration (`readInlineRouteData`).
 - **SPA navigation**: the router fetches `GET <path>/__data.json` (+ the query
@@ -103,7 +103,7 @@ yet — same reason as `router.params`).
 
 ### Error semantics
 
-`notFound()` (`@opentf/web/server`) → SSR renders the registered 404 page with
+`notFound()` (`@opentf/afw/server`) → SSR renders the registered 404 page with
 HTTP 404; the data endpoint 404s; prerender records the path as failed. Any
 other throw → 500 (page and endpoint). Redirects from loaders are **out of
 scope** until actions/Phase B.
@@ -136,7 +136,7 @@ paint, keeping hydration adoption aligned.
 
 ## 4. Toolchain
 
-- The project build can call `emitLoaderBundle` from `@opentf/web-cli/ssg` before
+- The project build can call `emitLoaderBundle` from `@opentf/afw-cli/ssg` before
   prerendering. `runPrerender` runs matched loaders with an empty query and no
   request, injects their data into the HTML, and writes per-locale `__data.json`.
 - An app-owned request server imports the loader bundle, runs loaders before
@@ -148,9 +148,9 @@ paint, keeping hydration adoption aligned.
 
 The compiler will later parse a co-located `export async function loader()` in
 `page.jsx`, strip it from CSR/SSG/hydrate outputs (Server IR,
-`crates/otfw_ir/src/server.rs`), and emit a synthetic server module registered
+`crates/afw_ir/src/server.rs`), and emit a synthetic server module registered
 into the **same** `loaderEntrySource` map. Everything downstream is discovery-
-agnostic and stays stable: the wire format (`<path>/__data.json`, `#__otfw_data`),
+agnostic and stays stable: the wire format (`<path>/__data.json`, `#__afw_data`),
 the runtime API (`router.data`, `registerLoaderRoutes`, `createLoaderRegistry`),
 and the bundling path. Sibling `loader.{js,ts}` files remain supported. Actions
 get their own endpoint namespace — `__data.json` stays GET/HEAD-only.

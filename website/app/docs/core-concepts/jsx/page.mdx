@@ -1,9 +1,9 @@
 ---
 title: JSX
-description: Every JSX pattern the OTF Web compiler supports — elements, attributes, events, conditionals, lists, fragments, and the pitfalls to avoid.
+description: Every JSX pattern the AFW compiler supports — elements, attributes, events, conditionals, lists, fragments, and the pitfalls to avoid.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 import ExpressionDemo from "./ExpressionDemo.jsx";
 import FragmentDemo from "./FragmentDemo.jsx";
 import ConditionalDemo from "./ConditionalDemo.jsx";
@@ -13,7 +13,7 @@ import ClassesDemo from "./ClassesDemo.jsx";
 
 # JSX
 
-OTF Web uses standard JSX. You write familiar markup; the compiler lowers it to imperative
+AFW uses standard JSX. You write familiar markup; the compiler lowers it to imperative
 DOM operations and fine-grained signal bindings. There is no virtual DOM — dynamic
 expressions update their dependent nodes, and PascalCase tags compile
 to Custom Elements.
@@ -378,7 +378,7 @@ HTML character references in text and attributes are decoded:
 
 ## Unsupported patterns
 
-These are valid JavaScript but not supported (or not reactive) in OTF Web JSX:
+These are valid JavaScript but not supported (or not reactive) in AFW JSX:
 
 | Pattern | Why |
 | --- | --- |

@@ -1,4 +1,4 @@
-import { Link } from "@opentf/web";
+import { Link } from "@opentf/afw";
 
 export const metadata = {
   title: "Page not found",

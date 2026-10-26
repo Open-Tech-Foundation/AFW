@@ -5,20 +5,20 @@ description: Compile and bundle your app with declarative esdev targets.
 
 # Production Build
 
-The OTF plugin compiles components and discovers routes. esdev processes the HTML
+The AFW plugin compiles components and discovers routes. esdev processes the HTML
 entry, bundles JavaScript, compiles CSS and writes the configured output.
 
 For a browser app, install the runtime and build plugin if they are not already
 listed in your project dependencies:
 
 ```bash
-pnpm add @opentf/web
-pnpm add -D @opentf/esdev-plugin-web
+pnpm add @opentf/afw
+pnpm add -D @opentf/esdev-plugin-afw
 ```
 
 ```json esdev.json
 {
-  "plugins": [{ "module": "@opentf/esdev-plugin-web", "options": { "mode": "spa" } }],
+  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "mode": "spa" } }],
   "build": {
     "targets": {
       "web": { "entry": "index.html", "outdir": "dist", "assets": ["public"] }
@@ -35,8 +35,8 @@ Your `index.html` includes the app root and its module entry:
 ```
 
 ```js entry.js
-import { mountApp } from "@opentf/web";
-import { pages, guard } from "@otfw/routes";
+import { mountApp } from "@opentf/afw";
+import { pages, guard } from "@afw/routes";
 mountApp({ pages, guard, target: document.getElementById("app") });
 ```
 
@@ -61,7 +61,7 @@ See [Preview](https://esrun.opentechf.org/esdev/start/preview).
 
 Static generation requires a project prerender script; it is not a build flag.
 See [Static Generation](/docs/deployment/static-generation). That script reads
-`site.url` from `otfw.config.js` for canonical URLs, sitemap and feeds.
+`site.url` from `afw.config.js` for canonical URLs, sitemap and feeds.
 
 For search, feeds and LLM files, configure the release output plugin as described
 in [Static Generation](/docs/deployment/static-generation#search-and-other-generated-files).

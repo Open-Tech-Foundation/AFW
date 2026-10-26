@@ -1,6 +1,6 @@
 // Live demo for the ErrorBoundary guide — throw, catch, fix, retry.
 
-import { ErrorBoundary } from "@opentf/web";
+import { ErrorBoundary } from "@opentf/afw";
 
 function RiskyChip({ armed }) {
   if (armed) {

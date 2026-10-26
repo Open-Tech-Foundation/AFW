@@ -34,9 +34,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .dev
 
 # SSG temp build dirs (cleaned on exit; ignore crash leftovers)
-.otfw-ssg
-.otfw-api-build
-.otfw-loaders-build
+.afw-ssg
+.afw-api-build
+.afw-loaders-build
 .ssg
 .esdev-build-*
 
@@ -52,14 +52,14 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 !.dev.vars.example
 !.env.example
 
-# otfwc binaries — staged into the package by CI at release time only
-packages/web-compiler/bin/
+# afwc binaries — staged into the package by CI at release time only
+packages/afw-compiler/bin/
 
 # benchmark result files (generated)
 benchmarks/results/
 
 # test scratch trees (removed on a clean run; left behind by a crash)
-packages/web-cli/tests/otfw-*/
+packages/afw-cli/tests/afw-*/
 
 # e2e scratch trees (generated apps, temp bundles)
 .e2e/

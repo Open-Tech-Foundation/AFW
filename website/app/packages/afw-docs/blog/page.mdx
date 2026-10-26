@@ -1,0 +1,200 @@
+---
+title: Blog
+description: Add a blog to your site with @opentf/afw-docs — a generated post list plus banner, meta, reading-time, and TOC components.
+---
+
+import { Callout, Steps, Tabs, CodeBlock } from "@opentf/afw-docs";
+
+# Blog
+
+`@opentf/afw-docs` ships a small blog feature alongside the docs generator. You write
+posts as MDX with frontmatter; the toolchain generates the post list and provides the
+layout and components (banner, meta, reading time, table of contents).
+
+<Callout type="tip" title="See it live">
+  The [blog on this site](/blog) is the reference demo for this feature — the index,
+  the post pages, cover images, author info, reading time, and the on-page TOC are all
+  built with the components described here. Browse `website/app/blog/` in the repo
+  for the source. These are sample posts; some describe historical tooling rather
+  than the current esdev setup.
+</Callout>
+
+## Turn it on
+
+<Steps>
+
+### Add a `blog` block to `afw.config.js`
+
+```js afw.config.js
+import { defineDocsConfig } from "@opentf/afw-docs/config";
+
+export default defineDocsConfig({
+  docs: { /* … */ },
+  blog: {
+    dir: "blog", // posts live under app/blog (the default)
+  },
+});
+```
+
+This supplies the blog settings. Add `blogPostsPlugin` explicitly to the top-level
+`plugins` array in `esdev.json`:
+
+```json
+{ "module": "@opentf/afw-docs/build", "export": "blogPostsPlugin",
+  "options": { "appDir": "app", "contentDir": "blog" } }
+```
+
+The plugin scans `app/<contentDir>` and resolves `@opentf/afw-docs/posts` to your
+post list, sorted newest-first with reading time computed at build time.
+Automatic post lists and feeds omit parameterized folders such as `[slug]` and
+`[...path]`. Use concrete post folders for entries that should appear in the blog
+index and RSS/Atom feeds.
+Keep `contentDir` aligned with `blog.dir`. Use the
+[SSG output setup](/docs/deployment/static-generation) for search and feeds.
+
+### Write a post
+
+Each post is a folder with a `page.mdx`. The body is pure content; the banner is built
+from frontmatter.
+
+```mdx app/blog/hello-world/page.mdx
+---
+title: Hello world
+description: Our first post.
+date: 2026-06-25
+author: Ada Lovelace
+author_avatar: /blog/ada.jpg
+author_role: Engineering
+cover: /blog/hello.jpg
+tags: announcements, web
+---
+
+Your markdown here. No need to repeat the title or date — the layout renders the
+banner from the frontmatter above.
+```
+
+`app/blog/hello-world/page.mdx` → `/blog/hello-world`.
+
+### Add the layout
+
+```jsx app/blog/layout.jsx
+import { BlogLayout } from "@opentf/afw-docs";
+import { posts } from "@opentf/afw-docs/posts";
+import config from "../../afw.config.js";
+
+export default function (props) {
+  return (
+    <BlogLayout config={config.docs} posts={posts} frame={false}>
+      {props.children}
+    </BlogLayout>
+  );
+}
+```
+
+`BlogLayout` shows the post banner + TOC on a post, and just the children on the index.
+Use `frame={false}` when your site already provides the navbar/footer.
+
+### Add the index
+
+```jsx app/blog/page.jsx
+import { PostList } from "@opentf/afw-docs";
+import { posts } from "@opentf/afw-docs/posts";
+
+export default function BlogIndex() {
+  return <PostList posts={posts} />;
+}
+```
+
+</Steps>
+
+## Frontmatter fields
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `title` | string | Falls back to a humanized slug. |
+| `description` | string | Shown on the banner and the index card. |
+| `date` | string | `YYYY-MM-DD`; drives newest-first ordering. |
+| `author` | string | Name shown in the meta row. |
+| `author_avatar` | string | Image URL shown next to the name. |
+| `author_role` | string | Optional label after the name. |
+| `cover` | string | Cover image (banner + card). |
+| `tags` | string | Comma-separated; rendered as chips. |
+| `order` | number | Overrides date ordering when present. |
+| `lastUpdated` | string \| false | Override the updated date, or `false` to never show it. |
+
+<Callout type="info" title="Frontmatter is flat">
+  Values are scalars (string/number/boolean). `tags` is a comma-separated string that
+  the plugin splits into an array — YAML lists aren't parsed.
+</Callout>
+
+## The generated post list
+
+`@opentf/afw-docs/posts` exports the array used by the index and the layout. Each entry
+is plain data, so you can build your own listing if you don't want `PostList`:
+
+```jsx
+import { posts } from "@opentf/afw-docs/posts";
+// posts: { slug, path, title, description, date, author, authorAvatar,
+//          authorRole, cover, tags, readingTime, order }[]
+```
+
+## Components
+
+| Component | Use |
+| --- | --- |
+| `BlogLayout` | Section layout — banner + TOC on posts, children on the index. |
+| `PostList` / `PostCard` | The index listing. |
+| `PostBanner` | Cover + title + description + meta (used by `BlogLayout`). |
+| `PostMeta` | The date · author · reading-time row. |
+| `ReadingTime` | A `N min read` label. |
+
+## Search
+
+With `docs.search: { provider: "afw" }` and `siteOutputPlugin` configured,
+`BlogLayout`'s `data-afw-search-body` marker includes post articles in the same index
+as docs pages. The blog index is excluded because it only lists posts.
+
+## Last updated
+
+Set `blog.lastUpdated: true` to show a "Last updated" line on a post — but only when it
+was edited *after* its publish `date`, so a freshly published post stays clean. The date
+comes from the file's last git commit (or a `lastUpdated` frontmatter override). See
+[Configuration → Last updated](/packages/afw-docs/configuration) for the details
+this shares with docs pages.
+
+## Feeds
+
+After prerendering, `siteOutputPlugin` uses the feed helpers to write RSS 2.0 and
+Atom 1.0 feeds to `<dir>/rss.xml` and `<dir>/atom.xml` (for example, `/blog/rss.xml`
+and `/blog/atom.xml`) when a `blog` block is configured. Set `site.url` so feed URLs
+are absolute. Posts appear newest-first unless `order` overrides their display
+order, with absolute links, publication dates from `date`, author metadata, and
+categories from `tags`.
+
+The feed timestamp uses the newest valid post date even when an older post is
+pinned first. Invalid or missing dates are skipped when selecting that timestamp;
+if no post has a valid date, the feed uses its generation time.
+
+```js afw.config.js
+export default defineDocsConfig({
+  site: { url: "https://example.com" }, // required — feeds need absolute URLs
+  blog: {
+    dir: "blog",
+    title: "Example Blog",          // feed title (optional)
+    description: "Notes from the team", // feed description (optional)
+  },
+});
+```
+
+Add an autodiscovery link to your `index.html` `<head>` so readers and browsers find it:
+
+```html index.html
+<link rel="alternate" type="application/rss+xml" title="Example Blog" href="/blog/rss.xml" />
+<link rel="alternate" type="application/atom+xml" title="Example Blog" href="/blog/atom.xml" />
+```
+
+<Callout type="info" title="Bring your own feed">
+  Drop a `public/<dir>/rss.xml` or `public/<dir>/atom.xml` to take over either feed —
+  the generator detects each override independently and won't overwrite it. Feeds are
+  skipped only when both generated feed files are overridden.
+</Callout>

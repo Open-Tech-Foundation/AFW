@@ -9,6 +9,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "afw_cli"
+version = "0.0.0"
+dependencies = [
+ "afw_compiler",
+ "base64",
+ "blake3",
+ "regex",
+ "scraper",
+ "serde_json",
+ "unicode-normalization",
+ "walkdir",
+]
+
+[[package]]
+name = "afw_compiler"
+version = "0.0.0"
+dependencies = [
+ "afw_ir",
+ "afw_markdown",
+ "oxc",
+ "syntect",
+]
+
+[[package]]
+name = "afw_ir"
+version = "0.0.0"
+
+[[package]]
+name = "afw_markdown"
+version = "1.0.0"
+dependencies = [
+ "log",
+ "serde",
+ "unicode-id",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -439,43 +476,6 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
-
-[[package]]
-name = "otfw_cli"
-version = "0.0.0"
-dependencies = [
- "base64",
- "blake3",
- "otfw_compiler",
- "regex",
- "scraper",
- "serde_json",
- "unicode-normalization",
- "walkdir",
-]
-
-[[package]]
-name = "otfw_compiler"
-version = "0.0.0"
-dependencies = [
- "otfw_ir",
- "otfw_markdown",
- "oxc",
- "syntect",
-]
-
-[[package]]
-name = "otfw_ir"
-version = "0.0.0"
-
-[[package]]
-name = "otfw_markdown"
-version = "1.0.0"
-dependencies = [
- "log",
- "serde",
- "unicode-id",
-]
 
 [[package]]
 name = "owo-colors"

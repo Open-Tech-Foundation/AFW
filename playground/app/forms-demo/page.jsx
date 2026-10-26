@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createForm } from "@opentf/web-form";
+import { createForm } from "@opentf/afw-form";
 import { zodResolver } from "./zodResolver.js";
 
 // Everything lives in this one module: the page (default export) plus the two
@@ -237,7 +237,7 @@ export default function FormsDemo() {
         <div>
           <h1 class="text-4xl font-black text-white tracking-tight">Forms Playground</h1>
           <p class="text-slate-400 mt-2 font-medium">
-            Real-time reactivity and validation with <code class="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-md font-mono text-sm border border-blue-500/20">@opentf/web-form</code>
+            Real-time reactivity and validation with <code class="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-md font-mono text-sm border border-blue-500/20">@opentf/afw-form</code>
           </p>
         </div>
 

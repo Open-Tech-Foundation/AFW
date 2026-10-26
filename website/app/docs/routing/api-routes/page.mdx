@@ -75,7 +75,7 @@ Full pipeline, page guards, `__data.json` scoping, and deploy exports:
 
 Request validation (e.g. with `zod`) belongs in middleware or at the top of a handler.
 
-Cookies use the standards-based helpers from `@opentf/web/server` —
+Cookies use the standards-based helpers from `@opentf/afw/server` —
 see the [Cookies](/docs/routing/cookies) guide (API reference: [Server](/docs/server#cookies)).
 
 ## TypeScript
@@ -84,7 +84,7 @@ Handlers can be authored in `.ts`. Annotate the exports with the framework types
 
 ```ts
 // app/api/users/[id]/route.ts
-import type { ApiHandler, Middleware } from "@opentf/web/server";
+import type { ApiHandler, Middleware } from "@opentf/afw/server";
 
 export const GET: ApiHandler = (request, { params }) => {
   return Response.json({ id: params.id });
@@ -103,7 +103,7 @@ plugin alone does not generate an HTTP server or discover API handlers automatic
 See [Server](/docs/deployment/server) for a native API entry.
 
 A project prerender/build script can explicitly call `emitApiBundle` from
-`@opentf/web-cli/ssg` to write `dist/server/api.js`. This repo's SSG script does so
+`@opentf/afw-cli/ssg` to write `dist/server/api.js`. This repo's SSG script does so
 when API routes exist. A plain esdev browser build does not emit it automatically.
 
 Keep server-only imports in route modules. On ES-Runtime, read variables from

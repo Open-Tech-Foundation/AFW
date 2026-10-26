@@ -3,12 +3,12 @@ title: Library Template
 description: Publish JSX source components and test them through esdev.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Library Template
 
 Component libraries can ship JSX/TSX source from `index.js`. Consumer apps compile
-that source with `@opentf/esdev-plugin-web`; the library does not need to bundle a
+that source with `@opentf/esdev-plugin-afw`; the library does not need to bundle a
 second copy of the framework.
 
 ```bash
@@ -24,11 +24,11 @@ The generated project compiles components for tests and includes a rendering tes
 export { default as Counter } from "./src/Counter.jsx";
 ```
 
-Include `index.js` and `src/` in the package's `files` list, and make `@opentf/web`
+Include `index.js` and `src/` in the package's `files` list, and make `@opentf/afw`
 a peer dependency. Install the runtime, plugin and test helpers for development:
 
 ```bash
-pnpm add -D @opentf/web @opentf/esdev-plugin-web @opentf/web-test
+pnpm add -D @opentf/afw @opentf/esdev-plugin-afw @opentf/afw-test
 ```
 
 ## Sample component
@@ -44,21 +44,21 @@ export default function Counter(props) {
 
 The library's `esdev.json` compiles components for client rendering and turns
 route discovery off, since a library has no `app/` folder. The
-[Testing Setup](/packages/web-test/setup) module registers cleanup:
+[Testing Setup](/packages/afw-test/setup) module registers cleanup:
 
 ```json esdev.json
 {
   "plugins": [{
-    "module": "@opentf/esdev-plugin-web",
+    "module": "@opentf/esdev-plugin-afw",
     "options": { "target": "csr", "routes": false }
   }],
-  "test": { "setup": ["@opentf/web-test/setup"] }
+  "test": { "setup": ["@opentf/afw-test/setup"] }
 }
 ```
 
 ```js tests/counter.test.js
 import { expect, test } from "runtime:test";
-import { render } from "@opentf/web-test";
+import { render } from "@opentf/afw-test";
 import { Counter } from "../index.js";
 
 test("updates after a click", async () => {

@@ -4,7 +4,7 @@
 // keeps Tab and Shift+Tab inside, closes on Escape or a backdrop click, makes the page
 // behind it inert, and returns focus to the button that opened it.
 
-import { Portal } from "@opentf/web";
+import { Portal } from "@opentf/afw";
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 

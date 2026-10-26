@@ -1,18 +1,18 @@
 {
   "plugins": [
     {
-      "module": "@opentf/esdev-plugin-web",
+      "module": "@opentf/esdev-plugin-afw",
       "options": {
         "mode": "spa",
-        "appDir": "benchmarks/otfw/app"
+        "appDir": "benchmarks/afw/app"
       }
     }
   ],
   "build": {
     "targets": {
       "web": {
-        "entry": "benchmarks/otfw/index.html",
-        "outdir": "benchmarks/otfw/dist"
+        "entry": "benchmarks/afw/index.html",
+        "outdir": "benchmarks/afw/dist"
       }
     }
   },

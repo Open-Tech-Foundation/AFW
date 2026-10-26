@@ -3,13 +3,13 @@ title: Imperative API
 description: Let a parent call into a child with $expose — publish methods on the component instance, then reach them through a $ref.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Imperative API (`$expose`)
 
 Sometimes a parent needs to **tell** a child what to do — open a dialog, focus a field,
 scroll a row into view — without re-rendering the whole tree through props. In React this
-is `useImperativeHandle`; in OTF Web it is **`$expose`**.
+is `useImperativeHandle`; in AFW it is **`$expose`**.
 
 A child publishes a small object of methods. The parent holds a
 **`$ref`** to the child component and calls those methods directly. The parent gets an

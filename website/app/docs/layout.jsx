@@ -3,8 +3,8 @@
 // sidebar · content · TOC grid. DocsLayout sources the generated sidebar itself and
 // scopes it to the current route, so this is the whole file.
 
-import { DocsLayout } from "@opentf/web-docs";
-import config from "../../otfw.config.js";
+import { DocsLayout } from "@opentf/afw-docs";
+import config from "../../afw.config.js";
 
 export default function DocsLayoutRoute(props) {
   return (

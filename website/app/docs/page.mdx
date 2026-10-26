@@ -1,18 +1,18 @@
 ---
 title: Introduction
-description: OTF Web is a native-first, zero-VDOM framework that compiles JSX to standard Web Components driven by fine-grained signals.
+description: AFW is a native-first, zero-VDOM framework that compiles JSX to standard Web Components driven by fine-grained signals.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 import CounterDemo from "../components/CounterDemo.jsx";
 
 # Introduction
 
-OTF Web compiles JSX directly into imperative native DOM operations. There is no virtual
+AFW compiles JSX directly into imperative native DOM operations. There is no virtual
 DOM tree. Reusable components compile to Custom Elements; route pages and layouts
 compile to factories. State changes run the dependent DOM bindings.
 
-## Why OTF Web
+## Why AFW
 
 - **No virtual DOM** — the compiler emits exactly the DOM calls a view requires and binds
   each update to the node it affects. Keyed lists still reconcile their items when

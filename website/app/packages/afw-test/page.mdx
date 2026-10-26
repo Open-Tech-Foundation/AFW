@@ -1,0 +1,47 @@
+---
+title: afw-test
+description: DOM testing for AFW — render components, drive interactions, and assert on reactive updates.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# @opentf/afw-test
+
+A testing utility for AFW, inspired by Testing Library. It renders components into
+esdev's native DOM realm or a real browser. The esdev plugin compiles JSX, and
+the package provides `@testing-library/dom` queries plus `user-event`.
+
+```bash
+pnpm add -D @opentf/afw-test
+```
+
+## Why it fits AFW
+
+- **Real DOM, real compiler.** Components run exactly as they ship — no mock renderer.
+- **Signals, not snapshots.** Updates are surgical, so you assert on the DOM after an
+  interaction with no `act()` wrapper or manual flush.
+- **Familiar API.** The Testing Library queries and `user-event` you already know.
+
+<Callout type="tip" title="Start here">
+  New to it? Follow the path: [Setup](/packages/afw-test/setup) →
+  [Writing Tests](/packages/afw-test/writing-tests) →
+  [Queries](/packages/afw-test/queries) →
+  [User Events](/packages/afw-test/user-events) →
+  [Testing Strategies](/packages/afw-test/strategies).
+</Callout>
+
+## At a glance
+
+```jsx
+import { test, expect } from "runtime:test";
+import { render } from "@opentf/afw-test";
+import Counter from "./Counter.jsx";
+
+test("increments on click", async () => {
+  const { getByRole } = render(Counter);
+  getByRole("button").click();
+  expect(getByRole("button").textContent).toBe("Count: 1");
+});
+```
+
+The [API Reference](/api/afw-test) lists every export.

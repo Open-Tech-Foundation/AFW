@@ -1,13 +1,13 @@
-// Blog index — a @opentf/web-docs feature demo, not this project's product blog.
-// Linked from the web-docs guide only; omitted from the top nav on purpose.
-import { Callout } from "@opentf/web-docs";
-import { PostList } from "@opentf/web-docs";
-import { posts } from "@opentf/web-docs/posts";
+// Blog index — a @opentf/afw-docs feature demo, not this project's product blog.
+// Linked from the afw-docs guide only; omitted from the top nav on purpose.
+import { Callout } from "@opentf/afw-docs";
+import { PostList } from "@opentf/afw-docs";
+import { posts } from "@opentf/afw-docs/posts";
 
 export const metadata = {
   title: "Blog (demo)",
   description:
-    "Sample posts demonstrating @opentf/web-docs blog layouts — not OTF Web product news.",
+    "Sample posts demonstrating @opentf/afw-docs blog layouts — not AFW product news.",
   openGraph: { type: "website" },
 };
 
@@ -18,11 +18,11 @@ export default function BlogIndex() {
         Blog <span className="text-lg font-bold text-[var(--text-muted)]">(demo)</span>
       </h1>
       <p className="text-[var(--text-muted)] mt-2 mb-4 max-w-2xl">
-        These sample posts exist to demonstrate the <code>@opentf/web-docs</code> blog
-        feature — post list, banner, reading time, and TOC. This is not the OTF Web
+        These sample posts exist to demonstrate the <code>@opentf/afw-docs</code> blog
+        feature — post list, banner, reading time, and TOC. This is not the AFW
         product blog. Setup details are in the{" "}
-        <a href="/packages/web-docs/blog" className="text-[var(--accent)] underline">
-          web-docs Blog guide
+        <a href="/packages/afw-docs/blog" className="text-[var(--accent)] underline">
+          afw-docs Blog guide
         </a>
         .
       </p>

@@ -1,5 +1,5 @@
 // The homepage render-pipeline tour pauses while hovered and resumes on leave.
-// Run from website/: esdev test --dom tests
+// Run from the repo root: esdev test --dom --config=website/esdev.json website/tests
 
 import { afterEach, expect, test } from "runtime:test";
 import RenderPipeline from "../app/components/RenderPipeline.jsx";

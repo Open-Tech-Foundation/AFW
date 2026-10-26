@@ -1,0 +1,24 @@
+{
+  "name": "@opentf/afw-form",
+  "version": "1.27.0",
+  "description": "A high-performance, path-based reactive forms engine for the native-first AFW.",
+  "main": "index.js",
+  "module": "index.js",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "@opentf/std": "^0.19.0"
+  },
+  "peerDependencies": {
+    "@opentf/afw": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@opentf/afw": "workspace:*",
+    "@opentf/afw-test": "workspace:*"
+  }
+}

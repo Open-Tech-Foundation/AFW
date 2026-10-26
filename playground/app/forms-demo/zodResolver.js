@@ -1,7 +1,7 @@
 import { set } from "@opentf/std";
 
 /**
- * A Zod resolver for web-forms.
+ * A Zod resolver for afw-forms.
  * Converts Zod validation errors into a nested object matching the form structure.
  * This is a demo-specific utility and is not part of the core Web App Framework library.
  */

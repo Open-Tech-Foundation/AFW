@@ -1,8 +1,8 @@
 {
   "plugins": [
     {
-      "module": "@opentf/esdev-plugin-web",
-      "export": "createOtfwPlugin",
+      "module": "@opentf/esdev-plugin-afw",
+      "export": "createAfwPlugin",
       "options": {
         "target": "csr",
         "failOnError": true

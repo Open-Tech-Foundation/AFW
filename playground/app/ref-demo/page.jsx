@@ -1,4 +1,4 @@
-import { onMount } from "@opentf/web";
+import { onMount } from "@opentf/afw";
 import FancyModal from "../components/FancyModal.jsx";
 
 export default function RefDemoPage() {

@@ -1,5 +1,5 @@
 {
-  "name": "@opentf/web-bench-svelte",
+  "name": "@opentf/afw-bench-svelte",
   "private": true,
   "type": "module",
   "devDependencies": {

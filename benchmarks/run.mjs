@@ -7,9 +7,9 @@
 // under benchmarks/results/, and prints a Markdown table. With more than one
 // case it also prints a side-by-side comparison.
 //
-//   tsr bench --                 # case "otfw"
+//   tsr bench --                 # case "afw"
 //   tsr bench -- react           # a single sibling case
-//   tsr bench -- otfw react      # several cases + comparison table
+//   tsr bench -- afw react      # several cases + comparison table
 //   tsr bench -- all             # every case directory, compared
 //   tsr bench -- --headful    # show the browser window
 //   tsr bench -- --no-build   # reuse existing dist/ (skip the compile step)
@@ -55,12 +55,12 @@ const MIME = {
   ".ico": "image/x-icon", ".txt": "text/plain", ".map": "application/json",
   ".woff2": "font/woff2",
 };
-const HOME_ENGINES = ["otfw", "react", "solid", "svelte"];
+const HOME_ENGINES = ["afw", "react", "solid", "svelte"];
 const HOME_REPORT_PATH = join(HERE, "..", "website", "app", "benchmark-report.json");
 
 // Resolve the list of cases to run.
 let cases;
-if (positionals.length === 0) cases = ["otfw"];
+if (positionals.length === 0) cases = ["afw"];
 else if (positionals.length === 1 && positionals[0] === "all") cases = await discoverCases();
 else cases = positionals;
 
@@ -99,12 +99,12 @@ async function runCase(caseName) {
   if (!noBuild) {
     console.log(`\n• [${caseName}] building …`);
     const command =
-      caseName === "otfw"
+      caseName === "afw"
         ? ["esdev", "build", "--minify", "--config=esdev.bench.json"]
         : ["bun", "build.mjs"];
     const b = await new Command(command[0], {
       args: command.slice(1), inheritEnv: true,
-      cwd: caseName === "otfw" ? join(HERE, "..") : appDir,
+      cwd: caseName === "afw" ? join(HERE, "..") : appDir,
       stdout: "inherit", stderr: "inherit",
     }).output();
     if (!b.success) throw new Error("build failed");
@@ -119,7 +119,7 @@ async function runCase(caseName) {
   const cdpPort = await freePort();
   const cache = join(HERE, "..", ".cache");
   await mkdir(cache, { recursive: true });
-  const profile = await makeTempDir({ dir: cache, prefix: "otfw-bench-" });
+  const profile = await makeTempDir({ dir: cache, prefix: "afw-bench-" });
   // Opens on about:blank; driveAndCollect navigates to the app only after CPU
   // throttling is applied, so no timed sample runs unthrottled. Fixed window
   // size + scale factor keep the layout area identical across runs; --expose-gc
@@ -206,7 +206,7 @@ async function writeHomeReport(results, comparisonFile) {
     // actually wrote — not a re-derived stamp, which could drift by a tick).
     source: `benchmarks/results/${basename(comparisonFile)}`,
     engines: HOME_ENGINES,
-    highlightEngine: "otfw",
+    highlightEngine: "afw",
     resolutionMs: RESOLUTION_MS,
     rows,
   };

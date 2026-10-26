@@ -1,9 +1,9 @@
 ---
 title: Hydration
-description: How OTF Web adopts server-rendered HTML on first paint — SSG and SSR wire reactivity onto existing DOM without a virtual tree.
+description: How AFW adopts server-rendered HTML on first paint — SSG and SSR wire reactivity onto existing DOM without a virtual tree.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Hydration
 
@@ -51,10 +51,10 @@ Plugin `mode: "spa"` emits CSR output for a client-only app. See
 The app shell stamps a sentinel on the mount root when hydration is expected:
 
 ```html
-<div id="app" data-otfw-hydrate>…server-rendered children…</div>
+<div id="app" data-afw-hydrate>…server-rendered children…</div>
 ```
 
-`mountApp` sees `data-otfw-hydrate`, threads a DOM cursor through the layout chain, and calls
+`mountApp` sees `data-afw-hydrate`, threads a DOM cursor through the layout chain, and calls
 each route's `hydrateAt` factory instead of `replaceChildren()` + build. When the sentinel is
 absent, the client mounts with a normal CSR build.
 
@@ -71,7 +71,7 @@ Fine-grained adoption is implemented for the constructs you use in real apps:
   context and reactivity follow the logical tree.
 - **Built-ins** — `<Link>`, `<Portal>`, `<ContextProvider>`, and `<ErrorBoundary>` participate
   in first-paint adoption (portals defer relocation until hydration finishes).
-- **Rich island props** — JSON-safe props serialize into a `<script id="__otfw_h">` payload so
+- **Rich island props** — JSON-safe props serialize into a `<script id="__afw_h">` payload so
   components upgrade with the correct object/array values, not attribute round-trips.
 - **Loader output** — inline loader data in the HTML keeps `router.data` aligned on first paint;
   see [Data Fetching](/docs/data-fetching).
@@ -107,7 +107,7 @@ are the main remaining gap on the adopt path.
 
 ## Compared to other frameworks
 
-OTF Web is zero-VDOM with fine-grained signals. Hydration **claims existing nodes** and binds
+AFW is zero-VDOM with fine-grained signals. Hydration **claims existing nodes** and binds
 only what is reactive — the same shape as Solid or Svelte 5, expressed on Custom Elements.
 There is no tree-wide reconcile pass.
 

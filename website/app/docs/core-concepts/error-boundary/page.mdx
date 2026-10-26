@@ -3,7 +3,7 @@ title: Error boundaries
 description: Contain render and mount failures in a subtree with <ErrorBoundary> — show a fallback, retry with reset(), and keep siblings running.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 import ErrorBoundaryDemo from "./ErrorBoundaryDemo.jsx";
 
 # Error boundaries
@@ -14,7 +14,7 @@ When a descendant component **throws during its initial render or mount**, the n
 fallback or the default UI) to rebuild the original children and try again.
 
 ```jsx
-import { ErrorBoundary } from "@opentf/web";
+import { ErrorBoundary } from "@opentf/afw";
 
 <ErrorBoundary fallback={(error, reset) => `Oops: ${error.message}`}>
   <RiskyPanel />
@@ -83,7 +83,7 @@ it still throws, the boundary catches it again.
 ## Error reporting
 
 Every caught error is still **reported** to runtime error subscribers and the
-`otfw:error` window event before the fallback renders. With no subscribers, the
+`afw:error` window event before the fallback renders. With no subscribers, the
 runtime also logs it to the console. A development host can display these reports,
 but the native plugin does not install the retired CLI's overlay bridge. The boundary
 contains user-visible failure; it does not hide errors from developers.

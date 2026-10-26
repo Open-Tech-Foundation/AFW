@@ -1,5 +1,5 @@
 {
-  "name": "@opentf/web-bench-react",
+  "name": "@opentf/afw-bench-react",
   "private": true,
   "type": "module",
   "dependencies": {

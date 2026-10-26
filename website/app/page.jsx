@@ -1,11 +1,11 @@
-import { Link } from "@opentf/web";
+import { Link } from "@opentf/afw";
 import BenchmarkTable from "./components/BenchmarkTable.jsx";
 import RenderPipeline from "./components/RenderPipeline.jsx";
 import { benchmark, capabilities, ssgBenchmark } from "./home-data.js";
 
 export const metadata = {
-  // Absolute: the homepage keeps its full title instead of the "%s — OTF Web" template.
-  title: { absolute: "OTF Web — The native-first framework for modern web apps" },
+  // Absolute: the homepage keeps its full title instead of the "%s — AFW" template.
+  title: { absolute: "AFW — App Framework for the Web" },
   description:
     "A high-performance full-stack web framework that compiles JSX to native Web Components, with signals for reactive state updates.",
   canonical: "/",
@@ -157,7 +157,7 @@ export default function HomePage() {
             <Link href="/docs" className="transition-all active:scale-95">
               <span className="inline-flex items-center gap-2 bg-[var(--text-main)] text-[var(--bg-main)] px-7 py-3 rounded-xl font-bold hover:opacity-90 shadow-lg">Read the docs</span>
             </Link>
-            <a href="https://github.com/Open-Tech-Foundation/Web-App-Framework" target="_blank" className="transition-all active:scale-95">
+            <a href="https://github.com/Open-Tech-Foundation/afw" target="_blank" className="transition-all active:scale-95">
               <span className="inline-flex items-center gap-2 bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border)] px-7 py-3 rounded-xl font-bold hover:border-[var(--accent)]/40">View on GitHub</span>
             </a>
           </div>

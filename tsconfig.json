@@ -27,12 +27,12 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
     "paths": {
-      "@opentf/web": ["./packages/web/index.js"],
-      "@opentf/web/hmr": ["./packages/web/runtime/hmr.js"],
-      "@opentf/web/compiler": ["./packages/web/compiler/index.js"],
-      "@opentf/web-form": ["./packages/web-form/index.js"],
-      "@opentf/web-test": ["./packages/web-test/index.js"],
-      "@opentf/web-test/*": ["./packages/web-test/*"]
+      "@opentf/afw": ["./packages/afw/index.js"],
+      "@opentf/afw/hmr": ["./packages/afw/runtime/hmr.js"],
+      "@opentf/afw/compiler": ["./packages/afw/compiler/index.js"],
+      "@opentf/afw-form": ["./packages/afw-form/index.js"],
+      "@opentf/afw-test": ["./packages/afw-test/index.js"],
+      "@opentf/afw-test/*": ["./packages/afw-test/*"]
     }
   },
   "exclude": [

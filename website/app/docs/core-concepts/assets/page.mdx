@@ -3,11 +3,11 @@ title: Assets & Workers
 description: Bundle module workers and configure public assets in esdev.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Assets & Workers
 
-esdev owns browser assets and worker bundling. The OTF plugin compiles framework
+esdev owns browser assets and worker bundling. The AFW plugin compiles framework
 modules; it does not install the retired CLI's asset-rewriting pipeline.
 
 ## Public assets
@@ -40,7 +40,7 @@ For components used in static or request rendering, start workers from client
 lifecycle callbacks rather than during server rendering:
 
 ```jsx
-import { onMount, onCleanup } from "@opentf/web";
+import { onMount, onCleanup } from "@opentf/afw";
 
 export default function WorkerStatus() {
   let worker;

@@ -7,19 +7,19 @@
   ],
   "method": "Median of the pooled samples of 3 full runs (bun run bench all) on one machine.",
   "engines": [
-    "otfw",
+    "afw",
     "react",
     "solid",
     "svelte"
   ],
-  "highlightEngine": "otfw",
+  "highlightEngine": "afw",
   "resolutionMs": 8.333333333333334,
   "runs": 3,
   "rows": [
     {
       "label": "create 1,000 rows",
       "values": {
-        "otfw": 261.15,
+        "afw": 261.15,
         "react": 274.05,
         "solid": 244.3,
         "svelte": 257.55
@@ -29,7 +29,7 @@
     {
       "label": "create 10,000 rows",
       "values": {
-        "otfw": 2627.8,
+        "afw": 2627.8,
         "react": 3338.6,
         "solid": 2542.2,
         "svelte": 2548.8
@@ -39,7 +39,7 @@
     {
       "label": "append 1,000 to 1,000",
       "values": {
-        "otfw": 295.8,
+        "afw": 295.8,
         "react": 286.15,
         "solid": 270.1,
         "svelte": 267.45
@@ -49,7 +49,7 @@
     {
       "label": "update every 10th (1k)",
       "values": {
-        "otfw": 91.85,
+        "afw": 91.85,
         "react": 93.85,
         "solid": 108.9,
         "svelte": 92.5
@@ -59,7 +59,7 @@
     {
       "label": "swap 2 rows (1k)",
       "values": {
-        "otfw": 33,
+        "afw": 33,
         "react": 246.45,
         "solid": 31.15,
         "svelte": 31.25
@@ -69,7 +69,7 @@
     {
       "label": "select row (1k)",
       "values": {
-        "otfw": 26.15,
+        "afw": 26.15,
         "react": 27.3,
         "solid": 30,
         "svelte": 29
@@ -79,7 +79,7 @@
     {
       "label": "remove row (1k)",
       "values": {
-        "otfw": 40.35,
+        "afw": 40.35,
         "react": 39.9,
         "solid": 37.55,
         "svelte": 36.15
@@ -89,7 +89,7 @@
     {
       "label": "clear 10,000 rows",
       "values": {
-        "otfw": 178.6,
+        "afw": 178.6,
         "react": 260.9,
         "solid": 164,
         "svelte": 165.3

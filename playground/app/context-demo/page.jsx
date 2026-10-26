@@ -4,7 +4,7 @@
 // Custom Elements). The page's $state flows through the provider as a signal, so
 // cycling the theme updates every consumer fine-grained.
 
-import { ContextProvider, createContext } from "@opentf/web";
+import { ContextProvider, createContext } from "@opentf/afw";
 
 const ThemeContext = createContext("dark");
 

@@ -1,0 +1,180 @@
+---
+title: Docs Configuration
+description: Site-wide options in afw.config.js and per-folder ordering with _meta.js.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Docs Configuration
+
+## Site config
+
+Site-wide options live under `docs` in `afw.config.js` — brand, version, GitHub
+link, and the top-level nav (which supports per-link icons).
+
+The package includes TypeScript declarations for configuration, components, and
+generated navigation and blog data. For a custom configuration object, import
+`DocsConfig` or `SiteConfig` with `import type` from `@opentf/afw-docs/config`.
+`defineDocsConfig` checks the supported options and preserves the supplied shape.
+
+```js
+import { defineDocsConfig } from "@opentf/afw-docs/config";
+
+export default defineDocsConfig({
+  docs: {
+    title: "AFW",
+    version: "v0.16.0",
+    logo: "/logo.png",
+    github: "https://github.com/Open-Tech-Foundation/afw",
+    // Source repo — edit links also need lastUpdatedPlugin's source-path data.
+    repoUrl: "https://github.com/Open-Tech-Foundation/afw",
+    nav: [
+      { label: "Home", href: "/" },
+      { label: "Docs", href: "/docs" },
+    ],
+    // Foot of every docs/API page: git-derived "Last updated" + GitHub edit link.
+    lastUpdated: true,
+  },
+});
+```
+
+## The sidebar tree
+
+Register `docsNavPlugin` as described below to generate the sidebar data.
+
+The sidebar is generated from the folder tree under your docs directory. A folder
+with a `page.*` becomes a link; a folder **without** one becomes a group subheading
+over its children. Nesting is arbitrary.
+
+Parameterized folders such as `[slug]` and `[...path]`, including their descendants,
+are omitted from automatic navigation. `getStaticPaths()` enumerates prerendered
+URLs; it does not populate the navigation tree. Link to concrete generated URLs
+from your documentation content.
+
+Each folder's `_meta.js` sets the order and labels of its children. Listed keys come
+first in declared order; unlisted folders are appended alphabetically.
+
+```js
+// app/docs/_meta.js
+export default {
+  index: "Introduction",
+  "getting-started": "Getting Started",
+  "core-concepts": "Core Concepts",
+  packages: "Packages",
+  reference: "Reference",
+};
+```
+
+<Callout type="tip" title="Labels and order in one place">
+  A string value is the label (`"getting-started": "Getting Started"`). Omit a folder
+  from `_meta.js` and it still appears — just alphabetically, using its frontmatter title or a humanized folder name.
+</Callout>
+
+## Mobile navigation
+
+On screens narrower than **768px** the sidebar doesn't fit beside the content, so it
+becomes an **off-canvas drawer**. A hamburger button appears at the start of the navbar
+and slides the sidebar in over a dimmed backdrop:
+
+- It shows **only** on small screens, and **only** on pages that have a sidebar (docs
+  and other `DocsLayout` sections) — never on a plain marketing page.
+- The drawer **locks page scroll** while open and closes on navigation, <kbd>Esc</kbd>,
+  a tap on the backdrop, or a resize back up to desktop width.
+- `prefers-reduced-motion` disables the slide animation.
+
+To keep the bar uncluttered on phones, the navbar also **collapses to a single row** —
+brand on the left, a compact action cluster (search · GitHub · theme) on the right — and
+its **top-level links move into the drawer**, above the section tree, so the whole
+navigation is reachable from one place.
+
+This is automatic — there's nothing to configure. On desktop the sidebar is the sticky
+column and the top-level links sit in the navbar, as usual.
+
+<Callout type="note" title="Works across layouts">
+  The burger lives in the navbar and the drawer in the docs grid, which may be separate
+  layouts. They stay in sync through a small global toggle and an `afw:sidebar` event,
+  so the button's open/closed state is always correct.
+</Callout>
+
+## Page frontmatter
+
+Per-page frontmatter controls how a page shows up:
+
+| Key | Effect |
+| --- | --- |
+| `title` | Default sidebar label and breadcrumb (unless `_meta` or `sidebar_label` overrides it), plus document title. |
+| `description` | Meta description for SEO. |
+| `sidebar_label` | Overrides `title` for the sidebar; `_meta` labels take priority over both. |
+| `order` | Included in generated navigation data; the default sidebar order comes from `_meta.js`, then alphabetical folder names. |
+| `lastUpdated` | Override the "Last updated" date, or `false` to hide it on this page. |
+
+## Last updated & Edit this page
+
+Turn on **`docs.lastUpdated: true`** to show a "Last updated on …" line at the foot of
+each page in every `DocsLayout` section (`/docs`, `/api`, and any other section folder).
+The date comes from the file's **last git commit** — no manual bookkeeping, and it
+reflects when the content actually changed.
+
+Pair it with **`docs.repoUrl`** (your GitHub repository root, not a specific file) to
+also render an **"Edit this page"** link beside the timestamp. The link targets
+`<repoUrl>/edit/main/<path-to-source>` for the current route's `page.mdx` / `page.jsx`.
+
+```js
+export default defineDocsConfig({
+  docs: {
+    // …
+    repoUrl: "https://github.com/org/repo",
+    lastUpdated: true,
+  },
+});
+```
+
+Register `lastUpdatedPlugin` to emit the dates and per-route source paths. The
+`lastUpdated` config flag alone does not register it. Edit links require the
+generated source path and `repoUrl`; they can still appear when a page's timestamp
+is hidden with `lastUpdated: false`.
+
+The same SSG build also emits an Open Graph `article:modified_time` meta tag per page,
+so crawlers see the modification date.
+
+<Callout type="info" title="Overrides and git history">
+  A `lastUpdated:` value in a page's frontmatter pins the date (any `YYYY-MM-DD` works);
+  `lastUpdated: false` hides the line for that page. If the file isn't in git history
+  (e.g. a shallow CI clone — use `fetch-depth: 0`), the line is simply omitted; there is
+  no file-mtime fallback, since mtime doesn't track content changes.
+</Callout>
+
+The blog supports the same option: `blog.lastUpdated: true` adds the line to a post
+only when it was edited *after* its publish date, so a fresh post stays clean.
+
+## Build plugins
+
+Add these entries to the top-level `plugins` array in your existing `esdev.json`,
+alongside the AFW compiler/routes and site-output plugins:
+
+```json
+{
+  "plugins": [
+    { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
+    { "module": "@opentf/afw-docs/build", "export": "docsNavPlugin",
+      "options": { "appDir": "app" } },
+    { "module": "@opentf/afw-docs/build", "export": "lastUpdatedPlugin",
+      "options": { "appDir": "app" } }
+  ]
+}
+```
+
+Keep your build targets and `siteOutputPlugin` entry from
+[Static Generation](/docs/deployment/static-generation). A blog also needs
+`blogPostsPlugin`, with `appDir: "app"` and a `contentDir` matching `blog.dir`.
+
+## Search
+
+Set `docs.search: { provider: "afw" }` and configure `siteOutputPlugin` after
+prerendering. It runs the native `afwc docs index` command and writes `_search/`
+into the static output. `DocsLayout` and `BlogLayout` mark their article content
+for indexing; navigation and page chrome are excluded.
+
+The search UI loads that index in the browser. Test with a release build and
+`esdev preview`; development does not regenerate the release index. See
+[Static Generation](/docs/deployment/static-generation#search-and-other-generated-files).

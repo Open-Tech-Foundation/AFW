@@ -7,7 +7,7 @@
 // Why this exists: one run's per-operation median moves enough between consecutive
 // runs on an idle machine that the *fastest* label turns over. Three runs taken
 // back to back picked three different winners for "create 1,000 rows" (svelte,
-// solid, solid) — because otfw, Solid and Svelte sit within ~20 ms of each other
+// solid, solid) — because afw, Solid and Svelte sit within ~20 ms of each other
 // there while the double-rAF quantum is 8.3 ms. Publishing any single run's
 // bolding would be reporting a coin flip.
 //
@@ -95,7 +95,7 @@ await write(
       source: files.map((f) => "benchmarks/results/" + f.split("/").pop()),
       method: `Median of the pooled samples of ${runs.length} full runs (tsr bench -- all) on one machine.`,
       engines,
-      highlightEngine: "otfw",
+      highlightEngine: "afw",
       resolutionMs: RESOLUTION_MS,
       runs: runs.length,
       rows: rows.map(({ label, values, best }) => ({ label, values, best })),

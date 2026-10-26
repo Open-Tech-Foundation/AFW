@@ -8,7 +8,7 @@ export default function DndDemoPage() {
   let tasks = $state([
     { id: 1, text: "Wire up native drag events", status: "todo" },
     { id: 2, text: "Reorder with keyed lists", status: "todo" },
-    { id: 3, text: "Compile JSX with otfwc", status: "doing" },
+    { id: 3, text: "Compile JSX with afwc", status: "doing" },
     { id: 4, text: "Reactive signals", status: "done" },
     { id: 5, text: "Drop targets highlight", status: "todo" },
   ]);

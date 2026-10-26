@@ -6,27 +6,27 @@ description: Build/launch/drive recipe for verifying compiler+runtime changes in
 # Verifying framework changes end-to-end
 
 ## Build the compiler binary
-The real compiler is the Rust crate; the npm `@opentf/web-compiler` just wraps the binary.
+The real compiler is the Rust crate; the npm `@opentf/afw-compiler` just wraps the binary.
 
 ```bash
-cargo build -p otfw_cli          # produces target/debug/otfwc
+cargo build -p afw_cli          # produces target/debug/afwc
 ```
 
 ## Run the playground against local sources
-The playground uses workspace deps (`@opentf/web`, `@opentf/web-cli`), so runtime changes
-are picked up directly. Point the CLI at the locally built compiler with `OTFWC_BIN`:
+The playground uses workspace deps (`@opentf/afw`, `@opentf/afw-cli`), so runtime changes
+are picked up directly. Point the CLI at the locally built compiler with `AFWC_BIN`:
 
 ```bash
 cd playground
-OTFWC_BIN=$REPO/target/debug/otfwc bun run dev   # port 3005
+AFWC_BIN=$REPO/target/debug/afwc bun run dev   # port 3005
 ```
 
 Gotchas:
-- **Rebuilding `otfwc` requires a dev-server restart** — the compiler runs as one long-lived
-  `otfwc serve` child, started with the server.
+- **Rebuilding `afwc` requires a dev-server restart** — the compiler runs as one long-lived
+  `afwc serve` child, started with the server.
 - Everything else is picked up live: routes added or deleted while the server runs, sources
   outside `app/` (`lib/`, a linked workspace package), `index.html`, `public/`, and
-  `otfw.config.*`. Each change publishes a reload over the HMR socket.
+  `afw.config.*`. Each change publishes a reload over the HMR socket.
 - Add scratch routes under `playground/app/<name>/page.jsx` (+ sibling component files);
   delete them after verification.
 - Pick an explicit high `--port` when scripting a check: the default 3000 is often already
@@ -56,5 +56,5 @@ chromium --headless=new --remote-debugging-port=9222 --no-sandbox \
 For error/warning surface checks (diagnostics print as `warning:` on stderr):
 
 ```bash
-./target/debug/otfwc build [--component] [--stdin] file.jsx
+./target/debug/afwc build [--component] [--stdin] file.jsx
 ```

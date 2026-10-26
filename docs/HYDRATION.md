@@ -81,7 +81,7 @@ which case components only ever adopt (the build arm is dead and can later be dr
 
 ## 1. What hydration is, and why it's the keystone
 
-OTF Web can produce a route's HTML at build time (SSG) or per request (SSR). But
+AFW can produce a route's HTML at build time (SSG) or per request (SSR). But
 **today the client throws that HTML away**: on first paint the router does
 `rootEl.replaceChildren()` and rebuilds the page from scratch via CSR. So server
 HTML is first-paint + SEO only; the three render modes (SSG / SSR / CSR) differ
@@ -114,9 +114,9 @@ A spectrum of "how much JS runs on the client at load":
 Two structural facts decide our approach:
 
 1. **VDOM frameworks pay a "re-run the tree" tax; signal/compiler frameworks don't.**
-   OTF Web is zero-VDOM with fine-grained signals and a compiler — it is already in
+   AFW is zero-VDOM with fine-grained signals and a compiler — it is already in
    the **Solid / Svelte 5 camp**: adopt nodes, wire only what's reactive, no diff.
-2. **Every OTF Web component compiles to a native Custom Element.** A custom element
+2. **Every AFW component compiles to a native Custom Element.** A custom element
    self-upgrades and has its own lifecycle, so **each component is already an
    independently-hydrating island** — Astro's model, for free, on web standards.
 
@@ -187,7 +187,7 @@ slotted content (whose reactivity it owns), while the component itself steps ove
 
 > **The deeper form of the same hazard: server output must re-parse 1:1.** Whitespace is the
 > easy case. The hard case is *invalid nesting*, where the parser silently restructures the
-> tree: a `<p>` is closed by any block-level start tag, so `<p><web-callout><div>…` re-parses
+> tree: a `<p>` is closed by any block-level start tag, so `<p><afw-callout><div>…` re-parses
 > with the callout hoisted out of the paragraph, and the adopt walk claims the `<p>` and then
 > finds nothing inside it (`expected <h1>, found nothing`). That's a page-level mismatch, so the
 > router discards the *entire* pre-rendered route and rebuilds via CSR. The MDX front-end no
@@ -272,12 +272,12 @@ since those helpers already operate on existing nodes. Only acquisition (the cla
 ### 3.4 Client boot switch + custom-element adoption
 
 - **First render hydrates `#app`** _(implemented)_ — `mountApp` detects the server
-  sentinel `data-otfw-hydrate` on the root and, when the route's page and every layout in its
+  sentinel `data-afw-hydrate` on the root and, when the route's page and every layout in its
   chain expose a `hydrateAt` factory, `hydrateRouteNode` threads one cursor through the chain
   to adopt the existing children instead of `replaceChildren()` + build (`runtime/router.js`).
   Subsequent client navigations keep the CSR build path. A route whose page or any layout
   isn't adoptable (no `hydrateAt`), or a thrown mismatch, falls through to a clean CSR build.
-- **A server sentinel** _(implemented)_ — `<div id="app" data-otfw-hydrate>`, stamped by
+- **A server sentinel** _(implemented)_ — `<div id="app" data-afw-hydrate>`, stamped by
   the shell injection (`stampHydrateSentinel`) whenever the client bundle was built for
   the hydrate target. SSG build scripts and app-owned SSR servers stamp this
   sentinel when serving rendered markup; a plain CSR `esdev build` mounts into
@@ -285,7 +285,7 @@ since those helpers already operate on existing nodes. Only acquisition (the cla
   serve protocol carries the target as a token (`csr`/`ssg`/`hydrate`), so the client
   build requests `--target=hydrate` and gets the dual module per route.
   The prerender records each page's route on the sentinel
-  (`data-otfw-hydrate="/docs/x"`, `stampRenderedPath`); the client adopts only when
+  (`data-afw-hydrate="/docs/x"`, `stampRenderedPath`); the client adopts only when
   it matches the current URL (`renderedForPath`, ignoring trailing slashes and
   percent-encoding) and otherwise builds the requested route. A bare sentinel (SSR,
   which renders the requested URL) always matches.
@@ -293,14 +293,14 @@ since those helpers already operate on existing nodes. Only acquisition (the cla
   a component upgrades — and runs this switch — the instant its class is
   `customElements.define`d. Route chunks are code-split, so a *route's* components define
   during the router's `await import()`; but **framework components imported eagerly by the
-  app entry — notably `<Link>`, which `@opentf/web`'s index bare-imports so its registration
+  app entry — notably `<Link>`, which `@opentf/afw`'s index bare-imports so its registration
   survives tree-shaking — are defined while the entry bundle evaluates, before `mountApp`
   runs.** So the flag cannot merely be turned on inside `mountApp`/`beginHydration`: those
   eager hosts would already have upgraded with the flag off and taken the *build* arm,
   silently re-wrapping the server DOM they should have adopted (`<a><a>`).
 
   The flag therefore **initializes synchronously at `hydrate.js` module load from the server
-  sentinel** (`document.querySelector("[data-otfw-hydrate]")`, stamped only when the page
+  sentinel** (`document.querySelector("[data-afw-hydrate]")`, stamped only when the page
   shipped adoptable markup). The deferred entry bundle evaluates after the HTML is parsed, so
   the sentinel is present, and `hydrate.js` is a transitive dependency of every component (via
   the runtime), so it evaluates **before any component's `define`** — every server host, eager
@@ -383,7 +383,7 @@ depends on upgrade ordering. It is the framework's per-component **serialization
 
 **The fix — a compiler-driven payload.** During SSR/SSG, `ssgComponent` assigns each island a
 `data-h` id and records its **JSON-safe props** into one payload; the shell embeds it as a
-single `<script type="application/json" id="__otfw_h">`. The hydrate-target component's
+single `<script type="application/json" id="__afw_h">`. The hydrate-target component's
 **constructor** reads `hydrationProps(this)` (by the host's `data-h` id) and initializes its
 prop **signals from the real JS values** — objects, arrays, numbers — falling back to the
 attribute/default when absent (a client-`createElement`'d element on SPA nav, or a plain CSR
@@ -445,7 +445,7 @@ optimization (`template_html`); the same model now answers the hydrate question 
   `<li>`, so `<a>{children}</a>` (the `Link` component) still adopts; only `<p>`, which any
   block-level tag ends, makes *unknown* content hazardous.
 
-**Diagnostics have to be visible to exist.** `otfwc serve` — the path the toolchain always
+**Diagnostics have to be visible to exist.** `afwc serve` — the path the toolchain always
 uses — dropped the compiler's non-fatal warnings on the floor, so every "this view can't be
 adopted" fallback was silent. It now prints them (deduplicated, prefixed with the module),
 which is what makes the open items in §6 observable in an ordinary native esdev build.
@@ -456,8 +456,8 @@ which is what makes the open items in §6 observable in an ordinary native esdev
 
 | Step | Scope |
 |---|---|
-| **2.0** | marker scheme ✓ + `runtime/hydrate.js` primitives ✓ + dual-emit `hydrate.rs` (CSR build + `hydrate` adopt factory for pages) ✓ + `otfwc --target=hydrate` ✓ + router boot switch (leaf routes) ✓ + toolchain wiring (serve-protocol target token + hydrate client bundle + `data-otfw-hydrate` sentinel in `otfw serve`/`--ssg`) ✓ + **dual component (build/adopt via `isHydrating() && this.firstChild`; server props re-applied on adopt; per-component mismatch → CSR rebuild)** ✓ + **`nav` config (spa/mpa) + `<Link reload>`** ✓ + ssg→hydrate, router-boot, serve-e2e & real-browser (CDP) hydration e2e (leaf page + component island + prop island) tests ✓ |
-| **2.5** | **compiler-driven rich data hydration (§3.7)** — `ssgComponent` serializes each island's JSON-safe props into the `<script id="__otfw_h">` payload (`data-h` ids); the hydrate-target constructor reads `hydrationProps(this)` and initializes prop signals from the rich values (objects/arrays), no attribute round-trip, no flash. Payload injection in `otfw serve`/`--ssg`. ssg-collector + reader unit tests, codegen tests, and a real-browser (CDP) object-prop island e2e ✓ |
+| **2.0** | marker scheme ✓ + `runtime/hydrate.js` primitives ✓ + dual-emit `hydrate.rs` (CSR build + `hydrate` adopt factory for pages) ✓ + `afwc --target=hydrate` ✓ + router boot switch (leaf routes) ✓ + toolchain wiring (serve-protocol target token + hydrate client bundle + `data-afw-hydrate` sentinel in `afw serve`/`--ssg`) ✓ + **dual component (build/adopt via `isHydrating() && this.firstChild`; server props re-applied on adopt; per-component mismatch → CSR rebuild)** ✓ + **`nav` config (spa/mpa) + `<Link reload>`** ✓ + ssg→hydrate, router-boot, serve-e2e & real-browser (CDP) hydration e2e (leaf page + component island + prop island) tests ✓ |
+| **2.5** | **compiler-driven rich data hydration (§3.7)** — `ssgComponent` serializes each island's JSON-safe props into the `<script id="__afw_h">` payload (`data-h` ids); the hydrate-target constructor reads `hydrationProps(this)` and initializes prop signals from the rich values (objects/arrays), no attribute round-trip, no flash. Payload injection in `afw serve`/`--ssg`. ssg-collector + reader unit tests, codegen tests, and a real-browser (CDP) object-prop island e2e ✓ |
 | **2.1a** | **keyed-list hydration** ✓ — server brackets the region with `<!--[-->…<!--]-->`; `hydrate.rs` emits an adopt-item walk (claims each item root off the shared cursor) + a CSR build-item fn, and `hydrateList` seeds the keyed reconcile from the adopted `{sig, node}` pairs so later data changes build/move/remove with no first-paint flash. ssg-marker + codegen tests, an ssg→hydrate happy-dom round-trip, and a real-browser (CDP) list adopt + reconcile e2e ✓ |
 | **2.1b** | **conditional / dynamic-node hydration** ✓ — the server brackets the rendered branch with `<!--[-->…<!--]-->`; `hydrate.rs` emits an adopt fn + a CSR build fn per branch, and `hydrateChild` claims the rendered branch (adopt closure) then swaps to a freshly-built branch on change (build closure), the closing marker as the swap anchor. A falsy `&&` adopts an empty region. codegen tests, an ssg→hydrate happy-dom round-trip, and a real-browser (CDP) adopt + swap-both-ways e2e ✓ |
 | **2.1c** | **layout-chain / `{children}`-slot hydration** ✓ — a page/layout emits `hydrateAt(cursor, props)` (walk) + a `hydrate(root, props)` wrapper; SSG brackets the `{children}` slot with `<!--[-->…<!--]-->`; the router's `hydrateRouteNode` threads one cursor through the chain, each layout handing its cursor to the nested route's adopt thunk at the slot. Codegen tests, a router chain-adopt unit test (+ non-adoptable-layout fallback), a compiled-layout ssg→hydrate happy-dom round-trip, and a real-browser (CDP) layout-chain e2e ✓ |
@@ -476,7 +476,7 @@ whitespace nodes, double mounts). The bar:
 
 - **Unit tests** for the runtime primitives and marker parsing (esdev native DOM). _(done)_
 - **A CDP-driven browser e2e** _(implemented for leaf routes —
-  `packages/web-docs/tests/e2e/hydration.mjs`)_ that builds SSG/hydrate fixtures
+  `packages/afw-docs/tests/e2e/hydration.mjs`)_ that builds SSG/hydrate fixtures
   and checks adoption in headless Chromium and asserts the two properties that actually define correct
   hydration:
   1. **No DOM mutation on hydrate** — a document-start MutationObserver tags every
@@ -499,7 +499,7 @@ whitespace nodes, double mounts). The bar:
   of per-node rich props (guards the parent-clobbers-child-prop bug — asserted by each leaf
   adopting its own href and the right leaf/group branch), a **`<Link class=…>`** (guards the
   host-hook-clobbers-`class` bug), and a **conditional-root `<Pill>`** (guards fragment-root
-  rebuild). And the suite now asserts a **clean console** (`[otfw:hydrate]`/mismatch count `0`):
+  rebuild). And the suite now asserts a **clean console** (`[afw:hydrate]`/mismatch count `0`):
   a per-component mismatch is reported even when the DOM self-heals, so a correct *final* DOM
   is necessary but not sufficient — silent adoption is the actual bar.
 
@@ -513,7 +513,7 @@ whitespace nodes, double mounts). The bar:
   client-built node to its nearest custom-element ancestor so a regression names the component.
   Post-fix that measure reads 53/62, with the remainder accounted for by the open items in §6.
 
-  **Parser-reshape coverage (§3.8)** — `packages/web-cli/tests/e2e/reparse-browser.mjs`. The
+  **Parser-reshape coverage (§3.8)** — `packages/afw-cli/tests/e2e/reparse-browser.mjs`. The
   route-level audit finds these but cannot say *why*; this suite pins the mechanism per shape.
   For each fixture it renders the SSG HTML in Bun and, in headless Chromium, asserts the served
   bytes are honest (no marker inside raw text; `textarea.value` is the value), that the parsed
@@ -537,7 +537,7 @@ whitespace nodes, double mounts). The bar:
   the global first-paint flag, gated by a structural sanity check. _Supersedes the earlier
   "`this.firstChild` alone, no global flag" decision_, which couldn't distinguish a
   server-rendered host from a client-created one handed call-site children (§0 has the full
-  rationale). The feared "`__OTFW_HYDRATING` lifecycle across nested upgrades" is a non-issue
+  rationale). The feared "`__AFW_HYDRATING` lifecycle across nested upgrades" is a non-issue
   because route chunks are lazy: the flag is set for the single, sequential first-paint import
   and cleared in `finally`, so there is nothing concurrent to sequence.
 - **Navigation model** (§0, §7) — SSG/SSR default to SPA (client router); MPA is the
@@ -593,7 +593,7 @@ whitespace nodes, double mounts). The bar:
 MPA always works (it's the substrate — §0). The `nav` config chooses whether the client
 router *enhances* it into an SPA:
 
-| `otfw.config` | Behavior | Components |
+| `afw.config` | Behavior | Components |
 |---|---|---|
 | `nav: "spa"` _(default)_ | client router intercepts same-origin `<Link>` clicks; no full reload | dual (build on nav, adopt on first paint) |
 | `nav: "mpa"` | no interception; every nav is a full page load; each page hydrates its islands | only ever adopt (build arm dead) |
@@ -601,5 +601,5 @@ router *enhances* it into an SPA:
 - **Per-link override:** `<Link reload>` forces a full navigation even in SPA mode (for
   crossing app boundaries or busting client state). External / cross-origin links and
   modified clicks (cmd/ctrl/middle) always do a full navigation regardless.
-- The config flows from `otfw.config` → the generated app entry → `mountApp({ nav })`,
+- The config flows from `afw.config` → the generated app entry → `mountApp({ nav })`,
   which decides whether to wire client-side link interception.

@@ -1,13 +1,13 @@
 ---
 title: CLI
-description: Develop, build, preview and test OTF Web projects with esdev.
+description: Develop, build, preview and test AFW projects with esdev.
 ---
 
 # CLI
 
-OTF Web projects use **esdev** with `@opentf/esdev-plugin-web`. The plugin compiles
+AFW projects use **esdev** with `@opentf/esdev-plugin-afw`. The plugin compiles
 JSX/TSX/MDX and discovers routes; esdev bundles JavaScript, processes CSS, runs tests
-and manages the development loop. The historical `otfw` executable is retired.
+and manages the development loop. The historical `afw` executable is retired.
 
 | Command | Purpose |
 | --- | --- |
@@ -31,7 +31,7 @@ options and the current template migration limitation.
 ## Project configuration
 
 Configure plugins and build targets in `esdev.json`. A browser app needs an HTML
-entry whose module script imports `@otfw/routes` and calls `mountApp`.
+entry whose module script imports `@afw/routes` and calls `mountApp`.
 SSG adds a prerender target with `then: run`; a fullstack app supplies a server entry.
 See [Production Build](/docs/deployment/build) and [Server](/docs/deployment/server).
 

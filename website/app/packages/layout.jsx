@@ -8,9 +8,9 @@
 // "Overview" first child (instead of a header that is also a link), so every
 // sidebar row is either a toggle or a link, never both.
 
-import { DocsLayout } from "@opentf/web-docs";
-import navMap from "@opentf/web-docs/nav";
-import config from "../../otfw.config.js";
+import { DocsLayout } from "@opentf/afw-docs";
+import navMap from "@opentf/afw-docs/nav";
+import config from "../../afw.config.js";
 
 // A group that is also a page becomes a toggle-only header with its page
 // re-homed as an "Overview" child link. Active-branch detection and the

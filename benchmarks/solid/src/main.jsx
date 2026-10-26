@@ -1,5 +1,5 @@
 // Solid implementation of the js-framework-benchmark (krausest) operation set.
-// Mirrors benchmarks/otfw exactly. Solid's signals are fine-grained like OTF
+// Mirrors benchmarks/afw exactly. Solid's signals are fine-grained like AFW
 // Web's, so the harness reads `rows()` directly — no stale-closure workaround
 // is needed (the getter is always current).
 

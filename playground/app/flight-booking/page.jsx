@@ -1,4 +1,4 @@
-import { createForm } from "@opentf/web-form";
+import { createForm } from "@opentf/afw-form";
 
 // A crisp, selection-first flight-booking wizard — one shared form across every
 // step, so state persists as you move/back/edit. Most input is taps (cards,
@@ -122,7 +122,7 @@ export default function FlightBooking() {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 pb-24">
       <header class="py-8">
         <h1 class="text-3xl font-black text-white tracking-tight">Flight Booking</h1>
-        <p class="text-slate-400 text-sm mt-1">A multi-step form on <code class="text-indigo-400">@opentf/web-form</code> — tap to pick, one shared reactive form.</p>
+        <p class="text-slate-400 text-sm mt-1">A multi-step form on <code class="text-indigo-400">@opentf/afw-form</code> — tap to pick, one shared reactive form.</p>
       </header>
 
       {/* step rail */}

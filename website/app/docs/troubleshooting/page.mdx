@@ -3,11 +3,11 @@ title: Troubleshooting
 description: Resolve state updates, compile errors, hydration mismatches and metadata issues.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Troubleshooting
 
-OTF Web components run **once** at connect (init-once), not on every state change. Most
+AFW components run **once** at connect (init-once), not on every state change. Most
 "my UI didn't update" reports trace back to that model, signal reassignment rules, or
 server/client render drift. This page collects the frequent cases and where to read more.
 
@@ -129,7 +129,7 @@ output. Markdown and MDX first become generated JSX, so their diagnostics and
 maps can still point into that generated source rather than the original prose.
 
 Runtime errors go through the framework's error-reporting API, including the
-`otfw:error` event and console logging. `<ErrorBoundary>` can show a fallback
+`afw:error` event and console logging. `<ErrorBoundary>` can show a fallback
 while still reporting the error. The native compiler plugin does not supply the
 retired CLI's `/__route` stack rewriting or error-overlay controls.
 
@@ -144,7 +144,7 @@ See [Error boundaries](/docs/core-concepts/error-boundary).
 - **SPA navigation never updates `<head>`** — after first paint, `<Link>` navigations do
   not re-run metadata. Crawlers and social previews use the document for the URL they
   fetched, not the client-rendered view.
-- **Missing absolute URLs** — set `site.url` in `otfw.config.js` for your prerender script so canonicals, `og:image`, and the sitemap are absolute.
+- **Missing absolute URLs** — set `site.url` in `afw.config.js` for your prerender script so canonicals, `og:image`, and the sitemap are absolute.
 - **Dynamic routes not in the sitemap** — export `getStaticPaths` when pre-rendering
   with a configured prerender target; otherwise those paths have no static HTML (but a request renderer / SSR still
   resolves `generateMetadata` per request).

@@ -11,7 +11,7 @@ async function copyPath(from, to) {
     for (const entry of await readDir(from)) await copyPath(`${from}/${entry.name}`, `${to}/${entry.name}`);
   } else { await mkdir(to.slice(0, to.lastIndexOf('/')), { recursive: true }); await copy(from, to); }
 }
-for (const name of ["web", "esdev-plugin-web", "web-compiler"]) {
+for (const name of ["afw", "esdev-plugin-afw", "afw-compiler"]) {
   const source = `${root}/packages/${name}`;
   const manifest = await file(`${source}/package.json`).json();
   for (const path of ["package.json", ...manifest.files.filter(path => !path.startsWith('!') && path !== 'bin')]) {
@@ -22,24 +22,24 @@ for (const name of ["web", "esdev-plugin-web", "web-compiler"]) {
 // no registry dependencies or workspace links.
 const os = { linux: "linux", macos: "darwin", windows: "win32" }[platform];
 const cpu = { x86_64: "x64", aarch64: "arm64" }[arch];
-const binary = platform === "windows" ? "otfwc.exe" : "otfwc";
-await copyPath(`${root}/target/debug/${binary}`, `${project}/node_modules/@opentf/web-compiler/bin/${os}-${cpu}/${binary}`);
+const binary = platform === "windows" ? "afwc.exe" : "afwc";
+await copyPath(`${root}/target/debug/${binary}`, `${project}/node_modules/@opentf/afw-compiler/bin/${os}-${cpu}/${binary}`);
 await mkdir(`${project}/app/other`, { recursive: true });
 await write(`${project}/package.json`, JSON.stringify({ private: true, type: "module" }));
 await write(`${project}/tsconfig.json`, JSON.stringify({ compilerOptions: { paths: {
-  "@opentf/web": ["./node_modules/@opentf/web/index.js"],
-  "@opentf/web/hmr": ["./node_modules/@opentf/web/runtime/hmr.js"],
+  "@opentf/afw": ["./node_modules/@opentf/afw/index.js"],
+  "@opentf/afw/hmr": ["./node_modules/@opentf/afw/runtime/hmr.js"],
 } } }));
 await write(`${project}/esdev.json`, JSON.stringify({
-  plugins: [{ module: "@opentf/esdev-plugin-web" }],
+  plugins: [{ module: "@opentf/esdev-plugin-afw" }],
   resolve: { alias: {
-    "@opentf/web": "./node_modules/@opentf/web/index.js",
-    "@opentf/web/hmr": "./node_modules/@opentf/web/runtime/hmr.js",
+    "@opentf/afw": "./node_modules/@opentf/afw/index.js",
+    "@opentf/afw/hmr": "./node_modules/@opentf/afw/runtime/hmr.js",
   } },
   build: { targets: { web: { entry: "index.html", outdir: "dist" } } },
 }));
 await write(`${project}/index.html`, '<html><body><div id="app"></div><script type="module" src="./entry.js"></script></body></html>');
-await write(`${project}/entry.js`, 'import { mountApp, navigate } from "@opentf/web"; import { pages } from "@otfw/routes"; import "./style.css"; window.__navigate=navigate; mountApp({pages, guard:(to,tools)=>{window.__guards=(window.__guards||0)+1;tools.next();}, target:document.getElementById("app")});');
+await write(`${project}/entry.js`, 'import { mountApp, navigate } from "@opentf/afw"; import { pages } from "@afw/routes"; import "./style.css"; window.__navigate=navigate; mountApp({pages, guard:(to,tools)=>{window.__guards=(window.__guards||0)+1;tools.next();}, target:document.getElementById("app")});');
 await write(`${project}/style.css`, 'body {min-height:3000px} #counter {color:rgb(10,20,30)}');
 await write(`${project}/app/other/page.jsx`, 'export default function Other(){return <h1>Other A</h1>;}');
 await write(`${project}/app/page.jsx`, 'import Counter from "../Counter.jsx"; import Shell from "../Shell.jsx"; export default function Home() { let visits = $state(0); return <section><h1>Page D</h1><button id="visits" onclick={() => visits++}>Visits {visits}</button><Shell><Counter/></Shell><input id="draft"/></section>; }');
@@ -99,7 +99,7 @@ try {
   await send("Page.navigate",{url:origin});
   await until(`!!document.getElementById('counter')`);
   const token=await evaluate('window.__hmrDocumentToken');
-  await evaluate("document.getElementById('counter').click();document.getElementById('counter').click();document.getElementById('draft').value='unsaved';document.getElementById('internal').value='local draft';document.getElementById('internal').dispatchEvent(new Event('input'));document.getElementById('internal').focus();document.getElementById('internal').setSelectionRange(2,5);window.scrollTo(0,100);window.__originalHost=document.querySelector('.web-counter');");
+  await evaluate("document.getElementById('counter').click();document.getElementById('counter').click();document.getElementById('draft').value='unsaved';document.getElementById('internal').value='local draft';document.getElementById('internal').dispatchEvent(new Event('input'));document.getElementById('internal').focus();document.getElementById('internal').setSelectionRange(2,5);window.scrollTo(0,100);window.__originalHost=document.querySelector('.afw-counter');");
   await write(project+'/style.css','body {min-height:3000px} #counter {color:rgb(44,55,66)}');
   await until('getComputedStyle(document.getElementById("counter")).color==="rgb(44, 55, 66)"');
   assert(await evaluate('window.__hmrDocumentToken')===token,'CSS retains document');
@@ -108,7 +108,7 @@ try {
     const current=await file(project+'/Counter.jsx').text();await write(project+'/Counter.jsx',current.replace(/Component [ABC]/,'Component '+label));
     await until(`document.getElementById('counter')?.textContent==='Component ${label}: 2'`);
     assert(await evaluate('window.__hmrDocumentToken')===token,'component '+label+' retains document');
-    assert(await evaluate('document.querySelector(".web-counter")===window.__originalHost'),'stable host');
+    assert(await evaluate('document.querySelector(".afw-counter")===window.__originalHost'),'stable host');
     assert(await evaluate('scrollY===100'),'component refresh retains scroll');
     assert(await evaluate('document.getElementById("internal").selectionStart===2 && document.getElementById("internal").selectionEnd===5'),'component refresh retains selection');
     assert(await evaluate('document.getElementById("draft").value==="unsaved" && document.activeElement.id==="internal"'),'external draft and component focus retained');
@@ -125,7 +125,7 @@ try {
   const shell=await file(project+'/Shell.jsx').text();
   await write(project+'/Shell.jsx',shell.replace('Shell A','Shell B'));
   await until('document.getElementById("shell").textContent.startsWith("Shell B")');
-  assert(await evaluate('document.querySelector(".web-counter")===window.__originalHost && document.getElementById("counter").textContent.endsWith(": 3")'),'slotted child host and state survive parent refresh');
+  assert(await evaluate('document.querySelector(".afw-counter")===window.__originalHost && document.getElementById("counter").textContent.endsWith(": 3")'),'slotted child host and state survive parent refresh');
   assert(await evaluate('window.__mounts===3 && window.__disposals===2'),'slot movement does not remount child');
   await evaluate('(async()=>{const host=window.__originalHost;const parent=host.parentNode;host.remove();await Promise.resolve();parent.appendChild(host);})()');
   await until('document.getElementById("counter").textContent==="Component C: 0"');

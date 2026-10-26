@@ -23,22 +23,21 @@ members = ["packages/*", "playground", "benchmarks/*", "website"]
 # The playground is the framework's own scratch app, on its own config
 # (esdev.playground.json — root-level so plugin modules resolve inside the repo
 # jail; pnpm symlinks a per-app config's node_modules outside its own root).
-# One otfw target, CSR like the old CLI dev.
+# One afw target, CSR like the old CLI dev.
 [tasks.dev]
 run = "esdev start --config=esdev.playground.json --port=3005"
 
-# The website owns its esdev.json and installs the released toolchain locally.
+# esdev jails plugin loading to the process cwd's tree, so the website runs
+# from the repo root with an explicit --config; paths inside the config stay
+# relative to the config file (website/).
 [tasks.site-install]
 run = "pnpm install --frozen-lockfile"
-dir = "website"
 
 [tasks.site]
-run = "esdev start --port=3005"
-dir = "website"
+run = "esdev start --config=website/esdev.json --port=3005"
 
 [tasks.site-preview]
-run = "esdev preview"
-dir = "website"
+run = "esdev preview --config=website/esdev.json"
 
 # --- check --------------------------------------------------------------------
 
@@ -46,7 +45,7 @@ dir = "website"
 run = "esdev typecheck"
 
 # The compiler binary, which several suites need on disk: `hydrate.e2e` shells
-# to it directly, and the project's otfwc plugin (`esdev.test.json`) compiles `.jsx`
+# to it directly, and the project's afwc plugin (`esdev.test.json`) compiles `.jsx`
 # on load through it. esdev.test.json selects CSR for test imports.
 # The e2e drive the real toolchain.
 [tasks.build-compiler]
@@ -59,7 +58,7 @@ run = "cargo test"
 # Runtime-native tests: the SSG lib, scaffolder, and framework's pure core/server paths.
 [tasks.test-esdev]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json packages/web-cli/tests packages/web-compiler/tests packages/web/core/reactive.test.js packages/web/core/signals.test.js packages/web/esdev-tests/clsx.test.js packages/web/esdev-tests/jsx-types.test.js packages/web/server/api.test.js packages/web/server/cookies.test.js packages/web/server/head.test.js packages/web/server/index.test.js packages/web/server/loader.test.js packages/web/server/middleware.test.js packages/web/server/render.test.js packages/web/server/ssg-runtime.test.js packages/web/server/adapters/node.test.js"
+run = "esdev test --config=esdev.test.json packages/afw-cli/tests packages/afw-compiler/tests packages/afw/core/reactive.test.js packages/afw/core/signals.test.js packages/afw/esdev-tests/clsx.test.js packages/afw/esdev-tests/jsx-types.test.js packages/afw/server/api.test.js packages/afw/server/cookies.test.js packages/afw/server/head.test.js packages/afw/server/index.test.js packages/afw/server/loader.test.js packages/afw/server/middleware.test.js packages/afw/server/render.test.js packages/afw/server/ssg-runtime.test.js packages/afw/server/adapters/node.test.js"
 
 # DOM suites: these ran under happy-dom's ambient `document` before; under esdev
 # the `--dom` realm provides it instead (esdev's URL is http://localhost/, so the
@@ -67,78 +66,77 @@ run = "esdev test --config=esdev.test.json packages/web-cli/tests packages/web-c
 # needs it too — without a `document` the resource thinks it is server-side.
 [tasks.test-esdev-dom]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json --dom packages/web/core/errors.test.js packages/web/runtime/lifecycle.test.js packages/web/runtime/resource.test.js packages/web/runtime/clsx.test.js packages/web/runtime/dom.test.js packages/web/runtime/router.test.js packages/web/runtime/router-data.test.js packages/web/runtime/router-hydrate.test.js packages/web/runtime/router-hot.test.js packages/web/runtime/hydratable.test.js packages/web/runtime/router-nav.test.js packages/web/runtime/hydrate.e2e.test.js"
+run = "esdev test --config=esdev.test.json --dom packages/afw/core/errors.test.js packages/afw/runtime/lifecycle.test.js packages/afw/runtime/resource.test.js packages/afw/runtime/clsx.test.js packages/afw/runtime/dom.test.js packages/afw/runtime/router.test.js packages/afw/runtime/router-data.test.js packages/afw/runtime/router-hydrate.test.js packages/afw/runtime/router-hot.test.js packages/afw/runtime/hydratable.test.js packages/afw/runtime/router-nav.test.js packages/afw/runtime/hydrate.e2e.test.js"
 
-# @opentf/esdev-plugin-web: resolver tests plus real compiler/context integration.
+# @opentf/esdev-plugin-afw: resolver tests plus real compiler/context integration.
 [tasks.test-esdev-plugin]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json packages/esdev-plugin-web/tests"
+run = "esdev test --config=esdev.test.json packages/esdev-plugin-afw/tests"
 
-[tasks.test-web-docs]
+[tasks.test-afw-docs]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json packages/web-docs/tests/types.test.js packages/web-docs/tests/docs-nav.test.js packages/web-docs/tests/blog-posts.test.js packages/web-docs/tests/frontmatter.test.js packages/web-docs/tests/feed.test.js packages/web-docs/tests/post-dates.test.js packages/web-docs/tests/format.test.js packages/web-docs/tests/last-updated.test.js packages/web-docs/tests/llms.test.js packages/web-docs/tests/search.test.js packages/web-docs/tests/search-integration.test.js packages/web-docs/tests/tokenizer.test.js"
+run = "esdev test --config=esdev.test.json packages/afw-docs/tests/types.test.js packages/afw-docs/tests/docs-nav.test.js packages/afw-docs/tests/blog-posts.test.js packages/afw-docs/tests/frontmatter.test.js packages/afw-docs/tests/feed.test.js packages/afw-docs/tests/post-dates.test.js packages/afw-docs/tests/format.test.js packages/afw-docs/tests/last-updated.test.js packages/afw-docs/tests/llms.test.js packages/afw-docs/tests/search.test.js packages/afw-docs/tests/search-integration.test.js packages/afw-docs/tests/tokenizer.test.js"
 
-# esdev applies the test config's OTF plugin to unbundled JSX imports.
+# esdev applies the test config's AFW plugin to unbundled JSX imports.
 # Tests use CSR independently of the website's hydrate build configuration.
-[tasks.test-web-docs-dom]
+[tasks.test-afw-docs-dom]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json --dom --setup=@opentf/web-test/setup packages/web-docs/tests/MobileDrawer.test.js packages/web-docs/tests/SidebarCollapseAll.test.js packages/web-docs/tests/Tabs.test.js"
+run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-docs/tests/MobileDrawer.test.js packages/afw-docs/tests/SidebarCollapseAll.test.js packages/afw-docs/tests/Tabs.test.js"
 
-[tasks.test-web-form]
+[tasks.test-afw-form]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json --dom packages/web-form/tests"
+run = "esdev test --config=esdev.test.json --dom packages/afw-form/tests"
 
-[tasks.test-web-i18n]
+[tasks.test-afw-i18n]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json --dom packages/web-i18n/i18n.test.js"
+run = "esdev test --config=esdev.test.json --dom packages/afw-i18n/i18n.test.js"
 
 # Public testing helpers in the native DOM realm; setup registers automatic cleanup.
-# The userEvent suite runs here and again in a real browser (test-e2e-web-test).
-[tasks.test-web-test]
+# The userEvent suite runs here and again in a real browser (test-e2e-afw-test).
+[tasks.test-afw-test]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json --dom --setup=@opentf/web-test/setup packages/web-test/tests/render.test.js packages/web-test/tests/setup.test.js packages/web-test/tests/types.test.js packages/web-test/tests/browser/user-event.test.js"
+run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-test/tests/render.test.js packages/afw-test/tests/setup.test.js packages/afw-test/tests/types.test.js packages/afw-test/tests/browser/user-event.test.js"
 
-# Website demo behavior, against the site's own installed packages (`tsr site-install`).
-# One file at a time until the site uses an @opentf/web-compiler release with atomic
+# Website demo behavior, against the workspace-installed site packages (`tsr site-install`).
+# One file at a time until the site uses an @opentf/afw-compiler release with atomic
 # binary extraction: on a fresh install, two files unpacking the compiler at once failed
 # with "Text file busy". Drop `--jobs=1` after that release.
 [tasks.test-site]
-run = "esdev test --dom --jobs=1 tests"
-dir = "website"
+run = "esdev test --dom --jobs=1 --config=website/esdev.json website/tests"
 
 [tasks.test-benchmark-tooling]
 run = "esdev test --config=esdev.test.json benchmarks/tests/tooling.test.js"
 
 # Independent processes — cargo and the ES-Runtime — so they overlap.
 [tasks.test]
-deps = ["test-rust", "test-esdev", "test-esdev-dom", "test-esdev-plugin", "test-web-docs", "test-web-docs-dom", "test-web-form", "test-web-i18n", "test-web-test", "test-site", "test-benchmark-tooling"]
+deps = ["test-rust", "test-esdev", "test-esdev-dom", "test-esdev-plugin", "test-afw-docs", "test-afw-docs-dom", "test-afw-form", "test-afw-i18n", "test-afw-test", "test-site", "test-benchmark-tooling"]
 parallel = true
 
 # Real-browser tier (docs/HYDRATION.md §5) — framework-behavior suites (docs shell
 # drawer/sidebar/hydration) against headless Chrome over CDP, covering
 # engine-fidelity paths (custom-element upgrade timing, the real event loop,
 # portal relocation) the `--dom` tier can't reach. Slow and browser-dependent,
-# so it stays out of `test`. The `otfw serve`/`build` CLI e2e retired with the
+# so it stays out of `test`. The `afw serve`/`build` CLI e2e retired with the
 # CLI; its port-collision notes die with it (each suite spawns its own Chrome —
 # keep these sequential until every debugging port comes from the OS).
 [tasks.test-e2e-docs-drawer]
 deps = ["build-compiler"]
-run = "esdev packages/web-docs/tests/e2e/mobile-drawer.mjs"
+run = "esdev packages/afw-docs/tests/e2e/mobile-drawer.mjs"
 
 [tasks.test-e2e-docs-sidebar]
 deps = ["build-compiler"]
-run = "esdev packages/web-docs/tests/e2e/sidebar-collapse.mjs"
+run = "esdev packages/afw-docs/tests/e2e/sidebar-collapse.mjs"
 
 [tasks.test-e2e-docs-hydration]
 deps = ["build-compiler"]
-run = "esdev packages/web-docs/tests/e2e/hydration.mjs"
+run = "esdev packages/afw-docs/tests/e2e/hydration.mjs"
 
 [tasks.test-e2e-docs]
 deps = ["test-e2e-docs-drawer", "test-e2e-docs-sidebar", "test-e2e-docs-hydration"]
 
-[tasks.test-e2e-web-test]
+[tasks.test-e2e-afw-test]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json --browser --setup=@opentf/web-test/setup packages/web-test/tests/browser"
+run = "esdev test --config=esdev.test.json --browser --setup=@opentf/afw-test/setup packages/afw-test/tests/browser"
 
 [tasks.test-e2e-benchmark-runner]
 run = "esdev test --config=esdev.test.json benchmarks/tests/browser-runner.test.js"
@@ -148,7 +146,7 @@ deps = ["build-compiler"]
 run = "esdev scripts/verify-hmr.mjs"
 
 [tasks.test-e2e]
-deps = ["test-e2e-docs", "test-e2e-web-test", "test-e2e-benchmark-runner", "test-e2e-hmr"]
+deps = ["test-e2e-docs", "test-e2e-afw-test", "test-e2e-benchmark-runner", "test-e2e-hmr"]
 
 # Local convenience — CI runs the fast and browser tiers as separate parallel jobs, so this
 # is the "use my cores" path on a dev machine. `build-compiler` is de-duplicated to one run.
@@ -162,14 +160,13 @@ parallel = true
 run = "esdev build --minify --config=esdev.playground.json"
 
 [tasks.site-build]
-run = "esdev build --minify"
-dir = "website"
+run = "esdev build --minify --config=website/esdev.json"
 
 # --- benchmarks ---------------------------------------------------------------
 
 # Runtime benchmark (update latency in a real browser). Args pass through:
 #   tsr bench -- all           every case, with a comparison table
-#   tsr bench -- otfw react    just those two
+#   tsr bench -- afw react    just those two
 # See benchmarks/README.md. The SSG build benchmark is a separate, manual procedure —
 # benchmarks/ssg-build/README.md.
 [tasks.bench]
@@ -191,8 +188,8 @@ dir = "benchmarks/solid"
 run = "bun build.mjs"
 dir = "benchmarks/svelte"
 
-[tasks.bench-otfw-dev]
+[tasks.bench-afw-dev]
 run = "esdev start --config=esdev.bench.json --port=3010"
 
-[tasks.bench-otfw-build]
+[tasks.bench-afw-build]
 run = "esdev build --minify --config=esdev.bench.json"

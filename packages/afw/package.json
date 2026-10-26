@@ -1,0 +1,62 @@
+{
+  "name": "@opentf/afw",
+  "version": "0.32.0",
+  "description": "The native-first AFW runtime — signal-based reactivity and zero-VDOM DOM operations, paired with the IR-based compiler.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./signals": {
+      "types": "./core/signals.d.ts",
+      "default": "./core/signals.js"
+    },
+    "./runtime": {
+      "types": "./runtime/index.d.ts",
+      "default": "./runtime/index.js"
+    },
+    "./server": {
+      "types": "./server/index.d.ts",
+      "default": "./server/index.js"
+    },
+    "./server/adapters/node": {
+      "types": "./server/adapters/node.d.ts",
+      "default": "./server/adapters/node.js"
+    },
+    "./hmr": "./runtime/hmr.js",
+    "./jsx-runtime": {
+      "types": "./jsx-runtime.d.ts"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "jsx-runtime.d.ts",
+    "core",
+    "runtime",
+    "components",
+    "server",
+    "!**/*.test.js"
+  ],
+  "keywords": [
+    "opentf",
+    "web-components",
+    "signals",
+    "reactivity",
+    "runtime",
+    "ssg"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Open-Tech-Foundation/afw.git",
+    "directory": "packages/afw"
+  },
+  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "types": "./index.d.ts"
+}

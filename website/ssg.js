@@ -4,7 +4,7 @@
 // anchor (observed: the project root) — everything derives from this bundle's
 // own path instead (see Anchor below).
 //
-// - SOURCES (app/, otfw.config.js, public/ overrides) live in the REAL tree —
+// - SOURCES (app/, afw.config.js, public/ overrides) live in the REAL tree —
 //   staging mirrors outputs only. The source project is the staging directory's
 //   parent.
 // - OUTPUTS (the staged site) sit under the staging root. No staging area (the
@@ -59,7 +59,7 @@ if (!stagingRoot) {
 }
 // Keep package-relative binary paths intact: load installed tooling at runtime.
 // A computed import keeps esdev from inlining its import.meta.url into this bundle.
-const ssgModule = ["@opentf", "web-cli", "ssg"].join("/");
+const ssgModule = ["@opentf", "afw-cli", "ssg"].join("/");
 const {
   assertNoRouteConflicts,
   closeCompilers,
@@ -105,7 +105,7 @@ const baseUrl = String(config?.site?.url ?? "").replace(/\/+$/, "");
 if (!baseUrl && (config?.docs || config?.blog)) {
   console.error(
     `✗ site.url is required for this production build.\n` +
-      `  Add it to otfw.config.js:\n\n` +
+      `  Add it to afw.config.js:\n\n` +
       `  export default defineDocsConfig({\n` +
       `    site: { url: "https://example.com" }\n` +
       `  })`,
@@ -128,11 +128,11 @@ const shellHtml = stampHydrateSentinel(await readText(shellPath));
 
 // Use the same canonical package path as the bundler's package resolver; pnpm
 // symlink paths otherwise create separate router instances in the server bundle.
-const webEntry = await resolveFrom("@opentf/web", root).then(realPath).catch(() => {
-  console.error(`✗ cannot resolve "@opentf/web" from ${root}`);
+const afwEntry = await resolveFrom("@opentf/afw", root).then(realPath).catch(() => {
+  console.error(`✗ cannot resolve "@opentf/afw" from ${root}`);
   exit(1);
 });
-const { otfwc } = await resolveCompiler();
+const { afwc } = await resolveCompiler();
 
 // Route loaders run at build time (no `request`, empty query), so their bundle must
 // precede the pre-render. The website has none today — this stays a no-op for it.
@@ -144,7 +144,7 @@ let loaders = null;
     await emitLoaderBundle({
       root,
       appDir,
-      webEntry,
+      afwEntry,
       exclude,
       i18n: config?.i18n,
       outDir: join(stagedOut, "server"),
@@ -162,8 +162,8 @@ let ssgCompiled = 0;
 const ssg = await runPrerender({
   root,
   pages,
-  webEntry,
-  otfwc,
+  afwEntry,
+  afwc,
   shellHtml,
   outDir: stagedOut,
   baseUrl,
@@ -189,7 +189,7 @@ const apiStep = step("Bundling API routes");
 const api = await emitApiBundle({
   root,
   appDir,
-  webEntry,
+  afwEntry,
   exclude,
   i18n: config?.i18n,
   outDir: join(stagedOut, "server"),
@@ -203,7 +203,7 @@ apiStep.done(
 // The finish plugin consumes this handoff and generates search, feeds and LLM files.
 await writePrerenderReport(stagedOut, ssg);
 
-// Stop the `otfwc serve` children: an open reader on a child's stdout keeps the
+// Stop the `afwc serve` children: an open reader on a child's stdout keeps the
 // runtime alive, so this is what lets a finished build actually exit.
 await closeCompilers();
 

@@ -1,26 +1,26 @@
-# OTF Web - Technical Specification
+# AFW - Technical Specification
 **Part of the Open Tech Foundation Ecosystem**
 
 ## 1. Philosophy
-OTF Web is a **native-first, fullstack** framework for building modern web applications.
+AFW is a **native-first, fullstack** framework for building modern web applications.
 - **Fullstack**: Integrated routing and Static Site Generation (SSG) for high-performance delivery.
 - **Zero-VDOM**: No virtual DOM diffing. JSX is compiled directly to imperative DOM operations.
 - **Native-first**: UI components are standard Custom Elements (`HTMLElement`).
 - **Signal-based**: Fine-grained reactivity powered by `@preact/signals-core`.
 
 ### 1.1 Single Source of Reactivity
-To prevent reactivity loss caused by multiple instances of the reactivity engine (e.g., version mismatches or duplicate bundling), OTF Web enforces a **Single Source of Truth**:
-- **Central Export**: All reactive primitives (`signal`, `computed`, `effect`) MUST be imported from `@opentf/web` (which re-exports from `core/signals.js`).
+To prevent reactivity loss caused by multiple instances of the reactivity engine (e.g., version mismatches or duplicate bundling), AFW enforces a **Single Source of Truth**:
+- **Central Export**: All reactive primitives (`signal`, `computed`, `effect`) MUST be imported from `@opentf/afw` (which re-exports from `core/signals.js`).
 - **Global Guard**: The runtime includes a global guard that warns if multiple instances of the signals library are loaded.
 - **Strict Checks**: Internal runtime helpers (`createPropsProxy`, `setProperty`) use strict identity checks (`instanceof Signal`) and a framework-defined `brand` (`Symbol.for("preact-signals")`) to validate reactive objects.
 
 ### 1.2 TypeScript & JSX Configuration
-OTF Web uses a custom JSX compilation pipeline. To use TypeScript or language server features, configure your `tsconfig.json` or `jsconfig.json` as follows:
+AFW uses a custom JSX compilation pipeline. To use TypeScript or language server features, configure your `tsconfig.json` or `jsconfig.json` as follows:
 ```json
 {
   "compilerOptions": {
     "jsx": "preserve",
-    "jsxImportSource": "@opentf/web",
+    "jsxImportSource": "@opentf/afw",
     "jsxFactory": "h",
     "jsxFragmentFactory": "f"
   }
@@ -70,7 +70,7 @@ The framework provides a unified interface for both DOM Attributes and JS Proper
 - **Unification**: Both update the same signal in `_propsSignals`, allowing the component logic to remain agnostic of the data source.
 
 ### 2.6 Component Return Patterns
-OTF Web component functions are **executed once** during initialization. This "Init-Once" model impacts how return statements are processed.
+AFW component functions are **executed once** during initialization. This "Init-Once" model impacts how return statements are processed.
 
 #### 2.6.1 Static vs. Reactive Conditionals
 Top-level `if` statements and ternaries are **static**. They are evaluated only once at mount.
@@ -90,7 +90,7 @@ return layout;
 The compiler supports multiple return paths (e.g., inside `if/else` blocks), but again, these are determined at the moment of component instantiation.
 
 ### 2.7 Destructured Props
-Destructuring props in the component signature is a first-class pattern in OTF Web. 
+Destructuring props in the component signature is a first-class pattern in AFW. 
 
 - **Automatic Observation**: Keys extracted via destructuring (e.g., `function Comp({ name })`) are automatically added to the `observedAttributes` of the Custom Element.
 - **Reactive Rewriting**: The compiler rewrites all usages of destructured variables in the component body to access the `_waf_props` proxy directly. This ensures that even though the variable looks like a static constant, its usage in JSX remains reactive.
@@ -120,7 +120,7 @@ Default values in the component signature are supported and maintained reactivel
 - **Dynamic Compatibility**: This ensures that if a prop is initially missing but is provided later (e.g., via `setAttribute`), the component will transition from the default value to the new reactive value seamlessly.
 
 ### 2.11 CSS Encapsulation
-By default, OTF Web components use **Light DOM**.
+By default, AFW components use **Light DOM**.
 - **Rationale**: Ensures that global styles (like Tailwind CSS or design system tokens) apply naturally to components without complex workarounds (like `@apply` or CSS parts).
 - **Scoped CSS**: To prevent style leakage, developers are encouraged to use **CSS Modules** or the **Component Path Namespace** as a class prefix.
 - **Shadow DOM**: Support for Shadow DOM and the `@shadow` directive is **deferred** to a future version. Components currently only support Light DOM rendering.
@@ -130,7 +130,7 @@ By default, OTF Web components use **Light DOM**.
 ## 3. Reactivity & Macros
 
 ### 3.1 Signals
-OTF Web uses `@preact/signals-core`. The compiler automatically manages `.value` access.
+AFW uses `@preact/signals-core`. The compiler automatically manages `.value` access.
 - **Microtask Batching**: Multiple synchronous signal updates are automatically batched by the core engine into a single microtask. This guarantees that `_effect` closures (and DOM updates) only run once per synchronous execution block, delivering maximum performance with zero manual `batch()` boilerplate.
 
 ### 3.2 Compiler Macros
@@ -172,7 +172,7 @@ To maintain reactivity integrity and compiler predictability, the following patt
 **Method-name gating.** The compiler runs no type checker, so mutating *method* names are gated by the value's inferred shape. A **written TS type** — a `$state<Map<…>>(…)` type argument or a `const x: Map<…> = $state(…)` annotation — is read syntactically and is authoritative (`Array`/`ReadonlyArray`/`T[]`/tuple → array; `Map`/`Set`/`WeakMap`/`WeakSet` → collection; `Record`/object-literal type → object; a custom/unrecognized type → unknown). This is a syntactic read of what the author wrote, **not** type inference — the compiler does not chase a function's return type or resolve generics. When no concrete type is written, the shape falls back to the **`$state(init)` initializer** (array literal / `new Array` → array; `new Map`/`new Set` → collection; object literal → object; anything else → unknown). Array mutators are flagged on an array *or* unknown shape (`push`/`splice`/… are effectively array-specific). The `Map`/`Set` mutators (`set`/`add`/`delete`/`clear`) — which are also ordinary object method names — are flagged *only* when the initializer is a statically-recognizable `Map`/`Set`, so `$state({ set(){} }).set()` is not a false positive (and a collection mutator on an unknown shape is not flagged). Assignment, index/`length` writes, `++`/`--`, and `delete` carry no method-name ambiguity and are flagged on any shape.
 
 ### 3.5 $signal() Macro
-`$signal()` is the **explicit bridge** between external reactive objects and the OTF Web compiler. It tells the compiler: *"this object contains signals — track its reactive properties in JSX."* 
+`$signal()` is the **explicit bridge** between external reactive objects and the AFW compiler. It tells the compiler: *"this object contains signals — track its reactive properties in JSX."* 
 
 #### 3.5.1 Syntax & Compilation
 ```javascript
@@ -224,16 +224,16 @@ _mapped(
 ---
 
 ## 4. Component Transformation
-This section shows how the compiler progressively builds the OTF Web component class based on the features used in the JSX function.
+This section shows how the compiler progressively builds the AFW component class based on the features used in the JSX function.
 
 ### 4.0 Component Naming (Namespacing)
 A Custom Element name lives in one process-global `CustomElementRegistry`, so a tag
-derived from the bare identifier (`Counter` → `web-counter`) collides whenever two
+derived from the bare identifier (`Counter` → `afw-counter`) collides whenever two
 components — in different files or packages — share a name; the second `define`
 throws. The compiler is a per-module front-end and never resolves a callee's module,
 so tags are made collision-free **without cross-module resolution**:
 
-- **Registration tag** (definition site): `web-<kebab>-<hash>`, where `<hash>` is an
+- **Registration tag** (definition site): `afw-<kebab>-<hash>`, where `<hash>` is an
   FNV-1a hash of the component's module id. This is unique per defining module, so
   same-named components never collide. The class exposes it as `static tag` (and the
   SSG render fn as `.tag`).
@@ -243,20 +243,20 @@ so tags are made collision-free **without cross-module resolution**:
   `Counter_ssg.tag`) for a same-module use. *Consequence:* a component used in another
   module must be imported there (standard ESM); there is no implicit global-by-tag
   lookup.
-- **Stable styling hook**: every host is stamped with a stable `web-<kebab>` **class**
+- **Stable styling hook**: every host is stamped with a stable `afw-<kebab>` **class**
   (CSR `classList.add`, SSG host attribute) — independent of the hashed tag — so CSS
   targets hosts by a readable, stable name. Classes are not registry-unique, so two
   same-named components sharing the hook is fine for styling.
-- **Framework built-ins** use reserved, stable tags: `web-link` and `web-internal-*`
-  (`web-internal-portal`, `web-internal-context-provider`, `web-internal-error-boundary`,
-  `web-internal-raw-html`). The compiler knows these by identifier and emits the literal
+- **Framework built-ins** use reserved, stable tags: `afw-link` and `afw-internal-*`
+  (`afw-internal-portal`, `afw-internal-context-provider`, `afw-internal-error-boundary`,
+  `afw-internal-raw-html`). The compiler knows these by identifier and emits the literal
   tag (needed e.g. for `<RawHtml>` injected by the MDX front-end, which has no import to
   reference).
 - **Registration is idempotent** (`if (!customElements.get(Class.tag)) define(…)`) so a
   tag reused across chunks, or a built-in already defined, never throws.
 
-> Code examples elsewhere in this spec write a simplified `web-foo` tag for
-> readability; the emitted tag is the namespaced `web-foo-<hash>` described here.
+> Code examples elsewhere in this spec write a simplified `afw-foo` tag for
+> readability; the emitted tag is the namespaced `afw-foo-<hash>` described here.
 
 #### 4.0.1 Member-expression component names are unsupported (by design)
 Dotted/namespaced component names — `<Foo.Bar/>`, the React "compound component"
@@ -313,7 +313,7 @@ class StaticElement extends HTMLElement {
     this._onCleanups = [];
   }
 }
-customElements.define("web-static", StaticElement);
+customElements.define("afw-static", StaticElement);
 ```
 
 ### 4.2 Level 2: Component with Props
@@ -369,7 +369,7 @@ class GreetElement extends HTMLElement {
     this._onCleanups = [];
   }
 }
-customElements.define("web-greet", GreetElement);
+customElements.define("afw-greet", GreetElement);
 ```
 
 ### 4.2.5 Level 2.5: Component with Property Syncing (Setters/Getters)
@@ -448,7 +448,7 @@ class CounterElement extends HTMLElement {
     this._onCleanups = [];
   }
 }
-customElements.define("web-counter", CounterElement);
+customElements.define("afw-counter", CounterElement);
 ```
 
 ### 4.4 Prop Update Vectors
@@ -542,7 +542,7 @@ Expressions are wrapped in `_effect()` to ensure fine-grained reactivity.
 - **Data & Aria Attributes**: `data-*` and `aria-*` attributes are treated as standard attributes and applied via `setAttribute`.
 - **Null/Undefined Handling**:
     - **Native Elements**: If an expression evaluates to `null` or `undefined`, the attribute is removed: `el.removeAttribute(key)`.
-    - **OTF Web Components**: If a prop is set to `null` or `undefined`, the value is **preserved** and updated in the underlying signal (`propSignal.value = null`), allowing the component to react to the empty state.
+    - **AFW Components**: If a prop is set to `null` or `undefined`, the value is **preserved** and updated in the underlying signal (`propSignal.value = null`), allowing the component to react to the empty state.
 
 #### 5.2.4 Spread Attributes (Order Matters)
 Spread attributes are applied via `_applySpread()`. The order of attributes in JSX is preserved in the output, meaning later attributes can override earlier ones.
@@ -567,7 +567,7 @@ The compiler applies different case normalization based on whether the target el
 | **Component** | `<MyComp onClick={fn} />` | `el.onClick = fn;` |
 
 #### 5.3.2 Inline Handlers (No Hoisting Required)
-Unlike VDOM frameworks where inline handlers are re-created on every render, OTF Web component functions follow the **Init-Once** model. 
+Unlike VDOM frameworks where inline handlers are re-created on every render, AFW component functions follow the **Init-Once** model. 
 - **Setup Only**: The component body is executed exactly once during `connectedCallback`.
 - **Zero Overhead**: Inline arrow functions in event handlers are created only once per component instance.
 - **Output**: The compiler simply assigns the inline function directly to the property without any need for hoisting or `useCallback` equivalents.
@@ -590,7 +590,7 @@ The compiler determines the normalization strategy using the following tag-name 
 - **Dynamic Events Prohibited**: Dynamic event names (e.g., `<div {name}={fn} />` or `<div on={name} />`) are not supported.
 
 ### 5.4 Children Patterns
-OTF Web handles various children types through a combination of static creation and dynamic rendering helpers.
+AFW handles various children types through a combination of static creation and dynamic rendering helpers.
 
 #### 5.4.1 Static Children
 Static children are created and appended once during element initialization.
@@ -624,7 +624,7 @@ Arrays and `.map()` operations are transformed into `_mapped()` calls for optimi
 - **Keyed List**: `<ul>{items.map(i => <li key={i.id}>{i.name}</li>)}</ul>`
 - **Nested Maps**: `<ul>{sections.map(s => s.items.map(i => <li>{i}</li>))}</ul>` (Transformed into nested `_mapped` vectors).
 
-- **Performance (Virtual Scrolling)**: For lists with 10,000+ items, `_mapped` may still incur memory overhead. OTF Web treats virtual scrolling as a **user-land problem**. Developers can implement windowing/virtualization by combining `$derived` (to slice the data) with `_mapped` (to render the visible window), providing the necessary primitives without a heavy built-in abstraction.
+- **Performance (Virtual Scrolling)**: For lists with 10,000+ items, `_mapped` may still incur memory overhead. AFW treats virtual scrolling as a **user-land problem**. Developers can implement windowing/virtualization by combining `$derived` (to slice the data) with `_mapped` (to render the visible window), providing the necessary primitives without a heavy built-in abstraction.
 
 ##### Key Prop Behavior
 The `key` prop is crucial for `_mapped` optimization:
@@ -673,7 +673,7 @@ _renderDynamic(el, () => _mapped0())
 **JSX**: `<MyComponent title={myTitle} />`
 **Output**:
 ```javascript
-const el0 = document.createElement("web-mycomponent");
+const el0 = document.createElement("afw-mycomponent");
 _effect(() => _setProperty(el0, "title", myTitle));
 ```
 
@@ -759,14 +759,14 @@ A central helper for assigning values to elements. It follows this decision tree
   - **Compiled Output**: `_effect(() => _setProperty(el0, "onClick", fn, true))` (last arg is `isComponent`).
 
 - **Reactivity**: If `value` is a signal, `setProperty` automatically unwraps it via `value.value`.
-- **OTF Web Sync**: If `el` is a OTF Web component, `setProperty` updates the internal `el._propsSignals[key]` to propagate reactivity.
+- **AFW Sync**: If `el` is a AFW component, `setProperty` updates the internal `el._propsSignals[key]` to propagate reactivity.
 
 ### 6.3 `renderDynamic(parent, fn)`
 Handles conditional and dynamic JSX rendering via an effect-based reconciliation strategy.
 - **Anchor Node**: Creates a "bookmark" (empty TextNode) in the `parent` to track the insertion point.
 - **Effect-based Tracking**: Runs `fn` inside an `effect`. Whenever any signals accessed in `fn` change, the reconciliation logic is triggered.
 - **Security (XSS Safe)**: By default, string and number primitives are converted to DOM nodes exclusively via `document.createTextNode()`. The framework **never** uses `innerHTML` for dynamic rendering. 
-- **dangerouslySetInnerHTML**: OTF Web does **not** provide a built-in equivalent to React's `dangerouslySetInnerHTML`. If raw HTML injection is required, developers must manually use `el.innerHTML = ...` inside an `$effect`, while being solely responsible for sanitization.
+- **dangerouslySetInnerHTML**: AFW does **not** provide a built-in equivalent to React's `dangerouslySetInnerHTML`. If raw HTML injection is required, developers must manually use `el.innerHTML = ...` inside an `$effect`, while being solely responsible for sanitization.
 - **Reconciliation**:
     - If `fn` returns a DOM node: It is inserted/moved before the anchor.
     - If `fn` returns `null/false/undefined`: Any previously rendered dynamic content is removed.
@@ -798,23 +798,23 @@ A scoping helper used during component initialization.
 - **Execution Order**: Multiple hooks of the same type within a component are executed in **FIFO (First-In, First-Out)** order. The DOM hooks run after all `onMount` callbacks.
 - **Mechanism**: These hooks are **compiler macros**, not runtime functions — the compiler collects their callbacks from the top level of the component/page body and wires them into the generated connect/disconnect (or the page factory's `__lifecycle` record). The runtime exports are safe no-op stubs so imports resolve and stray calls (SSR, helper functions) do nothing. Consequently the hooks are only recognized as **top-level statements** of the component body; a call nested in a helper or conditional silently hits the no-op stub.
 - **Element-Root Constraint (pages)**: `onResize`/`onVisibilityChange` need an element to observe. In a page/layout whose root is a fragment (or other non-element), they are a compile error — wrap the view in a container element. `onMediaQuery` has no such constraint. Components always observe their custom-element host.
-- **Synchronous Constraint**: OTF Web component functions MUST be strictly synchronous. Using `async/await` in the component body means statements after an `await` are no longer top-level synchronous setup, so lifecycle hooks there silently fail. Async logic should be placed inside `onMount` or `$effect` instead.
+- **Synchronous Constraint**: AFW component functions MUST be strictly synchronous. Using `async/await` in the component body means statements after an `await` are no longer top-level synchronous setup, so lifecycle hooks there silently fail. Async logic should be placed inside `onMount` or `$effect` instead.
 
 ### 7.2 Environment
 - `isSSG`: A boolean flag. When `true`, `$effect` macros are ignored, and certain DOM operations (like `_clearChildren`) are skipped to allow for hydration-friendly output.
 
 ### 7.3 Error Handling & Boundaries
-OTF Web does **not** use VDOM-style Error Boundaries (`<ErrorBoundary>`). Instead, it relies on a **Fine-Grained Failure** model:
+AFW does **not** use VDOM-style Error Boundaries (`<ErrorBoundary>`). Instead, it relies on a **Fine-Grained Failure** model:
 - **Mount Errors**: An error thrown directly inside the component body or `connectedCallback` stops the component from mounting, bubbling up to the global error handler (`window.onerror`).
 - **Effect Errors**: An error thrown inside an `_effect` kills *only that specific DOM binding's reactivity*. The rest of the component remains perfectly functional.
-- **Global Handler**: The framework provides `OpenTFWeb.setErrorHandler((error, context) => {...})` to globally catch uncaught effect failures.
+- **Global Handler**: The framework provides `afwGlobal.setErrorHandler((error, context) => {...})` to globally catch uncaught effect failures.
 - **Local Recovery**: Developers can use the `$onError(err => {...})` macro (transformed to a try/catch inside effects) to gracefully catch local effect failures without crashing the application.
 
 ### 7.4 Async Data Loading (`resource()`)
-Because component functions must be strictly synchronous, top-level `await` is forbidden. Client-side async data uses the **`resource()`** primitive (`@opentf/web`), which formalizes the fetch-into-signals Resource Pattern:
+Because component functions must be strictly synchronous, top-level `await` is forbidden. Client-side async data uses the **`resource()`** primitive (`@opentf/afw`), which formalizes the fetch-into-signals Resource Pattern:
 
 ```jsx
-import { resource } from "@opentf/web";
+import { resource } from "@opentf/afw";
 
 export function UserProfile({ id }) {
   const user = resource(
@@ -845,7 +845,7 @@ The underlying pattern (a `$state` signal filled from a `fetch` inside `$effect`
 
 ## 8. Fullstack Routing
 
-OTF Web uses a file-based router that supports layouts, dynamic segments, and client-side guards.
+AFW uses a file-based router that supports layouts, dynamic segments, and client-side guards.
 
 ### 8.1 Directory Structure
 - `app/`: The root of the routing system.
@@ -863,7 +863,7 @@ Layouts are recursively applied from the root `app/` directory down to the leaf 
 - Each layout receives a `children` prop containing the nested content (page or sub-layout).
 
 ### 8.4 Client-side Navigation
-OTF Web utilizes the modern **Navigation API** (with fallback to the HTML5 History API) for seamless client-side transitions.
+AFW utilizes the modern **Navigation API** (with fallback to the HTML5 History API) for seamless client-side transitions.
 - **Persistence**: The layout tree is preserved across navigations. Only the components within the changing route segments are unmounted and replaced.
 - **Scroll Restoration**: The router automatically restores scroll position on back/forward navigation and scrolls to top on new navigations (unless specified otherwise).
 
@@ -908,8 +908,8 @@ export default async function loader({ params, query, request, locale, locals })
 - **Signature**: default export (or named `loader`). `params` follows the `[param]`/`[...rest]` conventions (percent-decoded, catch-alls as arrays); `query` is the parsed query string (empty at SSG time); `request` is the live `Request` when supplied by a request server and `undefined` at SSG prerender; `locale` is the active locale; `locals` is the per-request bag stamped by `_middleware.*` (Section 11.5) — empty at SSG prerender, where no middleware runs.
 - **Where it runs**: at build time in an `esdev build` prerender script, or per request through an app-provided server entry — never in the browser.
 - **Reading the data**: the page reads the reactive **`router.data`**, like `router.params`. It is `undefined` when the route has no loader (or the loader 404'd).
-- **The wire format**: first paint inlines the data as `<script type="application/json" id="__otfw_data">`; SPA navigation fetches `GET <path>/__data.json` (the same URL prerendering writes as a literal file next to each page's `index.html`, so static hosts serve it with no server). `__data.json` is a **reserved filename**.
-- **Errors**: `notFound()` (from `@opentf/web/server`) renders the 404 page with HTTP 404 (and 404s the data endpoint); any other throw is a 500. The client treats a failed/404 data fetch as `data === undefined` and still commits the navigation.
+- **The wire format**: first paint inlines the data as `<script type="application/json" id="__afw_data">`; SPA navigation fetches `GET <path>/__data.json` (the same URL prerendering writes as a literal file next to each page's `index.html`, so static hosts serve it with no server). `__data.json` is a **reserved filename**.
+- **Errors**: `notFound()` (from `@opentf/afw/server`) renders the 404 page with HTTP 404 (and 404s the data endpoint); any other throw is a 500. The client treats a failed/404 data fetch as `data === undefined` and still commits the navigation.
 - **Constraints (MVP)**: page-level only (no layout loaders); loaders do not run API `_middleware.*`; redirects and streaming are future work; a query-dependent loader needs a request server (static `__data.json` files are rendered with an empty query). A `loader.*` without a sibling `page.*` is a build error.
 - **`getStaticPaths`** stays on the page module; a dynamic route with a loader still needs it to prerender.
 
@@ -917,17 +917,17 @@ export default async function loader({ params, query, request, locale, locals })
 
 ## 9. Static Site Generation (SSG)
 
-OTF Web is designed for high-performance static rendering, allowing the entire app to be pre-rendered into HTML at build time.
+AFW is designed for high-performance static rendering, allowing the entire app to be pre-rendered into HTML at build time.
 
 ### 9.1 Build-time Rendering
-The compiler's SSG backend emits string renderers using `@opentf/web/server`.
+The compiler's SSG backend emits string renderers using `@opentf/afw/server`.
 No server-side DOM is required. A project prerender script runs after the client
 bundle during `esdev build`, composes pages and layouts, and writes their HTML
 into the staged output. This repository uses `website/ssg.js` and the stable
-`@opentf/web-cli/ssg` library entry.
+`@opentf/afw-cli/ssg` library entry.
 
 ### 9.2 Hydration
-The generated HTML marks the app root with `data-otfw-hydrate`. The client uses
+The generated HTML marks the app root with `data-afw-hydrate`. The client uses
 the compiler's hydrate backend to adopt existing nodes and attach bindings.
 Components can carry `data-h` IDs; a serialized island-props payload restores
 rich object props without reflecting them as HTML attributes.
@@ -947,15 +947,15 @@ source mapping remains pending; see [docs/HYDRATION.md](docs/HYDRATION.md) and
 
 ## 10. Global State Management
 
-OTF Web enables a "zero-boilerplate" store pattern using plain JS modules and signals, eliminating the need for complex state management libraries.
+AFW enables a "zero-boilerplate" store pattern using plain JS modules and signals, eliminating the need for complex state management libraries.
 
 ### 10.1 Philosophy: The Plain Object Store
-A store in OTF Web is simply a plain JavaScript object that exposes signals as properties. Because OTF Web has no Virtual DOM and no component re-renders, it does not need selectors or complex subscription logic.
+A store in AFW is simply a plain JavaScript object that exposes signals as properties. Because AFW has no Virtual DOM and no component re-renders, it does not need selectors or complex subscription logic.
 
 #### Definition Example
 ```javascript
 // stores/counter.js
-import { signal, computed } from "@opentf/web";
+import { signal, computed } from "@opentf/afw";
 
 const _count = signal(0);
 
@@ -971,15 +971,15 @@ export const counterStore = {
 ```
 
 ### 10.2 The Library Author Contract
-To participate in the OTF Web reactive ecosystem, library authors (Forms, Query, Auth) should follow this simplified contract:
+To participate in the AFW reactive ecosystem, library authors (Forms, Query, Auth) should follow this simplified contract:
 1. **Top-Level Signals**: Expose reactive state as top-level properties of a plain object, wrapped in `signal()`.
-2. **Standard Data Structures**: Nested data (arrays of objects, etc.) should be kept as plain JS structures. OTF Web's `_mapped` helper will handle item-level reactivity.
+2. **Standard Data Structures**: Nested data (arrays of objects, etc.) should be kept as plain JS structures. AFW's `_mapped` helper will handle item-level reactivity.
 3. **No Explicit Typing**: Because the compiler uses the single-level unwrap heuristic (the First-Access Rule), no `Signal<T>` typing or JSDoc is required. The compiler blindly unwraps the first property access, so the library author simply needs to structure the store such that those top-level accessed properties are the actual signals.
 4. **Plain Actions**: Expose mutation methods as plain functions, not signals.
 
 ### 10.3 Comparison with VDOM Frameworks
 
-| Aspect | Zustand / Redux | OTF Web |
+| Aspect | Zustand / Redux | AFW |
 |---|---|---|
 | **Read State** | `useStore(selector)` | `$signal(store)` |
 | **Write State** | `dispatch(action)` | Direct call: `store.action()` |
@@ -989,7 +989,7 @@ To participate in the OTF Web reactive ecosystem, library authors (Forms, Query,
 | **Provider Needed** | Yes | No |
 
 ### 10.4 Why Selectors are Irrelevant
-In VDOM frameworks, selectors are used to prevent unnecessary component re-renders. In OTF Web, **components never re-render**. Instead, each DOM binding is its own fine-grained subscription:
+In VDOM frameworks, selectors are used to prevent unnecessary component re-renders. In AFW, **components never re-render**. Instead, each DOM binding is its own fine-grained subscription:
 - `_effect(() => el.textContent = app.count.value)` only updates that specific text node.
 - Changing `app.user` will not affect the `app.count` binding, even if they are in the same component.
 - **DOM granularity makes selective subscription irrelevant.**
@@ -998,10 +998,10 @@ In VDOM frameworks, selectors are used to prevent unnecessary component re-rende
 
 ## 11. API Routes
 
-OTF Web provides a lightweight, standards-compliant server-side routing system for building APIs and backend logic.
+AFW provides a lightweight, standards-compliant server-side routing system for building APIs and backend logic.
 
 ### 11.1 Standard Web APIs
-OTF Web strictly adheres to the standard **Fetch API** for server-side handlers. This ensures that API routes are portable across modern JS runtimes (Bun, Node 20+, Cloudflare Workers, Deno).
+AFW strictly adheres to the standard **Fetch API** for server-side handlers. This ensures that API routes are portable across modern JS runtimes (Bun, Node 20+, Cloudflare Workers, Deno).
 
 - **Input**: The handler receives a standard `Request` object.
 - **Output**: The handler MUST return a standard `Response` object.
@@ -1035,19 +1035,19 @@ export async function POST(request) {
 }
 ```
 
-### 11.4 OTF Web Regex Router & Runtime Adapters
-OTF Web provides its own high-performance **Regex Router** to ensure consistent routing behavior across all deployment targets.
+### 11.4 AFW Regex Router & Runtime Adapters
+AFW provides its own high-performance **Regex Router** to ensure consistent routing behavior across all deployment targets.
 
 - **Internal Router**: The framework-provided router matches incoming URLs against compiled regex patterns and dispatches them to the appropriate named exports (`GET`, `POST`, etc.).
-- **Platform-Agnostic**: Because the router is built into the OTF Web runtime, routing logic remains identical whether running on Bun, Node.js, or Edge workers.
-- **HTTP Server Utilization**: OTF Web utilizes the native HTTP server of the underlying runtime (e.g., `Bun.serve` or Node's `http` module) via specialized **Adapters**. These adapters translate the platform's native request/response into the standard `Request`/`Response` objects used by OTF Web handlers.
+- **Platform-Agnostic**: Because the router is built into the AFW runtime, routing logic remains identical whether running on Bun, Node.js, or Edge workers.
+- **HTTP Server Utilization**: AFW utilizes the native HTTP server of the underlying runtime (e.g., `Bun.serve` or Node's `http` module) via specialized **Adapters**. These adapters translate the platform's native request/response into the standard `Request`/`Response` objects used by AFW handlers.
 
 ### 11.5 Middleware & Errors
 - **Shared Middleware**: Files named `_middleware.{js,ts}` anywhere under `app/` apply to their folder and subfolders — governing **all requests** in that scope equally: pages (SSR), API routes, route-loader `__data.json` requests, and 404s. `app/_middleware.js` is the global middleware. Middleware runs **before routing** (so it can also rewrite the request via `next(new Request(...))`); multiple files compose outermost-first. See `docs/MIDDLEWARE.md` for the full contract.
 - **Locals**: Middleware stamps `context.locals`; the same bag reaches API handlers (`context.locals`) and route loaders (`locals`).
 - **Scope Safety**: A page's `__data.json` data request is governed by the page's scope (no loader leak around a guard), and a non-default locale prefix is stripped before matching (`/fr/admin` is governed by `/admin` middleware). Static assets that exist on disk are served outside the middleware pipeline.
 - **Auth & Validation**: Cross-cutting concerns such as **Authentication**, **Authorization**, and **Request Validation** are handled exclusively via the middleware system.
-- **Error Responses**: OTF Web encourages standard JSON error bodies:
+- **Error Responses**: AFW encourages standard JSON error bodies:
   ```javascript
   return Response.json({ error: "Unauthorized", code: 401 }, { status: 401 });
   ```
@@ -1056,10 +1056,10 @@ OTF Web provides its own high-performance **Regex Router** to ensure consistent 
 ---
 
 ## 12. DevTools & Debugging
-Because OTF Web compiles components to standard Custom Elements, you can use native browser developer tools to inspect and debug your application.
+Because AFW compiles components to standard Custom Elements, you can use native browser developer tools to inspect and debug your application.
 
 ### 12.1 Inspecting Reactive State
-If you select a OTF Web component in the Elements panel, it is available as `$0` in the Console.
+If you select a AFW component in the Elements panel, it is available as `$0` in the Console.
 You can inspect the component's reactive state by accessing its internal signals:
 ```javascript
 // View the actual signal objects holding the prop values
@@ -1085,21 +1085,21 @@ List items rendered via `_mapped` are "reified" into signals. To inspect an item
 
 ### 12.4 Effect Tracing
 To trace which signal caused a DOM update:
-1. Enable "Log Updates" in OTF Web Dev Mode.
-2. The console will log: `[OTF Web] Effect fired: TextNode(12) updated via signal 'count'`.
+1. Enable "Log Updates" in AFW Dev Mode.
+2. The console will log: `[AFW] Effect fired: TextNode(12) updated via signal 'count'`.
 3. Use the browser's "Performance" tab to see the call stack originating from a signal's `.value` setter.
 
 ---
 
 ## 13. Build Output
-The OTF Web build pipeline (`waf build`) produces a production-ready bundle:
+The AFW build pipeline (`waf build`) produces a production-ready bundle:
 - **`dist/public/`**: Contains the static assets and the client-side JS bundle.
 - **`dist/server/`**: Contains the SSR/API route handlers.
 - **Code Splitting**: Each route is automatically code-split. The main bundle contains only the runtime and shared layouts; pages are loaded dynamically.
 - **Asset Handling**: Images and fonts imported in JSX are hashed and moved to `dist/public/assets/`.
 
 ## 14. Environment Variables
-OTF Web supports `.env` files with strict boundary enforcement:
+AFW supports `.env` files with strict boundary enforcement:
 - **Server-only**: Variables in `.env` are only available in API routes and during SSG.
 - **Client-exposed**: Variables prefixed with `PUBLIC_` (e.g., `PUBLIC_API_URL`) are injected into the client bundle at build time.
 - **Access**: Use `process.env` (Node/Bun) or `import.meta.env` (Vite-based environments).

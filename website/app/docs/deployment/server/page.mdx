@@ -3,7 +3,7 @@ title: Server Setup
 description: Supply a native Request/Response server entry for API routes, middleware and SSR.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Server Setup
 
@@ -18,7 +18,7 @@ This minimal entry mounts one API module on ES-Runtime:
 ```js server.js
 import { serve } from "runtime:http";
 import { env } from "runtime:process";
-import { createApiHandler } from "@opentf/web/server";
+import { createApiHandler } from "@opentf/afw/server";
 import * as hello from "./app/api/hello/route.js";
 
 const api = createApiHandler({ "/app/api/hello/route.js": hello });
@@ -33,7 +33,7 @@ Add a server target alongside the browser target in `esdev.json`:
 "server": { "entry": "server.js", "out": "dist/server.js", "platform": "server" }
 ```
 
-Use the default OTF plugin with `mode: "ssr"` when the server imports renderable
+Use the default AFW plugin with `mode: "ssr"` when the server imports renderable
 components. Server modules compile to string renderers, while browser release
 modules compile for hydration.
 
@@ -63,8 +63,8 @@ Import route registration from the server entry. It loads without a DOM or
 `HTMLElement` shim and shares the route table used by `renderRoute()`:
 
 ```js
-import { registerRoutes, renderRoute } from "@opentf/web/server";
-import { pages } from "@otfw/routes";
+import { registerRoutes, renderRoute } from "@opentf/afw/server";
+import { pages } from "@afw/routes";
 
 registerRoutes(pages);
 
@@ -74,21 +74,21 @@ export async function renderPage(request, data) {
 }
 ```
 
-The OTF plugin supplies `@otfw/routes` and compiles server pages with
+The AFW plugin supplies `@afw/routes` and compiles server pages with
 `mode: "ssr"`. The renderer returns HTML, metadata, hydration props and status;
 compose these into your HTML response. See [Metadata & SEO](/docs/routing/metadata)
 for head rendering.
 
 Server modules can also import `router`, `configureI18n`, `matchRoute`,
-`resolveLocale`, `localizePath` and `i18nLocales` from `@opentf/web/server`.
+`resolveLocale`, `localizePath` and `i18nLocales` from `@opentf/afw/server`.
 During rendering, `router.params`, `router.query`, `router.locale` and `router.data`
 refer to the current request. Browser components continue importing from
-`@opentf/web`.
+`@opentf/afw`.
 
 <Callout type="info" title="Fullstack starter">
   `esdev create <dir> --template=fullstack` generates this wiring: a `server.js`
   request pipeline, browser and server targets, and `esdev start` running the server.
-  Server builds resolve page imports through the DOM-free `@opentf/web/server` entry,
+  Server builds resolve page imports through the DOM-free `@opentf/afw/server` entry,
   so `server.js` is the server target directly; no `HTMLElement` stub is needed.
 </Callout>
 
@@ -98,7 +98,7 @@ For Fetch-native platforms, `createFetchHandler` composes dispatch and middlewar
 with a fallback for assets or SSR. When your build script emits `dist/server/api.js`,
 see [Fetch handler](/docs/deployment/fetch-handler) for adapter wiring.
 
-Node applications import `toNodeListener` from `@opentf/web/server/adapters/node`.
+Node applications import `toNodeListener` from `@opentf/afw/server/adapters/node`.
 Keep runtime-specific imports in the server entry, not in client components.
 
 ## Environment and server-only imports

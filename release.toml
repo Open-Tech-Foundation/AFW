@@ -1,5 +1,5 @@
 adapters = ["npm"]
-skip_publish = ["@opentf/create-web"]
+skip_publish = ["@opentf/create-afw"]
 tag_format = "{name}@{version}"
 provider = "github"
 default_branch = "main"
@@ -10,7 +10,7 @@ github_release_notes = "auto-generate"
 [hooks]
 
 [publish.ignore_paths]
-"@opentf/web-docs" = [
+"@opentf/afw-docs" = [
     "**/*.md",
     "**/__tests__/**",
     "**/*.test.*",
@@ -18,7 +18,7 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
-"@opentf/esdev-plugin-web" = [
+"@opentf/esdev-plugin-afw" = [
     "**/*.md",
     "**/__tests__/**",
     "**/*.test.*",
@@ -26,7 +26,7 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
-"@opentf/web-cli" = [
+"@opentf/afw-cli" = [
     "**/*.md",
     "**/__tests__/**",
     "**/*.test.*",
@@ -34,7 +34,7 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
-"@opentf/web-i18n" = [
+"@opentf/afw-i18n" = [
     "**/*.md",
     "**/__tests__/**",
     "**/*.test.*",
@@ -42,7 +42,7 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
-"@opentf/web" = [
+"@opentf/afw" = [
     "**/*.md",
     "**/__tests__/**",
     "**/*.test.*",
@@ -50,7 +50,7 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
-"@opentf/web-test" = [
+"@opentf/afw-test" = [
     "**/*.md",
     "**/__tests__/**",
     "**/*.test.*",
@@ -58,7 +58,7 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
-"@opentf/web-form" = [
+"@opentf/afw-form" = [
     "**/*.md",
     "**/__tests__/**",
     "**/*.test.*",
@@ -68,42 +68,42 @@ github_release_notes = "auto-generate"
 ]
 
 [[package]]
-name = "@opentf/esdev-plugin-web"
+name = "@opentf/esdev-plugin-afw"
 adapter = "npm"
 mode = "publish"
 matrix = false
 command = ""
 artifacts = ""
-manifest = "packages/esdev-plugin-web/package.json"
+manifest = "packages/esdev-plugin-afw/package.json"
 
 [[package]]
-name = "@opentf/web"
+name = "@opentf/afw"
 adapter = "npm"
 mode = "publish"
 matrix = false
 command = ""
 artifacts = ""
-manifest = "packages/web/package.json"
+manifest = "packages/afw/package.json"
 
 [[package]]
-name = "@opentf/web-cli"
+name = "@opentf/afw-cli"
 adapter = "npm"
 mode = "publish"
 matrix = false
 command = ""
 artifacts = ""
-manifest = "packages/web-cli/package.json"
+manifest = "packages/afw-cli/package.json"
 
 [[package]]
-name = "@opentf/web-compiler"
+name = "@opentf/afw-compiler"
 adapter = "npm"
 mode = "publish"
 matrix = true
-command = "cargo build --release -p otfw_cli --bin otfwc --target {triple}"
+command = "cargo build --release -p afw_cli --bin afwc --target {triple}"
 artifacts = "target/{triple}/release/{bin}{ext}"
-bin_name = "otfwc"
+bin_name = "afwc"
 compress = "brotli"
-manifest = "packages/web-compiler/package.json"
+manifest = "packages/afw-compiler/package.json"
 
 [[package.targets]]
 name = "linux"
@@ -135,37 +135,37 @@ stage_as = "win32-x64"
 ext = ".exe"
 
 [[package]]
-name = "@opentf/web-docs"
+name = "@opentf/afw-docs"
 adapter = "npm"
 mode = "publish"
 matrix = false
 command = ""
 artifacts = ""
-manifest = "packages/web-docs/package.json"
+manifest = "packages/afw-docs/package.json"
 
 [[package]]
-name = "@opentf/web-form"
+name = "@opentf/afw-form"
 adapter = "npm"
 mode = "publish"
 matrix = false
 command = ""
 artifacts = ""
-manifest = "packages/web-form/package.json"
+manifest = "packages/afw-form/package.json"
 
 [[package]]
-name = "@opentf/web-i18n"
+name = "@opentf/afw-i18n"
 adapter = "npm"
 mode = "publish"
 matrix = false
 command = ""
 artifacts = ""
-manifest = "packages/web-i18n/package.json"
+manifest = "packages/afw-i18n/package.json"
 
 [[package]]
-name = "@opentf/web-test"
+name = "@opentf/afw-test"
 adapter = "npm"
 mode = "publish"
 matrix = false
 command = ""
 artifacts = ""
-manifest = "packages/web-test/package.json"
+manifest = "packages/afw-test/package.json"

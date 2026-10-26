@@ -8,7 +8,7 @@ import BenchmarkTable from "../../components/BenchmarkTable.jsx";
 export const metadata = {
   title: "Benchmarks",
   description:
-    "How OTF Web is measured: a rendering-layer comparison against the React, Solid and Svelte libraries, and a framework-level build-cost comparison against Astro, Next.js, TanStack Start and Vite.",
+    "How AFW is measured: a rendering-layer comparison against the React, Solid and Svelte libraries, and a framework-level build-cost comparison against Astro, Next.js, TanStack Start and Vite.",
   canonical: "/docs/benchmarks",
 };
 
@@ -44,7 +44,7 @@ export default function Benchmarks() {
       {/* ── Runtime ─────────────────────────────────────────────────────────── */}
       <h2 className={H2}>Runtime — a rendering-layer comparison</h2>
       <p className={P}>
-        This measures OTF Web&rsquo;s <strong>runtime</strong> against the React, Solid and
+        This measures AFW&rsquo;s <strong>runtime</strong> against the React, Solid and
         Svelte&nbsp;5 <strong>libraries</strong> — <code>react</code>+<code>react-dom</code>,{" "}
         <code>solid-js</code>, <code>svelte</code>. It is <em>not</em> a comparison against
         Next.js, SolidStart or SvelteKit. The case is a single page of reactive list
@@ -56,7 +56,7 @@ export default function Benchmarks() {
       </div>
 
       <p className={P}>
-        OTF Web leads no operation here. Solid takes <em>create 1,000 rows</em>; the other
+        AFW leads no operation here. Solid takes <em>create 1,000 rows</em>; the other
         seven rows are ties. It is well clear of React on <em>swap 2 rows</em> (33 vs 246)
         and <em>clear 10,000</em> (179 vs 261).
       </p>
@@ -77,7 +77,7 @@ export default function Benchmarks() {
       <h3 className={H3}>Why the figures pool several runs</h3>
       <p className={P}>
         Double-rAF timing quantizes to frame boundaries, giving a resolution of about{" "}
-        {resolutionMs}&nbsp;ms — and on the create rows OTF Web, Solid and Svelte sit
+        {resolutionMs}&nbsp;ms — and on the create rows AFW, Solid and Svelte sit
         within roughly 20&nbsp;ms of one another. A single run&rsquo;s margins there are
         smaller than its own run-to-run drift: three consecutive runs on an idle machine
         named three different winners for <em>create 1,000 rows</em>, and Solid&rsquo;s own
@@ -90,11 +90,11 @@ export default function Benchmarks() {
       <h3 className={H3}>What is and is not fair here</h3>
       <p className={P}>
         The asymmetry between a framework and a view library is real, but it lands{" "}
-        <em>outside</em> the measured window. The published OTF Web case was measured with the full{" "}
-        <code>otfw build</code> toolchain and boots the router and mount layer; the other
-        three are minimal hand-rolled bundles with no router. The current OTF Web runner uses esdev; these published measurements retain their original toolchain. That cost is paid once at
+        <em>outside</em> the measured window. The published AFW case was measured with the full{" "}
+        <code>afw build</code> toolchain and boots the router and mount layer; the other
+        three are minimal hand-rolled bundles with no router. The current AFW runner uses esdev; these published measurements retain their original toolchain. That cost is paid once at
         startup and never enters a timed sample, so it neither inflates nor deflates the
-        per-operation medians — but it does mean OTF Web carries weight the others do not.
+        per-operation medians — but it does mean AFW carries weight the others do not.
         For the same reason, a bundle-size column would <em>not</em> belong in this table.
       </p>
       <p className={P}>
@@ -106,7 +106,7 @@ export default function Benchmarks() {
 
       <div className={NOTE}>
         These operations are precisely where fine-grained libraries are already at parity
-        with OTF Web, which is why seven of eight rows tie. The properties that distinguish
+        with AFW, which is why seven of eight rows tie. The properties that distinguish
         it as a framework — native custom elements, hydration by adoption, per-route chunks
         — show up in JavaScript shipped per route, cold start, hydration cost and SPA
         navigation, none of which this benchmark measures. Treat it as evidence about the
@@ -129,14 +129,14 @@ export default function Benchmarks() {
       <h3 className={H3}>Read the asymmetries first</h3>
       <p className={P}>
         The columns do not represent equal work. <code>astro</code> and <code>vite</code>{" "}
-        ship no client JavaScript for these pages, whereas OTF Web, Next.js and TanStack
+        ship no client JavaScript for these pages, whereas AFW, Next.js and TanStack
         Start additionally build a hydration bundle. Two smaller asymmetries run the other
-        way, against OTF Web: it is the only tool that syntax-highlights the code blocks at
+        way, against AFW: it is the only tool that syntax-highlights the code blocks at
         build time, and Next.js inlines an RSC payload the others have no equivalent of.
       </p>
       <p className={P}>
-        The figures also come from two separate runs. The OTF Web column was re-measured
-        after the build fixes in <code>@opentf/web-compiler</code> and re-verified across
+        The figures also come from two separate runs. The AFW column was re-measured
+        after the build fixes in <code>@opentf/afw-compiler</code> and re-verified across
         the whole 72&nbsp;KB–2.3&nbsp;MB ladder; the other four are from the original sweep
         and were not re-run, so small gaps should be treated as noise. The 72&nbsp;KB
         memory cell read 122–140&nbsp;MB between two consecutive runs, which is this
@@ -160,14 +160,14 @@ esdev benchmarks/aggregate.mjs --latest 3
       <p className={P}>
         Full method, every caveat, and the complete size ladder live in the repository:{" "}
         <a
-          href="https://github.com/Open-Tech-Foundation/Web-App-Framework/blob/main/benchmarks/README.md"
+          href="https://github.com/Open-Tech-Foundation/afw/blob/main/benchmarks/README.md"
           className={A}
         >
           benchmarks/README.md
         </a>{" "}
         and{" "}
         <a
-          href="https://github.com/Open-Tech-Foundation/Web-App-Framework/blob/main/benchmarks/ssg-build/README.md"
+          href="https://github.com/Open-Tech-Foundation/afw/blob/main/benchmarks/ssg-build/README.md"
           className={A}
         >
           benchmarks/ssg-build

@@ -3,7 +3,7 @@ title: Middleware
 description: Server-side _middleware.js for every request — pages, API routes, loader data, and SSR — with context.locals shared downstream.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Middleware
 
@@ -35,7 +35,7 @@ The default export (or a named `middleware` export) is
 
 ```js
 // app/_middleware.js
-import { getCookie, setCookie } from "@opentf/web/server";
+import { getCookie, setCookie } from "@opentf/afw/server";
 
 export default async function (request, context, next) {
   const path = new URL(request.url).pathname;
@@ -83,7 +83,7 @@ Stamp auth or validation once in `locals`; read it in every `route.*` handler an
 ## Cookies
 
 Read and write `Cookie` / `Set-Cookie` with the RFC 6265 helpers from
-`@opentf/web/server` — see the [Cookies](/docs/routing/cookies) guide for middleware,
+`@opentf/afw/server` — see the [Cookies](/docs/routing/cookies) guide for middleware,
 API routes, loaders, options, and the immutable-headers wrap pattern.
 
 ## Scope matching details
@@ -113,7 +113,7 @@ middleware → API route.* → __data.json loaders → assets → SPA shell / SS
 Configure server build/watch targets in esdev.json. Middleware runs only when the
 server entry or adapter includes it in the request pipeline.
 
-A project build script can call `emitApiBundle` from `@opentf/web-cli/ssg` to emit `dist/server/api.js` with three exports:
+A project build script can call `emitApiBundle` from `@opentf/afw-cli/ssg` to emit `dist/server/api.js` with three exports:
 
 | Export | Use when |
 | --- | --- |
@@ -124,7 +124,7 @@ A project build script can call `emitApiBundle` from `@opentf/web-cli/ssg` to em
 ```js
 // Fetch-native runtimes (Workers, Bun, Deno) — full pipeline
 import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/web/server";
+import { createFetchHandler } from "@opentf/afw/server";
 
 export default {
   fetch: createFetchHandler(apiRoutes, {
@@ -139,7 +139,7 @@ See [Server API](/docs/server) and [Fetch handler](/docs/deployment/fetch-handle
 ## TypeScript
 
 ```ts
-import type { Middleware } from "@opentf/web/server";
+import type { Middleware } from "@opentf/afw/server";
 
 const guard: Middleware = (request, context, next) => {
   context.locals.user = "ada";

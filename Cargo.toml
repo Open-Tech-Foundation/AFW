@@ -1,4 +1,4 @@
-# OTF Web — Rust toolchain workspace.
+# AFW — Rust toolchain workspace.
 # See ARCHITECTURE.md for the design this implements.
 [workspace]
 resolver = "3"
@@ -7,11 +7,11 @@ members = ["crates/*"]
 [workspace.package]
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/Open-Tech-Foundation/Web-App-Framework"
+repository = "https://github.com/Open-Tech-Foundation/afw"
 
 [workspace.dependencies]
-otfw_ir = { path = "crates/otfw_ir" }
-otfw_compiler = { path = "crates/otfw_compiler" }
+afw_ir = { path = "crates/afw_ir" }
+afw_compiler = { path = "crates/afw_compiler" }
 
 # Parser stack (ARCHITECTURE.md §3). The `oxc` umbrella keeps the sub-crate
 # versions aligned; `semantic` seeds Stage 2 (scopes + bindings), `ast_visit`

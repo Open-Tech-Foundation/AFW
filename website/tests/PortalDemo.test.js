@@ -1,5 +1,5 @@
 // The Portal guide's custom overlay must behave as a modal dialog.
-// Run from website/: esdev test --dom tests
+// Run from the repo root: esdev test --dom --config=website/esdev.json website/tests
 
 import { afterEach, expect, test } from "runtime:test";
 import PortalDemo from "../app/components/PortalDemo.jsx";

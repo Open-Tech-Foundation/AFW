@@ -1,0 +1,58 @@
+// Entry for the mobile-drawer browser e2e (built by mobile-drawer.mjs). It mounts ONLY
+// the two drawer components — <Sidebar> (the drawer) and <SidebarToggle> (the navbar
+// burger) — inside a minimal navbar + docs grid, against the real afw-docs theme CSS.
+//
+// Isolating the drawer here (rather than driving the full pre-rendered website) keeps
+// the e2e fast, dependency-free (no build of the site), and focused on the one
+// thing the `--dom` unit tests can't check: the CSS-dependent behavior (off-canvas transform, the
+// 768px breakpoint, the slide-in, the backdrop, the body-scroll lock).
+import Sidebar from "../../components/Sidebar.jsx";
+import SidebarToggle from "../../components/SidebarToggle.jsx";
+
+const NAV = [
+  { title: "Introduction", path: "/docs" },
+  { title: "Guide", items: [{ title: "Routing", path: "/docs/routing" }] },
+];
+const NAV_LINKS = [
+  { label: "Home", href: "/" },
+  { label: "Docs", href: "/docs" },
+  { label: "API", href: "/api" },
+];
+
+const el = (tag, cls) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  return n;
+};
+
+// Navbar with the burger in the lead zone, exactly how Navbar.jsx composes it.
+const navbar = el("header", "afw-navbar");
+const inner = el("div", "afw-navbar-inner");
+const lead = el("div", "afw-navbar-lead");
+const brand = el("a", "afw-navbar-brand");
+brand.href = "/";
+brand.textContent = "Docs";
+lead.append(document.createElement(SidebarToggle.tag), brand);
+// Right cluster with the top-level links (hidden on mobile, surfaced in the drawer).
+const right = el("div", "afw-navbar-right");
+const navNav = el("nav", "afw-navbar-nav");
+for (const l of NAV_LINKS) {
+  const a = el("a", "afw-navbar-link");
+  a.href = l.href;
+  a.textContent = l.label;
+  navNav.append(a);
+}
+right.append(navNav);
+inner.append(lead, el("div", "afw-navbar-search"), right);
+navbar.append(inner);
+
+// Docs grid: the drawer is the first column on desktop, the off-canvas drawer on mobile.
+const docs = el("div", "afw-docs");
+const drawer = document.createElement(Sidebar.tag);
+drawer.nav = NAV; // object props set before connect so they're read at mount
+drawer.config = { nav: NAV_LINKS };
+const main = el("main", "afw-docs-main");
+main.innerHTML = "<h1>Harness</h1><p>Long content.</p>".repeat(20);
+docs.append(drawer, main);
+
+document.body.append(navbar, docs);

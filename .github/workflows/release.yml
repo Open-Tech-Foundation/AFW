@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_release: ${{ steps.check.outputs.should_release }}
-      release_opentf_web_compiler: ${{ steps.check.outputs.release_opentf_web_compiler }}
+      release_afw_compiler: ${{ steps.check.outputs.release_afw_compiler }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,12 +28,12 @@ jobs:
         run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
       - id: check
         run: |
-          echo "should_release=$(otf-release check --exclude-package @opentf/web-compiler)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_web_compiler=$(otf-release check --package @opentf/web-compiler)" >> "$GITHUB_OUTPUT"
+          echo "should_release=$(otf-release check --exclude-package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
+          echo "release_afw_compiler=$(otf-release check --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
 
-  matrix-opentf-web-compiler:
+  matrix-afw-compiler:
     needs: [check-release]
-    if: needs.check-release.outputs.release_opentf_web_compiler == 'true'
+    if: needs.check-release.outputs.release_afw_compiler == 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
@@ -45,15 +45,15 @@ jobs:
           OTF_RELEASE_VERSION: v0.38.0
         run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
       - id: set
-        run: echo "matrix=$(otf-release matrix --package @opentf/web-compiler)" >> "$GITHUB_OUTPUT"
+        run: echo "matrix=$(otf-release matrix --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
 
-  build-opentf-web-compiler:
-    needs: [check-release, matrix-opentf-web-compiler]
-    if: needs.check-release.outputs.release_opentf_web_compiler == 'true'
+  build-afw-compiler:
+    needs: [check-release, matrix-afw-compiler]
+    if: needs.check-release.outputs.release_afw_compiler == 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.matrix-opentf-web-compiler.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.matrix-afw-compiler.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -77,17 +77,17 @@ jobs:
         env:
           OTF_RELEASE_VERSION: v0.38.0
         run: irm https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.ps1 | iex
-      - name: Build @opentf/web-compiler
-        run: otf-release build --package @opentf/web-compiler --target ${{ matrix.name }}/${{ matrix.arch }}
+      - name: Build @opentf/afw-compiler
+        run: otf-release build --package @opentf/afw-compiler --target ${{ matrix.name }}/${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
-          name: opentf-web-compiler-${{ matrix.name }}-${{ matrix.arch }}
-          path: .artifacts/@opentf/web-compiler
+          name: opentf-afw-compiler-${{ matrix.name }}-${{ matrix.arch }}
+          path: .artifacts/@opentf/afw-compiler
           if-no-files-found: error
 
-  publish-opentf-web-compiler:
-    needs: [check-release, build-opentf-web-compiler]
-    if: needs.check-release.outputs.release_opentf_web_compiler == 'true'
+  publish-afw-compiler:
+    needs: [check-release, build-afw-compiler]
+    if: needs.check-release.outputs.release_afw_compiler == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,8 +101,8 @@ jobs:
           registry-url: https://registry.npmjs.org
       - uses: actions/download-artifact@v4
         with:
-          pattern: opentf-web-compiler-*
-          path: .artifacts/@opentf/web-compiler
+          pattern: opentf-afw-compiler-*
+          path: .artifacts/@opentf/afw-compiler
           merge-multiple: true
       - run: pnpm install --frozen-lockfile
       - name: Install otf-release
@@ -111,18 +111,18 @@ jobs:
           OTF_RELEASE_VERSION: v0.38.0
         run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
       - name: Publish
-        run: otf-release publish --package @opentf/web-compiler --artifacts-dir .artifacts
+        run: otf-release publish --package @opentf/afw-compiler --artifacts-dir .artifacts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish:
-    needs: [check-release, publish-opentf-web-compiler]
+    needs: [check-release, publish-afw-compiler]
     if: >-
       always() &&
       needs.check-release.outputs.should_release == 'true' &&
-      needs.publish-opentf-web-compiler.result != 'failure' &&
-      needs.publish-opentf-web-compiler.result != 'cancelled'
+      needs.publish-afw-compiler.result != 'failure' &&
+      needs.publish-afw-compiler.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,7 +141,7 @@ jobs:
           OTF_RELEASE_VERSION: v0.38.0
         run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
       - name: Publish
-        run: otf-release publish --exclude-package @opentf/web-compiler
+        run: otf-release publish --exclude-package @opentf/afw-compiler
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

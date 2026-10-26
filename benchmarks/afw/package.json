@@ -1,0 +1,12 @@
+{
+  "name": "@opentf/afw-bench-afw",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@opentf/afw": "workspace:*"
+  },
+  "devDependencies": {
+    "@opentf/esdev-plugin-afw": "workspace:*",
+    "@opentf/afw-cli": "workspace:*"
+  }
+}

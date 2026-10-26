@@ -1,0 +1,19 @@
+{
+  "plugins": [
+    {
+      "module": "@opentf/esdev-plugin-afw",
+      "options": {
+        "mode": "spa",
+        "appDir": "app"
+      }
+    }
+  ],
+  "build": {
+    "targets": {
+      "web": {
+        "entry": "index.html",
+        "outdir": "dist"
+      }
+    }
+  }
+}

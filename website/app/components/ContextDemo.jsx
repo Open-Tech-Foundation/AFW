@@ -1,7 +1,7 @@
 // Live demo for the Context guide: theme flows down the tree via ContextProvider,
 // nested providers override, and a reactive $state value updates every consumer.
 
-import { ContextProvider, createContext } from "@opentf/web";
+import { ContextProvider, createContext } from "@opentf/afw";
 
 const ThemeContext = createContext("dark");
 

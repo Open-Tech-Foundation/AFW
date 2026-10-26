@@ -1,26 +1,26 @@
-import { Navbar } from "@opentf/web-docs";
-import config from "../otfw.config.js";
+import { Navbar } from "@opentf/afw-docs";
+import config from "../afw.config.js";
 
-const OTF_ORG = "https://opentechf.org/";
+const AFW_ORG = "https://opentechf.org/";
 
 // Site-wide SEO defaults, inherited by every route (least-specific in the metadata
 // merge). `titleTemplate` brands every child page's `<title>` (e.g. "Installation —
-// OTF Web"); a page can opt out with `title: { absolute: "…" }`. The description and
+// AFW"); a page can opt out with `title: { absolute: "…" }`. The description and
 // `og:site_name` act as fallbacks when a page doesn't set its own.
 export const metadata = {
-  titleTemplate: "%s — OTF Web",
+  titleTemplate: "%s — AFW",
   description:
     "A high-performance full-stack web framework that compiles JSX to native Web Components, with signals for reactive state updates.",
   openGraph: {
-    siteName: "OTF Web",
+    siteName: "AFW",
     type: "website",
   },
   jsonLd: {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "Open Tech Foundation",
-    url: "https://web.opentechf.org",
-    logo: "https://web.opentechf.org/img/otf-logo.svg",
+    url: "https://afw.opentechf.org",
+    logo: "https://afw.opentechf.org/img/otf-logo.svg",
   },
   links: [
     { rel: "icon", href: "/img/otf-logo.svg" },
@@ -28,9 +28,9 @@ export const metadata = {
   ],
 };
 
-// The site is itself a product of @opentf/web-docs (Nextra-style): the navbar — brand,
+// The site is itself a product of @opentf/afw-docs (Nextra-style): the navbar — brand,
 // version badge, active-route underline, GitHub icon, theme toggle — comes from the
-// theme package, driven by otfw.config.js. The docs section reuses it via frame={false}.
+// theme package, driven by afw.config.js. The docs section reuses it via frame={false}.
 export default function WebsiteLayout(props) {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-main)]">
@@ -42,17 +42,17 @@ export default function WebsiteLayout(props) {
 
       <footer className="py-12 border-t border-[#1e293b] flex justify-start items-center px-8 text-xs text-slate-400 bg-[#020617] mt-auto transition-colors">
         <a
-          href={OTF_ORG}
+          href={AFW_ORG}
           target="_blank"
           rel="noreferrer"
-          class="otfw-footer-org-link"
+          class="afw-footer-org-link"
         >
           <img
             src="/img/otf-logo.svg"
             alt=""
             width="24"
             height="24"
-            class="otfw-footer-org-logo"
+            class="afw-footer-org-logo"
           />
           <span>© Open Tech Foundation</span>
         </a>

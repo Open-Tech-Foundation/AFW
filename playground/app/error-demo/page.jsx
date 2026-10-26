@@ -3,7 +3,7 @@
 // down the page. The sibling Counter keeps working. Defuse the bomb, then Retry to
 // watch the boundary rebuild the subtree and recover.
 
-import { ErrorBoundary } from "@opentf/web";
+import { ErrorBoundary } from "@opentf/afw";
 import Bomb from "../components/Bomb";
 import Counter from "../components/Counter";
 import { bomb } from "../components/bomb-state.js";

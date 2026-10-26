@@ -2,14 +2,14 @@
 title: How fine-grained signals work
 description: A look at the reactive graph that updates only the DOM nodes a change touches.
 date: 2026-06-10
-author: OTF Team
+author: AFW Team
 author_avatar: /blog/avatar-otf.svg
 cover: /blog/cover-signals.svg
 tags: internals, reactivity
 ---
 
 A signal is a value plus the set of computations that read it. When the value changes,
-only those computations re-run — and in OTF Web, a computation is often a single DOM
+only those computations re-run — and in AFW, a computation is often a single DOM
 update.
 
 ```jsx

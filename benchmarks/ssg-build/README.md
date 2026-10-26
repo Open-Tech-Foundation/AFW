@@ -1,7 +1,7 @@
 # SSG build benchmark
 
 **What it measures:** the cost of *building* a static site — peak memory and wall
-time for `otfw build --ssg` and the equivalent command in four other tools, all
+time for `afw build --ssg` and the equivalent command in four other tools, all
 rendering the **same** MDX page.
 
 This is a **build-time** benchmark. It is unrelated to the runtime benchmark in
@@ -12,9 +12,9 @@ Nothing here says anything about how fast a page runs once loaded.
 
 A 72 KB MDX page in a real docs site
 ([Open-Tech-Foundation/STF](https://github.com/Open-Tech-Foundation/STF/tree/main/website))
-crashed `otfw build --ssg` once it grew past ~90 KB, and whole-site builds were
+crashed `afw build --ssg` once it grew past ~90 KB, and whole-site builds were
 running out of memory. The cause was in our SSG code generator; the fix landed
-after `@opentf/web-compiler` 0.12 (see its CHANGELOG). This benchmark is how we
+after `@opentf/afw-compiler` 0.12 (see its CHANGELOG). This benchmark is how we
 confirmed the fix and checked our build cost against comparable tools — so it
 stays honest, it is kept in the repo rather than written up once and thrown away.
 
@@ -32,7 +32,7 @@ Sites stay at **one page** so the numbers isolate per-page cost.
 
 | Tool | Command | Ships client JS? |
 |------|---------|------------------|
-| **OTF Web** `@opentf/web-cli@1.23` | `otfw build --ssg` | yes — 574 KB hydration bundle |
+| **AFW** `@opentf/afw-cli@1.23` | `afw build --ssg` | yes — 574 KB hydration bundle |
 | **Astro** 7.1 + `@astrojs/mdx` 7.0 | `astro build` | no — zero JS for a plain MDX page |
 | **Next.js** 16.2 + `@next/mdx`, Turbopack | `next build` (`output: "export"`) | yes — 612 KB |
 | **TanStack Start** 1.168 | `vite build` (prerender) | yes — 485 KB |
@@ -44,7 +44,7 @@ three tools that also build a hydration bundle. Vite is not an SSG framework at
 all — it is the standard hand-rolled `renderToString` + prerender pattern,
 included as a floor for "what does the underlying toolchain cost".
 
-Two smaller asymmetries, both against us: OTF Web is the only tool that
+Two smaller asymmetries, both against us: AFW is the only tool that
 syntax-highlights the code blocks (build-time `syntect`; the others produced no
 highlight markup), and Next.js inlines an RSC payload the others have no
 equivalent of.
@@ -57,7 +57,7 @@ structure (288 `<table>`, 344 `<pre>`, 320 `<h2>` at 8×).
 Intel i7-8700K (12 threads), 16 GB RAM, Linux 6.12, Node 24.14. Peak RSS sampled
 across the whole process tree at 50 Hz. One run per cell. The tables come from
 separate sweeps, so the same tool's 72 KB cell differs by a few percent between
-them (OTF Web read 254 MB in one and 262 MB in another) — that spread is the
+them (AFW read 254 MB in one and 262 MB in another) — that spread is the
 run-to-run noise floor, and no claim here rests on a margin near it. See
 [How reproducible is this?](#how-reproducible-is-this) before quoting any of it.
 
@@ -65,13 +65,13 @@ run-to-run noise floor, and no claim here rests on a margin near it. See
 
 | | peak RSS | wall |
 |---|---|---|
-| **OTF Web** | **140 MB** | **0.25 s** |
+| **AFW** | **140 MB** | **0.25 s** |
 | Vite (no client bundle) | 260 MB | 0.77 s |
 | Astro (no client bundle) | 416 MB | 1.23 s |
 | TanStack Start | 510 MB | 1.96 s |
 | Next.js | 1226 MB | 3.78 s |
 
-The OTF Web cell is from the latest sweep (it read 254 MB / 0.50 s before the two
+The AFW cell is from the latest sweep (it read 254 MB / 0.50 s before the two
 fixes below); the other four are the original one and were not re-run.
 
 ### As one page grows
@@ -81,11 +81,11 @@ build.
 
 | | 72 KB | 145 KB | 289 KB | 578 KB | 1.2 MB | 2.3 MB |
 |---|---|---|---|---|---|---|
-| OTF Web (0.12, no SSG fold) | 312 MB / 0.6 s | **SIGSEGV** | **SIGSEGV** | **SIGSEGV** | — | — |
-| OTF Web (0.13, SSG fold only) | 268 / 0.5 | 320 / 0.8 | 375 / 1.4 | 604 / 3.9 | 867 / 10.3 | 1720 / 47.2 |
-| OTF Web (+ static adopt) | 165 / 0.3 | 218 / 0.4 | 293 / 0.9 | 414 / 1.9 | 695 / 4.9 | 1280 / 16.1 |
-| OTF Web (+ linear MDX parse) | 162 / 0.3 | 206 / 0.4 | 303 / 0.7 | 407 / 1.2 | 642 / 2.3 | 1245 / 5.0 |
-| **OTF Web (current)** | **140 / 0.3** | **156 / 0.3** | **202 / 0.5** | **263 / 0.8** | **426 / 1.4** | **712 / 2.9** |
+| AFW (0.12, no SSG fold) | 312 MB / 0.6 s | **SIGSEGV** | **SIGSEGV** | **SIGSEGV** | — | — |
+| AFW (0.13, SSG fold only) | 268 / 0.5 | 320 / 0.8 | 375 / 1.4 | 604 / 3.9 | 867 / 10.3 | 1720 / 47.2 |
+| AFW (+ static adopt) | 165 / 0.3 | 218 / 0.4 | 293 / 0.9 | 414 / 1.9 | 695 / 4.9 | 1280 / 16.1 |
+| AFW (+ linear MDX parse) | 162 / 0.3 | 206 / 0.4 | 303 / 0.7 | 407 / 1.2 | 642 / 2.3 | 1245 / 5.0 |
+| **AFW (current)** | **140 / 0.3** | **156 / 0.3** | **202 / 0.5** | **263 / 0.8** | **426 / 1.4** | **712 / 2.9** |
 | Astro | 395 / 5.8 † | 417 / 1.2 | 484 / 1.4 | 555 / 1.6 | 592 / 2.2 | 943 / 3.7 |
 | Vite | 260 / 0.7 | 332 / 0.9 | 424 / 1.3 | 581 / 2.2 | 840 / 4.0 | 1490 / 8.6 |
 | TanStack Start | 507 / 1.6 | 546 / 2.1 | 606 / 3.0 | 990 / 4.9 | 1485 / 9.0 | 2022 / 19.0 |
@@ -94,8 +94,8 @@ build.
 † Cold-cache first run — 1.1 s warm. Single runs, so read the shape of each row
 rather than its individual cells.
 
-**Read the four OTF Web rows as one sweep and the other four tools as another.**
-The last three OTF Web rows were re-measured together, on the same machine and
+**Read the four AFW rows as one sweep and the other four tools as another.**
+The last three AFW rows were re-measured together, on the same machine and
 fixture, by compiling the *same* site with three compiler builds — so the deltas
 between them are apples to apples. The other tools were not re-run; their cells
 are the earlier sweep's. The "+ static adopt" row is the previous "current" row
@@ -113,8 +113,8 @@ industry-wide limit on large pages; it was a defect in one code path.
 
 | Generated JS | longest `+` chain | paren nesting | `_jsx()` calls |
 |---|---|---|---|
-| OTF Web SSG (pre-fix) | **12,206** | 4 | — |
-| OTF Web SSG (fixed) | 81 | 4 | — |
+| AFW SSG (pre-fix) | **12,206** | 4 | — |
+| AFW SSG (fixed) | 81 | 4 | — |
 | `@mdx-js/mdx` | 0 | 18 | 2,975 |
 
 `@mdx-js/mdx` emits a tree of function calls whose depth (18) is the document's
@@ -145,7 +145,7 @@ time at 2.3 MB was not code generation at all — it was reading the Markdown. T
 `markdown-rs` crate batches edits to its event list through an `EditMap`, and
 `EditMap::add` scanned that list linearly on every call while the list itself grew
 with the document, making parse time quadratic. Every construct paid it; 8,000 GFM
-table rows took 13.7 s. `crates/otfw_markdown` is a fork carrying the one-function
+table rows took 13.7 s. `crates/afw_markdown` is a fork carrying the one-function
 fix (a position→index lookup — see its `FORK.md`), which takes those same rows to
 213 ms and puts `mdx_to_jsx` back on a flat 2× per doubling. Emitted JSX is
 byte-identical across the repo's 78 `.md`/`.mdx` files.
@@ -169,8 +169,8 @@ case — off the table entirely, leaving the elements that close *themselves*
 (`<p>`, `<li>`, `<a>`, `<button>`, headings), the table content model, raw-text
 elements and foreign content as an enumerable list of rules.
 
-The verification is `packages/web-cli/tests/e2e/template-parity.mjs`: it compiles
-each fixture twice — normally and with `OTFWC_NO_TEMPLATES=1` — and requires the two
+The verification is `packages/afw-cli/tests/e2e/template-parity.mjs`: it compiles
+each fixture twice — normally and with `AFWC_NO_TEMPLATES=1` — and requires the two
 DOM trees to be indistinguishable in headless Chromium, by `outerHTML` and node for
 node. That env var is also the escape hatch if the analysis is ever wrong for some
 app's markup.
@@ -201,9 +201,9 @@ whole process tree — is defined by code you can read rather than by a claim.
 1. **The five projects are not vendored.** You rebuild them from the notes below.
 2. **Dependency versions float.** They were installed with plain `npm i`, so a run
    next month resolves different versions. The majors used are in the table above.
-3. **The compiler is a local build.** The last three OTF Web rows are
+3. **The compiler is a local build.** The last three AFW rows are
    `cargo build --release` at the commits that added the static-subtree adopt fix,
-   the `crates/otfw_markdown` fork, and template cloning — none of them a published
+   the `crates/afw_markdown` fork, and template cloning — none of them a published
    version. The three were run against one site; only the compiler binary differed.
 
 So treat the table as *evidence*, not proof: independently checkable, but not yet
@@ -212,7 +212,7 @@ skeletons with lockfiles and adding a runner — worth doing before quoting thes
 numbers anywhere outside this repo.
 
 **One check that has been done.** The whole set was rebuilt from scratch in a
-second, independent session and the four non-otfw tools landed within a few
+second, independent session and the four non-afw tools landed within a few
 percent of the first run — Astro 946→943 MB / 3.4→3.7 s, Vite 1489→1490 MB /
 8.2→8.6 s, TanStack 2043→2022 MB / 18.4→19.0 s, Next.js 3125→2977 MB / 30.2→31.3 s
 at 2.3 MB. Different `node_modules`, same machine and fixture. That is the
@@ -257,7 +257,7 @@ else), then measure each build. Points worth knowing if you rebuild the set:
 
 ## Native esdev builds
 
-The results above measured the historical `otfw build --ssg` toolchain. Keep
+The results above measured the historical `afw build --ssg` toolchain. Keep
 that command label with those numbers. For a new native run, use an app with
 esdev.json and a release prerender target, measure `esdev build --minify`,
 and record its esdev/compiler versions separately. `make-ladder.mjs` now runs

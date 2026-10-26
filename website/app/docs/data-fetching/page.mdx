@@ -39,7 +39,7 @@ The page reads the reactive **`router.data`**, exactly like `router.params`:
 
 ```jsx
 // app/todos/page.jsx
-import { router } from "@opentf/web";
+import { router } from "@opentf/afw";
 
 export default function Todos() {
   return (
@@ -70,7 +70,7 @@ export default function Todos() {
 
 - **Request servers** — an app's server entry can run loaders per request before rendering
   and serve the same data endpoint for client navigation. The compiler plugin does not
-  create this server automatically. The retired `otfw serve` command is unavailable;
+  create this server automatically. The retired `afw serve` command is unavailable;
   native fullstack starter integration is still pending.
 
 On first paint the data arrives inline with the server HTML (no extra request);
@@ -81,7 +81,7 @@ from superseded navigations are discarded. `__data.json` is a reserved filename.
 ### Not found & errors
 
 ```js
-import { notFound } from "@opentf/web/server";
+import { notFound } from "@opentf/afw/server";
 
 export default function loader({ params }) {
   const post = db.posts.find(params.id);
@@ -97,12 +97,12 @@ undefined — pages should treat "no data" as a valid state.
 ### Register loaders in the browser entry
 
 Pass the patterns of pages with loaders to `mountApp` so the router knows which
-data endpoints to fetch. The native `@otfw/routes` module exports `pages` and
+data endpoints to fetch. The native `@afw/routes` module exports `pages` and
 `guard`; it does not currently discover loader patterns for the client:
 
 ```js entry.js
-import { mountApp } from "@opentf/web";
-import { pages, guard } from "@otfw/routes";
+import { mountApp } from "@opentf/afw";
+import { pages, guard } from "@afw/routes";
 
 mountApp({
   pages,
@@ -122,7 +122,7 @@ endpoints. Registering the client patterns alone does neither.
 - A query-dependent loader needs a request server — static `__data.json` files are
   rendered with an empty query.
 - Redirects from loaders, streaming, and actions are future work (see the
-  [roadmap](https://github.com/Open-Tech-Foundation/Web-App-Framework/blob/main/docs/roadmap.md)).
+  [roadmap](https://github.com/Open-Tech-Foundation/afw/blob/main/docs/roadmap.md)).
 - A `loader.*` without a sibling `page.*` is a build error.
 - Dynamic routes still need `getStaticPaths` on the page to prerender.
 
@@ -133,7 +133,7 @@ pattern — components stay synchronous, and the view renders the resource's
 reactive states:
 
 ```jsx
-import { resource, router } from "@opentf/web";
+import { resource, router } from "@opentf/afw";
 
 export default function UserProfile() {
   const user = resource(

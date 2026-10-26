@@ -24,8 +24,8 @@ interchangeable.
 | **Project Graph** | the assembled cross-module component + dependency graph | ours | Rust | build time |
 | **Target / Backend** | a consumer of the IRs that emits code for one mode (CSR / Hydrate / SSG / SSR / API) | ours | Rust | build time |
 | **Bundler** (`Rolldown`, inside esdev) | links generated modules + dependencies into shippable assets | 3rd-party | Rust | build time |
-| **Toolchain host** (`esdev`) | ES-Runtime's dev binary: dev server, build targets, bundling, HMR transport, test runner, preview | 3rd-party (OTF ecosystem) | Rust | build time |
-| **Plugin** (`@opentf/esdev-plugin-web`) | connects the compiler to esdev: transforms `.jsx/.tsx/.mdx`, generates `@otfw/routes`, wires component refresh | ours | JS | build time |
+| **Toolchain host** (`esdev`) | ES-Runtime's dev binary: dev server, build targets, bundling, HMR transport, test runner, preview | 3rd-party (AFW ecosystem) | Rust | build time |
+| **Plugin** (`@opentf/esdev-plugin-afw`) | connects the compiler to esdev: transforms `.jsx/.tsx/.mdx`, generates `@afw/routes`, wires component refresh | ours | JS | build time |
 | **Runtime** | the small JS library shipped to and executed in the **browser** — DOM operations, reactivity, hydration | ours | JS | in the browser |
 
 Mental model in one line:
@@ -369,10 +369,10 @@ Each backend is a **pure function of the IRs / Project Graph**. Adding a target
 - **SSG** _(implemented — `codegen/ssg.rs`)_ — IR → HTML at build time. A pure
   consumer of the View IR that emits JS which **concatenates an HTML string** (runs
   at build time to read initial `.value`s; no DOM, no effects, no lifecycle).
-  Driven by a project's `then: "run"` prerender target (`@opentf/web-cli/ssg`). Hydration markers (emit only where structure is
+  Driven by a project's `then: "run"` prerender target (`@opentf/afw-cli/ssg`). Hydration markers (emit only where structure is
   variable — lists/conditionals) land with the Hydrate backend.
 - **SSR** _(implemented — app-owned server entry)_ — per-request HTML, rendered through
-  the **same** SSG render path (`renderRoute` from `@opentf/web/server`) rather than a
+  the **same** SSG render path (`renderRoute` from `@opentf/afw/server`) rather than a
   separate backend; the server is JS at request time (esrun/Node/Workers), the compiler/toolchain
   stays build-time-only. Phase 1 ships the server markup + client bundle, so the page is
   interactive via a CSR mount. Hydration (adopt the server DOM, no re-render) and
@@ -395,7 +395,7 @@ Each backend is a **pure function of the IRs / Project Graph**. Adding a target
 
 i18n is not a backend but cuts across several: URL path-prefix **locale routing**
 lives in the core router; **messages** (`t()`, ICU, formatters) ship in the opt-in
-`@opentf/web-i18n` package. A translated string is just an expression that slots
+`@opentf/afw-i18n` package. A translated string is just an expression that slots
 into the View IR's static-structure-vs-Dynamic-hole seam (§4.2–4.3): the compiler
 (Phase 2) inlines static messages into per-locale HTML and leaves signal-dependent
 ones as reactive holes. Because locale is fixed per URL, every backend agrees and
@@ -427,17 +427,17 @@ binary), which bundles with **Rolldown**. **We do not build on Vite.**
 
 ```
 esdev (ES-Runtime)                   ← dev server, build targets, bundling, HMR, tests
-  ├─ @opentf/esdev-plugin-web        ← resolve/load/transform hooks, @otfw/routes
-  │    └─ Compiler (otfwc: oxc → IRs → codegen)  ← §3
+  ├─ @opentf/esdev-plugin-afw        ← resolve/load/transform hooks, @afw/routes
+  │    └─ Compiler (afwc: oxc → IRs → codegen)  ← §3
   └─ Runtime (shipped JS)            ← DOM ops, reactivity, hydration (browser)
 ```
 
 ### 8.2 Decisions
 
-1. **esdev hosts the toolchain.** The framework-owned `otfw` dev server and build
+1. **esdev hosts the toolchain.** The framework-owned `afw` dev server and build
    driver were retired in favor of declarative `esdev.json` targets. The plugin
    is the only integration point; projects configure it, not a framework CLI.
-2. **The compiler stays a native binary.** `otfwc` runs as a long-lived compiler
+2. **The compiler stays a native binary.** `afwc` runs as a long-lived compiler
    service per build; the plugin passes sources in and returns code plus source
    maps, so esdev composes maps and owns final chunking.
 3. **We do not write a bundler.** Module resolution, tree-shaking, npm
@@ -445,5 +445,5 @@ esdev (ES-Runtime)                   ← dev server, build targets, bundling, HM
 4. **The runtime is independent of the toolchain.** It is shipped JS that runs in
    the browser; it has no dependency on the bundler or dev server.
 5. **Fullstack wiring is app-owned.** A server entry composes `renderRoute`,
-   loaders, API routes and middleware from `@opentf/web/server`; SSG runs as a
-   prerender target through `@opentf/web-cli/ssg`.
+   loaders, API routes and middleware from `@opentf/afw/server`; SSG runs as a
+   prerender target through `@opentf/afw-cli/ssg`.

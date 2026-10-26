@@ -7,7 +7,7 @@ export function getStaticPaths() {
 // Per-path metadata for the pre-rendered `<head>` (title/description/canonical).
 export function generateMetadata({ params }) {
   return {
-    title: `Post ${params.id} — OTF Web`,
+    title: `Post ${params.id} — AFW`,
     description: `Dynamic post page for ID ${params.id}.`,
     canonical: `/post/${params.id}`,
   };

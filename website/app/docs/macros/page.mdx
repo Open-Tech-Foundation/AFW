@@ -3,7 +3,7 @@ title: Reactive Macros
 description: The compiler-provided globals — $state, $derived, $effect, $ref, $context, $expose — and lifecycle hooks.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Reactive Macros
 
@@ -52,12 +52,12 @@ tracks the binding as a signal.
 | | |
 | --- | --- |
 | **Signature** | `$context(Ctx)` — `Ctx` is the token from `createContext(default)` |
-| **Provider** | `<ContextProvider context={Ctx} value={v}>…</ContextProvider>` (import `ContextProvider` from `@opentf/web`) |
+| **Provider** | `<ContextProvider context={Ctx} value={v}>…</ContextProvider>` (import `ContextProvider` from `@opentf/afw`) |
 | **Default** | When no provider wraps the consumer, the context's `createContext` default is used |
 | **Overrides** | A nested provider replaces the value for its subtree only |
 
 ```jsx
-import { ContextProvider, createContext } from "@opentf/web";
+import { ContextProvider, createContext } from "@opentf/afw";
 
 const ThemeContext = createContext("dark");
 
@@ -150,6 +150,6 @@ Guide with examples: [Lifecycle](/docs/core-concepts/lifecycle).
 </Callout>
 
 <Callout type="note" title="Optional imports">
-  `@opentf/web` exports no-op stubs for all five hooks for TypeScript and editors.
+  `@opentf/afw` exports no-op stubs for all five hooks for TypeScript and editors.
   The real behavior is compiler-injected; macros themselves are never imported at runtime.
 </Callout>

@@ -1,18 +1,18 @@
-// Build-time preparation and runtime updates, compared with OTF Web.
+// Build-time preparation and runtime updates, compared with AFW.
 // Only runtime chips flash: a state change does not rerun the compiler.
 // WAAPI illustrates ordering, not elapsed time or comparative performance.
 // Hovering the panel pauses the tour so a reader can study the current stacks;
 // leaving resumes it. Reduced motion disables the tour entirely.
 
-import { onCleanup, onMediaQuery } from "@opentf/web";
+import { onCleanup, onMediaQuery } from "@opentf/afw";
 
-const OTF = {
-  name: "OTF Web",
+const AFW = {
+  name: "AFW",
   mode: "Custom elements + signals",
   logo: "/img/otf-logo.svg",
   build: [
     { label: "JSX components", icon: "code" },
-    { label: "otfwc compiler", icon: "gear" },
+    { label: "afwc compiler", icon: "gear" },
     { label: "Custom elements + bindings", icon: "corners" },
   ],
   updates: [
@@ -280,13 +280,13 @@ export default function RenderPipeline() {
           </div>
           <div className="pipe-stack is-ours" data-pl="right">
             <div className="pipe-stack-head">
-              <img className="pipe-logo" src={OTF.logo} alt="" width="18" height="18" loading="lazy" />
-              {OTF.name}
+              <img className="pipe-logo" src={AFW.logo} alt="" width="18" height="18" loading="lazy" />
+              {AFW.name}
             </div>
-            <p className="pipe-mode">{OTF.mode}</p>
+            <p className="pipe-mode">{AFW.mode}</p>
             <div className="pipe-phase" data-phase="build">
               <h2 className="pipe-phase-label">Build time</h2>
-              {OTF.build.map((l) => (
+              {AFW.build.map((l) => (
                 <div key={l.label} className="pipe-chip">
                   <svg className="pipe-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <use href={"#pi-" + l.icon} />
@@ -297,7 +297,7 @@ export default function RenderPipeline() {
             </div>
             <div className="pipe-phase" data-phase="update">
               <h2 className="pipe-phase-label">On state change</h2>
-              {OTF.updates.map((l) => (
+              {AFW.updates.map((l) => (
                 <div key={l.label} className="pipe-chip">
                   <svg className="pipe-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <use href={"#pi-" + l.icon} />
@@ -306,8 +306,8 @@ export default function RenderPipeline() {
                 </div>
               ))}
             </div>
-            <p className="pipe-note">{OTF.note}</p>
-            <a className="pipe-source" href={OTF.source}>Reactivity docs →</a>
+            <p className="pipe-note">{AFW.note}</p>
+            <a className="pipe-source" href={AFW.source}>Reactivity docs →</a>
           </div>
         </div>
       </div>

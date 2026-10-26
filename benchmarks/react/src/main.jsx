@@ -1,5 +1,5 @@
 // React implementation of the js-framework-benchmark (krausest) operation set.
-// Mirrors benchmarks/otfw exactly: same operations, same measurement harness,
+// Mirrors benchmarks/afw exactly: same operations, same measurement harness,
 // same in-page contract — only the framework differs.
 //
 //   window.__BENCH_RESULTS__ = { engine, ua, cases: [{ label, median, runs, samples }] }

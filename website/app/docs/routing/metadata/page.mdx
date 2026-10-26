@@ -3,7 +3,7 @@ title: Metadata & SEO
 description: Declare page titles, descriptions, Open Graph tags, and structured data on routes and layouts.
 ---
 
-import { Callout } from "@opentf/web-docs";
+import { Callout } from "@opentf/afw-docs";
 
 # Metadata & SEO
 
@@ -148,21 +148,21 @@ export const metadata = {
 
 ## Site URL and absolute links
 
-Set the canonical origin in `otfw.config.js`, read by your prerender script. In a
+Set the canonical origin in `afw.config.js`, read by your prerender script. In a
 plain SPA or fullstack project, export a plain config object:
 
 ```js
-// otfw.config.js
+// afw.config.js
 export default {
   site: { url: "https://example.com" },
 };
 ```
 
-In a `@opentf/web-docs` project, wrap it with `defineDocsConfig` instead:
+In a `@opentf/afw-docs` project, wrap it with `defineDocsConfig` instead:
 
 ```js
-// otfw.config.js
-import { defineDocsConfig } from "@opentf/web-docs";
+// afw.config.js
+import { defineDocsConfig } from "@opentf/afw-docs";
 
 export default defineDocsConfig({
   site: { url: "https://example.com" },
@@ -191,7 +191,7 @@ not ideal for production SEO.
 
 ## MDX and docs pages
 
-In `@opentf/web-docs` projects, MDX frontmatter sets sidebar labels and feeds the same
+In `@opentf/afw-docs` projects, MDX frontmatter sets sidebar labels and feeds the same
 metadata pipeline as `export const metadata`:
 
 ```mdx
@@ -202,7 +202,7 @@ description: Scaffold a project and start the dev server.
 ```
 
 For live JSX routes, prefer `export const metadata` or `generateMetadata` on the page
-module. See [web-docs → Markdown](/packages/web-docs/markdown).
+module. See [afw-docs → Markdown](/packages/afw-docs/markdown).
 
 ## Example — layered defaults
 
@@ -212,14 +212,14 @@ canonical:
 ```jsx
 // app/layout.jsx
 export const metadata = {
-  titleTemplate: "%s — OTF Web",
+  titleTemplate: "%s — AFW",
   description: "A zero-VDOM framework.",
-  openGraph: { siteName: "OTF Web", type: "website" },
+  openGraph: { siteName: "AFW", type: "website" },
 };
 
 // app/page.jsx
 export const metadata = {
-  title: { absolute: "OTF Web — The native-first framework" },
+  title: { absolute: "AFW — The native-first framework" },
   canonical: "/",
 };
 
