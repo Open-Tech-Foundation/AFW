@@ -3,6 +3,9 @@
   "version": "0.20.0",
   "description": "AFW native toolchain (afwc) — component compilation and documentation indexing in one platform binary.",
   "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
   "main": "index.js",
   "exports": {
     ".": "./index.js"
