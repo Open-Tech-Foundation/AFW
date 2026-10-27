@@ -7,11 +7,11 @@
 // chrome; give the wrapped control its own `aria-label` for assistive tech.
 
 export default function Tooltip(props) {
-  const placement = props.placement === "top" ? "afw-tooltip-top" : "afw-tooltip-bottom";
+  const placement = props.placement === "top" ? "afwd-tooltip-top" : "afwd-tooltip-bottom";
   return (
-    <span class={`afw-tooltip ${placement}`}>
+    <span class={`afwd-tooltip ${placement}`}>
       {props.children}
-      <span class="afw-tooltip-bubble" role="tooltip" aria-hidden="true">
+      <span class="afwd-tooltip-bubble" role="tooltip" aria-hidden="true">
         {props.text}
       </span>
     </span>

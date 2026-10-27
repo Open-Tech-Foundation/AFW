@@ -7,5 +7,5 @@
 //   </Cards>
 
 export default function Cards(props) {
-  return <div class="afw-cards">{props.children}</div>;
+  return <div class="afwd-cards">{props.children}</div>;
 }

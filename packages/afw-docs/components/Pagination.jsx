@@ -27,22 +27,22 @@ export default function Pagination(props) {
   const pos = $derived(adjacent(router.pathname));
 
   return (
-    <nav class="afw-pagination" aria-label="Pagination">
+    <nav class="afwd-pagination" aria-label="Pagination">
       {pos.prev ? (
-        <Link href={pos.prev?.path} class="afw-page-link afw-page-prev">
-          <span class="afw-page-dir">← Previous</span>
-          <span class="afw-page-title">{pos.prev?.title}</span>
+        <Link href={pos.prev?.path} class="afwd-page-link afwd-page-prev">
+          <span class="afwd-page-dir">← Previous</span>
+          <span class="afwd-page-title">{pos.prev?.title}</span>
         </Link>
       ) : (
-        <span class="afw-page-spacer" />
+        <span class="afwd-page-spacer" />
       )}
       {pos.next ? (
-        <Link href={pos.next?.path} class="afw-page-link afw-page-next">
-          <span class="afw-page-dir">Next →</span>
-          <span class="afw-page-title">{pos.next?.title}</span>
+        <Link href={pos.next?.path} class="afwd-page-link afwd-page-next">
+          <span class="afwd-page-dir">Next →</span>
+          <span class="afwd-page-title">{pos.next?.title}</span>
         </Link>
       ) : (
-        <span class="afw-page-spacer" />
+        <span class="afwd-page-spacer" />
       )}
     </nav>
   );

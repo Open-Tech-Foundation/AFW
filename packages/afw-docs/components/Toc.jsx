@@ -54,17 +54,17 @@ export default function Toc() {
   });
 
   return (
-    <nav class="afw-toc" aria-label="On this page">
+    <nav class="afwd-toc" aria-label="On this page">
       {() =>
         items.length > 0 ? (
-          <div class="afw-toc-inner">
-            <div class="afw-toc-heading">On this page</div>
-            <ul class="afw-toc-list">
+          <div class="afwd-toc-inner">
+            <div class="afwd-toc-heading">On this page</div>
+            <ul class="afwd-toc-list">
               {items.map((h) => (
-                <li class={h.sub ? "afw-toc-item afw-toc-sub" : "afw-toc-item"}>
+                <li class={h.sub ? "afwd-toc-item afwd-toc-sub" : "afwd-toc-item"}>
                   <a
                     href={"#" + h.id}
-                    class={activeId === h.id ? "afw-toc-link afw-active" : "afw-toc-link"}
+                    class={activeId === h.id ? "afwd-toc-link afwd-active" : "afwd-toc-link"}
                   >
                     {h.text}
                   </a>

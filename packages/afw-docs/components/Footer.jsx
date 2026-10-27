@@ -7,13 +7,13 @@ export default function Footer(props) {
   const links = footer.links || [];
 
   return (
-    <footer class="afw-footer">
-      <div class="afw-footer-inner">
-        <div class="afw-footer-text">{text}</div>
+    <footer class="afwd-footer">
+      <div class="afwd-footer-inner">
+        <div class="afwd-footer-text">{text}</div>
         {links.length > 0 ? (
-          <div class="afw-footer-links">
+          <div class="afwd-footer-links">
             {links.map((l) => (
-              <a href={l.href} class="afw-footer-link">
+              <a href={l.href} class="afwd-footer-link">
                 {l.label}
               </a>
             ))}

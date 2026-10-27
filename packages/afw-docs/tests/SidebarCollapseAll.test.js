@@ -28,8 +28,8 @@ const NAV = [
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const aside = () => document.querySelector("#afw-sidebar");
-const button = () => document.querySelector(".afw-sidebar-collapse-all");
-const toggles = () => Array.from(document.querySelectorAll(".afw-sidebar-group-toggle"));
+const button = () => document.querySelector(".afwd-sidebar-collapse-all");
+const toggles = () => Array.from(document.querySelectorAll(".afwd-sidebar-group-toggle"));
 const toggleFor = (label) => toggles().find((b) => b.textContent.trim() === label);
 const expandedFlags = () => toggles().map((b) => b.getAttribute("aria-expanded"));
 
@@ -85,7 +85,7 @@ describe("sidebar collapse-all button", () => {
     // Collapsing the top level takes the nested toggles out of the DOM with it.
     expect(toggles().map((b) => b.textContent.trim())).toEqual(["Guide", "Reference"]);
     expect(expandedFlags()).toEqual(["false", "false"]);
-    expect(aside().querySelector(".afw-sidebar-sublist")).toBeNull();
+    expect(aside().querySelector(".afwd-sidebar-sublist")).toBeNull();
     expect(button().getAttribute("aria-label")).toBe("Expand all sections");
   });
 

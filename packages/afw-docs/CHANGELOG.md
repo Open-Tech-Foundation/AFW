@@ -10,8 +10,24 @@
   `@opentf/afw*`, `esdev-plugin-web` → `esdev-plugin-afw`, the `otfw`/`otfwc`
   binaries → `afw`/`afwc` (crate `otfw_cli` → `afw_cli`), `web.opentechf.org` →
   `afw.opentechf.org`, and the repo → `Open-Tech-Foundation/afw`.
+- **Theme element classes are now `afwd-*`** (`.afwd-navbar`, `.afwd-sidebar`,
+  `.afwd-callout-note`, …). Site CSS that overrides theme elements must use the new
+  prefix. `afw-<kebab>` is reserved for the compiler's component host hooks
+  (`.afw-navbar` is the `<Navbar>` host) and for compiler-emitted markup (`.afw-code`,
+  `.afw-table-wrap`, `.afw-heading-anchor`, `.afw-search-*`). CSS variables stay
+  `--afw-*`, and ids and data attributes (`#afw-sidebar`, `data-afw-has-sidebar`) are
+  unchanged.
 
 ### Fixed
+
+- The navbar and sidebar lost their layout after the rename. Hosts and the theme's
+  elements both became `afw-<name>`, so host rules such as `display: contents` also
+  hit the inner `<header>` and `<aside>`: the sidebar dropped out of the docs grid and
+  the navbar lost its sticky bar. Collisions also affected Callout, Tabs, Toc,
+  Pagination, Footer, Breadcrumbs and 14 other components. A new test
+  (`tests/theme-namespace.test.js`) fails if a component element reuses a host hook
+  name.
+- Removed the unused `.afw-code-group` host rule (no `CodeGroup` component exists).
 
 - `Tabs` follows later changes to its `tabs` prop. It read the prop once on connect, so
   an update from the parent (including the one hydration delivers) was ignored.

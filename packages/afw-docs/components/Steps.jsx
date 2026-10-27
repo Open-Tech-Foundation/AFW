@@ -10,5 +10,5 @@
 //   </Steps>
 
 export default function Steps(props) {
-  return <div class="afw-steps">{props.children}</div>;
+  return <div class="afwd-steps">{props.children}</div>;
 }

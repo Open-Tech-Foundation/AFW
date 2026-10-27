@@ -54,19 +54,19 @@ export default function SidebarNode(props) {
 
   const toggle = () => (expanded = !expanded);
   const chevronClass = () =>
-    expanded ? "afw-sidebar-chevron is-open" : "afw-sidebar-chevron";
+    expanded ? "afwd-sidebar-chevron is-open" : "afwd-sidebar-chevron";
 
   return (
-    <li class={hasChildren ? "afw-sidebar-node afw-sidebar-group" : "afw-sidebar-node"}>
+    <li class={hasChildren ? "afwd-sidebar-node afwd-sidebar-group" : "afwd-sidebar-node"}>
       {hasChildren ? (
         item.path ? (
           // Group that is also a page: leading chevron toggles, the link navigates.
           // Chevron on the left mirrors the label-only groups below (no leading dot —
           // the chevron already marks the row).
-          <div class="afw-sidebar-group-row">
+          <div class="afwd-sidebar-group-row">
             <button
               type="button"
-              class="afw-sidebar-group-toggle afw-sidebar-group-toggle--icon"
+              class="afwd-sidebar-group-toggle afwd-sidebar-group-toggle--icon"
               aria-expanded={expanded ? "true" : "false"}
               aria-controls={panelId}
               aria-label={expanded ? `Collapse ${item.title}` : `Expand ${item.title}`}
@@ -89,7 +89,7 @@ export default function SidebarNode(props) {
             </button>
             <Link
               href={item.path}
-              class={router.pathname === item.path ? "afw-sidebar-link afw-active" : "afw-sidebar-link"}
+              class={router.pathname === item.path ? "afwd-sidebar-link afwd-active" : "afwd-sidebar-link"}
             >
               {item.title}
             </Link>
@@ -98,7 +98,7 @@ export default function SidebarNode(props) {
           // Section title with no page of its own — the whole row toggles.
           <button
             type="button"
-            class="afw-sidebar-group-toggle"
+            class="afwd-sidebar-group-toggle"
             aria-expanded={expanded ? "true" : "false"}
             aria-controls={panelId}
             onclick={toggle}
@@ -117,22 +117,22 @@ export default function SidebarNode(props) {
             >
               <polyline points="9 18 15 12 9 6" />
             </svg>
-            <span class="afw-sidebar-group-label">{item.title}</span>
+            <span class="afwd-sidebar-group-label">{item.title}</span>
           </button>
         )
       ) : item.path ? (
         <Link
           href={item.path}
-          class={router.pathname === item.path ? "afw-sidebar-link afw-active" : "afw-sidebar-link"}
+          class={router.pathname === item.path ? "afwd-sidebar-link afwd-active" : "afwd-sidebar-link"}
         >
-          <span class="afw-sidebar-dot" aria-hidden="true"></span>
+          <span class="afwd-sidebar-dot" aria-hidden="true"></span>
           {item.title}
         </Link>
       ) : (
-        <span class="afw-sidebar-group-title">{item.title}</span>
+        <span class="afwd-sidebar-group-title">{item.title}</span>
       )}
       {hasChildren && expanded ? (
-        <ul id={panelId} class="afw-sidebar-sublist">
+        <ul id={panelId} class="afwd-sidebar-sublist">
           {item.items.map((child, i) => (
             <SidebarNode item={child} depth={depth + 1} nodeId={`${nodeId}-${i}`} />
           ))}

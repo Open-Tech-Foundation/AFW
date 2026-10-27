@@ -30,8 +30,8 @@ const NAV_LINKS = [
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const root = () => document.documentElement;
 const aside = () => document.querySelector("#afw-sidebar");
-const backdrop = () => document.querySelector(".afw-sidebar-backdrop");
-const burger = () => document.querySelector(".afw-navbar-burger");
+const backdrop = () => document.querySelector(".afwd-sidebar-backdrop");
+const burger = () => document.querySelector(".afwd-navbar-burger");
 
 // Mount the burger + drawer as siblings, exactly how DocsLayout composes them (the
 // burger in the navbar, the drawer in the content grid).
@@ -91,15 +91,15 @@ describe("mobile sidebar drawer", () => {
     // `Guide` is a group with children → renders one collapse toggle. Top-level groups
     // start expanded, so its sublist (with `Routing`) is visible alongside the
     // `Introduction` leaf link.
-    const toggles = aside().querySelectorAll(".afw-sidebar-group-toggle");
+    const toggles = aside().querySelectorAll(".afwd-sidebar-group-toggle");
     expect(toggles.length).toBe(1);
     expect(toggles[0].getAttribute("aria-expanded")).toBe("true");
 
-    const sublist = aside().querySelector(".afw-sidebar-sublist");
+    const sublist = aside().querySelector(".afwd-sidebar-sublist");
     expect(sublist).not.toBeNull();
     expect(sublist.getAttribute("id")).toBe(toggles[0].getAttribute("aria-controls"));
 
-    const labels = Array.from(aside().querySelectorAll(".afw-sidebar-link"), (a) => a.textContent.trim());
+    const labels = Array.from(aside().querySelectorAll(".afwd-sidebar-link"), (a) => a.textContent.trim());
     expect(labels).toContain("Introduction");
     expect(labels).toContain("Routing");
   });
@@ -116,7 +116,7 @@ describe("mobile sidebar drawer", () => {
     mount(NESTED);
     await tick();
 
-    const subToggle = Array.from(aside().querySelectorAll(".afw-sidebar-group-toggle")).find(
+    const subToggle = Array.from(aside().querySelectorAll(".afwd-sidebar-group-toggle")).find(
       (b) => b.textContent.trim() === "Sub",
     );
     expect(subToggle).not.toBeUndefined();
@@ -143,11 +143,11 @@ describe("mobile sidebar drawer", () => {
     mount(NESTED);
     await tick();
 
-    const subToggle = Array.from(aside().querySelectorAll(".afw-sidebar-group-toggle")).find(
+    const subToggle = Array.from(aside().querySelectorAll(".afwd-sidebar-group-toggle")).find(
       (b) => b.textContent.trim() === "Sub",
     );
     expect(subToggle.getAttribute("aria-expanded")).toBe("true");
-    const labels = Array.from(aside().querySelectorAll(".afw-sidebar-link"), (a) => a.textContent.trim());
+    const labels = Array.from(aside().querySelectorAll(".afwd-sidebar-link"), (a) => a.textContent.trim());
     expect(labels).toContain("Deep");
   });
 
@@ -155,7 +155,7 @@ describe("mobile sidebar drawer", () => {
     mount();
     await tick();
 
-    const drawerLinks = aside().querySelector(".afw-drawer-links");
+    const drawerLinks = aside().querySelector(".afwd-drawer-links");
     expect(drawerLinks).not.toBeNull();
     const links = Array.from(drawerLinks.querySelectorAll("a"));
     expect(links.map((a) => a.getAttribute("href"))).toEqual(["/", "/docs", "/api"]);

@@ -55,33 +55,33 @@ export default function BlogLayout(props) {
   const editedIso = post && editedAfterPublish(updated[post.path], post.date) ? updated[post.path] : null;
 
   const body = post ? (
-    <div class="afw-blog afw-blog-post">
+    <div class="afwd-blog afwd-blog-post">
       {/* `afw-content` so the shared Toc can read this article's headings. */}
-      <main id="afw-content" class="afw-blog-main" data-afw-search-body>
+      <main id="afw-content" class="afwd-blog-main" data-afw-search-body>
         {/* Give blog posts a search breadcrumb too (docs get theirs from <Breadcrumbs>),
             so a result looks the same whether it's a doc or a post. Inline `key:value`
             syntax sets the meta literally, independent of visible text. */}
         <span data-afw-search-meta="breadcrumb:Blog" hidden></span>
-        <Link href={indexPath} class="afw-blog-back" data-afw-search-ignore>
+        <Link href={indexPath} class="afwd-blog-back" data-afw-search-ignore>
           ← {config.title ? `${config.title} Blog` : "Blog"}
         </Link>
         <PostBanner post={post} />
         <RawHtml html={blogPostingJsonLd(post, siteUrl, editedIso || post.date)} />
-        <article class="afw-prose">{props.children}</article>
+        <article class="afwd-prose">{props.children}</article>
         {editedIso ? <LastUpdated date={editedIso} /> : null}
       </main>
       <Toc />
     </div>
   ) : (
-    <div class="afw-blog afw-blog-index">
-      <main class="afw-blog-main">{props.children}</main>
+    <div class="afwd-blog afwd-blog-index">
+      <main class="afwd-blog-main">{props.children}</main>
     </div>
   );
 
   return frame ? (
-    <div class="afw-shell">
+    <div class="afwd-shell">
       <Navbar config={config} />
-      <div class="afw-shell-body">{body}</div>
+      <div class="afwd-shell-body">{body}</div>
       <Footer config={config} />
     </div>
   ) : (

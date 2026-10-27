@@ -143,14 +143,14 @@ async function setViewport(client, vp) {
 // ── In-page probes ────────────────────────────────────────────────────────────
 // Locate a group toggle by its (pathless-group) label text.
 const TOGGLE = (label) =>
-  `[...document.querySelectorAll('.afw-sidebar-group-toggle')].find(b => (b.querySelector('.afw-sidebar-group-label')||{}).textContent?.trim() === ${JSON.stringify(label)})`;
+  `[...document.querySelectorAll('.afwd-sidebar-group-toggle')].find(b => (b.querySelector('.afwd-sidebar-group-label')||{}).textContent?.trim() === ${JSON.stringify(label)})`;
 
 const toggleInfo = (label) => `(() => {
   const b = ${TOGGLE(label)};
   if (!b) return { found: false };
   const pid = b.getAttribute('aria-controls');
   const panel = pid ? document.getElementById(pid) : null;
-  const chev = b.querySelector('.afw-sidebar-chevron');
+  const chev = b.querySelector('.afwd-sidebar-chevron');
   return {
     found: true,
     tag: b.tagName,
@@ -163,14 +163,14 @@ const toggleInfo = (label) => `(() => {
 })()`;
 
 const linkInfo = (text) => `(() => {
-  const a = [...document.querySelectorAll('.afw-sidebar-link')].find(x => x.textContent.trim() === ${JSON.stringify(text)});
+  const a = [...document.querySelectorAll('.afwd-sidebar-link')].find(x => x.textContent.trim() === ${JSON.stringify(text)});
   if (!a) return { found: false };
   const r = a.getBoundingClientRect();
   return { found: true, height: r.height, display: getComputedStyle(a).display };
 })()`;
 
 const collapseAllInfo = `(() => {
-  const b = document.querySelector('.afw-sidebar-collapse-all');
+  const b = document.querySelector('.afwd-sidebar-collapse-all');
   if (!b) return { found: false };
   const r = b.getBoundingClientRect();
   const aside = document.querySelector('#afw-sidebar');
@@ -180,11 +180,11 @@ const collapseAllInfo = `(() => {
     width: r.width, height: r.height,
     // sits inside the sidebar column, above the tree
     insideSidebar: r.left >= a.left - 1 && r.right <= a.right + 1,
-    aboveTree: r.bottom <= document.querySelector('.afw-sidebar-nav').getBoundingClientRect().top + 1,
+    aboveTree: r.bottom <= document.querySelector('.afwd-sidebar-nav').getBoundingClientRect().top + 1,
   };
 })()`;
 
-const openGroups = `[...document.querySelectorAll('.afw-sidebar-group-toggle')]
+const openGroups = `[...document.querySelectorAll('.afwd-sidebar-group-toggle')]
   .map(b => (b.getAttribute('aria-expanded') === 'true') ? 1 : 0).reduce((a, b) => a + b, 0)`;
 
 const focusToggle = (label) => `(() => { const b = ${TOGGLE(label)}; if (!b) return false; b.focus(); return document.activeElement === b; })()`;
@@ -272,14 +272,14 @@ async function run() {
   assert(btn.label === "Collapse all sections", "it starts labelled 'Collapse all sections'");
 
   assert((await evalJS(client, openGroups)) > 0, "some groups are open before pressing it");
-  await evalJS(client, `document.querySelector('.afw-sidebar-collapse-all').click()`);
+  await evalJS(client, `document.querySelector('.afwd-sidebar-collapse-all').click()`);
   await waitFor(client, openGroups, (v) => v === 0, "every group to collapse");
   assert((await evalJS(client, toggleInfo("Guide"))).expanded === "false", "the top-level group collapsed");
   assert((await evalJS(client, linkInfo("Routing"))).found === false, "its child links left the DOM");
   assert((await evalJS(client, collapseAllInfo)).label === "Expand all sections",
     "the button flips to 'Expand all sections'");
 
-  await evalJS(client, `document.querySelector('.afw-sidebar-collapse-all').click()`);
+  await evalJS(client, `document.querySelector('.afwd-sidebar-collapse-all').click()`);
   const reopened = await waitFor(client, toggleInfo("Concepts"),
     (v) => v.found && v.expanded === "true" && v.panelHeight > 0,
     "the whole tree to expand, nested groups included");
@@ -314,7 +314,7 @@ async function run() {
     "the sidebar to re-mount");
   const IN_VIEW = `(() => {
     const aside = document.querySelector('#afw-sidebar');
-    const active = aside && aside.querySelector('.afw-sidebar-nav .afw-active');
+    const active = aside && aside.querySelector('.afwd-sidebar-nav .afwd-active');
     if (!active) return { found: false };
     const a = active.getBoundingClientRect(), c = aside.getBoundingClientRect();
     return { found: true, scrollTop: aside.scrollTop, overflows: aside.scrollHeight > aside.clientHeight,

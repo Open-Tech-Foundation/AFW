@@ -50,19 +50,19 @@ export default function Breadcrumbs(props) {
   // The JSON-LD trail below re-reads the same source (a second subscription, kept
   // out of the list so the lowering above is untouched).
   return (
-    <nav class="afw-breadcrumbs" aria-label="Breadcrumb" data-afw-search-meta="breadcrumb">
+    <nav class="afwd-breadcrumbs" aria-label="Breadcrumb" data-afw-search-meta="breadcrumb">
       <RawHtml
         html={breadcrumbJsonLd(findTrail(nav, router.pathname, []) || [], siteUrl)}
       />
       {(findTrail(nav, router.pathname, []) || []).map((it, i) => (
-        <span class="afw-crumb">
-          {i > 0 ? <span class="afw-crumb-sep">/</span> : null}
+        <span class="afwd-crumb">
+          {i > 0 ? <span class="afwd-crumb-sep">/</span> : null}
           {it.path ? (
-            <Link href={it.path} class="afw-crumb-link">
+            <Link href={it.path} class="afwd-crumb-link">
               {it.title}
             </Link>
           ) : (
-            <span class="afw-crumb-text">{it.title}</span>
+            <span class="afwd-crumb-text">{it.title}</span>
           )}
         </span>
       ))}

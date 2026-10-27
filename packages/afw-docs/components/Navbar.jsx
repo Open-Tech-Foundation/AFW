@@ -26,31 +26,31 @@ export default function Navbar(props) {
       id={props.id}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
-      class="afw-navbar"
+      class="afwd-navbar"
     >
-      <div class="afw-navbar-inner">
-        <div class="afw-navbar-lead">
+      <div class="afwd-navbar-inner">
+        <div class="afwd-navbar-lead">
           <SidebarToggle />
-          <Link href={config.homeUrl || "/"} class="afw-navbar-brand">
-            {config.logo ? <img src={config.logo} alt="" class="afw-navbar-logo" /> : null}
-            <span class="afw-navbar-title">{config.title || "Docs"}</span>
-            {config.version ? <span class="afw-navbar-version">{config.version}</span> : null}
+          <Link href={config.homeUrl || "/"} class="afwd-navbar-brand">
+            {config.logo ? <img src={config.logo} alt="" class="afwd-navbar-logo" /> : null}
+            <span class="afwd-navbar-title">{config.title || "Docs"}</span>
+            {config.version ? <span class="afwd-navbar-version">{config.version}</span> : null}
           </Link>
         </div>
 
-        <div class="afw-navbar-search">
+        <div class="afwd-navbar-search">
           {config.search ? <SearchTrigger /> : null}
         </div>
 
-        <div class="afw-navbar-right">
-          <nav class="afw-navbar-nav" aria-label={navLabel}>
+        <div class="afwd-navbar-right">
+          <nav class="afwd-navbar-nav" aria-label={navLabel}>
             {links.map((l) => (
               <NavbarLink link={l} />
             ))}
           </nav>
-          <div class="afw-navbar-actions">
+          <div class="afwd-navbar-actions">
             {config.github ? (
-              <a href={config.github} target="_blank" rel="noreferrer" class="afw-navbar-icon" aria-label="GitHub">
+              <a href={config.github} target="_blank" rel="noreferrer" class="afwd-navbar-icon" aria-label="GitHub">
                 <NavIcon name="github" />
               </a>
             ) : null}

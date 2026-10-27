@@ -6,17 +6,17 @@ import PostMeta from "./PostMeta.jsx";
 export default function PostBanner(props) {
   const post = props.post || props;
   return (
-    <header class="afw-post-banner">
+    <header class="afwd-post-banner">
       {post.cover ? (
-        <img class="afw-post-cover" src={post.cover} alt={post.title} />
+        <img class="afwd-post-cover" src={post.cover} alt={post.title} />
       ) : null}
-      <h1 class="afw-post-title">{post.title}</h1>
-      {post.description ? <p class="afw-post-desc">{post.description}</p> : null}
+      <h1 class="afwd-post-title">{post.title}</h1>
+      {post.description ? <p class="afwd-post-desc">{post.description}</p> : null}
       <PostMeta post={post} />
       {post.tags && post.tags.length ? (
-        <div class="afw-post-tags">
+        <div class="afwd-post-tags">
           {post.tags.map((tag) => (
-            <span class="afw-post-tag">{tag}</span>
+            <span class="afwd-post-tag">{tag}</span>
           ))}
         </div>
       ) : null}

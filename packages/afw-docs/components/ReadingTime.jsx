@@ -2,5 +2,5 @@
 // the blog posts plugin (see build/reading-time.js).
 export default function ReadingTime(props) {
   const minutes = props.minutes ?? 1;
-  return <span class="afw-reading-time">{minutes} min read</span>;
+  return <span class="afwd-reading-time">{minutes} min read</span>;
 }

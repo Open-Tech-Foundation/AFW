@@ -16,13 +16,13 @@ export default function Callout(props) {
   const icon = ICONS[type] || ICONS.note;
 
   return (
-    <div class={"afw-callout afw-callout-" + type}>
-      <span class="afw-callout-icon" aria-hidden="true">
+    <div class={"afwd-callout afwd-callout-" + type}>
+      <span class="afwd-callout-icon" aria-hidden="true">
         {icon}
       </span>
-      <div class="afw-callout-content">
-        <div class="afw-callout-title">{title}</div>
-        <div class="afw-callout-body">{props.children}</div>
+      <div class="afwd-callout-content">
+        <div class="afwd-callout-title">{title}</div>
+        <div class="afwd-callout-body">{props.children}</div>
       </div>
     </div>
   );

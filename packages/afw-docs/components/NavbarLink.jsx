@@ -11,7 +11,7 @@ export default function NavbarLink(props) {
   const link = props.link || {};
 
   return link.external ? (
-    <a href={link.href} target="_blank" rel="noreferrer" class="afw-navbar-link">
+    <a href={link.href} target="_blank" rel="noreferrer" class="afwd-navbar-link">
       {link.icon ? <NavIcon name={link.icon} /> : null}
       {link.label}
     </a>
@@ -29,8 +29,8 @@ export default function NavbarLink(props) {
         (link.href === "/"
           ? router.pathname === "/"
           : router.pathname === link.href || router.pathname.startsWith(link.href + "/"))
-          ? "afw-navbar-link afw-active"
-          : "afw-navbar-link"
+          ? "afwd-navbar-link afwd-active"
+          : "afwd-navbar-link"
       }
     >
       {link.icon ? <NavIcon name={link.icon} /> : null}

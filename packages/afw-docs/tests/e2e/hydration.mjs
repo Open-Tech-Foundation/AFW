@@ -92,9 +92,9 @@ const CASES = [
     consts: `const NAV = ${NAV};`,
     body: `<DocsLayout config={props.config} frame={false} nav={NAV}>{props.children}</DocsLayout>`,
     props: { config: {} },
-    expectMarkup: [/afw-prose/, /afw-docs/],
-    forbidMarkup: [/class="afw-shell"/],
-    slotSelector: ".afw-prose",
+    expectMarkup: [/afwd-prose/, /afwd-docs/],
+    forbidMarkup: [/class="afwd-shell"/],
+    slotSelector: ".afwd-prose",
   },
   {
     name: "DocsLayout frame={true} (default chrome: Navbar before the slot)",
@@ -102,8 +102,8 @@ const CASES = [
     consts: `const NAV = ${NAV};`,
     body: `<DocsLayout config={props.config} frame={true} nav={NAV}>{props.children}</DocsLayout>`,
     props: { config: {} },
-    expectMarkup: [/class="afw-shell"/, /afw-prose/],
-    slotSelector: ".afw-prose",
+    expectMarkup: [/class="afwd-shell"/, /afwd-prose/],
+    slotSelector: ".afwd-prose",
   },
   {
     name: "DocsLayout with an empty nav (sidebar renders no islands)",
@@ -111,22 +111,22 @@ const CASES = [
     consts: `const NAV = [];`,
     body: `<DocsLayout config={props.config} frame={false} nav={NAV}>{props.children}</DocsLayout>`,
     props: { config: {} },
-    expectMarkup: [/afw-prose/],
-    slotSelector: ".afw-prose",
+    expectMarkup: [/afwd-prose/],
+    slotSelector: ".afwd-prose",
   },
   {
     name: "BlogLayout frame={false}",
     imports: `import BlogLayout from "${COMPONENTS}/BlogLayout.jsx";`,
     body: `<BlogLayout config={props.config} posts={[]} frame={false}>{props.children}</BlogLayout>`,
     props: { config: {} },
-    forbidMarkup: [/class="afw-shell"/],
+    forbidMarkup: [/class="afwd-shell"/],
   },
   {
     name: "BlogLayout frame={true} (Navbar + Footer chrome)",
     imports: `import BlogLayout from "${COMPONENTS}/BlogLayout.jsx";`,
     body: `<BlogLayout config={props.config} posts={[]} frame={true}>{props.children}</BlogLayout>`,
     props: { config: {} },
-    expectMarkup: [/class="afw-shell"/],
+    expectMarkup: [/class="afwd-shell"/],
   },
   {
     name: "Callout (plain slot, no nested component)",
@@ -288,8 +288,8 @@ const CASES = [
     consts: `const NAV = ${NAV};`,
     body: `<DocsLayout config={props.config} frame={false} nav={NAV}><Callout type="note">{props.children}</Callout></DocsLayout>`,
     props: { config: {} },
-    expectMarkup: [/afw-prose/],
-    slotSelector: ".afw-prose",
+    expectMarkup: [/afwd-prose/],
+    slotSelector: ".afwd-prose",
   },
 ];
 
@@ -549,7 +549,7 @@ try {
   const s = await evalJS(
     client,
     `(() => {
-       const btn = document.querySelector('.afw-sidebar-toggle button, .afw-navbar-burger');
+       const btn = document.querySelector('.afw-sidebar-toggle button, .afwd-navbar-burger');
        return { present: !!btn };
      })()`,
   );

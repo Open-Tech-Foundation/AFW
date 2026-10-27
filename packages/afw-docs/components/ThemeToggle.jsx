@@ -74,10 +74,10 @@ export default function ThemeToggle() {
   });
 
   return (
-    <div class="afw-theme" ref={rootRef}>
+    <div class="afwd-theme" ref={rootRef}>
       <Tooltip text="Change theme">
         <button
-          class="afw-navbar-icon afw-theme-trigger"
+          class="afwd-navbar-icon afwd-theme-trigger"
           onclick={(e) => {
             e.stopPropagation();
             openMenu = !openMenu;
@@ -88,9 +88,9 @@ export default function ThemeToggle() {
         >
           {() =>
             mode === "system" ? (
-              <span class="afw-theme-trigger-system">
+              <span class="afwd-theme-trigger-system">
                 <MonitorIcon />
-                <span class="afw-theme-trigger-badge">
+                <span class="afwd-theme-trigger-badge">
                   {resolved === "dark" ? <MoonIcon small /> : <SunIcon small />}
                 </span>
               </span>
@@ -105,7 +105,7 @@ export default function ThemeToggle() {
 
       {() =>
         openMenu ? (
-          <div class="afw-theme-menu" role="menu">
+          <div class="afwd-theme-menu" role="menu">
             <MenuItem active={mode === "light"} onclick={() => setMode("light")}>
               <SunIcon small /> Light
             </MenuItem>
@@ -125,7 +125,7 @@ export default function ThemeToggle() {
 function MenuItem(props) {
   return (
     <button
-      class={props.active ? "afw-theme-item is-active" : "afw-theme-item"}
+      class={props.active ? "afwd-theme-item is-active" : "afwd-theme-item"}
       role="menuitemradio"
       aria-checked={props.active ? "true" : "false"}
       onclick={props.onclick}

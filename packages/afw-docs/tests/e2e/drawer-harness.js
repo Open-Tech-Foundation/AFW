@@ -26,28 +26,28 @@ const el = (tag, cls) => {
 };
 
 // Navbar with the burger in the lead zone, exactly how Navbar.jsx composes it.
-const navbar = el("header", "afw-navbar");
-const inner = el("div", "afw-navbar-inner");
-const lead = el("div", "afw-navbar-lead");
-const brand = el("a", "afw-navbar-brand");
+const navbar = el("header", "afwd-navbar");
+const inner = el("div", "afwd-navbar-inner");
+const lead = el("div", "afwd-navbar-lead");
+const brand = el("a", "afwd-navbar-brand");
 brand.href = "/";
 brand.textContent = "Docs";
 lead.append(document.createElement(SidebarToggle.tag), brand);
 // Right cluster with the top-level links (hidden on mobile, surfaced in the drawer).
-const right = el("div", "afw-navbar-right");
-const navNav = el("nav", "afw-navbar-nav");
+const right = el("div", "afwd-navbar-right");
+const navNav = el("nav", "afwd-navbar-nav");
 for (const l of NAV_LINKS) {
-  const a = el("a", "afw-navbar-link");
+  const a = el("a", "afwd-navbar-link");
   a.href = l.href;
   a.textContent = l.label;
   navNav.append(a);
 }
 right.append(navNav);
-inner.append(lead, el("div", "afw-navbar-search"), right);
+inner.append(lead, el("div", "afwd-navbar-search"), right);
 navbar.append(inner);
 
 // Docs grid: the drawer is the first column on desktop, the off-canvas drawer on mobile.
-const docs = el("div", "afw-docs");
+const docs = el("div", "afwd-docs");
 const drawer = document.createElement(Sidebar.tag);
 drawer.nav = NAV; // object props set before connect so they're read at mount
 drawer.config = { nav: NAV_LINKS };

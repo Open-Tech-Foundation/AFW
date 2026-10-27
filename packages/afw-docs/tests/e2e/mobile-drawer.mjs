@@ -140,10 +140,10 @@ async function waitForProbe(client, predicate, label, { timeout = 6000, interval
 // Geometry/style probe for the three drawer pieces, read in-page.
 const PROBE = `(() => {
   const aside = document.querySelector('#afw-sidebar');
-  const backdrop = document.querySelector('.afw-sidebar-backdrop');
-  const burger = document.querySelector('.afw-navbar-burger');
-  const navNav = document.querySelector('.afw-navbar-nav');
-  const drawerLinks = document.querySelector('.afw-drawer-links');
+  const backdrop = document.querySelector('.afwd-sidebar-backdrop');
+  const burger = document.querySelector('.afwd-navbar-burger');
+  const navNav = document.querySelector('.afwd-navbar-nav');
+  const drawerLinks = document.querySelector('.afwd-drawer-links');
   const cs = (el) => el ? getComputedStyle(el) : null;
   const r = (el) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, width: b.width }; };
   return {
@@ -157,10 +157,10 @@ const PROBE = `(() => {
     burgerExpanded: burger ? burger.getAttribute('aria-expanded') : null,
     bodyOverflow: getComputedStyle(document.body).overflow,
     hasSidebar: document.documentElement.hasAttribute('data-afw-has-sidebar'),
-    linkCount: aside ? aside.querySelectorAll('.afw-sidebar-link').length : 0,
+    linkCount: aside ? aside.querySelectorAll('.afwd-sidebar-link').length : 0,
     navNavDisplay: navNav ? cs(navNav).display : null,
     drawerLinksDisplay: drawerLinks ? cs(drawerLinks).display : null,
-    drawerLinkCount: drawerLinks ? drawerLinks.querySelectorAll('.afw-navbar-link').length : 0,
+    drawerLinkCount: drawerLinks ? drawerLinks.querySelectorAll('.afwd-navbar-link').length : 0,
     drawerLinkLabels: drawerLinks ? Array.from(drawerLinks.querySelectorAll('a'), a => a.textContent.trim()) : [],
   };
 })()`;
@@ -197,7 +197,7 @@ async function run() {
   assert(s.backdropOpacity === "0", "backdrop is hidden");
 
   // Open via the burger.
-  await evalJS(client, `document.querySelector('.afw-navbar-burger').click()`);
+  await evalJS(client, `document.querySelector('.afwd-navbar-burger').click()`);
   s = await waitForProbe(
     client,
     (s) => s.asideOpen === true && s.backdropOpacity === "1" && s.asideVisibility === "visible" && s.asideRect.left >= -1,
@@ -211,7 +211,7 @@ async function run() {
   assert(s.burgerExpanded === "true", "burger aria-expanded is true");
 
   // Backdrop click closes and releases the lock.
-  await evalJS(client, `document.querySelector('.afw-sidebar-backdrop').click()`);
+  await evalJS(client, `document.querySelector('.afwd-sidebar-backdrop').click()`);
   s = await waitForProbe(
     client,
     (s) => s.asideOpen === false && s.bodyOverflow !== "hidden" && s.burgerExpanded === "false",
@@ -222,7 +222,7 @@ async function run() {
   assert(s.burgerExpanded === "false", "burger aria-expanded back to false");
 
   // Re-open, then Escape closes.
-  await evalJS(client, `document.querySelector('.afw-navbar-burger').click()`);
+  await evalJS(client, `document.querySelector('.afwd-navbar-burger').click()`);
   await waitForProbe(client, (s) => s.asideOpen === true, "the drawer to re-open");
   assert((await probe()).asideOpen === true, "burger re-opens the drawer");
   await evalJS(client, `window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))`);

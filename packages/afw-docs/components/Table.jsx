@@ -4,7 +4,7 @@
 export default function Table(props) {
   return (
     <div class="afw-table-wrap" tabindex="0">
-      <table class="afw-table">{props.children}</table>
+      <table class="afwd-table">{props.children}</table>
     </div>
   );
 }

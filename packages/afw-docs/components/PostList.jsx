@@ -8,10 +8,10 @@ import PostCard from "./PostCard.jsx";
 export default function PostList(props) {
   const posts = props.posts || [];
   return (
-    <div class="afw-post-list">
+    <div class="afwd-post-list">
       {posts.length
         ? posts.map((post) => <PostCard post={post} />)
-        : <p class="afw-post-empty">No posts yet.</p>}
+        : <p class="afwd-post-empty">No posts yet.</p>}
     </div>
   );
 }

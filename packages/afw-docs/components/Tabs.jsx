@@ -45,13 +45,13 @@ export default function Tabs(props) {
   }
 
   return (
-    <div class="afw-tabs">
-      <div class="afw-tabs-list" role="tablist" aria-label={props.label} ref={list} onkeydown={onKeyDown}>
+    <div class="afwd-tabs">
+      <div class="afwd-tabs-list" role="tablist" aria-label={props.label} ref={list} onkeydown={onKeyDown}>
         {tabs.map((tab, i) => (
           <button
             type="button"
             role="tab"
-            class={active === i ? "afw-tab afw-active" : "afw-tab"}
+            class={active === i ? "afwd-tab afwd-active" : "afwd-tab"}
             aria-selected={active === i ? "true" : "false"}
             tabindex={active === i ? "0" : "-1"}
             onclick={() => (active = i)}
@@ -60,12 +60,12 @@ export default function Tabs(props) {
           </button>
         ))}
       </div>
-      <div class="afw-tabs-panels">
+      <div class="afwd-tabs-panels">
         {tabs.map((tab, i) => (
           <div
             role="tabpanel"
             tabindex="0"
-            class={active === i ? "afw-tab-panel" : "afw-tab-panel afw-hidden"}
+            class={active === i ? "afwd-tab-panel" : "afwd-tab-panel afwd-hidden"}
             hidden={active !== i}
           >
             {tab.content}

@@ -25,7 +25,7 @@ export default function SidebarToggle() {
 
   return (
     <button
-      class="afw-navbar-icon afw-navbar-burger"
+      class="afwd-navbar-icon afwd-navbar-burger"
       onclick={toggle}
       aria-label="Toggle navigation"
       aria-controls="afw-sidebar"

@@ -35,15 +35,15 @@ const el = (tag, cls) => {
 };
 
 // A minimal navbar so the burger's globals resolve exactly as in the real layout.
-const navbar = el("header", "afw-navbar");
-const inner = el("div", "afw-navbar-inner");
-const lead = el("div", "afw-navbar-lead");
+const navbar = el("header", "afwd-navbar");
+const inner = el("div", "afwd-navbar-inner");
+const lead = el("div", "afwd-navbar-lead");
 lead.append(document.createElement(SidebarToggle.tag));
 inner.append(lead);
 navbar.append(inner);
 
 // Docs grid: the drawer is the sticky first column on desktop.
-const docs = el("div", "afw-docs");
+const docs = el("div", "afwd-docs");
 const drawer = document.createElement(Sidebar.tag);
 drawer.nav = NAV; // object props set before connect so they're read at mount
 drawer.config = { nav: NAV_LINKS };

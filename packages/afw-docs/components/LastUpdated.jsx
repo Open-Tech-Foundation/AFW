@@ -12,9 +12,9 @@ export default function LastUpdated(props) {
   if (!date) return null;
   const label = props.label || "Last updated on";
   return (
-    <div class="afw-last-updated">
+    <div class="afwd-last-updated">
       {label}{" "}
-      <time class="afw-last-updated-time" datetime={String(date)}>
+      <time class="afwd-last-updated-time" datetime={String(date)}>
         {formatDate(date)}
       </time>
     </div>

@@ -113,7 +113,7 @@ export default function Sidebar(props) {
     // Defer a frame so the newly-active class (and any auto-expanded branch) is in the DOM.
     const raf = requestAnimationFrame(() => {
       const aside = asideRef;
-      const active = aside && aside.querySelector(".afw-sidebar-nav .afw-active");
+      const active = aside && aside.querySelector(".afwd-sidebar-nav .afwd-active");
       if (!active) return;
       const a = active.getBoundingClientRect();
       const c = aside.getBoundingClientRect();
@@ -125,25 +125,25 @@ export default function Sidebar(props) {
   });
 
   return (
-    <div class="afw-sidebar-shell">
+    <div class="afwd-sidebar-shell">
       <div
-        class={open ? "afw-sidebar-backdrop is-open" : "afw-sidebar-backdrop"}
+        class={open ? "afwd-sidebar-backdrop is-open" : "afwd-sidebar-backdrop"}
         onclick={close}
         aria-hidden="true"
       ></div>
-      <aside id="afw-sidebar" ref={asideRef} class={open ? "afw-sidebar is-open" : "afw-sidebar"}>
+      <aside id="afw-sidebar" ref={asideRef} class={open ? "afwd-sidebar is-open" : "afwd-sidebar"}>
         {navLinks.length ? (
-          <nav class="afw-drawer-links" aria-label="Site">
+          <nav class="afwd-drawer-links" aria-label="Site">
             {navLinks.map((link) => (
               <NavbarLink link={link} />
             ))}
           </nav>
         ) : null}
         {hasGroups ? (
-          <div class="afw-sidebar-tools">
+          <div class="afwd-sidebar-tools">
             <button
               type="button"
-              class="afw-sidebar-collapse-all"
+              class="afwd-sidebar-collapse-all"
               onclick={() => collapseAll.set(collapseAll.collapsed)}
               aria-label={collapseAll.collapsed ? "Expand all sections" : "Collapse all sections"}
               title={collapseAll.collapsed ? "Expand all sections" : "Collapse all sections"}
@@ -186,8 +186,8 @@ export default function Sidebar(props) {
             </button>
           </div>
         ) : null}
-        <nav class="afw-sidebar-nav" aria-label="Documentation">
-          <ul class="afw-sidebar-list">
+        <nav class="afwd-sidebar-nav" aria-label="Documentation">
+          <ul class="afwd-sidebar-list">
             {nav.map((item, i) => (
               <SidebarNode item={item} nodeId={String(i)} />
             ))}

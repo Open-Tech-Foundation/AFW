@@ -7,18 +7,18 @@ import { formatDate } from "./format.js";
 export default function PostMeta(props) {
   const post = props.post || props;
   return (
-    <div class="afw-post-meta">
+    <div class="afwd-post-meta">
       {post.author ? (
-        <span class="afw-post-author">
+        <span class="afwd-post-author">
           {post.authorAvatar ? (
-            <img class="afw-post-avatar" src={post.authorAvatar} alt={post.author} loading="lazy" />
+            <img class="afwd-post-avatar" src={post.authorAvatar} alt={post.author} loading="lazy" />
           ) : null}
-          <span class="afw-post-author-name">{post.author}</span>
-          {post.authorRole ? <span class="afw-post-author-role">{post.authorRole}</span> : null}
+          <span class="afwd-post-author-name">{post.author}</span>
+          {post.authorRole ? <span class="afwd-post-author-role">{post.authorRole}</span> : null}
         </span>
       ) : null}
       {post.date ? (
-        <time class="afw-post-date" datetime={String(post.date)}>
+        <time class="afwd-post-date" datetime={String(post.date)}>
           {formatDate(post.date)}
         </time>
       ) : null}

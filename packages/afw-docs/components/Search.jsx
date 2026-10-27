@@ -122,20 +122,20 @@ export default function Search() {
   return (
     <Portal>
     <div
-      class={open ? "afw-search-modal is-open" : "afw-search-modal"}
+      class={open ? "afwd-search-modal is-open" : "afwd-search-modal"}
       onclick={(e) => {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div class="afw-search-panel" role="dialog" aria-label="Search docs">
-        <div class="afw-search-field">
+      <div class="afwd-search-panel" role="dialog" aria-label="Search docs">
+        <div class="afwd-search-field">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" />
           </svg>
           <input
             ref={inputRef}
-            class="afw-search-input-field"
+            class="afwd-search-input-field"
             type="search"
             placeholder="Search docs…"
             aria-label="Search docs"
@@ -143,43 +143,43 @@ export default function Search() {
             oninput={(e) => (query = e.target.value)}
           />
         </div>
-        <ul class="afw-search-results">
+        <ul class="afwd-search-results">
           {results.map((r, i) => (
             <li>
               <a
                 href={r.url}
-                class={i === active ? "afw-search-result is-active" : "afw-search-result"}
+                class={i === active ? "afwd-search-result is-active" : "afwd-search-result"}
                 onclick={(e) => {
                   e.preventDefault();
                   go(r.url);
                 }}
                 onmouseenter={() => (active = i)}
               >
-                {r.meta?.breadcrumb ? <span class="afw-search-result-crumb">{r.meta.breadcrumb}</span> : null}
-                <span class="afw-search-result-title">{r.title}</span>
-                {r.section ? <span class="afw-search-result-section">{r.section}</span> : null}
-                <span class="afw-search-result-excerpt">
+                {r.meta?.breadcrumb ? <span class="afwd-search-result-crumb">{r.meta.breadcrumb}</span> : null}
+                <span class="afwd-search-result-title">{r.title}</span>
+                {r.section ? <span class="afwd-search-result-section">{r.section}</span> : null}
+                <span class="afwd-search-result-excerpt">
                   {excerptParts(r.excerpt, r.highlights).map((part) => <span>{part.match ? <mark>{part.text}</mark> : part.text}</span>)}
                 </span>
               </a>
             </li>
           ))}
         </ul>
-        {error ? <div class="afw-search-empty" role="status">{error}</div> : null}
+        {error ? <div class="afwd-search-empty" role="status">{error}</div> : null}
         {query.trim() && !loading && !error && results.length === 0 ? (
-          <div class="afw-search-empty">No results for “{query}”.</div>
+          <div class="afwd-search-empty">No results for “{query}”.</div>
         ) : null}
-        <div class="afw-search-hint">
-          <span class="afw-search-hint-item">
+        <div class="afwd-search-hint">
+          <span class="afwd-search-hint-item">
             <kbd>↑</kbd>
             <kbd>↓</kbd>
             navigate
           </span>
-          <span class="afw-search-hint-item">
+          <span class="afwd-search-hint-item">
             <kbd>↵</kbd>
             select
           </span>
-          <span class="afw-search-hint-item">
+          <span class="afwd-search-hint-item">
             <kbd>esc</kbd>
             close
           </span>

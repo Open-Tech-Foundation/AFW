@@ -54,16 +54,16 @@ export default function DocsLayout(props) {
   );
 
   const body = (
-    <div class="afw-docs">
+    <div class="afwd-docs">
       <Sidebar nav={sectionNav} config={config} />
-      <main id="afw-content" class="afw-content" data-afw-search-body>
+      <main id="afw-content" class="afwd-content" data-afw-search-body>
         <Breadcrumbs nav={sectionNav} siteUrl={props.siteUrl} />
-        <article class="afw-prose">{props.children}</article>
+        <article class="afwd-prose">{props.children}</article>
         {lastUpdated || editUrl ? (
-          <div class="afw-page-meta">
+          <div class="afwd-page-meta">
             {lastUpdated ? <LastUpdated date={lastUpdated} /> : null}
             {editUrl ? (
-              <a class="afw-edit-page" href={editUrl} target="_blank" rel="noreferrer">
+              <a class="afwd-edit-page" href={editUrl} target="_blank" rel="noreferrer">
                 Edit this page
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M7 17 17 7M9 7h8v8" />
@@ -79,9 +79,9 @@ export default function DocsLayout(props) {
   );
 
   return frame ? (
-    <div class="afw-shell">
+    <div class="afwd-shell">
       <Navbar config={config} />
-      <div class="afw-shell-body">{body}</div>
+      <div class="afwd-shell-body">{body}</div>
       <Footer config={config} />
     </div>
   ) : (
