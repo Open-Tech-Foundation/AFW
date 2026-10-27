@@ -1,7 +1,6 @@
 packages:
   - "packages/*"
   - "playground"
-  - "website"
   - "benchmarks/*"
 allowBuilds:
   '@opentf/afw-compiler': false

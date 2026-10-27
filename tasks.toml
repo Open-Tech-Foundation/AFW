@@ -27,19 +27,21 @@ members = ["packages/*", "playground", "benchmarks/*", "website"]
 [tasks.dev]
 run = "esdev start --config=esdev.playground.json --port=3005"
 
-# esdev jails plugin loading to the process cwd's tree, so the website runs
-# from the repo root with an explicit --config. esdev's own paths (entry,
-# outdir, assets) stay relative to the config file (website/), but plugin
-# options are plain data the plugins resolve against the cwd — so they name
-# `website/app` and `website`, like esdev.playground.json does.
+# The website is its own pnpm project on the published packages (website/pnpm-lock.yaml),
+# so it builds exactly what users install. Site tasks run from website/, where its
+# esdev.json and node_modules live. After a release, bump the versions in
+# website/package.json and run `tsr site-install`.
 [tasks.site-install]
 run = "pnpm install --frozen-lockfile"
+dir = "website"
 
 [tasks.site]
-run = "esdev start --config=website/esdev.json --port=3005"
+run = "esdev start --port=3005"
+dir = "website"
 
 [tasks.site-preview]
-run = "esdev preview --config=website/esdev.json"
+run = "esdev preview"
+dir = "website"
 
 # --- check --------------------------------------------------------------------
 
@@ -108,12 +110,10 @@ run = "esdev test --config=esdev.test.json --dom packages/afw-i18n/i18n.test.js"
 deps = ["build-compiler", "warm-test-deps"]
 run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-test/tests/render.test.js packages/afw-test/tests/setup.test.js packages/afw-test/tests/types.test.js packages/afw-test/tests/browser/user-event.test.js"
 
-# Website demo behavior, against the workspace-installed site packages (`tsr site-install`).
-# One file at a time until the site uses an @opentf/afw-compiler release with atomic
-# binary extraction: on a fresh install, two files unpacking the compiler at once failed
-# with "Text file busy". Drop `--jobs=1` after that release.
+# Website demo behavior, against the site's own installed packages (`tsr site-install`).
 [tasks.test-site]
-run = "esdev test --dom --jobs=1 --config=website/esdev.json website/tests"
+run = "esdev test --dom tests"
+dir = "website"
 
 [tasks.test-benchmark-tooling]
 run = "esdev test --config=esdev.test.json benchmarks/tests/tooling.test.js"
@@ -171,7 +171,8 @@ parallel = true
 run = "esdev build --minify --config=esdev.playground.json"
 
 [tasks.site-build]
-run = "esdev build --minify --config=website/esdev.json"
+run = "esdev build --minify"
+dir = "website"
 
 # --- benchmarks ---------------------------------------------------------------
 

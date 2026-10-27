@@ -1,0 +1,16 @@
+packages:
+  - "."
+
+allowBuilds:
+  '@opentf/afw-compiler': false
+
+# Released the same day the site moved onto them; pnpm 11 holds back
+# versions younger than its minimum release age otherwise.
+minimumReleaseAgeExclude:
+  - '@opentf/afw@0.32.0'
+  - '@opentf/afw-cli@1.30.0'
+  - '@opentf/afw-compiler@0.20.0'
+  - '@opentf/afw-docs@0.30.0'
+  - '@opentf/afw-form@1.27.0'
+  - '@opentf/afw-i18n@1.27.0'
+  - '@opentf/esdev-plugin-afw@0.4.0'
