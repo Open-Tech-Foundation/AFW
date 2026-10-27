@@ -1,26 +1,98 @@
+<div align="center">
+
 # @opentf/afw
 
-The native-first **AFW** runtime — signal-based reactivity and zero-VDOM DOM
-operations, paired with the IR-based compiler ([`@opentf/afw-compiler`](https://github.com/Open-Tech-Foundation/afw/tree/main/packages/afw-compiler)).
+***The AFW runtime: signals and zero-VDOM DOM bindings***
 
-You normally don't call this API by hand. You write `.jsx` components; the compiler
-lowers them to plain DOM code that imports its helpers (`signal`, `computed`,
-`bindText`, `bindList`, …) from this package. Components compile to self-registering
-`web-*` Custom Elements.
+[Docs](https://afw.opentechf.org/docs) | [Reactivity](https://afw.opentechf.org/docs/core-concepts/reactivity) | [Changelog](https://github.com/Open-Tech-Foundation/afw/blob/main/packages/afw/CHANGELOG.md) | [GitHub](https://github.com/Open-Tech-Foundation/afw)
 
-## Installation
+</div>
 
-```bash
-pnpm add @opentf/afw
+<div align="right">
+
+*An [Open Tech Foundation](https://opentechf.org/) project*
+
+</div>
+
+> You write `.jsx` components; the AFW compiler lowers them to plain DOM code that
+> imports its helpers from this package. Each component becomes a self-registering
+> Custom Element, and each `{expression}` becomes one binding to one signal.
+
+```jsx
+import { onMount } from "@opentf/afw";
+
+export default function Clock() {
+  let now = $state(null);
+
+  onMount(() => {
+    now = new Date();
+    const id = setInterval(() => (now = new Date()), 1000);
+    return () => clearInterval(id);
+  });
+
+  return <time>{now ? now.toLocaleTimeString() : "Loading clock…"}</time>;
+}
 ```
 
-Scaffold a ready-to-run app with [`esdev create`](https://esrun.opentechf.org/esdev/create)
-and use `esdev start`, `esdev build`, and `esdev typecheck`.
+Every second, one text node changes; nothing else on the page is touched.
+Returning a function from `onMount` registers its cleanup.
+
+> [!NOTE]
+> **Alpha.** The API can change between minor versions; see the
+> [changelog](https://github.com/Open-Tech-Foundation/afw/blob/main/packages/afw/CHANGELOG.md).
+
+## Install
+
+```sh
+pnpm add @opentf/afw
+pnpm add -D @opentf/esdev-plugin-afw
+```
+
+Components compile through [`@opentf/esdev-plugin-afw`](https://www.npmjs.com/package/@opentf/esdev-plugin-afw)
+on [esdev](https://esrun.opentechf.org/esdev) 0.17 or newer. To start from a
+working app instead, run `esdev create my-app --template=spa`.
+
+## What's inside
+
+| Area | Contents |
+| --- | --- |
+| **Reactivity** | A signal / computed / effect core, written from scratch |
+| **DOM bindings** | `bindText`, `bindAttr`, `bindList`, `bindChild`, `setProp`, `spread`, `clsx`: the targets the compiler emits |
+| **Components** | `Context`, `Portal`, `ErrorBoundary`, event dispatch with `emit` |
+| **Routing** | `mountApp`, the reactive `router`, `<Link>`, guards, loaders, locale prefixes |
+| **Server** | DOM-free SSR/SSG rendering, API routes, middleware, cookies, a Node adapter |
+
+## Macros and hooks
+
+Written in your components and resolved by the compiler; nothing to import for the
+`$` macros.
+
+| Macro / hook | Purpose |
+| --- | --- |
+| `$state(value)` | Reactive local state; assign to it like a variable |
+| `$derived(expr)` | A value recomputed when its inputs change |
+| `$effect(fn)` | Run side effects when their inputs change |
+| `$ref()` | A reference to a rendered element or component |
+| `$context(Context)` | Read the nearest provided context value |
+| `$expose({ … })` | Methods a parent can call through a ref |
+| `onMount`, `onCleanup` | Lifecycle of the component's host element |
+| `onResize`, `onVisibilityChange`, `onMediaQuery` | Observers that clean up with the component |
+
+## Entry points
+
+| Import | Contents |
+| --- | --- |
+| `@opentf/afw` | Runtime, reactivity and `Link`: what compiled components import |
+| `@opentf/afw/signals` | The reactivity core on its own |
+| `@opentf/afw/runtime` | DOM helpers, `Context`, `Portal`, `ErrorBoundary` |
+| `@opentf/afw/server` | DOM-free rendering, route registration, API and middleware helpers |
+| `@opentf/afw/server/adapters/node` | `toNodeListener` for `node:http` servers |
+| `@opentf/afw/jsx-runtime` | JSX type definitions for TypeScript |
 
 ## TypeScript
 
-The package includes runtime declarations and JSX types. For `.tsx` sources, keep
-JSX for the AFW compiler and select the framework's type entry:
+Declarations ship with the package. Keep JSX for the AFW compiler and point
+`jsxImportSource` at this package:
 
 ```json
 {
@@ -35,33 +107,18 @@ JSX for the AFW compiler and select the framework's type entry:
 }
 ```
 
-`esdev create my-app --language=ts` supplies the starter configuration and macro
-declarations. `@opentf/afw/jsx-runtime` is a type entry; component compilation
-still runs through `@opentf/esdev-plugin-afw`. Compiler helper signatures remain
-permissive; signals and lifecycle callbacks carry their value and event types.
+`esdev create my-app --language=ts` generates this configuration together with the
+macro declarations.
 
-## What's inside
+## Documentation
 
-- **Reactivity** — a from-scratch `signal` / `computed` / `effect` core.
-- **DOM runtime** — fine-grained bindings (`bindText`, `bindAttr`, `bindList`,
-  `bindChild`, `setProp`, `spread`, `clsx`) the compiler targets, plus `Context`,
-  `Portal`, `ErrorBoundary`, and event dispatch (`emit`).
-- **Compiler macros** — authored in your components, resolved at compile time:
-  `$state`, `$derived`, `$ref`, `$context`, `$effect`, `$expose`, and the
-  `onMount` / `onCleanup` / `onResize` / `onVisibilityChange` / `onMediaQuery`
-  lifecycle hooks.
-- **`<Link>`** — client-side navigation, shipped as JSX source and compiled by your
-  app's pipeline.
-
-## Entry points
-
-| Import | Contents |
+| Topic | Link |
 | --- | --- |
-| `@opentf/afw` | runtime + reactivity + `Link` (what compiled components import) |
-| `@opentf/afw/signals` | the reactivity core on its own |
-| `@opentf/afw/runtime` | DOM helpers, Context, Portal, ErrorBoundary |
-| `@opentf/afw/server` | DOM-free SSR/SSG rendering, route registration and shared framework helpers |
+| Components and JSX | [Core concepts](https://afw.opentechf.org/docs/core-concepts/components) |
+| Reactivity | [Signals, derived values and effects](https://afw.opentechf.org/docs/core-concepts/reactivity) |
+| Routing | [Pages, layouts, guards and API routes](https://afw.opentechf.org/docs/routing/pages-and-layouts) |
+| Deployment | [Static generation, hydration and servers](https://afw.opentechf.org/docs/deployment) |
 
 ## License
 
-MIT © [Open Tech Foundation](https://github.com/Open-Tech-Foundation)
+MIT — see [LICENSE](https://github.com/Open-Tech-Foundation/afw/blob/main/LICENSE).

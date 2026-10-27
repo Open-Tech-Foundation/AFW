@@ -10,6 +10,7 @@
   `@opentf/afw*`, `esdev-plugin-web` → `esdev-plugin-afw`, the `otfw`/`otfwc`
   binaries → `afw`/`afwc` (crate `otfw_cli` → `afw_cli`), `web.opentechf.org` →
   `afw.opentechf.org`, and the repo → `Open-Tech-Foundation/afw`.
+- Rewrote the README: overview, install, configuration, API tables and links to the guides.
 
 ### Added
 
