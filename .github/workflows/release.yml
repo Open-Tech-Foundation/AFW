@@ -1,3 +1,4 @@
+# Generated from release.toml by `release` · sha256:0f75dd1eee5da17ca272c6a14e449059ceb9644b21301d1a0f24da934ea2ee2e
 name: Release
 
 on:
@@ -28,22 +29,30 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - id: check
         run: |
-          echo "should_release=$(otf-release check --exclude-package @opentf/esdev-plugin-afw --exclude-package @opentf/afw --exclude-package @opentf/afw-cli --exclude-package @opentf/afw-compiler --exclude-package @opentf/afw-docs --exclude-package @opentf/afw-form --exclude-package @opentf/afw-i18n --exclude-package @opentf/afw-test)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_esdev_plugin_afw=$(otf-release check --package @opentf/esdev-plugin-afw)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_afw=$(otf-release check --package @opentf/afw)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_afw_cli=$(otf-release check --package @opentf/afw-cli)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_afw_compiler=$(otf-release check --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_afw_docs=$(otf-release check --package @opentf/afw-docs)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_afw_form=$(otf-release check --package @opentf/afw-form)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_afw_i18n=$(otf-release check --package @opentf/afw-i18n)" >> "$GITHUB_OUTPUT"
-          echo "release_opentf_afw_test=$(otf-release check --package @opentf/afw-test)" >> "$GITHUB_OUTPUT"
+          echo "should_release=$(release check --exclude-package @opentf/esdev-plugin-afw --exclude-package @opentf/afw --exclude-package @opentf/afw-cli --exclude-package @opentf/afw-compiler --exclude-package @opentf/afw-docs --exclude-package @opentf/afw-form --exclude-package @opentf/afw-i18n --exclude-package @opentf/afw-test)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_esdev_plugin_afw=$(release check --package @opentf/esdev-plugin-afw)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw=$(release check --package @opentf/afw)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_cli=$(release check --package @opentf/afw-cli)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_compiler=$(release check --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_docs=$(release check --package @opentf/afw-docs)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_form=$(release check --package @opentf/afw-form)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_i18n=$(release check --package @opentf/afw-i18n)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_test=$(release check --package @opentf/afw-test)" >> "$GITHUB_OUTPUT"
 
   matrix-opentf-afw-compiler:
     needs: [check-release]
@@ -53,17 +62,25 @@ jobs:
       matrix: ${{ steps.set.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Setup
         shell: bash
         run: |
           cp LICENSE packages/afw-compiler/LICENSE
       - id: set
-        run: echo "matrix=$(otf-release matrix --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
+        run: echo "matrix=$(release matrix --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
 
   build-opentf-afw-compiler:
     needs: [check-release, matrix-opentf-afw-compiler]
@@ -77,30 +94,48 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.triple }}
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - name: Install otf-release
+      - name: Install release
         if: runner.os != 'Windows'
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
-      - name: Install otf-release
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
+      - name: Install release
         if: runner.os == 'Windows'
         shell: pwsh
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: irm https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.ps1 | iex
+          OTF_RELEASE_VERSION: v0.41.0
+        run: irm https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.ps1 | iex
+      - name: Expose release command
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command release -ErrorAction SilentlyContinue)) {
+            $cliDir = Join-Path $env:RUNNER_TEMP 'release-cli'
+            New-Item -ItemType Directory -Force -Path $cliDir | Out-Null
+            Copy-Item (Get-Command otf-release).Source (Join-Path $cliDir 'release.exe')
+            $cliDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
       - name: Setup
         shell: bash
         run: |
           cp LICENSE packages/afw-compiler/LICENSE
       - name: Build @opentf/afw-compiler
-        run: otf-release build --package @opentf/afw-compiler --target ${{ matrix.name }}/${{ matrix.arch }}
+        run: release build --package @opentf/afw-compiler --target ${{ matrix.name }}/${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
           name: opentf-afw-compiler-${{ matrix.name }}-${{ matrix.arch }}
@@ -114,7 +149,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -124,13 +158,21 @@ jobs:
       - name: Build @opentf/esdev-plugin-afw
         run: npm run build
         working-directory: packages/esdev-plugin-afw
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --package @opentf/esdev-plugin-afw
+        run: release publish --package @opentf/esdev-plugin-afw
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -143,7 +185,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -153,13 +194,21 @@ jobs:
       - name: Build @opentf/afw
         run: npm run build
         working-directory: packages/afw
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --package @opentf/afw
+        run: release publish --package @opentf/afw
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -172,7 +221,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -182,13 +230,21 @@ jobs:
       - name: Build @opentf/afw-cli
         run: npm run build
         working-directory: packages/afw-cli
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --package @opentf/afw-cli
+        run: release publish --package @opentf/afw-cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -201,7 +257,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -217,13 +272,21 @@ jobs:
         shell: bash
         run: |
           cp LICENSE packages/afw-compiler/LICENSE
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --package @opentf/afw-compiler --artifacts-dir .artifacts
+        run: release publish --package @opentf/afw-compiler --artifacts-dir .artifacts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -236,7 +299,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -246,13 +308,21 @@ jobs:
       - name: Build @opentf/afw-docs
         run: npm run build
         working-directory: packages/afw-docs
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --package @opentf/afw-docs
+        run: release publish --package @opentf/afw-docs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -265,7 +335,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -275,13 +344,21 @@ jobs:
       - name: Build @opentf/afw-form
         run: npm run build
         working-directory: packages/afw-form
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --package @opentf/afw-form
+        run: release publish --package @opentf/afw-form
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -294,7 +371,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -304,13 +380,21 @@ jobs:
       - name: Build @opentf/afw-i18n
         run: npm run build
         working-directory: packages/afw-i18n
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --package @opentf/afw-i18n
+        run: release publish --package @opentf/afw-i18n
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -323,7 +407,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -333,13 +416,21 @@ jobs:
       - name: Build @opentf/afw-test
         run: npm run build
         working-directory: packages/afw-test
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --package @opentf/afw-test
+        run: release publish --package @opentf/afw-test
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -370,20 +461,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - name: Install otf-release
+      - name: Install release
         shell: bash
         env:
-          OTF_RELEASE_VERSION: v0.38.0
-        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+          OTF_RELEASE_VERSION: v0.41.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.41.0/install.sh | bash
+      - name: Expose release command
+        shell: bash
+        run: |
+          if ! command -v release >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/release-cli"
+            cp "$(command -v otf-release)" "$RUNNER_TEMP/release-cli/release"
+            echo "$RUNNER_TEMP/release-cli" >> "$GITHUB_PATH"
+          fi
       - name: Publish
-        run: otf-release publish --exclude-package @opentf/esdev-plugin-afw --exclude-package @opentf/afw --exclude-package @opentf/afw-cli --exclude-package @opentf/afw-compiler --exclude-package @opentf/afw-docs --exclude-package @opentf/afw-form --exclude-package @opentf/afw-i18n --exclude-package @opentf/afw-test
+        run: release publish --exclude-package @opentf/esdev-plugin-afw --exclude-package @opentf/afw --exclude-package @opentf/afw-cli --exclude-package @opentf/afw-compiler --exclude-package @opentf/afw-docs --exclude-package @opentf/afw-form --exclude-package @opentf/afw-i18n --exclude-package @opentf/afw-test
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
