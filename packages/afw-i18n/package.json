@@ -5,6 +5,9 @@
   "main": "index.js",
   "module": "index.js",
   "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
   "exports": {
     ".": "./index.js"
   },
