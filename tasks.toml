@@ -79,14 +79,23 @@ run = "esdev test --config=esdev.test.json packages/esdev-plugin-afw/tests"
 deps = ["build-compiler"]
 run = "esdev test --config=esdev.test.json packages/afw-docs/tests/types.test.js packages/afw-docs/tests/docs-nav.test.js packages/afw-docs/tests/blog-posts.test.js packages/afw-docs/tests/frontmatter.test.js packages/afw-docs/tests/feed.test.js packages/afw-docs/tests/post-dates.test.js packages/afw-docs/tests/format.test.js packages/afw-docs/tests/last-updated.test.js packages/afw-docs/tests/llms.test.js packages/afw-docs/tests/search.test.js packages/afw-docs/tests/search-integration.test.js packages/afw-docs/tests/tokenizer.test.js packages/afw-docs/tests/theme-namespace.test.js"
 
+# esdev pre-bundles npm dependencies into one shared cache (node_modules/.esdev/deps).
+# Suites that import Testing Library would each populate it on a cold cache, and run
+# in parallel they overwrite each other's files mid-load ("cannot resolve module
+# …/aria-query-*.mjs"). This one file imports @testing-library/dom and user-event, so
+# running it first fills the cache once for test-afw-test, -afw-docs-dom and -afw-form.
+[tasks.warm-test-deps]
+deps = ["build-compiler"]
+run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-test/tests/browser/user-event.test.js"
+
 # esdev applies the test config's AFW plugin to unbundled JSX imports.
 # Tests use CSR independently of the website's hydrate build configuration.
 [tasks.test-afw-docs-dom]
-deps = ["build-compiler"]
+deps = ["build-compiler", "warm-test-deps"]
 run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-docs/tests/MobileDrawer.test.js packages/afw-docs/tests/SidebarCollapseAll.test.js packages/afw-docs/tests/Tabs.test.js"
 
 [tasks.test-afw-form]
-deps = ["build-compiler"]
+deps = ["build-compiler", "warm-test-deps"]
 run = "esdev test --config=esdev.test.json --dom packages/afw-form/tests"
 
 [tasks.test-afw-i18n]
@@ -96,7 +105,7 @@ run = "esdev test --config=esdev.test.json --dom packages/afw-i18n/i18n.test.js"
 # Public testing helpers in the native DOM realm; setup registers automatic cleanup.
 # The userEvent suite runs here and again in a real browser (test-e2e-afw-test).
 [tasks.test-afw-test]
-deps = ["build-compiler"]
+deps = ["build-compiler", "warm-test-deps"]
 run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-test/tests/render.test.js packages/afw-test/tests/setup.test.js packages/afw-test/tests/types.test.js packages/afw-test/tests/browser/user-event.test.js"
 
 # Website demo behavior, against the workspace-installed site packages (`tsr site-install`).
