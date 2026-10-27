@@ -36,7 +36,25 @@
     "setup.d.ts",
     "browser-runner.js"
   ],
+  "keywords": [
+    "opentf",
+    "afw",
+    "testing",
+    "testing-library",
+    "web-components"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Open-Tech-Foundation/afw.git",
+    "directory": "packages/afw-test"
+  },
+  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
+  "license": "MIT",
   "engines": {
     "esdev": ">=0.17.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
