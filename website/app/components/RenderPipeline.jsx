@@ -9,7 +9,7 @@ import { onCleanup, onMediaQuery } from "@opentf/afw";
 const AFW = {
   name: "AFW",
   mode: "Custom elements + signals",
-  logo: "/img/otf-logo.svg",
+  logo: "/img/afw-logo.svg",
   build: [
     { label: "JSX components", icon: "code" },
     { label: "afwc compiler", icon: "gear" },

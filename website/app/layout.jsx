@@ -20,11 +20,11 @@ export const metadata = {
     "@type": "Organization",
     name: "Open Tech Foundation",
     url: "https://afw.opentechf.org",
-    logo: "https://afw.opentechf.org/img/otf-logo.svg",
+    logo: "https://afw.opentechf.org/img/afw-logo.svg",
   },
   links: [
-    { rel: "icon", href: "/img/otf-logo.svg" },
-    { rel: "apple-touch-icon", href: "/img/otf-logo.svg" },
+    { rel: "icon", href: "/img/afw-logo.svg" },
+    { rel: "apple-touch-icon", href: "/img/afw-logo.svg" },
   ],
 };
 
@@ -48,7 +48,7 @@ export default function WebsiteLayout(props) {
           class="afw-footer-org-link"
         >
           <img
-            src="/img/otf-logo.svg"
+            src="/img/afw-logo.svg"
             alt=""
             width="24"
             height="24"
