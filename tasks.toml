@@ -28,8 +28,10 @@ members = ["packages/*", "playground", "benchmarks/*", "website"]
 run = "esdev start --config=esdev.playground.json --port=3005"
 
 # esdev jails plugin loading to the process cwd's tree, so the website runs
-# from the repo root with an explicit --config; paths inside the config stay
-# relative to the config file (website/).
+# from the repo root with an explicit --config. esdev's own paths (entry,
+# outdir, assets) stay relative to the config file (website/), but plugin
+# options are plain data the plugins resolve against the cwd — so they name
+# `website/app` and `website`, like esdev.playground.json does.
 [tasks.site-install]
 run = "pnpm install --frozen-lockfile"
 
