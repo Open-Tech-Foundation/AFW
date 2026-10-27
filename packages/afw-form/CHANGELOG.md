@@ -12,6 +12,7 @@
   `afw.opentechf.org`, and the repo → `Open-Tech-Foundation/afw`.
 - Test suite titles say "AFW Forms Library" instead of "Web App Framework".
 - Rewrote the README: overview, install, configuration, API tables and links to the guides.
+- `package.json` declares its MIT license, repository, homepage, issue tracker and keywords, and limits the published files to `index.js`; the test suite no longer ships in the package.
 
 ## [1.27.0] - 2026-10-07
 

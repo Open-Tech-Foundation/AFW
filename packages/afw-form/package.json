@@ -8,6 +8,25 @@
   "exports": {
     ".": "./index.js"
   },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "opentf",
+    "afw",
+    "forms",
+    "validation",
+    "reactive",
+    "signals"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Open-Tech-Foundation/afw.git",
+    "directory": "packages/afw-form"
+  },
+  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
+  "license": "MIT",
   "dependencies": {
     "@opentf/std": "^0.19.0"
   },
