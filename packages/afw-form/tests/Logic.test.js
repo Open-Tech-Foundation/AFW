@@ -1,7 +1,7 @@
 import { expect, test, describe } from "runtime:test";
 import { createForm } from "../index.js";
 
-describe("Web App Framework Forms Library - Pure Logic", () => {
+describe("AFW Forms Library - Pure Logic", () => {
   test("initializes with flat values", () => {
     const form = createForm({
       initialValues: { username: "alice", email: "alice@example.com" }

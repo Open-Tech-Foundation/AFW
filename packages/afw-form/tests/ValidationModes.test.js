@@ -1,7 +1,7 @@
 import { expect, test, describe } from "runtime:test";
 import { createForm } from "../index.js";
 
-describe("Web App Framework Forms Library - Validation Modes", () => {
+describe("AFW Forms Library - Validation Modes", () => {
   test("mode: onBlur (default)", () => {
     const form = createForm({
       initialValues: { name: "" },

@@ -10,6 +10,7 @@
   `@opentf/afw*`, `esdev-plugin-web` → `esdev-plugin-afw`, the `otfw`/`otfwc`
   binaries → `afw`/`afwc` (crate `otfw_cli` → `afw_cli`), `web.opentechf.org` →
   `afw.opentechf.org`, and the repo → `Open-Tech-Foundation/afw`.
+- Test suite titles say "AFW Forms Library" instead of "Web App Framework".
 
 ## [1.27.0] - 2026-10-07
 

@@ -2,7 +2,7 @@ import { expect, test, describe } from "runtime:test";
 import { createForm } from "../index.js";
 import { sleep } from "@opentf/std";
 
-describe("Web App Framework Forms Library - State Helpers", () => {
+describe("AFW Forms Library - State Helpers", () => {
   test("isValid tracks error state", () => {
     const form = createForm({
       mode: "onChange",
