@@ -21,6 +21,7 @@
   overrides it regardless of selector specificity. Imported after Tailwind, the layer
   still ranks above Tailwind's own layers, so the theme keeps beating preflight and
   utilities as before. The docs website renders identically.
+- Added a README: overview, install, configuration, API and links to the guides.
 
 ### Fixed
 
