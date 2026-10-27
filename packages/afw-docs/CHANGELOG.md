@@ -22,6 +22,7 @@
   still ranks above Tailwind's own layers, so the theme keeps beating preflight and
   utilities as before. The docs website renders identically.
 - Added a README: overview, install, configuration, API and links to the guides.
+- The published package includes the MIT `LICENSE` file, copied from the repository root by a new `build` script that the release workflow runs before publishing.
 
 ### Fixed
 
