@@ -15,1729 +15,1735 @@
  * element it wraps.
  */
 
-:root {
-  --afw-bg: #ffffff;
-  --afw-bg-surface: #f8fafc;
-  --afw-bg-elevated: #ffffff;
-  --afw-text: #0f172a;
-  --afw-text-muted: #64748b;
-  --afw-border: #e2e8f0;
-  --afw-accent: #ff851b;
-  --afw-accent-contrast: #ffffff;
-  --afw-accent-soft: rgba(255, 133, 27, 0.12);
-  --afw-code-bg: #f1f5f9;
-  --afw-code-text: #be4f0c;
-  --afw-selection: rgba(255, 133, 27, 0.22);
+/* Everything sits in the `afw-docs` cascade layer, so any unlayered site stylesheet
+ * overrides the theme regardless of selector specificity — no `!important` or
+ * doubled selectors needed. Imported after Tailwind, the layer still ranks above
+ * Tailwind's own layers (preflight, utilities). */
+@layer afw-docs {
+  :root {
+    --afw-bg: #ffffff;
+    --afw-bg-surface: #f8fafc;
+    --afw-bg-elevated: #ffffff;
+    --afw-text: #0f172a;
+    --afw-text-muted: #64748b;
+    --afw-border: #e2e8f0;
+    --afw-accent: #ff851b;
+    --afw-accent-contrast: #ffffff;
+    --afw-accent-soft: rgba(255, 133, 27, 0.12);
+    --afw-code-bg: #f1f5f9;
+    --afw-code-text: #be4f0c;
+    --afw-selection: rgba(255, 133, 27, 0.22);
 
-  --afw-sidebar-width: 17rem;
-  --afw-toc-width: 15rem;
-  --afw-content-max: 48rem;
-  --afw-navbar-height: 3.75rem;
-  --afw-radius: 0.625rem;
-  --afw-font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --afw-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
-}
-
-[data-theme="dark"] {
-  --afw-bg: #020617;
-  --afw-bg-surface: #0b1220;
-  --afw-bg-elevated: #0f172a;
-  --afw-text: #e2e8f0;
-  --afw-text-muted: #94a3b8;
-  --afw-border: #1e293b;
-  --afw-accent: #ff943d;
-  --afw-accent-contrast: #0b1220;
-  --afw-accent-soft: rgba(255, 148, 61, 0.16);
-  --afw-code-bg: #0f172a;
-  --afw-code-text: #ffb784;
-  --afw-selection: rgba(255, 148, 61, 0.3);
-}
-
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: calc(var(--afw-navbar-height) + 1rem);
-}
-
-body {
-  margin: 0;
-  font-family: var(--afw-font);
-  background: var(--afw-bg);
-  color: var(--afw-text);
-  -webkit-font-smoothing: antialiased;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-::selection {
-  background: var(--afw-selection);
-}
-
-/* Custom elements are inline by default. Structural hosts become block-level grid
- * items; pure wrapper hosts (a link, a list node) become layout-transparent
- * (`display: contents`) so their inner semantic element participates directly in the
- * surrounding flex/grid/list. Hosts are addressed by the stable `afw-<kebab>` class
- * the compiler stamps on every component (the element tag itself is module-hashed
- * to stay collision-free, so it is not a reliable selector). */
-.afw-docs-layout,
-.afw-toc,
-.afw-footer,
-.afw-breadcrumbs,
-.afw-pagination,
-.afw-callout,
-.afw-tabs,
-.afw-table {
-  display: block;
-}
-/* The navbar host must be transparent so its sticky <header> sticks to the page
- * scroll container, not to its own wrapper. Link hosts are transparent so the inner
- * <a> participates directly in the navbar/list flex layout. The sidebar host (and its
- * shell wrapper) are transparent so the inner <aside> is the docs-grid column on
- * desktop and a fixed off-canvas drawer on mobile; the burger host so the button sits
- * directly in the navbar lead flow. */
-.afw-navbar,
-.afw-navbar-link,
-.afw-link,
-.afw-sidebar-node,
-.afw-sidebar,
-.afw-sidebar-toggle,
-.afwd-sidebar-shell {
-  display: contents;
-}
-
-/* ── Shell ─────────────────────────────────────────────────────────────────── */
-.afwd-shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-.afwd-shell-body {
-  flex: 1;
-}
-
-/* ── Navbar ────────────────────────────────────────────────────────────────── */
-.afwd-navbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  height: var(--afw-navbar-height);
-  background: color-mix(in srgb, var(--afw-bg) 85%, transparent);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--afw-border);
-}
-.afwd-navbar-inner {
-  height: 100%;
-  max-width: 90rem;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  /* Three zones: brand (left) · search (centered) · nav + actions (right). The auto
-   * center column keeps the search trigger centered in the bar regardless of how wide
-   * the side zones are. */
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 1.5rem;
-}
-.afwd-navbar-search {
-  justify-self: center;
-}
-.afwd-navbar-right {
-  justify-self: end;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-.afwd-navbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: var(--afw-text);
-  text-decoration: none;
-}
-.afwd-navbar-logo {
-  width: 1.75rem;
-  height: 1.75rem;
-}
-.afwd-navbar-version {
-  display: inline-flex;
-  align-items: center;
-  line-height: 1;
-  padding: 0.22rem 0.45rem;
-  border-radius: 0.4rem;
-  border: 1px solid var(--afw-border);
-  background: var(--afw-bg-surface);
-  color: var(--afw-text-muted);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-/* Brand sits at the start of the left grid zone. */
-.afwd-navbar-brand {
-  justify-self: start;
-}
-.afwd-navbar-nav {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  font-size: 0.9rem;
-}
-.afwd-navbar-link {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--afw-text-muted);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s;
-}
-/* Subtle accent underline beneath the link; scales in on the active route (and
- * faintly on hover). */
-.afwd-navbar-link::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -0.45rem;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--afw-accent);
-  transform: scaleX(0);
-  transition: transform 0.18s ease, opacity 0.18s ease;
-}
-.afwd-navbar-link:hover {
-  color: var(--afw-text);
-}
-.afwd-navbar-link:hover::after {
-  transform: scaleX(1);
-  opacity: 0.35;
-}
-.afwd-navbar-link.afwd-active {
-  color: var(--afw-text);
-  font-weight: 600;
-}
-.afwd-navbar-link.afwd-active::after {
-  transform: scaleX(1);
-  opacity: 1;
-}
-.afwd-nav-icon {
-  display: inline-flex;
-}
-.afwd-nav-icon svg {
-  display: block;
-}
-.afwd-navbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-/* GitHub link and theme toggle are uniform ghost icon buttons (no border/fill, subtle
- * hover background), so the whole right cluster (links + icons) reads as one aligned
- * row. */
-.afwd-navbar-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: none;
-  background: none;
-  border-radius: 0.5rem;
-  color: var(--afw-text-muted);
-  cursor: pointer;
-  font-family: inherit;
-  /* Icons compile to inline custom-element hosts with the inherited 1.5 line-height,
-   * which baseline-aligns the SVG and pushes it a few px above center. Zero the line
-   * box so the flex centering is exact. */
-  line-height: 0;
-}
-.afwd-navbar-icon > * {
-  display: inline-flex;
-  align-items: center;
-}
-.afwd-navbar-icon:hover {
-  color: var(--afw-text);
-  background: var(--afw-bg-surface);
-}
-
-/* Left zone of the navbar: an optional mobile drawer burger followed by the brand. */
-.afwd-navbar-lead {
-  justify-self: start;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-/* The burger reuses `.afwd-navbar-icon` styling; this rule (after it, so it wins the
- * display cascade) hides it except on small screens that actually have a sidebar
- * mounted — the <Sidebar> sets `data-afw-has-sidebar` on the root while present. */
-.afwd-navbar-burger {
-  display: none;
-}
-@media (max-width: 767px) {
-  :root[data-afw-has-sidebar] .afwd-navbar-burger {
-    display: inline-flex;
+    --afw-sidebar-width: 17rem;
+    --afw-toc-width: 15rem;
+    --afw-content-max: 48rem;
+    --afw-navbar-height: 3.75rem;
+    --afw-radius: 0.625rem;
+    --afw-font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --afw-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
   }
-}
 
-/* ── Navbar: mobile layout ─────────────────────────────────────────────────── */
-/* Below the sidebar breakpoint the centered three-column grid gets cramped, so the bar
- * becomes a simple flex row: brand (with burger) at the start, a compact action cluster
- * (search · GitHub · theme) at the end. On pages that have a sidebar the top-level links
- * move into the drawer (see `.afwd-drawer-links`), so they're dropped from the bar here. */
-@media (max-width: 767px) {
+  [data-theme="dark"] {
+    --afw-bg: #020617;
+    --afw-bg-surface: #0b1220;
+    --afw-bg-elevated: #0f172a;
+    --afw-text: #e2e8f0;
+    --afw-text-muted: #94a3b8;
+    --afw-border: #1e293b;
+    --afw-accent: #ff943d;
+    --afw-accent-contrast: #0b1220;
+    --afw-accent-soft: rgba(255, 148, 61, 0.16);
+    --afw-code-bg: #0f172a;
+    --afw-code-text: #ffb784;
+    --afw-selection: rgba(255, 148, 61, 0.3);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--afw-navbar-height) + 1rem);
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--afw-font);
+    background: var(--afw-bg);
+    color: var(--afw-text);
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  ::selection {
+    background: var(--afw-selection);
+  }
+
+  /* Custom elements are inline by default. Structural hosts become block-level grid
+   * items; pure wrapper hosts (a link, a list node) become layout-transparent
+   * (`display: contents`) so their inner semantic element participates directly in the
+   * surrounding flex/grid/list. Hosts are addressed by the stable `afw-<kebab>` class
+   * the compiler stamps on every component (the element tag itself is module-hashed
+   * to stay collision-free, so it is not a reliable selector). */
+  .afw-docs-layout,
+  .afw-toc,
+  .afw-footer,
+  .afw-breadcrumbs,
+  .afw-pagination,
+  .afw-callout,
+  .afw-tabs,
+  .afw-table {
+    display: block;
+  }
+  /* The navbar host must be transparent so its sticky <header> sticks to the page
+   * scroll container, not to its own wrapper. Link hosts are transparent so the inner
+   * <a> participates directly in the navbar/list flex layout. The sidebar host (and its
+   * shell wrapper) are transparent so the inner <aside> is the docs-grid column on
+   * desktop and a fixed off-canvas drawer on mobile; the burger host so the button sits
+   * directly in the navbar lead flow. */
+  .afw-navbar,
+  .afw-navbar-link,
+  .afw-link,
+  .afw-sidebar-node,
+  .afw-sidebar,
+  .afw-sidebar-toggle,
+  .afwd-sidebar-shell {
+    display: contents;
+  }
+
+  /* ── Shell ─────────────────────────────────────────────────────────────────── */
+  .afwd-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  .afwd-shell-body {
+    flex: 1;
+  }
+
+  /* ── Navbar ────────────────────────────────────────────────────────────────── */
+  .afwd-navbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--afw-navbar-height);
+    background: color-mix(in srgb, var(--afw-bg) 85%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--afw-border);
+  }
   .afwd-navbar-inner {
+    height: 100%;
+    max-width: 90rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    /* Three zones: brand (left) · search (centered) · nav + actions (right). The auto
+     * center column keeps the search trigger centered in the bar regardless of how wide
+     * the side zones are. */
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .afwd-navbar-search {
+    justify-self: center;
+  }
+  .afwd-navbar-right {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .afwd-navbar-brand {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0 1rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--afw-text);
+    text-decoration: none;
   }
-  .afwd-navbar-lead {
-    margin-right: auto; /* push the action cluster to the far end */
-  }
-  .afwd-navbar-search {
-    justify-self: auto;
-  }
-  .afwd-navbar-right {
-    gap: 0.5rem;
+  .afwd-navbar-logo {
+    width: 1.75rem;
+    height: 1.75rem;
   }
   .afwd-navbar-version {
-    display: none; /* reclaim brand width on small screens */
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    padding: 0.22rem 0.45rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--afw-border);
+    background: var(--afw-bg-surface);
+    color: var(--afw-text-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
   }
-  :root[data-afw-has-sidebar] .afwd-navbar-nav {
-    display: none; /* surfaced in the drawer instead */
+  /* Brand sits at the start of the left grid zone. */
+  .afwd-navbar-brand {
+    justify-self: start;
   }
-}
-
-/* Theme switcher: trigger reuses `.afwd-navbar-icon` so it matches the GitHub button;
- * it just grows a little to fit the System-mode pair of icons, and anchors the menu. */
-.afwd-theme {
-  position: relative;
-  display: inline-flex;
-}
-.afwd-theme-trigger {
-  width: auto;
-  min-width: 2rem;
-  padding: 0 0.3rem;
-}
-.afwd-theme-trigger-system {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-.afwd-theme-trigger-badge {
-  display: inline-flex;
-  align-items: center;
-  padding-left: 0.3rem;
-  border-left: 1px solid var(--afw-border);
-  opacity: 0.85;
-}
-.afwd-theme-menu {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  right: 0;
-  z-index: 60;
-  min-width: 9rem;
-  padding: 0.3rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  background: var(--afw-bg-elevated);
-  border: 1px solid var(--afw-border);
-  border-radius: 0.6rem;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
-}
-.afwd-theme-item {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.45rem 0.6rem;
-  border: none;
-  background: none;
-  border-radius: 0.4rem;
-  color: var(--afw-text-muted);
-  font: inherit;
-  font-size: 0.85rem;
-  text-align: left;
-  cursor: pointer;
-}
-.afwd-theme-item:hover {
-  background: var(--afw-bg-surface);
-  color: var(--afw-text);
-}
-.afwd-theme-item.is-active {
-  color: var(--afw-accent);
-  font-weight: 600;
-}
-
-/* Tooltip (hover/focus) — a small contrasting bubble. */
-.afwd-tooltip {
-  position: relative;
-  display: inline-flex;
-}
-.afwd-tooltip-bubble {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%) translateY(3px);
-  white-space: nowrap;
-  padding: 0.28rem 0.5rem;
-  border-radius: 0.4rem;
-  background: var(--afw-text);
-  color: var(--afw-bg);
-  font-size: 0.72rem;
-  font-weight: 500;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  z-index: 70;
-}
-.afwd-tooltip-bottom .afwd-tooltip-bubble {
-  top: 100%;
-  margin-top: 0.45rem;
-}
-.afwd-tooltip-top .afwd-tooltip-bubble {
-  bottom: 100%;
-  margin-bottom: 0.45rem;
-}
-.afwd-tooltip:hover .afwd-tooltip-bubble,
-.afwd-tooltip:focus-within .afwd-tooltip-bubble {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-.afwd-search-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  border: 1px solid var(--afw-border);
-  background: var(--afw-bg-surface);
-  color: var(--afw-text-muted);
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-family: inherit;
-  padding: 0.4rem 0.65rem;
-  font-size: 0.82rem;
-}
-.afwd-search-trigger:hover {
-  color: var(--afw-accent);
-  border-color: var(--afw-accent);
-}
-.afwd-search-kbd {
-  display: none;
-  align-items: center;
-  height: 1.25rem;
-  padding: 0 0.35rem;
-  border: 1px solid var(--afw-border);
-  border-radius: 0.3rem;
-  background: var(--afw-bg);
-  color: var(--afw-text-muted);
-  font-family: var(--afw-mono);
-  font-size: 0.68rem;
-  line-height: 1;
-}
-@media (min-width: 768px) {
-  .afwd-search-kbd {
+  .afwd-navbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+  }
+  .afwd-navbar-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--afw-text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s;
+  }
+  /* Subtle accent underline beneath the link; scales in on the active route (and
+   * faintly on hover). */
+  .afwd-navbar-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.45rem;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--afw-accent);
+    transform: scaleX(0);
+    transition: transform 0.18s ease, opacity 0.18s ease;
+  }
+  .afwd-navbar-link:hover {
+    color: var(--afw-text);
+  }
+  .afwd-navbar-link:hover::after {
+    transform: scaleX(1);
+    opacity: 0.35;
+  }
+  .afwd-navbar-link.afwd-active {
+    color: var(--afw-text);
+    font-weight: 600;
+  }
+  .afwd-navbar-link.afwd-active::after {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  .afwd-nav-icon {
     display: inline-flex;
   }
-}
-.afwd-search-label {
-  display: none;
-}
-@media (min-width: 768px) {
-  .afwd-search-label {
-    display: inline;
+  .afwd-nav-icon svg {
+    display: block;
   }
-}
-
-/* ── Search modal (AFW Search) ───────────────────────────────────────────────── */
-.afw-search {
-  display: contents;
-}
-.afwd-search-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: none;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 12vh 1rem 1rem;
-  background: color-mix(in srgb, #000 45%, transparent);
-  backdrop-filter: blur(2px);
-}
-.afwd-search-modal.is-open {
-  display: flex;
-}
-.afwd-search-panel {
-  width: 100%;
-  max-width: 36rem;
-  max-height: 70vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--afw-bg-elevated);
-  border: 1px solid var(--afw-border);
-  border-radius: 0.9rem;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-}
-.afwd-search-field {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--afw-border);
-  color: var(--afw-text-muted);
-}
-.afwd-search-input-field {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: none;
-  outline: none;
-  font: inherit;
-  font-size: 1rem;
-  color: var(--afw-text);
-}
-/* Keyboard hint row beneath the input / results. */
-.afwd-search-hint {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 0.6rem 1rem;
-  border-top: 1px solid var(--afw-border);
-  color: var(--afw-text-muted);
-  font-size: 0.72rem;
-}
-.afwd-search-hint-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-.afwd-search-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.3rem;
-  height: 1.3rem;
-  padding: 0 0.35rem;
-  border: 1px solid var(--afw-border);
-  border-bottom-width: 2px;
-  border-radius: 0.3rem;
-  background: var(--afw-bg-surface);
-  color: var(--afw-text);
-  font-family: var(--afw-mono);
-  font-size: 0.7rem;
-  line-height: 1;
-}
-.afwd-search-results {
-  list-style: none;
-  margin: 0;
-  padding: 0.4rem;
-  overflow-y: auto;
-}
-.afwd-search-result {
-  display: block;
-  padding: 0.6rem 0.75rem;
-  border-radius: 0.5rem;
-  text-decoration: none;
-  color: var(--afw-text);
-}
-.afwd-search-result.is-active {
-  background: var(--afw-accent-soft);
-}
-.afwd-search-result-crumb {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--afw-text-muted);
-  letter-spacing: 0.01em;
-  margin-bottom: 0.1rem;
-}
-.afwd-search-result-title {
-  display: block;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-/* The matched section heading, under the page/post title. */
-.afwd-search-result-section {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
-  color: var(--afw-text-muted);
-  margin-top: 0.05rem;
-}
-.afwd-search-result-section::before {
-  content: "#";
-  color: var(--afw-accent);
-  font-weight: 700;
-}
-.afwd-search-result-excerpt {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--afw-text-muted);
-  margin-top: 0.15rem;
-  line-height: 1.5;
-}
-.afwd-search-result-excerpt mark {
-  background: var(--afw-accent-soft);
-  color: var(--afw-accent);
-  border-radius: 0.2rem;
-  padding: 0 0.1rem;
-}
-.afwd-search-empty {
-  padding: 1.5rem 1rem;
-  text-align: center;
-  color: var(--afw-text-muted);
-  font-size: 0.9rem;
-}
-
-/* ── Docs grid ─────────────────────────────────────────────────────────────── */
-.afwd-docs {
-  max-width: 90rem;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2.5rem;
-}
-@media (min-width: 768px) {
-  .afwd-docs {
-    grid-template-columns: var(--afw-sidebar-width) minmax(0, 1fr);
+  .afwd-navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
-}
-@media (min-width: 1280px) {
-  .afwd-docs {
-    grid-template-columns: var(--afw-sidebar-width) minmax(0, 1fr) var(--afw-toc-width);
-  }
-}
-
-/* ── Sidebar ───────────────────────────────────────────────────────────────── */
-/* Mobile-first: the sidebar is an off-canvas drawer below the navbar, slid in over a
- * backdrop. It sits *under* the navbar (z < navbar's 50) so the burger stays tappable
- * to toggle it. The desktop block below turns it back into the sticky grid column. */
-.afwd-sidebar {
-  position: fixed;
-  top: var(--afw-navbar-height);
-  bottom: 0;
-  left: 0;
-  z-index: 40;
-  width: min(19rem, 80vw);
-  padding: 1.25rem 1.1rem 2rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background: var(--afw-bg);
-  border-right: 1px solid var(--afw-border);
-  transform: translateX(-100%);
-  visibility: hidden;
-  transition: transform 0.25s ease, visibility 0.25s ease;
-}
-.afwd-sidebar.is-open {
-  transform: translateX(0);
-  visibility: visible;
-}
-.afwd-sidebar-backdrop {
-  position: fixed;
-  top: var(--afw-navbar-height);
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 39;
-  background: color-mix(in srgb, var(--afw-text) 45%, transparent);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-.afwd-sidebar-backdrop.is-open {
-  opacity: 1;
-  pointer-events: auto;
-}
-@media (min-width: 768px) {
-  .afwd-sidebar {
-    position: sticky;
-    top: var(--afw-navbar-height);
-    bottom: auto;
-    left: auto;
-    z-index: auto;
-    width: auto;
-    align-self: start;
-    max-height: calc(100vh - var(--afw-navbar-height));
-    overflow-y: auto;
-    padding: 2rem 0.5rem 2rem 0;
+  /* GitHub link and theme toggle are uniform ghost icon buttons (no border/fill, subtle
+   * hover background), so the whole right cluster (links + icons) reads as one aligned
+   * row. */
+  .afwd-navbar-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
     background: none;
-    border-right: none;
-    transform: none;
+    border-radius: 0.5rem;
+    color: var(--afw-text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    /* Icons compile to inline custom-element hosts with the inherited 1.5 line-height,
+     * which baseline-aligns the SVG and pushes it a few px above center. Zero the line
+     * box so the flex centering is exact. */
+    line-height: 0;
+  }
+  .afwd-navbar-icon > * {
+    display: inline-flex;
+    align-items: center;
+  }
+  .afwd-navbar-icon:hover {
+    color: var(--afw-text);
+    background: var(--afw-bg-surface);
+  }
+
+  /* Left zone of the navbar: an optional mobile drawer burger followed by the brand. */
+  .afwd-navbar-lead {
+    justify-self: start;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  /* The burger reuses `.afwd-navbar-icon` styling; this rule (after it, so it wins the
+   * display cascade) hides it except on small screens that actually have a sidebar
+   * mounted — the <Sidebar> sets `data-afw-has-sidebar` on the root while present. */
+  .afwd-navbar-burger {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    :root[data-afw-has-sidebar] .afwd-navbar-burger {
+      display: inline-flex;
+    }
+  }
+
+  /* ── Navbar: mobile layout ─────────────────────────────────────────────────── */
+  /* Below the sidebar breakpoint the centered three-column grid gets cramped, so the bar
+   * becomes a simple flex row: brand (with burger) at the start, a compact action cluster
+   * (search · GitHub · theme) at the end. On pages that have a sidebar the top-level links
+   * move into the drawer (see `.afwd-drawer-links`), so they're dropped from the bar here. */
+  @media (max-width: 767px) {
+    .afwd-navbar-inner {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0 1rem;
+    }
+    .afwd-navbar-lead {
+      margin-right: auto; /* push the action cluster to the far end */
+    }
+    .afwd-navbar-search {
+      justify-self: auto;
+    }
+    .afwd-navbar-right {
+      gap: 0.5rem;
+    }
+    .afwd-navbar-version {
+      display: none; /* reclaim brand width on small screens */
+    }
+    :root[data-afw-has-sidebar] .afwd-navbar-nav {
+      display: none; /* surfaced in the drawer instead */
+    }
+  }
+
+  /* Theme switcher: trigger reuses `.afwd-navbar-icon` so it matches the GitHub button;
+   * it just grows a little to fit the System-mode pair of icons, and anchors the menu. */
+  .afwd-theme {
+    position: relative;
+    display: inline-flex;
+  }
+  .afwd-theme-trigger {
+    width: auto;
+    min-width: 2rem;
+    padding: 0 0.3rem;
+  }
+  .afwd-theme-trigger-system {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .afwd-theme-trigger-badge {
+    display: inline-flex;
+    align-items: center;
+    padding-left: 0.3rem;
+    border-left: 1px solid var(--afw-border);
+    opacity: 0.85;
+  }
+  .afwd-theme-menu {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    z-index: 60;
+    min-width: 9rem;
+    padding: 0.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    background: var(--afw-bg-elevated);
+    border: 1px solid var(--afw-border);
+    border-radius: 0.6rem;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+  .afwd-theme-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0.6rem;
+    border: none;
+    background: none;
+    border-radius: 0.4rem;
+    color: var(--afw-text-muted);
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .afwd-theme-item:hover {
+    background: var(--afw-bg-surface);
+    color: var(--afw-text);
+  }
+  .afwd-theme-item.is-active {
+    color: var(--afw-accent);
+    font-weight: 600;
+  }
+
+  /* Tooltip (hover/focus) — a small contrasting bubble. */
+  .afwd-tooltip {
+    position: relative;
+    display: inline-flex;
+  }
+  .afwd-tooltip-bubble {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) translateY(3px);
+    white-space: nowrap;
+    padding: 0.28rem 0.5rem;
+    border-radius: 0.4rem;
+    background: var(--afw-text);
+    color: var(--afw-bg);
+    font-size: 0.72rem;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    z-index: 70;
+  }
+  .afwd-tooltip-bottom .afwd-tooltip-bubble {
+    top: 100%;
+    margin-top: 0.45rem;
+  }
+  .afwd-tooltip-top .afwd-tooltip-bubble {
+    bottom: 100%;
+    margin-bottom: 0.45rem;
+  }
+  .afwd-tooltip:hover .afwd-tooltip-bubble,
+  .afwd-tooltip:focus-within .afwd-tooltip-bubble {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .afwd-search-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--afw-border);
+    background: var(--afw-bg-surface);
+    color: var(--afw-text-muted);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.82rem;
+  }
+  .afwd-search-trigger:hover {
+    color: var(--afw-accent);
+    border-color: var(--afw-accent);
+  }
+  .afwd-search-kbd {
+    display: none;
+    align-items: center;
+    height: 1.25rem;
+    padding: 0 0.35rem;
+    border: 1px solid var(--afw-border);
+    border-radius: 0.3rem;
+    background: var(--afw-bg);
+    color: var(--afw-text-muted);
+    font-family: var(--afw-mono);
+    font-size: 0.68rem;
+    line-height: 1;
+  }
+  @media (min-width: 768px) {
+    .afwd-search-kbd {
+      display: inline-flex;
+    }
+  }
+  .afwd-search-label {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .afwd-search-label {
+      display: inline;
+    }
+  }
+
+  /* ── Search modal (AFW Search) ───────────────────────────────────────────────── */
+  .afw-search {
+    display: contents;
+  }
+  .afwd-search-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 12vh 1rem 1rem;
+    background: color-mix(in srgb, #000 45%, transparent);
+    backdrop-filter: blur(2px);
+  }
+  .afwd-search-modal.is-open {
+    display: flex;
+  }
+  .afwd-search-panel {
+    width: 100%;
+    max-width: 36rem;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--afw-bg-elevated);
+    border: 1px solid var(--afw-border);
+    border-radius: 0.9rem;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+  }
+  .afwd-search-field {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--afw-border);
+    color: var(--afw-text-muted);
+  }
+  .afwd-search-input-field {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
+    outline: none;
+    font: inherit;
+    font-size: 1rem;
+    color: var(--afw-text);
+  }
+  /* Keyboard hint row beneath the input / results. */
+  .afwd-search-hint {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.6rem 1rem;
+    border-top: 1px solid var(--afw-border);
+    color: var(--afw-text-muted);
+    font-size: 0.72rem;
+  }
+  .afwd-search-hint-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .afwd-search-hint kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.3rem;
+    height: 1.3rem;
+    padding: 0 0.35rem;
+    border: 1px solid var(--afw-border);
+    border-bottom-width: 2px;
+    border-radius: 0.3rem;
+    background: var(--afw-bg-surface);
+    color: var(--afw-text);
+    font-family: var(--afw-mono);
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+  .afwd-search-results {
+    list-style: none;
+    margin: 0;
+    padding: 0.4rem;
+    overflow-y: auto;
+  }
+  .afwd-search-result {
+    display: block;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: var(--afw-text);
+  }
+  .afwd-search-result.is-active {
+    background: var(--afw-accent-soft);
+  }
+  .afwd-search-result-crumb {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--afw-text-muted);
+    letter-spacing: 0.01em;
+    margin-bottom: 0.1rem;
+  }
+  .afwd-search-result-title {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  /* The matched section heading, under the page/post title. */
+  .afwd-search-result-section {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: var(--afw-text-muted);
+    margin-top: 0.05rem;
+  }
+  .afwd-search-result-section::before {
+    content: "#";
+    color: var(--afw-accent);
+    font-weight: 700;
+  }
+  .afwd-search-result-excerpt {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--afw-text-muted);
+    margin-top: 0.15rem;
+    line-height: 1.5;
+  }
+  .afwd-search-result-excerpt mark {
+    background: var(--afw-accent-soft);
+    color: var(--afw-accent);
+    border-radius: 0.2rem;
+    padding: 0 0.1rem;
+  }
+  .afwd-search-empty {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: var(--afw-text-muted);
+    font-size: 0.9rem;
+  }
+
+  /* ── Docs grid ─────────────────────────────────────────────────────────────── */
+  .afwd-docs {
+    max-width: 90rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+  @media (min-width: 768px) {
+    .afwd-docs {
+      grid-template-columns: var(--afw-sidebar-width) minmax(0, 1fr);
+    }
+  }
+  @media (min-width: 1280px) {
+    .afwd-docs {
+      grid-template-columns: var(--afw-sidebar-width) minmax(0, 1fr) var(--afw-toc-width);
+    }
+  }
+
+  /* ── Sidebar ───────────────────────────────────────────────────────────────── */
+  /* Mobile-first: the sidebar is an off-canvas drawer below the navbar, slid in over a
+   * backdrop. It sits *under* the navbar (z < navbar's 50) so the burger stays tappable
+   * to toggle it. The desktop block below turns it back into the sticky grid column. */
+  .afwd-sidebar {
+    position: fixed;
+    top: var(--afw-navbar-height);
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: min(19rem, 80vw);
+    padding: 1.25rem 1.1rem 2rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--afw-bg);
+    border-right: 1px solid var(--afw-border);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.25s ease, visibility 0.25s ease;
+  }
+  .afwd-sidebar.is-open {
+    transform: translateX(0);
     visibility: visible;
   }
   .afwd-sidebar-backdrop {
+    position: fixed;
+    top: var(--afw-navbar-height);
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 39;
+    background: color-mix(in srgb, var(--afw-text) 45%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .afwd-sidebar-backdrop.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  @media (min-width: 768px) {
+    .afwd-sidebar {
+      position: sticky;
+      top: var(--afw-navbar-height);
+      bottom: auto;
+      left: auto;
+      z-index: auto;
+      width: auto;
+      align-self: start;
+      max-height: calc(100vh - var(--afw-navbar-height));
+      overflow-y: auto;
+      padding: 2rem 0.5rem 2rem 0;
+      background: none;
+      border-right: none;
+      transform: none;
+      visibility: visible;
+    }
+    .afwd-sidebar-backdrop {
+      display: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .afwd-sidebar,
+    .afwd-sidebar-backdrop {
+      transition: none;
+    }
+  }
+
+  /* Top-level site links shown at the top of the mobile drawer (the navbar hides its own
+   * copy there). Hidden on desktop, where those links stay in the navbar and the sidebar
+   * shows only the section tree. The links are NavbarLink elements, stacked into a column
+   * and separated from the tree by a divider. */
+  .afwd-drawer-links {
     display: none;
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  .afwd-sidebar,
-  .afwd-sidebar-backdrop {
-    transition: none;
+  @media (max-width: 767px) {
+    .afwd-drawer-links {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.9rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--afw-border);
+      font-size: 0.95rem;
+    }
   }
-}
 
-/* Top-level site links shown at the top of the mobile drawer (the navbar hides its own
- * copy there). Hidden on desktop, where those links stay in the navbar and the sidebar
- * shows only the section tree. The links are NavbarLink elements, stacked into a column
- * and separated from the tree by a divider. */
-.afwd-drawer-links {
-  display: none;
-}
-@media (max-width: 767px) {
-  .afwd-drawer-links {
+  /* Collapse-all toolbar — one ghost icon button, right-aligned above the tree. */
+  .afwd-sidebar-tools {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.15rem;
+  }
+  .afwd-sidebar-collapse-all {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--afw-text-muted);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: color 0.12s, background 0.12s, opacity 0.12s;
+  }
+  .afwd-sidebar-collapse-all:hover {
+    color: var(--afw-text);
+    background: var(--afw-bg-surface);
+    opacity: 1;
+  }
+  .afwd-sidebar-collapse-all:focus-visible {
+    outline: 2px solid var(--afw-accent);
+    outline-offset: 2px;
+    opacity: 1;
+  }
+
+  .afwd-sidebar-list,
+  .afwd-sidebar-sublist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .afwd-sidebar-sublist {
+    margin: 0.25rem 0 0.75rem 0.25rem;
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--afw-border);
+  }
+  .afwd-sidebar-node {
+    margin: 0.1rem 0;
+  }
+  .afwd-sidebar-group-title {
+    display: block;
+    margin: 1.1rem 0 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--afw-text-muted);
+  }
+  /* Collapsible group — a section title that toggles its child list open/closed. */
+  .afwd-sidebar-group {
+    margin: 0.15rem 0;
+  }
+  .afwd-sidebar-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    margin: 0.85rem 0 0.35rem;
+    padding: 0.25rem 0.35rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--afw-text-muted);
+    cursor: pointer;
+    text-align: left;
+    transition: color 0.12s, background 0.12s;
+  }
+  .afwd-sidebar-group-toggle:hover {
+    color: var(--afw-text);
+    background: var(--afw-bg-surface);
+  }
+  .afwd-sidebar-group-toggle:focus-visible {
+    outline: 2px solid var(--afw-accent);
+    outline-offset: 2px;
+  }
+  .afwd-sidebar-group-label {
+    flex: 1;
+    min-width: 0;
+  }
+  /* Group that is also a page: link + a slim icon-only toggle sharing one row. */
+  .afwd-sidebar-group-row {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+    margin-top: 0.35rem;
+  }
+  .afwd-sidebar-group-row .afwd-sidebar-link {
+    flex: 1;
+    min-width: 0;
+    /* The leading chevron button supplies the left inset; trim the link's own so its text
+     * lines up with the label-only group labels above/below. */
+    padding-left: 0.2rem;
+  }
+  /* Leading icon-only chevron for a group that is also a page — left-aligned to match the
+   * label-only group toggles (padding mirrors their 0.35rem chevron inset). */
+  .afwd-sidebar-group-toggle--icon {
+    flex: none;
+    width: auto;
+    margin: 0;
+    padding: 0.35rem;
+    justify-content: center;
+    color: var(--afw-text-muted);
+  }
+  .afwd-sidebar-chevron {
+    flex: none;
+    transition: transform 0.18s ease;
+  }
+  .afwd-sidebar-chevron.is-open {
+    transform: rotate(90deg);
+  }
+  /* Defined after `.afwd-sidebar-chevron` so it wins on source order — a media query adds
+   * no specificity, so an earlier reduced-motion rule would be overridden by the transition
+   * above. */
+  @media (prefers-reduced-motion: reduce) {
+    .afwd-sidebar-chevron {
+      transition: none;
+    }
+  }
+  .afwd-sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.45rem;
+    font-size: 0.875rem;
+    color: var(--afw-text-muted);
+    text-decoration: none;
+    transition: color 0.12s, background 0.12s;
+  }
+  .afwd-sidebar-dot {
+    flex: none;
+    width: 5px;
+    height: 5px;
+    border-radius: 99px;
+    background: currentColor;
+    opacity: 0.35;
+    transition: opacity 0.12s;
+  }
+  .afwd-sidebar-link:hover {
+    color: var(--afw-text);
+    background: var(--afw-bg-surface);
+  }
+  .afwd-sidebar-link:hover .afwd-sidebar-dot {
+    opacity: 0.6;
+  }
+  .afwd-sidebar-link.afwd-active {
+    color: var(--afw-accent);
+    background: var(--afw-accent-soft);
+    font-weight: 600;
+  }
+  .afwd-sidebar-link.afwd-active .afwd-sidebar-dot {
+    opacity: 1;
+  }
+
+  /* ── Content ───────────────────────────────────────────────────────────────── */
+  .afwd-content {
+    min-width: 0;
+    padding: 2.25rem 0 4rem;
+  }
+  .afwd-prose {
+    max-width: var(--afw-content-max);
+  }
+  .afwd-prose h1 {
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0 0 1rem;
+    letter-spacing: -0.02em;
+  }
+  .afwd-prose h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 2.5rem 0 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--afw-border);
+    letter-spacing: -0.01em;
+  }
+  .afwd-prose h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 2rem 0 0.75rem;
+  }
+  .afwd-prose h4 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 1.6rem 0 0.6rem;
+  }
+  .afwd-prose h5 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 1.4rem 0 0.5rem;
+  }
+  .afwd-prose h6 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--afw-text-muted);
+    margin: 1.3rem 0 0.5rem;
+  }
+  .afwd-prose h1,
+  .afwd-prose h2,
+  .afwd-prose h3,
+  .afwd-prose h4,
+  .afwd-prose h5,
+  .afwd-prose h6 {
+    scroll-margin-top: calc(var(--afw-navbar-height) + 1rem);
+  }
+
+  /* Self-linking heading anchor (the hover `#`). Hidden until the heading is
+     hovered or the anchor itself is focused, so it doesn't clutter the page. */
+  .afw-heading-anchor {
+    margin-left: 0.4rem;
+    color: var(--afw-text-muted);
+    font-weight: 400;
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+  /* The `#` is presentational only — drawn here, not as a DOM text node, so it never
+     leaks into heading text read by the TOC or the search index. */
+  .afw-heading-anchor::before {
+    content: "#";
+  }
+  .afwd-prose :is(h1, h2, h3, h4, h5, h6):hover .afw-heading-anchor,
+  .afw-heading-anchor:focus-visible {
+    opacity: 1;
+  }
+  .afw-heading-anchor:hover {
+    color: var(--afw-accent);
+  }
+  .afwd-prose p,
+  .afwd-prose ul,
+  .afwd-prose ol {
+    line-height: 1.75;
+    margin: 0 0 1.1rem;
+    color: var(--afw-text);
+  }
+  .afwd-prose ul,
+  .afwd-prose ol {
+    padding-left: 1.4rem;
+  }
+  /* Restore list markers: the Tailwind preflight reset (@import "tailwindcss") sets
+   * `list-style: none` on every ul/ol, which strips bullets and numbers from prose. */
+  .afwd-prose ul {
+    list-style: disc;
+  }
+  .afwd-prose ul ul {
+    list-style: circle;
+  }
+  .afwd-prose ol {
+    list-style: decimal;
+  }
+  .afwd-prose li {
+    margin: 0.35rem 0;
+  }
+  /* Loose list items wrap their content in <p>; keep that from adding block spacing. */
+  .afwd-prose li > p {
+    margin: 0;
+  }
+  /* GFM task list: drop the bullet and keep the checkbox inline with its label
+   * (the label is a block <p>, which would otherwise wrap to the next line). */
+  .afwd-prose li:has(> input[type="checkbox"]) {
+    list-style: none;
+  }
+  .afwd-prose li:has(> input[type="checkbox"]) > p {
+    display: inline;
+  }
+  /* Custom checkbox so checked vs. unchecked read at a glance (the native disabled
+   * box is nearly identical in both states). Unchecked is an empty bordered box;
+   * checked fills with the accent and draws a white tick. */
+  .afwd-prose li > input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0 0.55em 0 0;
+    border: 1.5px solid var(--afw-border);
+    border-radius: 0.3rem;
+    background: var(--afw-bg-surface);
+    vertical-align: -0.18em;
+    position: relative;
+    opacity: 1; /* override the browser's disabled-input dimming */
+    cursor: default;
+  }
+  .afwd-prose li > input[type="checkbox"]:checked {
+    background: var(--afw-accent);
+    border-color: var(--afw-accent);
+  }
+  .afwd-prose li > input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 0.34rem;
+    top: 0.13rem;
+    width: 0.26rem;
+    height: 0.52rem;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  /* Completed items: mute the label (the filled check already marks it done). */
+  .afwd-prose li:has(> input[type="checkbox"]:checked) > p {
+    color: var(--afw-text-muted);
+  }
+  /* An unclassed <button> in prose (e.g. an inline interactive demo). Component
+   * buttons carry their own class, so this only catches bare demo buttons. */
+  .afwd-prose button:not([class]) {
+    font: inherit;
+    cursor: pointer;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--afw-border);
+    border-radius: 0.5rem;
+    background: var(--afw-bg-surface);
+    color: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .afwd-prose button:not([class]):hover {
+    border-color: var(--afw-accent);
+  }
+  .afwd-prose a {
+    color: var(--afw-accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .afwd-prose a:hover {
+    text-decoration: underline;
+  }
+  .afwd-prose strong {
+    font-weight: 700;
+  }
+  .afwd-prose code {
+    font-family: var(--afw-mono);
+    font-size: 0.86em;
+    background: var(--afw-code-bg);
+    color: var(--afw-code-text);
+    padding: 0.15em 0.4em;
+    border-radius: 0.35rem;
+  }
+  .afwd-prose pre {
+    margin: 0 0 1.4rem;
+    padding: 1rem 1.1rem;
+    border-radius: var(--afw-radius);
+    border: 1px solid var(--afw-border);
+    overflow-x: auto;
+    font-family: var(--afw-mono);
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  /* Build-time highlighted code (syntect) sets its own inline background. */
+  .afwd-prose pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+  }
+  /* Titled code block (built by the MDX front-end): a header bar — language label,
+   * optional filename, and a copy button on the right — above the highlighted <pre>.
+   * The wrapper owns the radius and clips the corners of the dark header and code. */
+  .afw-code {
+    margin: 0 0 1.4rem;
+    border: 1px solid var(--afw-border);
+    border-radius: var(--afw-radius);
+    overflow: hidden;
+    background: #2b303b;
+  }
+  .afw-code-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.4rem 0.5rem 0.4rem 0.95rem;
+    background: #23272f;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .afw-code-lang {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.45);
+  }
+  .afw-code-name {
+    font-family: var(--afw-mono);
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.82);
+  }
+  .afw-code pre {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    /* Readable default for blocks without build-time highlighting (e.g. string content
+     * rendered by Tabs via CodeBlock). Fenced blocks carry inline syntect
+     * colors, which override this. */
+    color: #e2e8f0;
+  }
+  .afw-copy {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.28rem 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.78);
+    font-family: var(--afw-font);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .afw-copy:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+  }
+  .afw-copy.is-copied {
+    background: color-mix(in srgb, #10b981 22%, transparent);
+    border-color: color-mix(in srgb, #10b981 55%, transparent);
+    color: #34d399;
+  }
+  .afw-copy .afw-check-icon {
+    display: none;
+  }
+  .afw-copy.is-copied .afw-copy-icon {
+    display: none;
+  }
+  .afw-copy.is-copied .afw-check-icon {
+    display: inline;
+  }
+  .afwd-prose blockquote {
+    margin: 0 0 1.2rem;
+    padding: 0.25rem 1.1rem;
+    border-left: 3px solid var(--afw-accent);
+    color: var(--afw-text-muted);
+  }
+  .afwd-prose hr {
+    border: none;
+    border-top: 1px solid var(--afw-border);
+    margin: 2rem 0;
+  }
+  .afwd-prose img {
+    max-width: 100%;
+    border-radius: var(--afw-radius);
+  }
+  .afwd-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 1.4rem;
+    font-size: 0.9rem;
+  }
+  .afwd-prose th,
+  .afwd-prose td {
+    text-align: left;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid var(--afw-border);
+  }
+  .afwd-prose th {
+    background: var(--afw-bg-surface);
+    font-weight: 600;
+  }
+  /* Wrapped tables (GFM tables and <Table>) let the wrapper carry the block
+   * margin, so the two do not stack. */
+  .afw-table-wrap > table {
+    margin: 0;
+  }
+
+  /* ── TOC ───────────────────────────────────────────────────────────────────── */
+  .afwd-toc {
+    display: none;
+  }
+  @media (min-width: 1280px) {
+    .afwd-toc {
+      display: block;
+      position: sticky;
+      top: var(--afw-navbar-height);
+      align-self: start;
+      max-height: calc(100vh - var(--afw-navbar-height));
+      overflow-y: auto;
+      padding: 2.25rem 0 2rem;
+    }
+  }
+  .afwd-toc-heading {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--afw-text-muted);
+    margin-bottom: 0.6rem;
+  }
+  .afwd-toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 1px solid var(--afw-border);
+  }
+  .afwd-toc-item {
+    margin: 0;
+  }
+  .afwd-toc-sub .afwd-toc-link {
+    padding-left: 1.5rem;
+  }
+  .afwd-toc-link {
+    display: block;
+    padding: 0.25rem 0 0.25rem 0.85rem;
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    font-size: 0.82rem;
+    color: var(--afw-text-muted);
+    text-decoration: none;
+  }
+  .afwd-toc-link:hover {
+    color: var(--afw-text);
+  }
+  .afwd-toc-link.afwd-active {
+    color: var(--afw-accent);
+    border-left-color: var(--afw-accent);
+    font-weight: 600;
+  }
+
+  /* ── Breadcrumbs ───────────────────────────────────────────────────────────── */
+  .afwd-breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.8rem;
+    color: var(--afw-text-muted);
+  }
+  .afwd-crumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .afwd-crumb-sep {
+    opacity: 0.5;
+  }
+  .afwd-crumb-link {
+    color: var(--afw-text-muted);
+    text-decoration: none;
+  }
+  .afwd-crumb-link:hover {
+    color: var(--afw-accent);
+  }
+
+  /* ── Page meta (last updated · edit link) ──────────────────────────────────── */
+  .afwd-page-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 2.5rem;
+  }
+  /* Empty when a page has neither bit of meta — collapse the top margin then. */
+  .afwd-page-meta:empty {
+    margin-top: 0;
+  }
+  .afwd-last-updated {
+    font-size: 0.8rem;
+    color: var(--afw-text-muted);
+  }
+  .afwd-last-updated-time {
+    font-weight: 600;
+    color: var(--afw-text);
+  }
+  .afwd-edit-page {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--afw-text-muted);
+    text-decoration: none;
+  }
+  .afwd-edit-page:hover {
+    color: var(--afw-accent);
+  }
+  .afwd-page-meta + .afwd-pagination {
+    margin-top: 1.5rem;
+  }
+
+  /* ── Pagination ────────────────────────────────────────────────────────────── */
+  .afwd-pagination {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--afw-border);
+  }
+  .afwd-page-link {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.9rem;
-    margin-bottom: 1.25rem;
-    padding-bottom: 1.25rem;
-    border-bottom: 1px solid var(--afw-border);
-    font-size: 0.95rem;
+    gap: 0.2rem;
+    padding: 0.85rem 1.1rem;
+    border: 1px solid var(--afw-border);
+    border-radius: var(--afw-radius);
+    text-decoration: none;
+    min-width: 0;
+    transition: border-color 0.15s;
   }
-}
-
-/* Collapse-all toolbar — one ghost icon button, right-aligned above the tree. */
-.afwd-sidebar-tools {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.15rem;
-}
-.afwd-sidebar-collapse-all {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.3rem;
-  border: 0;
-  border-radius: 0.4rem;
-  background: transparent;
-  color: var(--afw-text-muted);
-  cursor: pointer;
-  opacity: 0.7;
-  transition: color 0.12s, background 0.12s, opacity 0.12s;
-}
-.afwd-sidebar-collapse-all:hover {
-  color: var(--afw-text);
-  background: var(--afw-bg-surface);
-  opacity: 1;
-}
-.afwd-sidebar-collapse-all:focus-visible {
-  outline: 2px solid var(--afw-accent);
-  outline-offset: 2px;
-  opacity: 1;
-}
-
-.afwd-sidebar-list,
-.afwd-sidebar-sublist {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.afwd-sidebar-sublist {
-  margin: 0.25rem 0 0.75rem 0.25rem;
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--afw-border);
-}
-.afwd-sidebar-node {
-  margin: 0.1rem 0;
-}
-.afwd-sidebar-group-title {
-  display: block;
-  margin: 1.1rem 0 0.4rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--afw-text-muted);
-}
-/* Collapsible group — a section title that toggles its child list open/closed. */
-.afwd-sidebar-group {
-  margin: 0.15rem 0;
-}
-.afwd-sidebar-group-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  width: 100%;
-  margin: 0.85rem 0 0.35rem;
-  padding: 0.25rem 0.35rem;
-  border: 0;
-  border-radius: 0.4rem;
-  background: transparent;
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--afw-text-muted);
-  cursor: pointer;
-  text-align: left;
-  transition: color 0.12s, background 0.12s;
-}
-.afwd-sidebar-group-toggle:hover {
-  color: var(--afw-text);
-  background: var(--afw-bg-surface);
-}
-.afwd-sidebar-group-toggle:focus-visible {
-  outline: 2px solid var(--afw-accent);
-  outline-offset: 2px;
-}
-.afwd-sidebar-group-label {
-  flex: 1;
-  min-width: 0;
-}
-/* Group that is also a page: link + a slim icon-only toggle sharing one row. */
-.afwd-sidebar-group-row {
-  display: flex;
-  align-items: center;
-  gap: 0.1rem;
-  margin-top: 0.35rem;
-}
-.afwd-sidebar-group-row .afwd-sidebar-link {
-  flex: 1;
-  min-width: 0;
-  /* The leading chevron button supplies the left inset; trim the link's own so its text
-   * lines up with the label-only group labels above/below. */
-  padding-left: 0.2rem;
-}
-/* Leading icon-only chevron for a group that is also a page — left-aligned to match the
- * label-only group toggles (padding mirrors their 0.35rem chevron inset). */
-.afwd-sidebar-group-toggle--icon {
-  flex: none;
-  width: auto;
-  margin: 0;
-  padding: 0.35rem;
-  justify-content: center;
-  color: var(--afw-text-muted);
-}
-.afwd-sidebar-chevron {
-  flex: none;
-  transition: transform 0.18s ease;
-}
-.afwd-sidebar-chevron.is-open {
-  transform: rotate(90deg);
-}
-/* Defined after `.afwd-sidebar-chevron` so it wins on source order — a media query adds
- * no specificity, so an earlier reduced-motion rule would be overridden by the transition
- * above. */
-@media (prefers-reduced-motion: reduce) {
-  .afwd-sidebar-chevron {
-    transition: none;
+  .afwd-page-link:hover {
+    border-color: var(--afw-accent);
   }
-}
-.afwd-sidebar-link {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: 0.45rem;
-  font-size: 0.875rem;
-  color: var(--afw-text-muted);
-  text-decoration: none;
-  transition: color 0.12s, background 0.12s;
-}
-.afwd-sidebar-dot {
-  flex: none;
-  width: 5px;
-  height: 5px;
-  border-radius: 99px;
-  background: currentColor;
-  opacity: 0.35;
-  transition: opacity 0.12s;
-}
-.afwd-sidebar-link:hover {
-  color: var(--afw-text);
-  background: var(--afw-bg-surface);
-}
-.afwd-sidebar-link:hover .afwd-sidebar-dot {
-  opacity: 0.6;
-}
-.afwd-sidebar-link.afwd-active {
-  color: var(--afw-accent);
-  background: var(--afw-accent-soft);
-  font-weight: 600;
-}
-.afwd-sidebar-link.afwd-active .afwd-sidebar-dot {
-  opacity: 1;
-}
-
-/* ── Content ───────────────────────────────────────────────────────────────── */
-.afwd-content {
-  min-width: 0;
-  padding: 2.25rem 0 4rem;
-}
-.afwd-prose {
-  max-width: var(--afw-content-max);
-}
-.afwd-prose h1 {
-  font-size: 2.1rem;
-  font-weight: 800;
-  line-height: 1.15;
-  margin: 0 0 1rem;
-  letter-spacing: -0.02em;
-}
-.afwd-prose h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 2.5rem 0 1rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--afw-border);
-  letter-spacing: -0.01em;
-}
-.afwd-prose h3 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  margin: 2rem 0 0.75rem;
-}
-.afwd-prose h4 {
-  font-size: 1.05rem;
-  font-weight: 700;
-  margin: 1.6rem 0 0.6rem;
-}
-.afwd-prose h5 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin: 1.4rem 0 0.5rem;
-}
-.afwd-prose h6 {
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--afw-text-muted);
-  margin: 1.3rem 0 0.5rem;
-}
-.afwd-prose h1,
-.afwd-prose h2,
-.afwd-prose h3,
-.afwd-prose h4,
-.afwd-prose h5,
-.afwd-prose h6 {
-  scroll-margin-top: calc(var(--afw-navbar-height) + 1rem);
-}
-
-/* Self-linking heading anchor (the hover `#`). Hidden until the heading is
-   hovered or the anchor itself is focused, so it doesn't clutter the page. */
-.afw-heading-anchor {
-  margin-left: 0.4rem;
-  color: var(--afw-text-muted);
-  font-weight: 400;
-  text-decoration: none;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-/* The `#` is presentational only — drawn here, not as a DOM text node, so it never
-   leaks into heading text read by the TOC or the search index. */
-.afw-heading-anchor::before {
-  content: "#";
-}
-.afwd-prose :is(h1, h2, h3, h4, h5, h6):hover .afw-heading-anchor,
-.afw-heading-anchor:focus-visible {
-  opacity: 1;
-}
-.afw-heading-anchor:hover {
-  color: var(--afw-accent);
-}
-.afwd-prose p,
-.afwd-prose ul,
-.afwd-prose ol {
-  line-height: 1.75;
-  margin: 0 0 1.1rem;
-  color: var(--afw-text);
-}
-.afwd-prose ul,
-.afwd-prose ol {
-  padding-left: 1.4rem;
-}
-/* Restore list markers: the Tailwind preflight reset (@import "tailwindcss") sets
- * `list-style: none` on every ul/ol, which strips bullets and numbers from prose. */
-.afwd-prose ul {
-  list-style: disc;
-}
-.afwd-prose ul ul {
-  list-style: circle;
-}
-.afwd-prose ol {
-  list-style: decimal;
-}
-.afwd-prose li {
-  margin: 0.35rem 0;
-}
-/* Loose list items wrap their content in <p>; keep that from adding block spacing. */
-.afwd-prose li > p {
-  margin: 0;
-}
-/* GFM task list: drop the bullet and keep the checkbox inline with its label
- * (the label is a block <p>, which would otherwise wrap to the next line). */
-.afwd-prose li:has(> input[type="checkbox"]) {
-  list-style: none;
-}
-.afwd-prose li:has(> input[type="checkbox"]) > p {
-  display: inline;
-}
-/* Custom checkbox so checked vs. unchecked read at a glance (the native disabled
- * box is nearly identical in both states). Unchecked is an empty bordered box;
- * checked fills with the accent and draws a white tick. */
-.afwd-prose li > input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 1.05rem;
-  height: 1.05rem;
-  margin: 0 0.55em 0 0;
-  border: 1.5px solid var(--afw-border);
-  border-radius: 0.3rem;
-  background: var(--afw-bg-surface);
-  vertical-align: -0.18em;
-  position: relative;
-  opacity: 1; /* override the browser's disabled-input dimming */
-  cursor: default;
-}
-.afwd-prose li > input[type="checkbox"]:checked {
-  background: var(--afw-accent);
-  border-color: var(--afw-accent);
-}
-.afwd-prose li > input[type="checkbox"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 0.34rem;
-  top: 0.13rem;
-  width: 0.26rem;
-  height: 0.52rem;
-  border: solid #fff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-/* Completed items: mute the label (the filled check already marks it done). */
-.afwd-prose li:has(> input[type="checkbox"]:checked) > p {
-  color: var(--afw-text-muted);
-}
-/* An unclassed <button> in prose (e.g. an inline interactive demo). Component
- * buttons carry their own class, so this only catches bare demo buttons. */
-.afwd-prose button:not([class]) {
-  font: inherit;
-  cursor: pointer;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--afw-border);
-  border-radius: 0.5rem;
-  background: var(--afw-bg-surface);
-  color: inherit;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.afwd-prose button:not([class]):hover {
-  border-color: var(--afw-accent);
-}
-.afwd-prose a {
-  color: var(--afw-accent);
-  text-decoration: none;
-  font-weight: 500;
-}
-.afwd-prose a:hover {
-  text-decoration: underline;
-}
-.afwd-prose strong {
-  font-weight: 700;
-}
-.afwd-prose code {
-  font-family: var(--afw-mono);
-  font-size: 0.86em;
-  background: var(--afw-code-bg);
-  color: var(--afw-code-text);
-  padding: 0.15em 0.4em;
-  border-radius: 0.35rem;
-}
-.afwd-prose pre {
-  margin: 0 0 1.4rem;
-  padding: 1rem 1.1rem;
-  border-radius: var(--afw-radius);
-  border: 1px solid var(--afw-border);
-  overflow-x: auto;
-  font-family: var(--afw-mono);
-  font-size: 0.85rem;
-  line-height: 1.6;
-}
-/* Build-time highlighted code (syntect) sets its own inline background. */
-.afwd-prose pre code {
-  background: none;
-  color: inherit;
-  padding: 0;
-  font-size: inherit;
-}
-/* Titled code block (built by the MDX front-end): a header bar — language label,
- * optional filename, and a copy button on the right — above the highlighted <pre>.
- * The wrapper owns the radius and clips the corners of the dark header and code. */
-.afw-code {
-  margin: 0 0 1.4rem;
-  border: 1px solid var(--afw-border);
-  border-radius: var(--afw-radius);
-  overflow: hidden;
-  background: #2b303b;
-}
-.afw-code-head {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.4rem 0.5rem 0.4rem 0.95rem;
-  background: #23272f;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-.afw-code-lang {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.66rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.45);
-}
-.afw-code-name {
-  font-family: var(--afw-mono);
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.82);
-}
-.afw-code pre {
-  margin: 0;
-  border: none;
-  border-radius: 0;
-  /* Readable default for blocks without build-time highlighting (e.g. string content
-   * rendered by Tabs via CodeBlock). Fenced blocks carry inline syntect
-   * colors, which override this. */
-  color: #e2e8f0;
-}
-.afw-copy {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.28rem 0.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
-  font-family: var(--afw-font);
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-.afw-copy:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-}
-.afw-copy.is-copied {
-  background: color-mix(in srgb, #10b981 22%, transparent);
-  border-color: color-mix(in srgb, #10b981 55%, transparent);
-  color: #34d399;
-}
-.afw-copy .afw-check-icon {
-  display: none;
-}
-.afw-copy.is-copied .afw-copy-icon {
-  display: none;
-}
-.afw-copy.is-copied .afw-check-icon {
-  display: inline;
-}
-.afwd-prose blockquote {
-  margin: 0 0 1.2rem;
-  padding: 0.25rem 1.1rem;
-  border-left: 3px solid var(--afw-accent);
-  color: var(--afw-text-muted);
-}
-.afwd-prose hr {
-  border: none;
-  border-top: 1px solid var(--afw-border);
-  margin: 2rem 0;
-}
-.afwd-prose img {
-  max-width: 100%;
-  border-radius: var(--afw-radius);
-}
-.afwd-prose table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0 0 1.4rem;
-  font-size: 0.9rem;
-}
-.afwd-prose th,
-.afwd-prose td {
-  text-align: left;
-  padding: 0.55rem 0.8rem;
-  border: 1px solid var(--afw-border);
-}
-.afwd-prose th {
-  background: var(--afw-bg-surface);
-  font-weight: 600;
-}
-/* Wrapped tables (GFM tables and <Table>) let the wrapper carry the block
- * margin, so the two do not stack. */
-.afw-table-wrap > table {
-  margin: 0;
-}
-
-/* ── TOC ───────────────────────────────────────────────────────────────────── */
-.afwd-toc {
-  display: none;
-}
-@media (min-width: 1280px) {
-  .afwd-toc {
+  .afwd-page-next {
+    text-align: right;
+    margin-left: auto;
+  }
+  .afwd-page-dir {
+    font-size: 0.75rem;
+    color: var(--afw-text-muted);
+  }
+  .afwd-page-title {
+    font-weight: 600;
+    color: var(--afw-text);
+  }
+  .afwd-page-spacer {
     display: block;
-    position: sticky;
-    top: var(--afw-navbar-height);
-    align-self: start;
-    max-height: calc(100vh - var(--afw-navbar-height));
-    overflow-y: auto;
-    padding: 2.25rem 0 2rem;
   }
-}
-.afwd-toc-heading {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--afw-text-muted);
-  margin-bottom: 0.6rem;
-}
-.afwd-toc-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-left: 1px solid var(--afw-border);
-}
-.afwd-toc-item {
-  margin: 0;
-}
-.afwd-toc-sub .afwd-toc-link {
-  padding-left: 1.5rem;
-}
-.afwd-toc-link {
-  display: block;
-  padding: 0.25rem 0 0.25rem 0.85rem;
-  margin-left: -1px;
-  border-left: 2px solid transparent;
-  font-size: 0.82rem;
-  color: var(--afw-text-muted);
-  text-decoration: none;
-}
-.afwd-toc-link:hover {
-  color: var(--afw-text);
-}
-.afwd-toc-link.afwd-active {
-  color: var(--afw-accent);
-  border-left-color: var(--afw-accent);
-  font-weight: 600;
-}
 
-/* ── Breadcrumbs ───────────────────────────────────────────────────────────── */
-.afwd-breadcrumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 1.25rem;
-  font-size: 0.8rem;
-  color: var(--afw-text-muted);
-}
-.afwd-crumb {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-.afwd-crumb-sep {
-  opacity: 0.5;
-}
-.afwd-crumb-link {
-  color: var(--afw-text-muted);
-  text-decoration: none;
-}
-.afwd-crumb-link:hover {
-  color: var(--afw-accent);
-}
-
-/* ── Page meta (last updated · edit link) ──────────────────────────────────── */
-.afwd-page-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 2.5rem;
-}
-/* Empty when a page has neither bit of meta — collapse the top margin then. */
-.afwd-page-meta:empty {
-  margin-top: 0;
-}
-.afwd-last-updated {
-  font-size: 0.8rem;
-  color: var(--afw-text-muted);
-}
-.afwd-last-updated-time {
-  font-weight: 600;
-  color: var(--afw-text);
-}
-.afwd-edit-page {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--afw-text-muted);
-  text-decoration: none;
-}
-.afwd-edit-page:hover {
-  color: var(--afw-accent);
-}
-.afwd-page-meta + .afwd-pagination {
-  margin-top: 1.5rem;
-}
-
-/* ── Pagination ────────────────────────────────────────────────────────────── */
-.afwd-pagination {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 3rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--afw-border);
-}
-.afwd-page-link {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.85rem 1.1rem;
-  border: 1px solid var(--afw-border);
-  border-radius: var(--afw-radius);
-  text-decoration: none;
-  min-width: 0;
-  transition: border-color 0.15s;
-}
-.afwd-page-link:hover {
-  border-color: var(--afw-accent);
-}
-.afwd-page-next {
-  text-align: right;
-  margin-left: auto;
-}
-.afwd-page-dir {
-  font-size: 0.75rem;
-  color: var(--afw-text-muted);
-}
-.afwd-page-title {
-  font-weight: 600;
-  color: var(--afw-text);
-}
-.afwd-page-spacer {
-  display: block;
-}
-
-/* ── Footer ────────────────────────────────────────────────────────────────── */
-.afwd-footer {
-  border-top: 1px solid var(--afw-border);
-  background: var(--afw-bg-surface);
-  margin-top: 2rem;
-}
-.afwd-footer-inner {
-  max-width: 90rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 1rem;
-  font-size: 0.85rem;
-  color: var(--afw-text-muted);
-}
-.afwd-footer-links {
-  display: flex;
-  gap: 1.25rem;
-}
-.afwd-footer-link {
-  color: var(--afw-text-muted);
-  text-decoration: none;
-}
-.afwd-footer-link:hover {
-  color: var(--afw-text);
-}
-
-/* ── Callout ───────────────────────────────────────────────────────────────── */
-/* Per-type accent color `--c` drives a tinted fill, border, title color and a
- * filled icon chip — all derived from the one color via color-mix, so the same
- * rule adapts to light and dark automatically. */
-.afwd-callout {
-  --c: var(--afw-text-muted);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.85rem;
-  margin: 1.5rem 0;
-  padding: 1rem 1.1rem;
-  border: 1px solid color-mix(in srgb, var(--c) 28%, var(--afw-border));
-  border-left: 3px solid var(--c);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--c) 7%, var(--afw-bg));
-}
-/* Plain icon (design default): the glyph is tinted with the accent, no filled chip. */
-.afwd-callout-icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 1.65rem;
-  height: 1.65rem;
-  color: var(--c);
-  font-size: 1.15rem;
-  line-height: 1;
-}
-.afwd-callout-title {
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: color-mix(in srgb, var(--c) 60%, var(--afw-text));
-  margin-bottom: 0.25rem;
-}
-.afwd-callout-content {
-  min-width: 0;
-}
-.afwd-callout-body {
-  font-size: 0.92rem;
-  line-height: 1.65;
-}
-.afwd-callout-body > :last-child {
-  margin-bottom: 0;
-}
-.afwd-callout-note {
-  --c: var(--afw-text-muted);
-}
-.afwd-callout-tip {
-  --c: #10b981;
-}
-.afwd-callout-info {
-  --c: #3b82f6;
-}
-.afwd-callout-warning {
-  --c: #f59e0b;
-}
-.afwd-callout-danger {
-  --c: #ef4444;
-}
-
-/* ── Tabs ──────────────────────────────────────────────────────────────────── */
-.afwd-tabs {
-  margin: 1.5rem 0;
-  border: 1px solid var(--afw-border);
-  border-radius: var(--afw-radius);
-  overflow: hidden;
-}
-.afwd-tabs-list {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.4rem;
-  background: var(--afw-bg-surface);
-  border-bottom: 1px solid var(--afw-border);
-}
-.afwd-tab {
-  padding: 0.35rem 0.85rem;
-  border: none;
-  border-radius: 0.4rem;
-  background: transparent;
-  color: var(--afw-text-muted);
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.afwd-tab.afwd-active {
-  background: var(--afw-bg);
-  color: var(--afw-accent);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.afwd-tabs-panels {
-  padding: 1rem 1.1rem;
-}
-.afwd-tabs-panels pre {
-  margin: 0;
-  border: none;
-}
-/* A CodeBlock filling a panel shouldn't add its own trailing margin on top of the
- * panel's padding. */
-.afwd-tab-panel > .afw-code {
-  margin: 0;
-}
-.afwd-hidden {
-  display: none;
-}
-
-/* ── Steps ─────────────────────────────────────────────────────────────────── */
-.afwd-steps {
-  counter-reset: afw-step;
-  margin: 1.5rem 0;
-  padding-left: 1.75rem;
-  border-left: 1px solid var(--afw-border);
-}
-.afwd-steps > h3,
-.afwd-steps > h4 {
-  position: relative;
-  counter-increment: afw-step;
-  margin-top: 1.6rem;
-  font-size: 1.05rem;
-}
-.afwd-steps > h3:first-child,
-.afwd-steps > h4:first-child {
-  margin-top: 0;
-}
-.afwd-steps > h3::before,
-.afwd-steps > h4::before {
-  content: counter(afw-step);
-  position: absolute;
-  left: calc(-1.75rem - 1px);
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: grid;
-  place-items: center;
-  width: 1.7rem;
-  height: 1.7rem;
-  border-radius: 999px;
-  background: var(--afw-bg);
-  border: 1px solid var(--afw-border);
-  color: var(--afw-text-muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-.afwd-steps > h3:hover::before,
-.afwd-steps > h4:hover::before {
-  border-color: var(--afw-accent);
-  color: var(--afw-accent);
-}
-
-/* ── Table wrapper ─────────────────────────────────────────────────────────── */
-.afw-table-wrap {
-  overflow-x: auto;
-  max-width: 100%;
-  margin: 0 0 1.4rem;
-}
-/* The wrapper is focusable (tabindex="0") so the scroll area is keyboard
- * reachable; only show the ring for keyboard focus. */
-.afw-table-wrap:focus {
-  outline: none;
-}
-.afw-table-wrap:focus-visible {
-  outline: 2px solid var(--afw-accent);
-  outline-offset: 2px;
-}
-.afwd-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-.afwd-table th,
-.afwd-table td {
-  text-align: left;
-  padding: 0.55rem 0.8rem;
-  border: 1px solid var(--afw-border);
-}
-.afwd-table th {
-  background: var(--afw-bg-surface);
-  font-weight: 600;
-}
-
-/* ── Cards (index grids, e.g. the API overview) ────────────────────────────── */
-.afwd-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
-.afwd-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 1.1rem 1.25rem;
-  border: 1px solid var(--afw-border);
-  border-radius: 0.75rem;
-  background: var(--afw-bg-surface);
-  text-decoration: none;
-  transition: border-color 0.15s, transform 0.15s;
-}
-.afwd-card:hover {
-  border-color: var(--afw-accent);
-  transform: translateY(-2px);
-}
-.afwd-card-title {
-  font-weight: 700;
-  color: var(--afw-text);
-}
-.afwd-card-desc {
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--afw-text-muted);
-}
-
-/* ── Blog ──────────────────────────────────────────────────────────────────── */
-.afwd-blog {
-  max-width: 90rem;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-.afwd-blog-main {
-  width: 100%;
-  max-width: var(--afw-content-max);
-  margin: 0 auto;
-  padding: 3rem 0;
-}
-/* A post gets content + a sticky "On this page" TOC on wide screens. */
-.afwd-blog-post {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2.5rem;
-}
-@media (min-width: 1280px) {
-  .afwd-blog-post {
-    grid-template-columns: minmax(0, 1fr) var(--afw-toc-width);
-    /* No `align-items: start` — the TOC column is a <afw-toc> custom element that
-       must stretch to the row height so its inner `position: sticky` nav has travel
-       room (mirrors `.afwd-docs`). With `start` the host shrinks to content and the
-       TOC scrolls away with the page. */
+  /* ── Footer ────────────────────────────────────────────────────────────────── */
+  .afwd-footer {
+    border-top: 1px solid var(--afw-border);
+    background: var(--afw-bg-surface);
+    margin-top: 2rem;
   }
-  .afwd-blog-post .afwd-blog-main {
+  .afwd-footer-inner {
+    max-width: 90rem;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--afw-text-muted);
+  }
+  .afwd-footer-links {
+    display: flex;
+    gap: 1.25rem;
+  }
+  .afwd-footer-link {
+    color: var(--afw-text-muted);
+    text-decoration: none;
+  }
+  .afwd-footer-link:hover {
+    color: var(--afw-text);
+  }
+
+  /* ── Callout ───────────────────────────────────────────────────────────────── */
+  /* Per-type accent color `--c` drives a tinted fill, border, title color and a
+   * filled icon chip — all derived from the one color via color-mix, so the same
+   * rule adapts to light and dark automatically. */
+  .afwd-callout {
+    --c: var(--afw-text-muted);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.85rem;
+    margin: 1.5rem 0;
+    padding: 1rem 1.1rem;
+    border: 1px solid color-mix(in srgb, var(--c) 28%, var(--afw-border));
+    border-left: 3px solid var(--c);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--c) 7%, var(--afw-bg));
+  }
+  /* Plain icon (design default): the glyph is tinted with the accent, no filled chip. */
+  .afwd-callout-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 1.65rem;
+    height: 1.65rem;
+    color: var(--c);
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+  .afwd-callout-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: color-mix(in srgb, var(--c) 60%, var(--afw-text));
+    margin-bottom: 0.25rem;
+  }
+  .afwd-callout-content {
+    min-width: 0;
+  }
+  .afwd-callout-body {
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+  .afwd-callout-body > :last-child {
+    margin-bottom: 0;
+  }
+  .afwd-callout-note {
+    --c: var(--afw-text-muted);
+  }
+  .afwd-callout-tip {
+    --c: #10b981;
+  }
+  .afwd-callout-info {
+    --c: #3b82f6;
+  }
+  .afwd-callout-warning {
+    --c: #f59e0b;
+  }
+  .afwd-callout-danger {
+    --c: #ef4444;
+  }
+
+  /* ── Tabs ──────────────────────────────────────────────────────────────────── */
+  .afwd-tabs {
+    margin: 1.5rem 0;
+    border: 1px solid var(--afw-border);
+    border-radius: var(--afw-radius);
+    overflow: hidden;
+  }
+  .afwd-tabs-list {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.4rem;
+    background: var(--afw-bg-surface);
+    border-bottom: 1px solid var(--afw-border);
+  }
+  .afwd-tab {
+    padding: 0.35rem 0.85rem;
+    border: none;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--afw-text-muted);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .afwd-tab.afwd-active {
+    background: var(--afw-bg);
+    color: var(--afw-accent);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+  .afwd-tabs-panels {
+    padding: 1rem 1.1rem;
+  }
+  .afwd-tabs-panels pre {
     margin: 0;
-    justify-self: end;
+    border: none;
   }
-}
-.afwd-blog-back {
-  display: inline-block;
-  margin-bottom: 1.5rem;
-  font-size: 0.85rem;
-  color: var(--afw-text-muted);
-  text-decoration: none;
-}
-.afwd-blog-back:hover {
-  color: var(--afw-text);
-}
+  /* A CodeBlock filling a panel shouldn't add its own trailing margin on top of the
+   * panel's padding. */
+  .afwd-tab-panel > .afw-code {
+    margin: 0;
+  }
+  .afwd-hidden {
+    display: none;
+  }
 
-/* Post banner (title + description + meta). */
-.afwd-post-banner {
-  margin-bottom: 2.5rem;
-  padding-bottom: 1.75rem;
-  border-bottom: 1px solid var(--afw-border);
-}
-.afwd-post-title {
-  font-size: clamp(2rem, 5vw, 2.75rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  color: var(--afw-text);
-}
-.afwd-post-desc {
-  margin-top: 0.75rem;
-  font-size: 1.15rem;
-  color: var(--afw-text-muted);
-  line-height: 1.5;
-}
+  /* ── Steps ─────────────────────────────────────────────────────────────────── */
+  .afwd-steps {
+    counter-reset: afw-step;
+    margin: 1.5rem 0;
+    padding-left: 1.75rem;
+    border-left: 1px solid var(--afw-border);
+  }
+  .afwd-steps > h3,
+  .afwd-steps > h4 {
+    position: relative;
+    counter-increment: afw-step;
+    margin-top: 1.6rem;
+    font-size: 1.05rem;
+  }
+  .afwd-steps > h3:first-child,
+  .afwd-steps > h4:first-child {
+    margin-top: 0;
+  }
+  .afwd-steps > h3::before,
+  .afwd-steps > h4::before {
+    content: counter(afw-step);
+    position: absolute;
+    left: calc(-1.75rem - 1px);
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 999px;
+    background: var(--afw-bg);
+    border: 1px solid var(--afw-border);
+    color: var(--afw-text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .afwd-steps > h3:hover::before,
+  .afwd-steps > h4:hover::before {
+    border-color: var(--afw-accent);
+    color: var(--afw-accent);
+  }
 
-/* Meta row: date · author · reading time. */
-.afwd-post-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 1rem;
-  font-size: 0.85rem;
-  color: var(--afw-text-muted);
-}
-.afwd-post-meta > * + *::before {
-  content: "·";
-  margin-right: 0.75rem;
-  color: var(--afw-border);
-}
-.afwd-reading-time,
-.afwd-post-author,
-.afwd-post-date {
-  white-space: nowrap;
-}
+  /* ── Table wrapper ─────────────────────────────────────────────────────────── */
+  .afw-table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+    margin: 0 0 1.4rem;
+  }
+  /* The wrapper is focusable (tabindex="0") so the scroll area is keyboard
+   * reachable; only show the ring for keyboard focus. */
+  .afw-table-wrap:focus {
+    outline: none;
+  }
+  .afw-table-wrap:focus-visible {
+    outline: 2px solid var(--afw-accent);
+    outline-offset: 2px;
+  }
+  .afwd-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .afwd-table th,
+  .afwd-table td {
+    text-align: left;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid var(--afw-border);
+  }
+  .afwd-table th {
+    background: var(--afw-bg-surface);
+    font-weight: 600;
+  }
 
-/* Tags. */
-.afwd-post-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-.afwd-post-tag {
-  padding: 0.15rem 0.6rem;
-  border-radius: 9999px;
-  background: var(--afw-bg-surface);
-  border: 1px solid var(--afw-border);
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--afw-text-muted);
-}
+  /* ── Cards (index grids, e.g. the API overview) ────────────────────────────── */
+  .afwd-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .afwd-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--afw-border);
+    border-radius: 0.75rem;
+    background: var(--afw-bg-surface);
+    text-decoration: none;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .afwd-card:hover {
+    border-color: var(--afw-accent);
+    transform: translateY(-2px);
+  }
+  .afwd-card-title {
+    font-weight: 700;
+    color: var(--afw-text);
+  }
+  .afwd-card-desc {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--afw-text-muted);
+  }
 
-/* Index listing. */
-.afwd-post-list {
-  display: flex;
-  flex-direction: column;
-}
-.afwd-post-card {
-  display: block;
-  padding: 1.6rem 0;
-  border-top: 1px solid var(--afw-border);
-  text-decoration: none;
-  transition: opacity 0.15s;
-}
-.afwd-post-card:hover .afwd-post-card-title {
-  color: var(--afw-accent);
-}
-.afwd-post-card .afwd-post-meta {
-  margin-top: 0;
-}
-.afwd-post-card-title {
-  margin-top: 0.4rem;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: var(--afw-text);
-  transition: color 0.15s;
-}
-.afwd-post-card-desc {
-  margin-top: 0.4rem;
-  color: var(--afw-text-muted);
-  line-height: 1.5;
-}
-.afwd-post-empty {
-  padding: 2rem 0;
-  color: var(--afw-text-muted);
-}
+  /* ── Blog ──────────────────────────────────────────────────────────────────── */
+  .afwd-blog {
+    max-width: 90rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  .afwd-blog-main {
+    width: 100%;
+    max-width: var(--afw-content-max);
+    margin: 0 auto;
+    padding: 3rem 0;
+  }
+  /* A post gets content + a sticky "On this page" TOC on wide screens. */
+  .afwd-blog-post {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+  @media (min-width: 1280px) {
+    .afwd-blog-post {
+      grid-template-columns: minmax(0, 1fr) var(--afw-toc-width);
+      /* No `align-items: start` — the TOC column is a <afw-toc> custom element that
+         must stretch to the row height so its inner `position: sticky` nav has travel
+         room (mirrors `.afwd-docs`). With `start` the host shrinks to content and the
+         TOC scrolls away with the page. */
+    }
+    .afwd-blog-post .afwd-blog-main {
+      margin: 0;
+      justify-self: end;
+    }
+  }
+  .afwd-blog-back {
+    display: inline-block;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--afw-text-muted);
+    text-decoration: none;
+  }
+  .afwd-blog-back:hover {
+    color: var(--afw-text);
+  }
 
-/* ── Blog: cover images & author ───────────────────────────────────────────── */
-.afwd-post-cover {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 7;
-  object-fit: cover;
-  border-radius: 0.85rem;
-  border: 1px solid var(--afw-border);
-  margin-bottom: 1.75rem;
-}
-.afwd-post-author {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.afwd-post-avatar {
-  width: 1.4rem;
-  height: 1.4rem;
-  border-radius: 9999px;
-  object-fit: cover;
-  border: 1px solid var(--afw-border);
-}
-.afwd-post-author-role {
-  color: var(--afw-text-muted);
-  opacity: 0.8;
-}
-/* Cards with a cover use a media + body two-row layout. */
-.afwd-post-card-cover {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 8;
-  object-fit: cover;
-  border-radius: 0.6rem;
-  border: 1px solid var(--afw-border);
-  margin-bottom: 1rem;
+  /* Post banner (title + description + meta). */
+  .afwd-post-banner {
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.75rem;
+    border-bottom: 1px solid var(--afw-border);
+  }
+  .afwd-post-title {
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--afw-text);
+  }
+  .afwd-post-desc {
+    margin-top: 0.75rem;
+    font-size: 1.15rem;
+    color: var(--afw-text-muted);
+    line-height: 1.5;
+  }
+
+  /* Meta row: date · author · reading time. */
+  .afwd-post-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--afw-text-muted);
+  }
+  .afwd-post-meta > * + *::before {
+    content: "·";
+    margin-right: 0.75rem;
+    color: var(--afw-border);
+  }
+  .afwd-reading-time,
+  .afwd-post-author,
+  .afwd-post-date {
+    white-space: nowrap;
+  }
+
+  /* Tags. */
+  .afwd-post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  .afwd-post-tag {
+    padding: 0.15rem 0.6rem;
+    border-radius: 9999px;
+    background: var(--afw-bg-surface);
+    border: 1px solid var(--afw-border);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--afw-text-muted);
+  }
+
+  /* Index listing. */
+  .afwd-post-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .afwd-post-card {
+    display: block;
+    padding: 1.6rem 0;
+    border-top: 1px solid var(--afw-border);
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .afwd-post-card:hover .afwd-post-card-title {
+    color: var(--afw-accent);
+  }
+  .afwd-post-card .afwd-post-meta {
+    margin-top: 0;
+  }
+  .afwd-post-card-title {
+    margin-top: 0.4rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--afw-text);
+    transition: color 0.15s;
+  }
+  .afwd-post-card-desc {
+    margin-top: 0.4rem;
+    color: var(--afw-text-muted);
+    line-height: 1.5;
+  }
+  .afwd-post-empty {
+    padding: 2rem 0;
+    color: var(--afw-text-muted);
+  }
+
+  /* ── Blog: cover images & author ───────────────────────────────────────────── */
+  .afwd-post-cover {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 7;
+    object-fit: cover;
+    border-radius: 0.85rem;
+    border: 1px solid var(--afw-border);
+    margin-bottom: 1.75rem;
+  }
+  .afwd-post-author {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .afwd-post-avatar {
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 9999px;
+    object-fit: cover;
+    border: 1px solid var(--afw-border);
+  }
+  .afwd-post-author-role {
+    color: var(--afw-text-muted);
+    opacity: 0.8;
+  }
+  /* Cards with a cover use a media + body two-row layout. */
+  .afwd-post-card-cover {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 8;
+    object-fit: cover;
+    border-radius: 0.6rem;
+    border: 1px solid var(--afw-border);
+    margin-bottom: 1rem;
+  }
 }

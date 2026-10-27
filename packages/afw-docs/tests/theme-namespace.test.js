@@ -82,6 +82,23 @@ describe("afw-docs theme class namespaces", () => {
     expect([...unknown]).toEqual([]);
   });
 
+  test("every theme rule sits inside the afw-docs cascade layer", async () => {
+    // Unlayered site CSS must always win over the theme; a rule left outside the
+    // layer would silently outrank site overrides with a more specific selector.
+    const css = (await file(THEME).text()).replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    expect(css.startsWith("@layer afw-docs {")).toBe(true);
+    let depth = 0;
+    let closedAt = -1;
+    for (let i = 0; i < css.length; i++) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}" && --depth === 0) {
+        closedAt = i;
+        break;
+      }
+    }
+    expect(closedAt).toBe(css.length - 1);
+  });
+
   test("the callout type modifier matches a themed afwd-callout-* rule", async () => {
     const css = await file(THEME).text();
     for (const type of ["note", "tip", "info", "warning", "danger"]) {

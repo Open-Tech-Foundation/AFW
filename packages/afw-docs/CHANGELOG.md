@@ -17,6 +17,10 @@
   `.afw-table-wrap`, `.afw-heading-anchor`, `.afw-search-*`). CSS variables stay
   `--afw-*`, and ids and data attributes (`#afw-sidebar`, `data-afw-has-sidebar`) are
   unchanged.
+- The theme stylesheet is wrapped in `@layer afw-docs`. Any unlayered site CSS now
+  overrides it regardless of selector specificity. Imported after Tailwind, the layer
+  still ranks above Tailwind's own layers, so the theme keeps beating preflight and
+  utilities as before. The docs website renders identically.
 
 ### Fixed
 
