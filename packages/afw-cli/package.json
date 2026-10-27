@@ -3,6 +3,9 @@
   "version": "1.30.0",
   "description": "AFW SSG library — the pre-render driver for `esdev build` (`@opentf/afw-cli/ssg`). The `afw` dev-server/build commands are retired; apps build straight from esdev.json.",
   "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
   "exports": {
     "./ssg": "./src/ssg.js"
   },
