@@ -16,7 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_release: ${{ steps.check.outputs.should_release }}
-      release_afw_compiler: ${{ steps.check.outputs.release_afw_compiler }}
+      release_opentf_esdev_plugin_afw: ${{ steps.check.outputs.release_opentf_esdev_plugin_afw }}
+      release_opentf_afw: ${{ steps.check.outputs.release_opentf_afw }}
+      release_opentf_afw_cli: ${{ steps.check.outputs.release_opentf_afw_cli }}
+      release_opentf_afw_compiler: ${{ steps.check.outputs.release_opentf_afw_compiler }}
+      release_opentf_afw_docs: ${{ steps.check.outputs.release_opentf_afw_docs }}
+      release_opentf_afw_form: ${{ steps.check.outputs.release_opentf_afw_form }}
+      release_opentf_afw_i18n: ${{ steps.check.outputs.release_opentf_afw_i18n }}
+      release_opentf_afw_test: ${{ steps.check.outputs.release_opentf_afw_test }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,12 +35,19 @@ jobs:
         run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
       - id: check
         run: |
-          echo "should_release=$(otf-release check --exclude-package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
-          echo "release_afw_compiler=$(otf-release check --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
+          echo "should_release=$(otf-release check --exclude-package @opentf/esdev-plugin-afw --exclude-package @opentf/afw --exclude-package @opentf/afw-cli --exclude-package @opentf/afw-compiler --exclude-package @opentf/afw-docs --exclude-package @opentf/afw-form --exclude-package @opentf/afw-i18n --exclude-package @opentf/afw-test)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_esdev_plugin_afw=$(otf-release check --package @opentf/esdev-plugin-afw)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw=$(otf-release check --package @opentf/afw)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_cli=$(otf-release check --package @opentf/afw-cli)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_compiler=$(otf-release check --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_docs=$(otf-release check --package @opentf/afw-docs)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_form=$(otf-release check --package @opentf/afw-form)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_i18n=$(otf-release check --package @opentf/afw-i18n)" >> "$GITHUB_OUTPUT"
+          echo "release_opentf_afw_test=$(otf-release check --package @opentf/afw-test)" >> "$GITHUB_OUTPUT"
 
-  matrix-afw-compiler:
+  matrix-opentf-afw-compiler:
     needs: [check-release]
-    if: needs.check-release.outputs.release_afw_compiler == 'true'
+    if: needs.check-release.outputs.release_opentf_afw_compiler == 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
@@ -44,22 +58,26 @@ jobs:
         env:
           OTF_RELEASE_VERSION: v0.38.0
         run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+      - name: Setup
+        shell: bash
+        run: |
+          cp LICENSE packages/afw-compiler/LICENSE
       - id: set
         run: echo "matrix=$(otf-release matrix --package @opentf/afw-compiler)" >> "$GITHUB_OUTPUT"
 
-  build-afw-compiler:
-    needs: [check-release, matrix-afw-compiler]
-    if: needs.check-release.outputs.release_afw_compiler == 'true'
+  build-opentf-afw-compiler:
+    needs: [check-release, matrix-opentf-afw-compiler]
+    if: needs.check-release.outputs.release_opentf_afw_compiler == 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.matrix-afw-compiler.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.matrix-opentf-afw-compiler.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.triple }}
-      # Read the pinned packageManager version from package.json.
+      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -77,23 +95,113 @@ jobs:
         env:
           OTF_RELEASE_VERSION: v0.38.0
         run: irm https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.ps1 | iex
+      - name: Setup
+        shell: bash
+        run: |
+          cp LICENSE packages/afw-compiler/LICENSE
       - name: Build @opentf/afw-compiler
         run: otf-release build --package @opentf/afw-compiler --target ${{ matrix.name }}/${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
           name: opentf-afw-compiler-${{ matrix.name }}-${{ matrix.arch }}
           path: .artifacts/@opentf/afw-compiler
-          if-no-files-found: error
 
-  publish-afw-compiler:
-    needs: [check-release, build-afw-compiler]
-    if: needs.check-release.outputs.release_afw_compiler == 'true'
+  publish-opentf-esdev-plugin-afw:
+    needs: [check-release]
+    if: needs.check-release.outputs.release_opentf_esdev_plugin_afw == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Read the pinned packageManager version from package.json.
+      # pnpm comes from package.json's packageManager pin.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Build @opentf/esdev-plugin-afw
+        run: npm run build
+        working-directory: packages/esdev-plugin-afw
+      - name: Install otf-release
+        shell: bash
+        env:
+          OTF_RELEASE_VERSION: v0.38.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+      - name: Publish
+        run: otf-release publish --package @opentf/esdev-plugin-afw
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-opentf-afw:
+    needs: [check-release]
+    if: needs.check-release.outputs.release_opentf_afw == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # pnpm comes from package.json's packageManager pin.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Build @opentf/afw
+        run: npm run build
+        working-directory: packages/afw
+      - name: Install otf-release
+        shell: bash
+        env:
+          OTF_RELEASE_VERSION: v0.38.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+      - name: Publish
+        run: otf-release publish --package @opentf/afw
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-opentf-afw-cli:
+    needs: [check-release]
+    if: needs.check-release.outputs.release_opentf_afw_cli == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # pnpm comes from package.json's packageManager pin.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Build @opentf/afw-cli
+        run: npm run build
+        working-directory: packages/afw-cli
+      - name: Install otf-release
+        shell: bash
+        env:
+          OTF_RELEASE_VERSION: v0.38.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+      - name: Publish
+        run: otf-release publish --package @opentf/afw-cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-opentf-afw-compiler:
+    needs: [check-release, build-opentf-afw-compiler]
+    if: needs.check-release.outputs.release_opentf_afw_compiler == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -105,6 +213,10 @@ jobs:
           path: .artifacts/@opentf/afw-compiler
           merge-multiple: true
       - run: pnpm install --frozen-lockfile
+      - name: Setup
+        shell: bash
+        run: |
+          cp LICENSE packages/afw-compiler/LICENSE
       - name: Install otf-release
         shell: bash
         env:
@@ -116,19 +228,149 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish:
-    needs: [check-release, publish-afw-compiler]
-    if: >-
-      always() &&
-      needs.check-release.outputs.should_release == 'true' &&
-      needs.publish-afw-compiler.result != 'failure' &&
-      needs.publish-afw-compiler.result != 'cancelled'
+  publish-opentf-afw-docs:
+    needs: [check-release]
+    if: needs.check-release.outputs.release_opentf_afw_docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Read the pinned packageManager version from package.json.
+      # pnpm comes from package.json's packageManager pin.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Build @opentf/afw-docs
+        run: npm run build
+        working-directory: packages/afw-docs
+      - name: Install otf-release
+        shell: bash
+        env:
+          OTF_RELEASE_VERSION: v0.38.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+      - name: Publish
+        run: otf-release publish --package @opentf/afw-docs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-opentf-afw-form:
+    needs: [check-release]
+    if: needs.check-release.outputs.release_opentf_afw_form == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # pnpm comes from package.json's packageManager pin.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Build @opentf/afw-form
+        run: npm run build
+        working-directory: packages/afw-form
+      - name: Install otf-release
+        shell: bash
+        env:
+          OTF_RELEASE_VERSION: v0.38.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+      - name: Publish
+        run: otf-release publish --package @opentf/afw-form
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-opentf-afw-i18n:
+    needs: [check-release]
+    if: needs.check-release.outputs.release_opentf_afw_i18n == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # pnpm comes from package.json's packageManager pin.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Build @opentf/afw-i18n
+        run: npm run build
+        working-directory: packages/afw-i18n
+      - name: Install otf-release
+        shell: bash
+        env:
+          OTF_RELEASE_VERSION: v0.38.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+      - name: Publish
+        run: otf-release publish --package @opentf/afw-i18n
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-opentf-afw-test:
+    needs: [check-release]
+    if: needs.check-release.outputs.release_opentf_afw_test == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # pnpm comes from package.json's packageManager pin.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Build @opentf/afw-test
+        run: npm run build
+        working-directory: packages/afw-test
+      - name: Install otf-release
+        shell: bash
+        env:
+          OTF_RELEASE_VERSION: v0.38.0
+        run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
+      - name: Publish
+        run: otf-release publish --package @opentf/afw-test
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: [check-release, publish-opentf-esdev-plugin-afw, publish-opentf-afw, publish-opentf-afw-cli, publish-opentf-afw-compiler, publish-opentf-afw-docs, publish-opentf-afw-form, publish-opentf-afw-i18n, publish-opentf-afw-test]
+    if: >-
+      always() &&
+      needs.check-release.outputs.should_release == 'true' &&
+      needs.publish-opentf-esdev-plugin-afw.result != 'failure' &&
+      needs.publish-opentf-esdev-plugin-afw.result != 'cancelled' &&
+      needs.publish-opentf-afw.result != 'failure' &&
+      needs.publish-opentf-afw.result != 'cancelled' &&
+      needs.publish-opentf-afw-cli.result != 'failure' &&
+      needs.publish-opentf-afw-cli.result != 'cancelled' &&
+      needs.publish-opentf-afw-compiler.result != 'failure' &&
+      needs.publish-opentf-afw-compiler.result != 'cancelled' &&
+      needs.publish-opentf-afw-docs.result != 'failure' &&
+      needs.publish-opentf-afw-docs.result != 'cancelled' &&
+      needs.publish-opentf-afw-form.result != 'failure' &&
+      needs.publish-opentf-afw-form.result != 'cancelled' &&
+      needs.publish-opentf-afw-i18n.result != 'failure' &&
+      needs.publish-opentf-afw-i18n.result != 'cancelled' &&
+      needs.publish-opentf-afw-test.result != 'failure' &&
+      needs.publish-opentf-afw-test.result != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # pnpm comes from package.json's packageManager pin.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -141,7 +383,8 @@ jobs:
           OTF_RELEASE_VERSION: v0.38.0
         run: curl -fsSL https://raw.githubusercontent.com/Open-Tech-Foundation/release/v0.38.0/install.sh | bash
       - name: Publish
-        run: otf-release publish --exclude-package @opentf/afw-compiler
+        run: otf-release publish --exclude-package @opentf/esdev-plugin-afw --exclude-package @opentf/afw --exclude-package @opentf/afw-cli --exclude-package @opentf/afw-compiler --exclude-package @opentf/afw-docs --exclude-package @opentf/afw-form --exclude-package @opentf/afw-i18n --exclude-package @opentf/afw-test
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

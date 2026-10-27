@@ -72,7 +72,7 @@ name = "@opentf/esdev-plugin-afw"
 adapter = "npm"
 mode = "publish"
 matrix = false
-command = ""
+command = "npm run build"
 artifacts = ""
 manifest = "packages/esdev-plugin-afw/package.json"
 
@@ -81,7 +81,7 @@ name = "@opentf/afw"
 adapter = "npm"
 mode = "publish"
 matrix = false
-command = ""
+command = "npm run build"
 artifacts = ""
 manifest = "packages/afw/package.json"
 
@@ -90,7 +90,7 @@ name = "@opentf/afw-cli"
 adapter = "npm"
 mode = "publish"
 matrix = false
-command = ""
+command = "npm run build"
 artifacts = ""
 manifest = "packages/afw-cli/package.json"
 
@@ -134,12 +134,18 @@ runner = "windows-latest"
 stage_as = "win32-x64"
 ext = ".exe"
 
+# The compiler publishes from a matrix: its builds run on other runners, so the
+# LICENSE copy (the other packages' `npm run build`) is a setup step here, which
+# runs in every job of this package, including the publish job.
+[[package.setup]]
+run = ["cp LICENSE packages/afw-compiler/LICENSE"]
+
 [[package]]
 name = "@opentf/afw-docs"
 adapter = "npm"
 mode = "publish"
 matrix = false
-command = ""
+command = "npm run build"
 artifacts = ""
 manifest = "packages/afw-docs/package.json"
 
@@ -148,7 +154,7 @@ name = "@opentf/afw-form"
 adapter = "npm"
 mode = "publish"
 matrix = false
-command = ""
+command = "npm run build"
 artifacts = ""
 manifest = "packages/afw-form/package.json"
 
@@ -157,7 +163,7 @@ name = "@opentf/afw-i18n"
 adapter = "npm"
 mode = "publish"
 matrix = false
-command = ""
+command = "npm run build"
 artifacts = ""
 manifest = "packages/afw-i18n/package.json"
 
@@ -166,6 +172,6 @@ name = "@opentf/afw-test"
 adapter = "npm"
 mode = "publish"
 matrix = false
-command = ""
+command = "npm run build"
 artifacts = ""
 manifest = "packages/afw-test/package.json"

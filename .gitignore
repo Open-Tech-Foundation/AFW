@@ -63,3 +63,6 @@ packages/afw-cli/tests/afw-*/
 
 # e2e scratch trees (generated apps, temp bundles)
 .e2e/
+
+# Copied from the root by each package's build script before publishing
+packages/*/LICENSE
