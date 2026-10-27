@@ -4,7 +4,7 @@ import FancyModal from "../components/FancyModal.jsx";
 export default function RefDemoPage() {
   const modalRef = $ref();
   const inputRef = $ref();
-  let message = $state("Hello Web App Framework!");
+  let message = $state("Hello AFW!");
 
   onMount(() => {
     console.log("inputRef", inputRef);
