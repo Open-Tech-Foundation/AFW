@@ -1,58 +1,27 @@
 <div align="center">
 
-# AFW — App Framework for the Web
+# AFW
 
-[🌐 https://afw.opentechf.org](https://afw.opentechf.org/)
+***App Framework for the Web: JSX compiled to native DOM, no virtual DOM***
 
-### The native-first fullstack framework for modern web apps.
-
-JSX compiles to native DOM operations via a Rust compiler — no virtual DOM, no runtime diff.
-Built on signals and standard Web Components.
+[Website](https://afw.opentechf.org) | [Docs](https://afw.opentechf.org/docs) | [API](https://afw.opentechf.org/api) | [npm](https://www.npmjs.com/package/@opentf/afw)
 
 </div>
 
----
+<div align="right">
 
-> [!CAUTION]
-> **Alpha.** APIs and architecture may change as we harden toward production.
+*An [Open Tech Foundation](https://opentechf.org/) project*
 
-## What it is
+</div>
 
-AFW is a fullstack web framework on a Rust foundation. A single compiler and
-toolchain spans the entire application: JSX components, client-side rendering,
-hydration, static generation (SSG), server-side rendering (SSR), and server
-endpoints are all produced from one source. The compiler analyzes your JSX
-statically and emits the exact DOM operations needed — there is no virtual DOM
-and no reconciliation loop at all.
-
-## Why it's different
-
-The compiler derives several small, focused intermediate representations from the
-same AST — View, Reactivity, Server, Route, Metadata — and each backend turns
-those into code for a target (CSR, Hydrate, SSG, SSR, API). One source, many IRs,
-many targets. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design.
-
-## Quick start
-
-Install [ES-Runtime](https://esrun.opentechf.org/) (`esdev` 0.17 or newer) and
-add the runtime and compiler/routes plugin to your app:
-
-```bash
-pnpm add @opentf/afw
-pnpm add -D @opentf/esdev-plugin-afw
-```
-
-Configure the HTML entry, client entry and `esdev.json` as shown in the
-[plugin setup guide](packages/esdev-plugin-afw/README.md), then run `esdev start`.
-Or generate a project with `esdev create <dir> --template=spa` (also `fullstack`,
-`docs` and `library`).
-
-## Example
+> A Rust compiler reads your JSX once and emits the exact DOM operations it needs.
+> Every component is a standard Custom Element, and every `{expression}` is one
+> binding to one signal, so a state change touches only the nodes that read it.
 
 ```jsx
 export default function Counter() {
   let count = $state(0);
-  const doubled = $derived(count * 2); // no arrow needed — the compiler wraps it
+  const doubled = $derived(count * 2);
 
   return (
     <div>
@@ -63,98 +32,146 @@ export default function Counter() {
 }
 ```
 
-This compiles to a standard Custom Element built from direct DOM operations.
-`{count}` becomes a single binding wired to one signal, so updating `count`
-touches exactly that text node and nothing else.
+`count++` is a signal write; the compiler wires it, so there is no `.value` and
+no setter. Clicking the button updates two text nodes and nothing else: there is
+no re-render, no diff and no memoization to manage.
 
-## Features
+> [!NOTE]
+> **Alpha.** APIs can change between minor versions while the framework hardens;
+> see each package's changelog.
 
-- **Signals** — `$state`, `$derived`, `$effect`, `$ref`; the compiler wires
-  reactivity, so there's no manual `.value`.
-- **Standard Web Components** — every component compiles to a native Custom
-  Element. Use it anywhere, with any tool.
-- **File-based routing** — nested layouts, dynamic segments, catch-all routes,
-  and route guards.
-- **Batteries included** — forms, testing, i18n, MDX docs, and project
-  scaffolding via `esdev create`.
+## Why AFW
 
-## Performance
-
-The runtime is a rendering-layer comparison against the React, Solid, and
-Svelte 5 libraries. It's an honest one — no single operation is fastest, and the
-create-row ops are ties at this timing resolution. See the
-[benchmarks page](https://afw.opentechf.org/benchmarks) for the full tables,
-methodology, and caveats. Reproduce locally with `tsr bench -- all`.
-
-## Ecosystem
-
-| Package | Purpose |
+| Need | How AFW meets it |
 | --- | --- |
-| [`@opentf/afw`](packages/afw) | Runtime — signals, DOM operations, router, SSG. |
-| [`@opentf/afw-cli`](packages/afw-cli) | SSG helpers and release output hooks for esdev builds. |
-| [`@opentf/afw-compiler`](packages/afw-compiler) | Native toolchain (`afwc`) — compilation, docs indexing and binary resolution. |
-| [`@opentf/afw-form`](packages/afw-form) | Reactive forms with async validation. |
-| [`@opentf/afw-test`](packages/afw-test) | Testing utilities for native components. |
-| [`@opentf/afw-docs`](packages/afw-docs) | MDX documentation theme — sidebar, callouts, TOC. |
-| [`@opentf/afw-i18n`](packages/afw-i18n) | Internationalization — ICU messages, Intl formatters, URL-prefix locale routing. |
+| ⚡ **No virtual DOM** | The compiler emits direct DOM operations; there is no reconciliation loop at runtime. |
+| 🎯 **Fine-grained updates** | `$state`, `$derived` and `$effect` compile to signals; each binding re-runs only when its own inputs change. |
+| 🧩 **Standard Web Components** | Every component is a native Custom Element, usable from plain HTML or any other framework. |
+| 🦀 **One Rust toolchain** | A single compiler produces client rendering, hydration, static generation and server rendering from the same source. |
+| 🗂️ **File-based routing** | Nested layouts, dynamic and catch-all segments, route guards, loaders and API routes under `app/`. |
+| 🔋 **Batteries included** | Forms, i18n, testing and a documentation theme ship as first-party packages. |
 
-## Repository map
+## Compared with other frameworks
 
-| Path | What's here |
+| | **AFW** | React | Solid | Svelte 5 |
+| --- | --- | --- | --- | --- |
+| **Authoring** | JSX + `$state` macros | JSX + hooks | JSX + signals | `.svelte` + runes |
+| **Updates** | Signals → direct DOM | Virtual DOM diff | Signals → direct DOM | Signals → direct DOM |
+| **Component output** | Native Custom Element | Function | Function | Function |
+| **Compiler written in** | Rust | JavaScript (optional React Compiler) | JavaScript (Babel plugin) | JavaScript |
+| **Maturity** | New (alpha) | Mature | Mature | Mature |
+
+### Speed today
+
+[js-framework-benchmark](https://github.com/krausest/js-framework-benchmark)-style
+operations, median of 3 pooled runs on one machine, CPU throttled 4×, in
+milliseconds; lower is better. Recorded on 2026-08-01:
+
+| Operation | **AFW** | React | Solid | Svelte 5 |
+| --- | --- | --- | --- | --- |
+| create 1,000 rows | 261.2 | 274.1 | 244.3 | 257.6 |
+| create 10,000 rows | 2627.8 | 3338.6 | 2542.2 | 2548.8 |
+| append 1,000 to 1,000 | 295.8 | 286.2 | 270.1 | 267.5 |
+| update every 10th (1k) | 91.9 | 93.9 | 108.9 | 92.5 |
+| swap 2 rows (1k) | 33.0 | 246.5 | 31.2 | 31.3 |
+| select row (1k) | 26.2 | 27.3 | 30.0 | 29.0 |
+| remove row (1k) | 40.4 | 39.9 | 37.6 | 36.2 |
+| clear 10,000 rows | 178.6 | 260.9 | 164.0 | 165.3 |
+
+AFW is in the same range as Solid and Svelte and ahead of React on large
+creates, swaps and clears; no framework wins every row, and differences under
+the ~8 ms timing resolution are ties. Method, caveats and the build-cost
+comparison are on the [benchmarks page](https://afw.opentechf.org/docs/benchmarks).
+Reproduce with `tsr bench`.
+
+## Get started
+
+AFW runs on [ES-Runtime](https://esrun.opentechf.org)'s `esdev` toolchain
+(0.17 or newer). Generate a project:
+
+```sh
+esdev create my-app --template=spa     # also: fullstack, docs, library
+cd my-app
+esdev start
+```
+
+Or add AFW to an existing esdev project:
+
+```sh
+pnpm add @opentf/afw
+pnpm add -D @opentf/esdev-plugin-afw
+```
+
+```json
+{ "plugins": ["@opentf/esdev-plugin-afw"] }
+```
+
+The [installation guide](https://afw.opentechf.org/docs/getting-started/installation)
+covers the HTML entry, routes and TypeScript setup.
+
+## Packages
+
+| Package | Role |
 | --- | --- |
-| `crates/` | The Rust compiler and toolchain — parsing, semantic analysis, IRs, codegen, the `afwc` binary. |
-| `packages/` | Published JS packages — runtime, toolchain, forms, testing, docs, i18n. |
-| `website/` | This project's docs site and playground (deployed at afw.opentechf.org). |
-| `benchmarks/` | The js-framework-benchmark harness and aggregation scripts. |
+| [`@opentf/afw`](packages/afw) | **Start here.** Runtime: signals, DOM bindings, router, `Link`, server rendering |
+| [`@opentf/esdev-plugin-afw`](packages/esdev-plugin-afw) | esdev plugin: compiles `.jsx`/`.tsx`/`.mdx` and serves file-based routes |
+| [`@opentf/afw-compiler`](packages/afw-compiler) | The `afwc` native binary for every platform: compilation and docs indexing |
+| [`@opentf/afw-cli`](packages/afw-cli) | Static-generation library behind `esdev build` prerender steps |
+| [`@opentf/afw-form`](packages/afw-form) | Path-based reactive forms with sync, async and schema validation |
+| [`@opentf/afw-i18n`](packages/afw-i18n) | ICU messages, `Intl` formatters and URL-prefix locale routing |
+| [`@opentf/afw-test`](packages/afw-test) | Render and query components with Testing Library in esdev's DOM |
+| [`@opentf/afw-docs`](packages/afw-docs) | Documentation and blog theme: sidebar, search, TOC, callouts, feeds |
+
+## Design
+
+| Pillar | In one line |
+| --- | --- |
+| **One source, many IRs** | The compiler derives View, Reactivity, Server, Route and Metadata IRs from one AST. |
+| **Many backends** | Each IR feeds CSR, Hydrate, SSG and SSR code generators; nothing is interpreted at runtime. |
+| **Custom Elements as the unit** | Components register as native elements; hosts carry a stable `afw-<name>` class for styling. |
+| **Signals, not re-renders** | Reactivity is a dependency graph of signals; the DOM is never rebuilt to apply a change. |
+| **Toolchain, not a dev server** | Builds, dev, tests and HMR run on esdev; AFW contributes plugins, not its own CLI. |
+
+## Repository
+
+| Path | Contents |
+| --- | --- |
+| `crates/` | The Rust compiler: parsing, semantic analysis, IRs, code generation, the `afwc` binary |
+| `packages/` | The published npm packages listed above |
+| `website/` | The documentation site at [afw.opentechf.org](https://afw.opentechf.org), built with `@opentf/afw-docs` |
+| `playground/` | A scratch app for trying framework changes |
+| `benchmarks/` | Runtime and static-build benchmark harnesses |
+| `docs/` | Design notes: hydration, data loading, middleware, i18n, roadmap |
 
 ## Documentation
 
-For repository development, install ES-Runtime (`esdev` 0.17 or newer), the Rust
-toolchain, pnpm, and [tsr](https://tsr.opentechf.org/), then run `pnpm install`
-at the root. Run workspace tasks from the root so pnpm's package links stay
-inside esdev's project root.
-The tasks in [`tasks.toml`](tasks.toml) are the shared local and CI entry points:
+| Doc | Purpose |
+| --- | --- |
+| [afw.opentechf.org/docs](https://afw.opentechf.org/docs) | Guides: components, reactivity, routing, data, deployment |
+| [afw.opentechf.org/api](https://afw.opentechf.org/api) | API reference for every package |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Compiler pipeline, IRs and backends |
+| [SPEC.md](SPEC.md) | Language, runtime and output contracts |
+| [docs/HYDRATION.md](docs/HYDRATION.md) | How server markup is adopted on the client |
+| [docs/roadmap.md](docs/roadmap.md) | What ships today and what is planned |
 
-```bash
-tsr --list          # Discover available tasks
-tsr dev            # Playground development server
-tsr site-install   # Install the site's locked, released packages
-tsr site           # Documentation development server
-tsr build          # Build the playground
-tsr site-build     # Build and prerender the documentation site
-tsr site-preview   # Serve the built documentation site
-tsr test           # Rust and esdev tests, including forms and i18n
-tsr test-e2e       # Browser tests (Chrome and matching ChromeDriver)
+## Develop
+
+Requires esdev 0.17+, a Rust toolchain, pnpm and [tsr](https://tsr.opentechf.org).
+Install once with `pnpm install` at the repository root, then:
+
+```sh
+tsr dev          # playground dev server
+tsr site         # documentation site dev server
+tsr test         # Rust, runtime, package and site tests
+tsr test-e2e     # browser tests (Chrome + matching ChromeDriver)
+tsr ci           # typecheck, test and test-e2e together
+tsr bench        # runtime benchmarks against React, Solid and Svelte
 ```
 
-The website is an independent pnpm project using published framework and plugin
-packages. Its build configuration and lockfile live in `website/`; site tasks run
-from that directory. You can also run `esdev start`, `esdev build` and
-`esdev preview` directly there. Changes to workspace packages reach the site after
-their released versions are updated in `website/package.json`.
-
-For automatic Cloudflare deployment, set the build command to
-`bash scripts/build-site.sh` with the repository root as the working directory.
-The script installs esdev 0.17.0 (override with `ESDEV_VERSION`), installs the
-website's locked dependencies, and builds `website/dist`. Keep the existing
-Cloudflare deployment command; the root `wrangler.jsonc` points to that output.
-
-Component sources compile on import through `@opentf/esdev-plugin-afw` in
-esdev's DOM realm: `tsr test-afw-docs-dom`, `tsr test-afw-form`, and
-`tsr test-afw-i18n` run them individually. Each test file runs in a separate
-process, with a 30-second timeout and strict compiler errors configured in
-[`esdev.test.json`](esdev.test.json). The comparison benchmark toolchains still require Bun.
-
-The configs follow the official [project build configuration](https://esrun.opentechf.org/esdev/build/project):
-`build.targets` describes outputs, `dev` controls development, and top-level
-`plugins` also apply to [tests](https://esrun.opentechf.org/esdev/test/configuration).
-[Tailwind v4](https://esrun.opentechf.org/esdev/build/tailwind) is compiled by esdev directly from the CSS import.
-
-Full guides, API reference, and a live playground at **[https://afw.opentechf.org/docs](https://afw.opentechf.org/docs)**.
-
-Verified esdev behavior and open upstream issues are tracked in
-[the esdev migration status](docs/ESDEV_MIGRATION.md).
+Run tasks from the repository root: pnpm links workspace packages there, and
+esdev only loads plugins from inside its working directory. Tasks are defined in
+[`tasks.toml`](tasks.toml); `tsr --list` shows all of them.
 
 ## License
 
-[MIT](LICENSE) © [Open Tech Foundation](https://github.com/Open-Tech-Foundation).
+MIT — see [LICENSE](LICENSE).
