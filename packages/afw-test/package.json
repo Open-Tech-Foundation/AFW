@@ -3,6 +3,9 @@
   "version": "1.27.0",
   "description": "DOM testing utilities for AFW",
   "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
   "main": "index.js",
   "types": "./index.d.ts",
   "peerDependencies": {

@@ -12,6 +12,7 @@
   `afw.opentechf.org`, and the repo → `Open-Tech-Foundation/afw`.
 - Rewrote the README: overview, install, configuration, API tables and links to the guides.
 - `package.json` declares its MIT license, repository, homepage, issue tracker and keywords, and sets `publishConfig.access` to `public` so the scoped package publishes publicly.
+- The published package includes the MIT `LICENSE` file, copied from the repository root by a new `build` script that the release workflow runs before publishing.
 
 ## [1.27.0] - 2026-10-07
 
