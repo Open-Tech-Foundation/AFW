@@ -1,20 +1,59 @@
+<div align="center">
+
 # @opentf/afw-test
 
-DOM testing utilities for AFW: mount compiled components or page factories,
-query them with Testing Library, and tear down their lifecycle after each test.
+***Render, query and interact with AFW components in tests***
 
-## Installation
+[Docs](https://afw.opentechf.org/packages/afw-test) | [API](https://afw.opentechf.org/api/afw-test) | [Changelog](https://github.com/Open-Tech-Foundation/afw/blob/main/packages/afw-test/CHANGELOG.md) | [GitHub](https://github.com/Open-Tech-Foundation/afw)
 
-```bash
+</div>
+
+<div align="right">
+
+*An [Open Tech Foundation](https://opentechf.org/) project*
+
+</div>
+
+> Mount a compiled component or a page, query it the way a user would with
+> [Testing Library](https://testing-library.com), and let the setup module tear it
+> down after each test, lifecycle and reactive scopes included.
+
+```js
+import { expect, test } from "runtime:test";
+import { render, userEvent } from "@opentf/afw-test";
+import Counter from "./Counter.jsx";
+
+test("increments on click", async () => {
+  const { getByRole } = render(Counter);
+  const button = getByRole("button", { name: "Count: 0" });
+
+  await userEvent.setup().click(button);
+
+  expect(button.textContent).toBe("Count: 1");
+});
+```
+
+```sh
+esdev test --config=esdev.test.json --dom
+```
+
+> [!NOTE]
+> **Alpha.** The API can change between minor versions; see the
+> [changelog](https://github.com/Open-Tech-Foundation/afw/blob/main/packages/afw-test/CHANGELOG.md).
+
+## Install
+
+```sh
 pnpm add -D @opentf/afw-test @opentf/esdev-plugin-afw
 ```
 
-Install esdev 0.17 or newer. The test runner supplies the DOM; this package does
-not install a replacement DOM or its own compiler plugin.
+Requires esdev 0.17 or newer. The test runner supplies the DOM; this package adds
+no DOM library and no compiler of its own.
 
-## Configuration
+## Configure
 
-Create `esdev.test.json`:
+Create `esdev.test.json`, which compiles JSX imports for tests and registers
+automatic cleanup:
 
 ```json
 {
@@ -27,62 +66,39 @@ Create `esdev.test.json`:
 }
 ```
 
-The plugin compiles JSX imports. The per-file setup registers `afterEach(cleanup)`.
-This follows esdev's [test configuration](https://esrun.opentechf.org/esdev/test/configuration).
+## Two engines
 
-## Usage
+| Command | Runs in | Use for |
+| --- | --- | --- |
+| `esdev test --config=esdev.test.json --dom` | esdev's native DOM | Most component tests: fast, no browser needed |
+| `esdev test --config=esdev.test.json --browser` | A real browser engine | Layout, CSS and real event timing |
 
-```js
-import { expect, test } from "runtime:test";
-import { render } from "@opentf/afw-test";
-import Counter from "./Counter.jsx";
-
-test("increments", () => {
-  const { getByRole } = render(Counter);
-  const button = getByRole("button", { name: "Count: 0" });
-  button.click();
-  expect(button.textContent).toBe("Count: 1");
-});
-```
-
-```bash
-esdev test --config=esdev.test.json --dom
-```
-
-## User interactions
-
-`userEvent` is re-exported from `@testing-library/user-event`. Its session,
-typing, selection and keyboard workflows run in esdev's native DOM and in a real
-browser:
-
-```js
-import { userEvent } from "@opentf/afw-test";
-const user = userEvent.setup();
-await user.click(button);
-await user.type(input, "Ada");
-```
-
-```bash
-esdev test --config=esdev.test.json --dom       # fast native DOM
-esdev test --config=esdev.test.json --browser   # real browser engine
-```
-
-Use `--browser` when a test depends on layout, CSS or real browser event timing.
-Install a supported browser and its matching driver as described in
+`--browser` needs a supported browser and its matching driver; see
 [esdev browser testing](https://esrun.opentechf.org/esdev/test/browser).
 
 ## API
 
-- `render(Component, props = {})`: mounts a compiled component class using its
-  registered `.tag`, a page factory, or a tag string. Props are assigned before
-  connection. Returns `container`, `unmount()` and bound Testing Library queries.
-- `unmount()`: tears down factory lifecycle and reactive scopes, removes the
-  container, and lets custom-element disconnect run component cleanup. Repeated
-  calls are safe.
-- `cleanup()`: unmounts every view created by `render()`. The setup module calls
-  it after each test; otherwise import `afterEach` from `runtime:test` and register
-  `afterEach(cleanup)` yourself.
-- `userEvent`: Testing Library's interaction API for browser tests.
+| Export | Purpose |
+| --- | --- |
+| `render(Component, props?)` | Mount a compiled component, a page factory or a tag name; props are set before connection. Returns `container`, `unmount()` and bound Testing Library queries |
+| `cleanup()` | Unmount everything `render()` created; the setup module runs it after each test |
+| `userEvent` | [`@testing-library/user-event`](https://testing-library.com/docs/user-event/intro): clicks, typing, keyboard and selection |
+| `@opentf/afw-test/setup` | Registers `afterEach(cleanup)` for every test file |
 
-DOM custom-element lifecycle reactions can settle asynchronously; await observable
-cleanup effects when testing teardown.
+`unmount()` disposes the view's lifecycle hooks and reactive scopes and removes its
+container; calling it twice is safe. Custom-element disconnect callbacks can settle
+asynchronously, so await the effect you assert on when testing teardown.
+
+## Documentation
+
+| Doc | Purpose |
+| --- | --- |
+| [Setup](https://afw.opentechf.org/packages/afw-test/setup) | Configuration in detail |
+| [Writing tests](https://afw.opentechf.org/packages/afw-test/writing-tests) | Structure, props and async updates |
+| [Queries](https://afw.opentechf.org/packages/afw-test/queries) | Finding elements by role, label and text |
+| [User events](https://afw.opentechf.org/packages/afw-test/user-events) | Simulating real interaction |
+| [Strategies](https://afw.opentechf.org/packages/afw-test/strategies) | When to use the native DOM or a real browser |
+
+## License
+
+MIT — see [LICENSE](https://github.com/Open-Tech-Foundation/afw/blob/main/LICENSE).
