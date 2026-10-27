@@ -3,6 +3,9 @@
   "version": "0.32.0",
   "description": "The native-first AFW runtime — signal-based reactivity and zero-VDOM DOM operations, paired with the IR-based compiler.",
   "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
   "exports": {
     ".": {
       "types": "./index.d.ts",

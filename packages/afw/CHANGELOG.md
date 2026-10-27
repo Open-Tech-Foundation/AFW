@@ -11,6 +11,7 @@
   binaries → `afw`/`afwc` (crate `otfw_cli` → `afw_cli`), `web.opentechf.org` →
   `afw.opentechf.org`, and the repo → `Open-Tech-Foundation/afw`.
 - Rewrote the README: overview, install, configuration, API tables and links to the guides.
+- The published package includes the MIT `LICENSE` file, copied from the repository root by a new `build` script that the release workflow runs before publishing.
 
 ### Added
 
