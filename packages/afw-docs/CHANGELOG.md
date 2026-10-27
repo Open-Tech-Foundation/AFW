@@ -34,6 +34,8 @@
   (`tests/theme-namespace.test.js`) fails if a component element reuses a host hook
   name.
 - Removed the unused `.afw-code-group` host rule (no `CodeGroup` component exists).
+- `tests/format.test.js` creates its `.cache` scratch folder before using it, so it
+  passes on a fresh checkout such as CI.
 
 - `Tabs` follows later changes to its `tabs` prop. It read the prop once on connect, so
   an update from the parent (including the one hydration delivers) was ignored.

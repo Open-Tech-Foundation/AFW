@@ -1,5 +1,5 @@
 import { expect, test } from "runtime:test";
-import { makeTempDir, remove, write } from "runtime:fs";
+import { makeTempDir, mkdir, remove, write } from "runtime:fs";
 import { fromFileURL, join } from "runtime:path";
 import { env } from "runtime:process";
 import { Command } from "runtime:system";
@@ -10,6 +10,7 @@ const formatModule = fromFileURL(new URL("../components/format.js", import.meta.
 // Run `formatDate` over `values` in a separate process with the given time zone.
 // `prelude` runs first (e.g. to remove Temporal, as in Safari).
 async function formatIn(timeZone, values, prelude = "") {
+  await mkdir(".cache", { recursive: true });
   const dir = await makeTempDir({ dir: ".cache", prefix: "format-date-" });
   const probe = join(dir, "probe.mjs");
   await write(
