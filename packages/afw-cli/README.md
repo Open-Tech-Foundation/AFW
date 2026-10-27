@@ -1,68 +1,100 @@
+<div align="center">
+
 # @opentf/afw-cli
 
-The SSG library used by AFW projects during `esdev build`. The package retains
-its historical name, but the `afw` executable and its dev/build/serve commands
-have been retired.
+***Static generation for AFW apps, run as an `esdev build` step***
 
-## Installation
+[Static generation guide](https://afw.opentechf.org/docs/deployment/static-generation) | [Changelog](https://github.com/Open-Tech-Foundation/afw/blob/main/packages/afw-cli/CHANGELOG.md) | [GitHub](https://github.com/Open-Tech-Foundation/afw)
 
-For projects with a prerender script:
+</div>
 
-```bash
-pnpm add -D @opentf/afw-cli @opentf/esdev-plugin-afw
-```
+<div align="right">
 
-Apps also depend on `@opentf/afw`. Install esdev 0.16 or newer and configure the
-AFW compiler/routes plugin in `esdev.json`.
+*An [Open Tech Foundation](https://opentechf.org/) project*
 
-## Development and builds
+</div>
 
-```bash
-esdev start
-esdev build --minify
-esdev preview
-```
-
-The project owns its HTML entry and build targets. For static rendering, add a
-second target with a prerender entry and `"then": "run"`, following this repo's
-[`website/esdev.json`](../../website/esdev.json) and [`website/ssg.js`](../../website/ssg.js).
-The script checks for release staging and prerenders pages, including sitemap and
-robots output. A release-only `siteOutputPlugin` then generates search, feeds and
-LLM files in staging before publication:
+> Your project owns its build. This package supplies the pieces a prerender step
+> needs: route and loader discovery, page rendering, API and loader bundles, plus a
+> release hook that writes search indexes, feeds and `llms.txt`.
 
 ```json
-{ "module": "@opentf/afw-cli/ssg", "export": "siteOutputPlugin",
-  "options": { "target": "web", "prerenderTarget": "site-ssg", "root": "." } }
+{
+  "plugins": [
+    { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
+    { "module": "@opentf/afw-cli/ssg", "export": "siteOutputPlugin",
+      "options": { "target": "web", "prerenderTarget": "site-ssg", "root": "." } }
+  ],
+  "build": {
+    "targets": {
+      "web": { "entry": "index.html", "outdir": "dist" },
+      "site-ssg": { "entry": "ssg.js", "out": ".ssg/ssg.js", "then": "run" }
+    }
+  }
+}
 ```
 
-Add that object to the project-level `plugins`. `root` locates the source site
-relative to the project working directory; `target` selects the browser output.
-The prerender step calls `writePrerenderReport(outDir, result)` with the return
-value of `runPrerender`, preserving resolved site descriptions for LLM context.
-The hook consumes and removes the temporary report before publication.
+`esdev build` bundles the site, then runs `ssg.js`, which prerenders every route
+into the staged output. Only when every step succeeds does the new site replace the
+old one.
 
-The hook never runs during `esdev start`. When `prerenderTarget` is configured,
-a selected build omitting it skips generation rather than indexing a CSR shell.
-Building both targets without the report fails with a configuration error.
-Indexing failures fail the build and leave the previous deployment intact.
+> [!NOTE]
+> **Alpha.** The package keeps its historical name; the old `afw` executable and
+> its `dev` / `build` / `serve` commands are retired in favour of `esdev`.
 
-## SSG exports
+## Install
 
-Import helpers from `@opentf/afw-cli/ssg`. This stable entry exposes route/loader
-collection, compiler resolution, `runPrerender`, API/loader bundle emission,
-docs build helpers and build reporting. It does not supply a dev server or an
-SSR request server. A fullstack app must provide its own server entry and adapter.
+```sh
+pnpm add -D @opentf/afw-cli @opentf/esdev-plugin-afw
+pnpm add @opentf/afw
+```
 
-`AFWC_BIN` overrides the unified toolchain binary. Compilation and documentation
-indexing (`afwc docs index`) use that same executable. Published installations
-use the archive shipped by `@opentf/afw-compiler`; this repository can use its
-Cargo debug build.
+Requires esdev 0.16 or newer. `esdev create my-site --template=docs` generates a
+project with the prerender target, `ssg.js` and the release hook already in place.
 
-## Starter
+## The prerender step
 
-`esdev create <dir> --template=docs` generates a project wired this way: a
-`site-ssg` prerender target plus the `siteOutputPlugin` hook.
+`ssg.js` is a short script you own. It uses this package to:
+
+| Step | Helpers |
+| --- | --- |
+| Find pages and loaders under `app/` | `discoverPages`, `discoverLoaders`, `assertNoRouteConflicts` |
+| Read `afw.config.js` | `loadConfig` |
+| Render each route into the shell `index.html` | `runPrerender`, `stampHydrateSentinel` |
+| Bundle server code for a deploy adapter | `emitLoaderBundle`, `emitApiBundle` |
+| Hand results to the release hook | `writePrerenderReport` |
+
+Pages with dynamic segments are skipped unless they export `getStaticPaths()`.
+The [static generation guide](https://afw.opentechf.org/docs/deployment/static-generation)
+walks through a complete `ssg.js`.
+
+## The release hook
+
+`siteOutputPlugin` runs in the staging area after prerendering and before the
+site is published:
+
+| Output | Source |
+| --- | --- |
+| Search index | `afwc docs index` over the prerendered HTML |
+| RSS / Atom feeds | The blog section, when `afw.config.js` has one |
+| `llms.txt`, `llms-full.txt` | Page titles and descriptions, for LLM context |
+
+| Option | Purpose |
+| --- | --- |
+| `target` | The browser build target to post-process (e.g. `"web"`) |
+| `prerenderTarget` | The prerender target that must run first |
+| `root` | The site's source folder, relative to the working directory |
+
+The hook never runs under `esdev start`. If indexing fails, the build fails and the
+previous deployment stays live.
+
+## Environment
+
+| Variable | Effect |
+| --- | --- |
+| `AFWC_BIN` | Use this `afwc` executable for compilation and indexing |
+| `EXCLUDE_ROUTES` | Comma-separated route folders the release hook skips (the starter `ssg.js` honours it too) |
 
 ## License
 
-MIT © [Open Tech Foundation](https://github.com/Open-Tech-Foundation).
+MIT — see [LICENSE](https://github.com/Open-Tech-Foundation/afw/blob/main/LICENSE).
