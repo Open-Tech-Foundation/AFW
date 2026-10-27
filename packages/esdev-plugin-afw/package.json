@@ -3,6 +3,9 @@
   "version": "0.4.0",
   "description": "AFW plugins for esdev's runtime:build bundler — compile .jsx/.tsx/.mdx through the afwc IR compiler.",
   "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
   "exports": {
     ".": "./index.js"
   },
