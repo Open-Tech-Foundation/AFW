@@ -138,7 +138,7 @@ covers the HTML entry, routes and TypeScript setup.
 | --- | --- |
 | `crates/` | The Rust compiler: parsing, semantic analysis, IRs, code generation, the `afwc` binary |
 | `packages/` | The published npm packages listed above |
-| `website/` | The documentation site at [afw.opentechf.org](https://afw.opentechf.org), built with `@opentf/afw-docs` |
+| `website/` | The documentation site at [afw.opentechf.org](https://afw.opentechf.org): its own pnpm project on the published packages, built with `@opentf/afw-docs` |
 | `playground/` | A scratch app for trying framework changes |
 | `benchmarks/` | Runtime and static-build benchmark harnesses |
 | `docs/` | Design notes: hydration, data loading, middleware, i18n, roadmap |
@@ -169,7 +169,9 @@ tsr bench        # runtime benchmarks against React, Solid and Svelte
 ```
 
 Run tasks from the repository root: pnpm links workspace packages there, and
-esdev only loads plugins from inside its working directory. Tasks are defined in
+esdev only loads plugins from inside its working directory. The website installs
+the published packages separately (`tsr site-install`); after a release, bump
+the versions in `website/package.json` and reinstall. Tasks are defined in
 [`tasks.toml`](tasks.toml); `tsr --list` shows all of them.
 
 ## License
