@@ -1,4 +1,4 @@
-@opentf/afw18n
+# @opentf/afw-i18n
 
 ## [Unreleased]
 
