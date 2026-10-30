@@ -1,6 +1,6 @@
 {
   "name": "@opentf/afw",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "description": "The AFW runtime: signals and zero-VDOM DOM bindings, with routing and server rendering.",
   "type": "module",
   "scripts": {

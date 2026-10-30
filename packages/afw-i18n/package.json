@@ -1,6 +1,6 @@
 {
   "name": "@opentf/afw-i18n",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "description": "ICU messages, Intl formatters and locale routing for AFW.",
   "main": "index.js",
   "module": "index.js",
