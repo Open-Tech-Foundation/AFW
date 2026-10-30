@@ -27,3 +27,19 @@ test("SSG discovery rejects nested Markdown 404 files and respects exclusions", 
     await remove(scratch, { recursive: true });
   }
 });
+
+test("SSG discovery leaves out draft and scheduled Markdown pages", async () => {
+  await mkdir(".cache", { recursive: true });
+  const scratch = await makeTempDir({ dir: ".cache", prefix: "ssg-drafts-" });
+  try {
+    const app = join(scratch, "app");
+    for (const [slug, fm] of [["live", "date: 2026-01-01"], ["wip", "draft: true"], ["soon", 'date: "2999-01-01"']]) {
+      await mkdir(join(app, "blog", slug), { recursive: true });
+      await write(join(app, "blog", slug, "page.mdx"), `---\ntitle: ${slug}\n${fm}\n---\n# ${slug}`);
+    }
+    const pages = await discoverPages(app, new Set());
+    expect(pages).toEqual([join(app, "blog", "live", "page.mdx")]);
+  } finally {
+    await remove(scratch, { recursive: true });
+  }
+});

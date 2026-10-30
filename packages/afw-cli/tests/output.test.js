@@ -43,16 +43,20 @@ test("finish indexes prerendered staging, preserves overrides, and protects depl
     await mkdir(join(dir, "app/blog/hello"), { recursive: true });
     await mkdir(join(dir, "public/blog"), { recursive: true });
     await write(join(dir, "app/blog/hello/page.mdx"), "---\ntitle: Hello\ndate: 2026-10-01\n---\n# Hello\nPost body");
+    await mkdir(join(dir, "app/blog/wip"), { recursive: true });
+    await write(join(dir, "app/blog/wip/page.mdx"), "---\ntitle: Unfinished\ndate: 2026-10-02\ndraft: true\n---\n# Unfinished");
     await write(join(dir, "public/llms-full.txt"), "Custom full context");
     await write(join(dir, "public/blog/rss.xml"), "Custom RSS");
     await write(join(dir, "afw.config.json"), JSON.stringify({ site: { url: "https://example.com" }, docs: { title: "Fixture", search: { provider: "afw" } }, blog: {} }));
     await write(join(dir, "index.html"), '<html><head></head><body><div id="app"></div></body></html>');
     await write(join(dir, "prerender.js"), `
-import { write } from "runtime:fs";
+import { mkdir, write } from "runtime:fs";
 import { dirname, fromFileURL, join } from "runtime:path";
 import { writePrerenderReport } from "@opentf/afw-cli/ssg";
 const out = join(dirname(fromFileURL(import.meta.url)), "../dist");
 await write(join(out, "index.html"), '<main data-afw-search-body><h1>Rendered fixture</h1><h2 id="routing">Routing</h2><p>FinishHookSentinel</p></main>');
+await mkdir(join(out, "blog/hello"), { recursive: true });
+await write(join(out, "blog/hello/index.html"), '<html><head><title>Hello</title></head><body><article class="afwd-prose"><p>FeedBodySentinel <a href="/docs">docs</a></p></article></body></html>');
 await writePrerenderReport(out, { siteDescription: "Resolved home description & details" });
 `);
     await write(configPath, JSON.stringify({
@@ -67,7 +71,16 @@ await writePrerenderReport(out, { siteDescription: "Resolved home description & 
     expect(await exists(join(output, ".afw-prerender.json"))).toBe(false);
     expect(await file(join(output, "llms-full.txt")).text()).toBe("Custom full context");
     expect(await file(join(output, "blog/rss.xml")).text()).toBe("Custom RSS");
-    expect(await file(join(output, "blog/atom.xml")).text()).toContain("https://example.com/blog/hello");
+    const atom = await file(join(output, "blog/atom.xml")).text();
+    expect(atom).toContain("https://example.com/blog/hello");
+    // The full post, read back from its prerendered page, with root links absolutized.
+    expect(atom).toContain("FeedBodySentinel &lt;a href=&quot;https://example.com/docs&quot;&gt;");
+    // A draft is in no feed.
+    expect(atom.includes("Unfinished")).toBe(false);
+    // Every prerendered page with a head advertises the feeds.
+    const postHtml = await file(join(output, "blog/hello/index.html")).text();
+    expect(postHtml).toContain('<link rel="alternate" type="application/atom+xml" title="Fixture Blog" href="/blog/atom.xml">');
+    expect(postHtml).toContain('type="application/rss+xml"');
     expect(await file(join(output, "llms.txt")).text()).toContain("Resolved home description & details");
     globalThis.fetch = async url => new Response(await file(join(output, String(url).replace(/^\//, ""))).arrayBuffer());
     const results = await createSearch().query("FinishHookSentinel");

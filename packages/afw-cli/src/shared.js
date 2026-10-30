@@ -15,7 +15,7 @@ import { exists, findUp, mkdirp, readEntries, readText, resolveFrom, rmrf, write
 // The afwc compiler service and the `runtime:build` transform plugin live in
 // `@opentf/esdev-plugin-afw`. Imported here for the server render bundle and
 // re-exported so the SSG entry keeps a single import site.
-import { closeCompilers, afwPlugin, resolveCompiler } from "@opentf/esdev-plugin-afw";
+import { closeCompilers, afwPlugin, isUnpublishedPage, resolveCompiler } from "@opentf/esdev-plugin-afw";
 
 export { closeCompilers, resolveCompiler };
 
@@ -194,7 +194,7 @@ export async function loadDocsPlugins(root, appDir, config, exclude = new Set())
     if (blog) plugins.push(blogPostsPlugin({ appDir, contentDir: blog.dir ?? "blog", exclude }));
     // Resolves `@opentf/afw-docs/updated` to the per-page last-updated map (every route),
     // when last-updated is turned on anywhere.
-    if (wantsLastUpdated(config)) plugins.push(lastUpdatedPlugin({ appDir, exclude }));
+    if (wantsLastUpdated(config)) plugins.push(lastUpdatedPlugin({ appDir, exclude, blogDir: blog ? blog.dir ?? "blog" : undefined }));
     return plugins;
   } catch (e) {
     console.warn(
@@ -220,7 +220,8 @@ export async function runLastUpdated(root, appDir, config, exclude = new Set()) 
   try {
     const entry = await resolveFrom("@opentf/afw-docs/build", root);
     const { loadLastUpdated } = await import(toFileURL(entry).href);
-    return await loadLastUpdated({ appDir, exclude });
+    const blogDir = config?.blog ? config.blog.dir ?? "blog" : undefined;
+    return await loadLastUpdated({ appDir, exclude, blogDir });
   } catch (e) {
     console.warn(`⚠ last-updated map skipped: ${e?.message ?? e}`);
     return {};
@@ -264,13 +265,19 @@ export async function runBlogFeed(root, appDir, config, siteDir, baseUrl, exclud
   const contentDir = blog.dir ?? "blog";
   try {
     const entry = await resolveFrom("@opentf/afw-docs/build", root);
-    const { loadPosts, renderAtomFeed, renderBlogFeed } = await import(toFileURL(entry).href);
+    const { loadPosts, postContentHtml, renderAtomFeed, renderBlogFeed } = await import(toFileURL(entry).href);
     const posts = await loadPosts({ appDir, contentDir, exclude });
+    // Full post bodies, read back from the prerendered pages this hook runs after.
+    for (const post of posts) {
+      const page = join(siteDir, post.path.replace(/^\/+/, ""), "index.html");
+      if (await exists(page)) post.content = postContentHtml(await readText(page), baseUrl, post.cover);
+    }
     const title = blog.title || (config?.docs?.title ? `${config.docs.title} Blog` : "Blog");
     const channel = {
       title,
       description: blog.description || title,
       link: `/${contentDir}`,
+      language: blog.language || config?.i18n?.defaultLocale || "en",
     };
     const feeds = [
       {
@@ -292,12 +299,37 @@ export async function runBlogFeed(root, appDir, config, siteDir, baseUrl, exclud
       written.push(feed.path);
     }
     if (!written.length) return null;
+    await injectFeedLinks(siteDir, title, contentDir);
     const origin = baseUrl.replace(/\/+$/, "");
     return { paths: written, urls: written.map((path) => origin + path), count: posts.length };
   } catch (e) {
     console.warn(`⚠ blog feeds skipped: ${e?.message ?? e}`);
     return null;
   }
+}
+
+/**
+ * Advertise the blog feeds from every prerendered page: a `<link rel="alternate">` for
+ * RSS and Atom in each `<head>`, so a reader finds them from any URL of the site. A page
+ * that already declares a feed (a hand-written link in the shell) is left alone.
+ */
+async function injectFeedLinks(siteDir, title, contentDir) {
+  const t = String(title).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  const links =
+    `<link rel="alternate" type="application/rss+xml" title="${t}" href="/${contentDir}/rss.xml">\n` +
+    `<link rel="alternate" type="application/atom+xml" title="${t}" href="/${contentDir}/atom.xml">\n`;
+  const walk = async (dir) => {
+    for (const entry of await readEntries(dir)) {
+      const full = join(dir, entry.name);
+      if (entry.isDir) await walk(full);
+      else if (entry.name.endsWith(".html")) {
+        const html = await readText(full);
+        if (/type="application\/(rss|atom)\+xml"/.test(html) || !/<\/head>/i.test(html)) continue;
+        await writeFile(full, html.replace(/<\/head>/i, () => `${links}</head>`));
+      }
+    }
+  };
+  await walk(siteDir);
 }
 
 /**
@@ -336,7 +368,11 @@ export async function runLlmsFiles(root, appDir, pages, config, siteDir, baseUrl
   }
 }
 
-/** Discover file-based routes under `app/`: every page/layout and the 404. */
+/**
+ * Discover file-based routes under `app/`: every page/layout and the 404. This list is
+ * what gets prerendered, so drafts and scheduled Markdown pages (`isUnpublishedPage`)
+ * are left out: no HTML, no sitemap entry, no `llms.txt` line.
+ */
 export async function discoverPages(dir, exclude) {
   const out = [];
   for (const entry of await readEntries(dir)) {
@@ -346,7 +382,9 @@ export async function discoverPages(dir, exclude) {
     else if (/^404\.(mdx|md)$/.test(entry.name)) {
       throw new Error(`Unsupported Markdown 404 route: ${full}. Use 404.jsx or 404.tsx instead.`);
     }
-    else if (/^(page|layout|404)\.(mdx|md|[jt]sx)$/.test(entry.name)) out.push(full);
+    else if (/^(page|layout|404)\.(mdx|md|[jt]sx)$/.test(entry.name)) {
+      if (!(await isUnpublishedPage(full))) out.push(full);
+    }
   }
   return out;
 }

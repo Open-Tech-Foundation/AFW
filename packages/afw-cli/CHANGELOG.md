@@ -17,6 +17,8 @@
 
 ### Fixed
 
+- A blog post's `article:modified_time` comes from its frontmatter `updated`, never git,
+  so a bulk commit no longer dates every post to that day.
 - Prerendered pages no longer carry duplicate head tags. `injectHead` now removes the
   shell's static description, robots, `og:`/`twitter:`/`article:` meta, canonical link,
   JSON-LD and `data-afw-head` tags before adding the page's own, the same set the
@@ -24,6 +26,13 @@
 
 ### Added
 
+- Drafts and scheduled Markdown pages are not prerendered, so they get no HTML, sitemap
+  entry or `llms.txt` line.
+- Blog feeds carry each post's full body (`<content:encoded>` in RSS, `<content>` in Atom),
+  read back from its prerendered page with root-relative links made absolute.
+- Every prerendered page links the blog feeds (`<link rel="alternate">` for RSS and Atom)
+  unless it already declares one, so sites no longer hand-write them.
+- The RSS `<language>` comes from `blog.language`, then `i18n.defaultLocale`, then "en".
 - The release build warns when `docs.search.provider` is set to anything other than
   `"afw"` (e.g. the retired `"pagefind"`), which otherwise turned search off silently.
 
