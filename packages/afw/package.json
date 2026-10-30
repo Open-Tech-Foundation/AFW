@@ -1,7 +1,7 @@
 {
   "name": "@opentf/afw",
   "version": "0.32.0",
-  "description": "The native-first AFW runtime — signal-based reactivity and zero-VDOM DOM operations, paired with the IR-based compiler.",
+  "description": "The AFW runtime: signals and zero-VDOM DOM bindings, with routing and server rendering.",
   "type": "module",
   "scripts": {
     "build": "cp ../../LICENSE LICENSE"
@@ -43,11 +43,14 @@
     "!**/*.test.js"
   ],
   "keywords": [
+    "afw",
     "opentf",
-    "web-components",
     "signals",
     "reactivity",
-    "runtime",
+    "web-components",
+    "custom-elements",
+    "jsx",
+    "ssr",
     "ssg"
   ],
   "repository": {
@@ -55,7 +58,7 @@
     "url": "https://github.com/Open-Tech-Foundation/afw.git",
     "directory": "packages/afw"
   },
-  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "homepage": "https://afw.opentechf.org",
   "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
   "license": "MIT",
   "publishConfig": {
