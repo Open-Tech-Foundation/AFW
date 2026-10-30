@@ -221,6 +221,12 @@ fn compile_module(
         return Err(located(at as usize, 3, msg));
     }
 
+    // A `return` ahead of the view is evaluated once and discarded — fail rather than
+    // silently render the other branch.
+    if let Some((at, msg)) = afw_compiler::lower::early_return_diagnostic(&parsed.program) {
+        return Err(located(at as usize, 6, msg));
+    }
+
     // Mutating a `$state` value in place (`list.push(x)`, `list[0] = x`, …) never
     // notifies its signal — fail with the immutable-update fix rather than silently
     // dropping the update.

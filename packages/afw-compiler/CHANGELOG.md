@@ -30,6 +30,11 @@
 
 ### Fixed
 
+- **An early `return` in a component is a compile error** ("returns before its view"),
+  reported at that `return`. Only a component's final `return` is its view; an earlier one
+  (`if (props.inline) return <p/>;`, or a `return null` guard) compiled into setup code
+  whose result was discarded, so the component silently rendered its other branch. Write
+  the choice into the view: `return cond ? <A /> : <B />;`. Nested functions are unaffected.
 - A `<>…</>` nested inside an element or a slot no longer makes its component rebuild on
   hydration ("fragment / multi-node root is not supported yet"). Its children are adopted
   inline off the parent's cursor, the way the server writes them.

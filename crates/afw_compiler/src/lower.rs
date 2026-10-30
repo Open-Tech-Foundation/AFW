@@ -778,6 +778,51 @@ pub fn function_ref_diagnostic(program: &Program) -> Option<(u32, String)> {
     })
 }
 
+/// A **`return` before the view** — `if (props.inline) return <p/>; return <nav/>;` — is
+/// not supported. A component's body runs once, as setup; only its final top-level
+/// `return` is the view, and the compiler makes that reactive. An earlier `return` would
+/// be evaluated once and its result discarded, so the component silently rendered the
+/// other branch. Points at the first such `return` in a component (helpers and nested
+/// functions are left alone) with the conditional-view fix. `None` otherwise.
+pub fn early_return_diagnostic(program: &Program) -> Option<(u32, String)> {
+    struct Finder {
+        found: Option<u32>,
+    }
+    impl<'a> Visit<'a> for Finder {
+        fn visit_return_statement(&mut self, it: &oxc::ast::ast::ReturnStatement<'a>) {
+            self.found.get_or_insert(it.span.start);
+        }
+        // A nested function's `return` is its own.
+        fn visit_function(&mut self, _: &Function<'a>, _: oxc::syntax::scope::ScopeFlags) {}
+        fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}
+        fn visit_class(&mut self, _: &oxc::ast::ast::Class<'a>) {}
+    }
+    for stmt in &program.body {
+        let Some((name, callable, _)) = component_of(stmt) else { continue };
+        let Some(body) = callable.body() else { continue };
+        let mut finder = Finder { found: None };
+        for s in &body.statements {
+            if !matches!(s, Statement::ReturnStatement(_)) {
+                finder.visit_statement(s);
+            }
+        }
+        if let Some(at) = finder.found {
+            let name = if name == "default" { "this component".to_string() } else { format!("`{name}`") };
+            return Some((
+                at,
+                format!(
+                    "{name} returns before its view. A component's body runs once, so only its \
+                     final `return` is rendered (and kept reactive); an earlier `return` is \
+                     ignored. Make the choice part of the view instead: \
+                     `return cond ? <A /> : <B />;` (or `{{cond ? … : null}}` inside it). \
+                     See https://afw.opentechf.org/docs/core-concepts/templating#conditionals."
+                ),
+            ));
+        }
+    }
+    None
+}
+
 /// In-place **array** mutators. These names are effectively array-specific, so they
 /// are flagged whenever the `$state` root is an array *or* of unknown shape. Read
 /// methods (`map`, `filter`, …) are intentionally absent: those are how JSX and
