@@ -15,6 +15,8 @@
 
 ### Added
 
+- `ssgAttrs(entries)` in the SSG runtime: merges an element's spread objects and named
+  attributes (last wins) into one attribute string, skipping handlers and `ref`.
 - `hydratableNode(build, adopt)` and `adoptedChildren()`: JSX values passed as data
   (a prop, module or component-local data, children read as a value) hydrate in place.
 - Development route refresh rebuilds only the edited page or layout. Its `$state`

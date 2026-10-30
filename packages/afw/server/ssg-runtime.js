@@ -162,6 +162,30 @@ export function attr(name, value) {
 }
 
 /**
+ * The dynamic attributes of an element that carries a spread (`<div {...rest} class="x">`).
+ * `entries` lists, in source order, `[name, value]` pairs for named attributes and plain
+ * objects for spreads. A later entry overrides an earlier one with the same name, which is
+ * the order the client's `spread`/`setAttribute` calls apply them in. A served tag can't
+ * repeat an attribute (the parser keeps the first one), so the merge has to happen here.
+ * Event handlers and functions have no HTML form and are left to the client.
+ */
+export function ssgAttrs(entries) {
+  const merged = new Map();
+  for (const entry of entries) {
+    if (Array.isArray(entry)) merged.set(entry[0], entry[1]);
+    else if (entry && typeof entry === "object") {
+      for (const k in entry) merged.set(k, entry[k]);
+    }
+  }
+  let s = "";
+  for (const [name, value] of merged) {
+    if (name === "ref" || name === "children" || typeof value === "function") continue;
+    s += attr(name, value);
+  }
+  return s;
+}
+
+/**
  * A dynamic hole's value → HTML: trusted `{__html}` raw, else escaped text. An
  * array (`{[<a/>, <b/>]}` or `{[1, 2, 3]}`) renders each item concatenated with no
  * separator — mirroring CSR's `toNodes`/`bindText`, where an array value inserts one

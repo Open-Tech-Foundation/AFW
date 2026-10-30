@@ -22,6 +22,10 @@
 
 ### Fixed
 
+- SSG renders spread props (`<div {...rest}/>`, `<Card {...props}/>`) instead of dropping
+  the element's attributes or the whole component from the served HTML. An element with a
+  spread merges all its attributes at runtime in source order, so a later attribute
+  overrides the spread and the spread overrides an earlier one, as on the client.
 - Extracting the `otfwc` binary on first use is atomic: it is unpacked into a
   temporary file and renamed into place, and concurrent first uses in one process
   share the extraction. Two compilers starting together on a fresh install (parallel

@@ -420,11 +420,15 @@ impl<'a> Emitter<'a> {
         // runtime `attr(name, value)` piece; on*/ref are dropped (no SSR meaning).
         let mut open = format!("<{tag}");
         let mut dyn_attrs: Vec<String> = Vec::new();
+        if props.iter().any(|p| p.name.is_empty()) {
+            // A spread can carry any name, so a static attribute can't be folded into the
+            // open tag: the spread might override it, or be overridden by it. Every
+            // attribute goes through one runtime merge instead, in source order.
+            self.server.insert("ssgAttrs");
+            dyn_attrs.push(format!("ssgAttrs([{}])", self.attr_entries(props)));
+            return self.finish_element(tag, open, dyn_attrs, children);
+        }
         for p in props {
-            if p.name.is_empty() {
-                self.errors.push("SSG: spread props not supported yet".into());
-                continue;
-            }
             if p.name == "ref" || is_event(&p.name) {
                 continue;
             }
@@ -444,7 +448,41 @@ impl<'a> Emitter<'a> {
                 }
             }
         }
+        self.finish_element(tag, open, dyn_attrs, children)
+    }
 
+    /// The `ssgAttrs` entry list for an element with a spread: `[name, value]` per named
+    /// attribute and the spread object itself, in source order.
+    fn attr_entries(&mut self, props: &[Prop]) -> String {
+        let mut entries: Vec<String> = Vec::new();
+        for p in props {
+            if p.name == "ref" || is_event(&p.name) {
+                continue;
+            }
+            let value = match &p.value {
+                PropValue::Static(v) => js_string(v),
+                PropValue::Boolean => "true".to_string(),
+                PropValue::Dynamic(id) => format!("({})", self.code(*id)),
+                PropValue::DynamicNode { expr, branches } => {
+                    format!("({})", self.node_prop_code(*expr, branches))
+                }
+            };
+            if p.name.is_empty() {
+                entries.push(value);
+            } else {
+                entries.push(format!("[{}, {value}]", js_string(&p.name)));
+            }
+        }
+        entries.join(", ")
+    }
+
+    fn finish_element(
+        &mut self,
+        tag: &str,
+        open: String,
+        dyn_attrs: Vec<String>,
+        children: &[ViewNode],
+    ) -> Vec<String> {
         // `<tag static-attrs` + dynamic attr pieces + `>` + children + `</tag>`.
         let mut pieces: Vec<String> = vec![js_string(&open)];
         pieces.extend(dyn_attrs);
@@ -524,9 +562,14 @@ impl<'a> Emitter<'a> {
             tags::use_tag_expr(name, &self.module_components, &format!("{name}_ssg"));
         let mut entries: Vec<String> = Vec::new();
         for p in props {
-            if p.name == "ref" || p.name.is_empty() {
-                if p.name.is_empty() {
-                    self.errors.push("SSG: spread props not supported yet".into());
+            if p.name == "ref" {
+                continue;
+            }
+            // `{...rest}` spreads into the props object in source order, so a later named
+            // prop overrides it and an earlier one is overridden, as on the client.
+            if p.name.is_empty() {
+                if let PropValue::Dynamic(id) = &p.value {
+                    entries.push(format!("...({})", self.code(*id)));
                 }
                 continue;
             }
@@ -785,6 +828,31 @@ mod tests {
         // `<style>`/`<script>` content is written verbatim (an entity would show through).
         assert!(m.code.contains("<textarea>\" + ssgText(v.value)"), "code:\n{}", m.code);
         assert!(m.code.contains("<style>\" + ssgRawText(v.value)"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn element_spread_merges_every_attribute_at_runtime_in_source_order() {
+        let m = emit(
+            "export default function P(){ let o=$state({}); return <div id=\"a\" {...o} class=\"base\" onclick={() => 1}>x</div>; }",
+            true,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(
+            m.code.contains("\"<div\" + ssgAttrs([[\"id\", \"a\"], (o.value), [\"class\", \"base\"]]) + \">"),
+            "code:\n{}",
+            m.code
+        );
+        assert!(m.code.contains("ssgAttrs }") || m.code.contains("ssgAttrs,"), "import:\n{}", m.code);
+    }
+
+    #[test]
+    fn component_spread_lands_in_the_props_object() {
+        let m = emit(
+            "function C(){ return <b/>; } export default function P(){ let o=$state({}); return <C a=\"1\" {...o} b=\"2\"/>; }",
+            true,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("{ a: \"1\", ...(o.value), b: \"2\" }"), "code:\n{}", m.code);
     }
 
     #[test]

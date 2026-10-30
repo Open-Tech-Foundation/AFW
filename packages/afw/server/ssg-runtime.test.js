@@ -8,6 +8,7 @@ import {
   beginHydrationCollect,
   defineSSG,
   endHydrationCollect,
+  ssgAttrs,
   ssgComponent,
   ssgText,
 } from "./ssg-runtime.js";
@@ -163,5 +164,25 @@ describe("ssgText", () => {
 
   test("nested arrays flatten and text items stay escaped", () => {
     expect(ssgText([["<x>", { __html: "<i>ok</i>" }], "y"])).toBe("&lt;x&gt;<i>ok</i>y");
+  });
+});
+
+describe("ssgAttrs", () => {
+  test("merges spreads and named attributes, later entries winning", () => {
+    expect(ssgAttrs([["id", "a"], { id: "b", title: "t" }, ["class", "base"]])).toBe(
+      ' id="b" title="t" class="base"',
+    );
+    expect(ssgAttrs([["class", "base"], { class: ["x", { y: true }] }])).toBe(' class="x y"');
+  });
+
+  test("drops handlers, ref, children and empty values", () => {
+    const out = ssgAttrs([
+      { onclick: () => {}, ref: {}, children: "c", hidden: false, title: null, open: true },
+    ]);
+    expect(out).toBe(" open");
+  });
+
+  test("tolerates a null or undefined spread", () => {
+    expect(ssgAttrs([null, undefined, ["id", "x"]])).toBe(' id="x"');
   });
 });
