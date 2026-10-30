@@ -8,15 +8,13 @@
 import { formatDate } from "./format.js";
 
 export default function LastUpdated(props) {
-  const date = props.date;
-  if (!date) return null;
   const label = props.label || "Last updated on";
-  return (
+  return props.date ? (
     <div class="afwd-last-updated">
       {label}{" "}
-      <time class="afwd-last-updated-time" datetime={String(date)}>
-        {formatDate(date)}
+      <time class="afwd-last-updated-time" datetime={String(props.date)}>
+        {formatDate(props.date)}
       </time>
     </div>
-  );
+  ) : null;
 }
