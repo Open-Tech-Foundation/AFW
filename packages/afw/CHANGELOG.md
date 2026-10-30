@@ -17,6 +17,9 @@
 
 ### Added
 
+- `hydrateParagraph` (hydration) and `ssgParagraph` / `paragraphBlockTag` (SSG runtime):
+  the runtime half of recoverable paragraphs, emitted by the compiler for a `<p>` holding
+  a component.
 - `router.toc`: the current page's headings (the MDX `export const toc`), or `[]`. It is
   set from the page module before any page or layout factory runs, during server render,
   hydration and client navigation, so a layout can render a page outline as data.

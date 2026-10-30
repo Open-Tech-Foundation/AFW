@@ -502,6 +502,18 @@ impl<'a> Emitter<'a> {
         }
         if static_tree::is_raw_text(tag) {
             pieces.extend(self.raw_text(tag, children));
+        } else if tag == "p" && static_tree::paragraph_has_component(children) {
+            // A recoverable region (see `paragraph_has_component`). `ssgParagraph` warns at
+            // render time if a component's markup puts a block element in the paragraph,
+            // and the marker after `</p>` bounds what the browser's parser makes of it, so
+            // hydration can rebuild just this paragraph.
+            let mut names = Vec::new();
+            component_names(children, &mut names);
+            let inner = join_plus(&self.concat(children));
+            self.server.insert("ssgParagraph");
+            pieces.push(format!("ssgParagraph({inner}, {})", js_string(&names.join(", "))));
+            pieces.push(js_string("</p><!--p]-->"));
+            return pieces;
         } else {
             pieces.extend(self.concat(children));
         }
@@ -778,6 +790,25 @@ fn js_string(s: &str) -> String {
     out
 }
 
+/// The `<Name>` of every component in a paragraph, in order, for `ssgParagraph`'s warning.
+fn component_names(nodes: &[ViewNode], out: &mut Vec<String>) {
+    for node in nodes {
+        match node {
+            ViewNode::Component { name, children, .. } => {
+                let label = format!("<{name}>");
+                if !out.contains(&label) {
+                    out.push(label);
+                }
+                component_names(children, out);
+            }
+            ViewNode::Element { children, .. } | ViewNode::Fragment(children) => component_names(children, out),
+            ViewNode::DynamicNode { branches, .. } => component_names(branches, out),
+            ViewNode::List { item, .. } => component_names(std::slice::from_ref(item), out),
+            _ => {}
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -853,6 +884,20 @@ mod tests {
         );
         assert!(m.is_complete(), "errors: {:?}", m.errors);
         assert!(m.code.contains("{ a: \"1\", ...(o.value), b: \"2\" }"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn a_paragraph_with_a_component_is_checked_and_closed_with_a_marker() {
+        let m = emit(
+            "function Badge(){ return <span/>; } export default function P(){ return <div><p>a <Badge/> b</p><p>plain</p></div>; }",
+            true,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("ssgParagraph(\"a \" + ssgComponent("), "check:\n{}", m.code);
+        assert!(m.code.contains("\"<Badge>\")"), "names:\n{}", m.code);
+        assert!(m.code.contains("</p><!--p]-->"), "marker:\n{}", m.code);
+        // A paragraph without components is written as before: no check, no marker.
+        assert_eq!(m.code.matches("<!--p]-->").count(), 1, "{}", m.code);
     }
 
     #[test]

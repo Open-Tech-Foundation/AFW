@@ -91,6 +91,7 @@ struct Uses {
     hydrate_hole: bool,
     hydratable_node: bool,
     adopted_children: bool,
+    hydrate_paragraph: bool,
 }
 
 fn merge_uses(into: &mut Uses, from: &Uses) {
@@ -107,6 +108,7 @@ fn merge_uses(into: &mut Uses, from: &Uses) {
     into.hydrate_hole |= from.hydrate_hole;
     into.hydratable_node |= from.hydratable_node;
     into.adopted_children |= from.adopted_children;
+    into.hydrate_paragraph |= from.hydrate_paragraph;
 }
 
 /// Emit a whole module for the **hydrate target**. Calls `csr` to emit the build
@@ -312,6 +314,9 @@ fn claim_import(uses: &Uses) -> String {
     }
     if uses.adopted_children {
         names.push("adoptedChildren");
+    }
+    if uses.hydrate_paragraph {
+        names.push("hydrateParagraph");
     }
     if names.is_empty() {
         return String::new();
@@ -803,6 +808,11 @@ impl<'a> Emitter<'a> {
 
     fn emit_node(&mut self, cur: &str, node: &ViewNode) -> String {
         match node {
+            ViewNode::Element { tag, props, children }
+                if tag == "p" && static_tree::paragraph_has_component(children) =>
+            {
+                self.emit_paragraph_region(cur, node, props, children)
+            }
             ViewNode::Element { tag, props, children } => {
                 let var = self.fresh("el");
                 self.uses.claim_element = true;
@@ -953,6 +963,46 @@ impl<'a> Emitter<'a> {
                 String::new()
             }
         }
+    }
+
+    /// A `<p>` holding a component, adopted as a recoverable region (see
+    /// `static_tree::paragraph_has_component`): `hydrateParagraph` runs the adopt walk on
+    /// the served paragraph and, if the parser restructured it, swaps in the CSR build
+    /// below. The SSG backend writes the `<!--p]-->` marker that bounds the region.
+    fn emit_paragraph_region(
+        &mut self,
+        cur: &str,
+        node: &ViewNode,
+        props: &[Prop],
+        children: &[ViewNode],
+    ) -> String {
+        let n = self.list_counter;
+        self.list_counter += 1;
+        let build_fn = format!("{}_para{}", self.base, n);
+        let (build_lines, tmpls) = csr::emit_build_node_fn(self.lowered, &build_fn, node);
+        self.templates.extend(tmpls);
+        for l in build_lines {
+            self.line(l);
+        }
+        let var = self.fresh("el");
+        let saved = std::mem::take(&mut self.lines);
+        let mut after_spread = false;
+        for prop in props {
+            self.emit_prop(&var, prop, after_spread);
+            after_spread |= prop.name.is_empty();
+        }
+        let child_cur = self.fresh("__c");
+        self.uses.cursor = true;
+        self.line(format!("const {child_cur} = cursor({var});"));
+        self.emit_children(&child_cur, children);
+        let body = std::mem::replace(&mut self.lines, saved);
+        self.uses.hydrate_paragraph = true;
+        self.line(format!("const {var} = hydrateParagraph({cur}, ({var}) => {{"));
+        for l in &body {
+            self.line(format!("  {l}"));
+        }
+        self.line(format!("}}, {build_fn});"));
+        var
     }
 
     /// Adopt a keyed list region off the shared cursor `cur` (positioned at the opening
@@ -1584,12 +1634,23 @@ mod tests {
     }
 
     #[test]
-    fn an_island_inside_a_paragraph_is_not_adopted() {
+    fn an_island_inside_a_paragraph_adopts_as_a_recoverable_region() {
         // The component's own view may open with a block element, which closes the `<p>`
-        // and leaves the host hoisted out of it and empty.
-        let m = emit("export default function P(){ let n=$state(0); return <p>a <Box/> {n}</p>; }");
-        assert!(!m.is_complete());
-        assert!(m.errors[0].contains("component <Box> inside <p>"), "{:?}", m.errors);
+        // early. The paragraph is adopted through `hydrateParagraph`, which keeps it when
+        // intact and otherwise rebuilds it alone, with a CSR builder to fall back on.
+        let m = emit("export default function P(){ let n=$state(0); return <div><p>a <Box/> {n}</p><i>{n}</i></div>; }");
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("hydrateParagraph(__c"), "region:\n{}", m.code);
+        assert!(m.code.contains("function default_para"), "rebuild fallback:\n{}", m.code);
+        assert!(m.code.contains("hydrateParagraph } from") || m.code.contains("hydrateParagraph, "), "import:\n{}", m.code);
+        // The rest of the view still adopts after the region.
+        assert!(m.code.contains("claimElement(__c2, \"i\")"), "sibling adopted after the region:\n{}", m.code);
+    }
+
+    #[test]
+    fn a_children_slot_inside_a_paragraph_is_still_not_adopted() {
+        let m = emit_component("export default function Lead({ children }){ return <p>{children}</p>; }");
+        assert!(m.errors.iter().any(|e| e.contains("{children} slot inside <p>")), "{:?}", m.errors);
     }
 
     #[test]

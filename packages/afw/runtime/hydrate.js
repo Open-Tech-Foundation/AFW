@@ -286,6 +286,54 @@ export function claimElement(cur, tag) {
 }
 
 /**
+ * Adopt a `<p>` holding a component (a *recoverable region*), advancing the cursor past
+ * its `<!--p]-->` end marker. The compiler cannot see a component's markup, and a block
+ * element in it (`<div>`) makes the HTML parser close the `<p>` early, moving the rest of
+ * the paragraph out after it. So:
+ *
+ * - intact (the component rendered inline markup, the common case): `adopt(el)` wires the
+ *   served paragraph and the marker follows it directly. Nothing is rebuilt.
+ * - restructured: `adopt` throws {@link HydrationMismatch}, or nodes the parser moved out
+ *   sit between the `<p>` and its marker. Everything from the `<p>` up to the marker is
+ *   removed and `build()` puts a fresh paragraph in its place. One paragraph is rebuilt,
+ *   not the whole view. (The build warned about it: see `ssgParagraph`.)
+ *
+ * Comments are never moved by the parser, so the marker always ends the region. Without
+ * one there is no boundary to recover inside, and the mismatch propagates as before.
+ */
+export function hydrateParagraph(cur, adopt, build) {
+  const el = claimElement(cur, "p");
+  let intact = true;
+  try {
+    adopt(el);
+  } catch (e) {
+    if (!(e instanceof HydrationMismatch)) throw e;
+    intact = false;
+  }
+  let end = el.nextSibling;
+  if (intact && isParagraphEnd(end)) {
+    cur.node = end.nextSibling;
+    return el;
+  }
+  while (end && !isParagraphEnd(end)) end = end.nextSibling;
+  if (!end) throw new HydrationMismatch("expected a <!--p]--> paragraph end marker");
+  const parent = end.parentNode;
+  for (let n = el; n !== end; ) {
+    const next = n.nextSibling;
+    parent.removeChild(n);
+    n = next;
+  }
+  // A build, not an adoption: the components in the fresh paragraph must build their
+  // own markup rather than look for server nodes that were just removed.
+  const fresh = runBuild(build);
+  parent.insertBefore(fresh, end);
+  cur.node = end.nextSibling;
+  return fresh;
+}
+
+const isParagraphEnd = (n) => n?.nodeType === 8 && n.data === "p]";
+
+/**
  * Claim a dynamic text hole delimited by `<!--$-->…<!--/-->`, returning the text node
  * to bind onto (created empty when the server rendered no value), and advance the
  * cursor past the closing marker. Wire reactivity with `bindText(node, fn)` from

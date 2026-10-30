@@ -30,6 +30,13 @@
 
 ### Fixed
 
+- **A component inside a paragraph no longer rebuilds the whole page.** MDX wraps
+  `text <Badge /> text` in a `<p>`, and any such paragraph made its page or component
+  rebuild on load. The paragraph is now adopted as served when the component renders
+  inline markup (the usual case), and when one renders a block element (`<div>`), which the
+  browser moves out of the `<p>`, only that paragraph is rebuilt. The build warns about the
+  latter, naming the component and the page. A `{children}` slot inside a `<p>` still
+  rebuilds its component.
 - **An early `return` in a component is a compile error** ("returns before its view"),
   reported at that `return`. Only a component's final `return` is its view; an earlier one
   (`if (props.inline) return <p/>;`, or a `return null` guard) compiled into setup code

@@ -210,6 +210,47 @@ const CASES = [
     })()`,
   },
   {
+    name: "Inline component in a paragraph adopts in place (no rebuild)",
+    consts: `function Chip(props) { return <span class="chip">{props.label}</span>; }`,
+    setup: `let n = $state(1);`,
+    body: `<div><p class="para">Install <Chip label="npm" /> then run it {n} time</p><input class="probe" value="" /><button class="inc" onclick={() => n++}>+</button></div>`,
+    props: {},
+    noSlot: true,
+    expectMarkup: [/<p class="para">Install <afw-chip[^>]*><span class="chip">(<!--\$-->)?npm(<!--\/-->)?<\/span><\/afw-chip[^>]*> then run it <!--\$-->1<!--\/--> time<\/p><!--p\]-->/],
+    preHydrate: `window.__p = document.querySelector("p.para"); window.__chip = document.querySelector(".chip"); document.querySelector("input.probe").value = "typed early";`,
+    interact: `(async () => {
+      const p = document.querySelector("p.para");
+      const chip = document.querySelector(".chip");
+      document.querySelector("button.inc").click();
+      await new Promise((r) => setTimeout(r, 30));
+      return p === window.__p && chip === window.__chip && p.contains(chip) && p.textContent.includes("run it 2 time")
+        && document.querySelector("input.probe").value === "typed early";
+    })()`,
+  },
+  {
+    name: "Block component in a paragraph rebuilds only that paragraph",
+    consts: `function Blocky() { return <div class="blk">B</div>; }`,
+    setup: `let n = $state(1);`,
+    body: `<div><p class="para">Before <Blocky /> after {n}</p><input class="probe" value="" /><button class="inc" onclick={() => n++}>+</button></div>`,
+    props: {},
+    noSlot: true,
+    // The parser closes the <p> at the <div>: the served <p> (with the emptied host), the
+    // hoisted <div>, the stray text and the empty <p> the stray </p> opens all go. The
+    // rest of the view (the probe, the button) is the server's and stays.
+    // The text after the <div> is " after " plus the `{n}` hole (two comments around "1").
+    expectRemoved: ["P", "DIV", "#text", "#text", "#comment", "#comment", "P"],
+    preHydrate: `window.__p = document.querySelector("p.para"); window.__probe = document.querySelector("input.probe"); window.__probe.value = "typed early";`,
+    interact: `(async () => {
+      const paras = document.querySelectorAll("p");
+      const p = document.querySelector("p.para");
+      document.querySelector("button.inc").click();
+      await new Promise((r) => setTimeout(r, 30));
+      return paras.length === 1 && p !== window.__p && p.querySelector(".blk") && document.querySelectorAll(".blk").length === 1
+        && p.textContent.replace(/\s+/g, " ").trim() === "Before B after 2"
+        && document.querySelector("input.probe") === window.__probe && window.__probe.value === "typed early";
+    })()`,
+  },
+  {
     name: "Toc serves the page's outline and adopts it (no pop-in)",
     imports: `import Toc from "${COMPONENTS}/Toc.jsx"; import { setRouteToc } from "@opentf/afw";`,
     // Stands in for the router publishing the page module's `toc` export.
@@ -576,9 +617,15 @@ try {
       `${kase.name}: nothing logged during hydration${s.errors.length ? ` — ${JSON.stringify(s.errors.slice(0, 1))}` : ""}`,
       kase.known,
     );
+    // `expectRemoved`: a case whose point is a bounded rebuild names exactly the server
+    // nodes it tears out; anything beyond them is the failure this suite exists for.
+    const expectRemoved = [...(kase.expectRemoved ?? [])].sort();
+    const removed = [...s.removed].sort();
     assert(
-      s.removed.length === 0,
-      `${kase.name}: no server node torn out${s.removed.length ? ` — removed ${JSON.stringify(s.removed.slice(0, 4))}` : ""}`,
+      JSON.stringify(removed) === JSON.stringify(expectRemoved),
+      expectRemoved.length
+        ? `${kase.name}: only ${JSON.stringify(expectRemoved)} torn out — removed ${JSON.stringify(removed)}`
+        : `${kase.name}: no server node torn out${s.removed.length ? ` — removed ${JSON.stringify(s.removed.slice(0, 4))}` : ""}`,
       kase.known,
     );
     if (!kase.noSlot) {

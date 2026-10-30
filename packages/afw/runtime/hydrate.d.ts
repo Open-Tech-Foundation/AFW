@@ -171,3 +171,9 @@ export const SLOT_END: "c]";
 export class HydrationMismatch extends Error {
     constructor(message: any);
 }
+/**
+ * Adopt a `<p>` holding a component, past its `<!--p]-->` end marker: kept as served when
+ * the parser left it intact, rebuilt with `build()` when a block element in a component
+ * made the parser close it early. Compiler-emitted.
+ */
+export function hydrateParagraph(cur: any, adopt: (el: any) => void, build: () => any): any;

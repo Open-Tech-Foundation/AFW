@@ -121,6 +121,30 @@ const CLOSES_P: &[&str] = &[
     "pre", "search", "section", "summary", "table", "ul", "xmp",
 ];
 
+/// Does a `<p>` with these children hold a component whose markup the compiler can't see?
+///
+/// Such a paragraph is a *recoverable region*: the SSG backend writes a `<!--p]-->` marker
+/// after it, and the hydrate backend adopts it through `hydrateParagraph`, which keeps the
+/// served paragraph when the parser left it intact (the component rendered inline markup)
+/// and rebuilds just that paragraph when a block element in the component made the parser
+/// close it early. Both backends call this, so they agree on which paragraphs get the
+/// marker. A scope barrier (`<button>`, …) or foreign content stops the parser from
+/// closing the `<p>`, so a component under one is not counted.
+pub fn paragraph_has_component(children: &[ViewNode]) -> bool {
+    children.iter().any(|child| match child {
+        ViewNode::Component { .. } => true,
+        ViewNode::Element { tag, children, .. } => {
+            !SCOPE_BARRIER.contains(&tag.as_str())
+                && !matches!(tag.as_str(), "svg" | "math")
+                && paragraph_has_component(children)
+        }
+        ViewNode::Fragment(children) => paragraph_has_component(children),
+        ViewNode::DynamicNode { branches, .. } => paragraph_has_component(branches),
+        ViewNode::List { item, .. } => paragraph_has_component(std::slice::from_ref(item)),
+        _ => false,
+    })
+}
+
 /// Elements that bound "button scope" — the parser stops looking for an open `<p>`
 /// (or `<button>`) at one, so a `CLOSES_P` tag under one of these is harmless.
 const SCOPE_BARRIER: &[&str] =
@@ -345,7 +369,13 @@ fn walk(node: &ViewNode, ctx: Ctx, mode: Mode) -> Result<(), String> {
             if ctx.in_table_structure() && matches!(node, ViewNode::Component { .. }) {
                 return Err(table_text_err(ctx));
             }
-            if ctx.fragile() {
+            // A component inside a `<p>` is adopted through a recoverable region
+            // (`paragraph_has_component`, the `hydrateParagraph` runtime): most render
+            // inline markup and adopt as served, and one that renders a block element
+            // costs only its paragraph a rebuild. A `{children}` slot there is the
+            // parent's content and stays a hazard.
+            let recoverable = mode == Mode::Adopt && matches!(node, ViewNode::Component { .. });
+            if ctx.fragile() && !recoverable {
                 return Err(format!(
                     "{} inside <p>: content the parser hoists out would close the <p> early",
                     node_label(node)
@@ -939,14 +969,21 @@ mod tests {
     }
 
     #[test]
-    fn an_island_in_a_paragraph_is_a_hazard() {
+    fn an_island_in_a_paragraph_is_a_recoverable_region_not_a_hazard() {
         // The component's *own* view may start with a block element, which closes the
-        // `<p>` and hoists the host out of it — leaving the walk nothing to claim.
+        // `<p>` early. That is recovered at runtime (`hydrateParagraph`), not refused.
         let tree = wrap(vec![el("p", vec![], vec![text("a "), component("Box"), text(" b")])]);
-        assert!(reparse_hazard(&tree).is_some_and(|r| r.contains("component <Box> inside <p>")));
-        // …but the same island as a sibling of the paragraph is fine.
-        let sibling = wrap(vec![el("p", vec![], vec![text("a")]), component("Box")]);
-        assert_eq!(reparse_hazard(&sibling), None);
+        assert_eq!(reparse_hazard(&tree), None);
+        let ViewNode::Element { children: outer, .. } = &tree else { unreachable!() };
+        let ViewNode::Element { children, .. } = &outer[0] else { unreachable!() };
+        assert!(paragraph_has_component(children));
+        // Nested inline markup still counts; a scope barrier stops the parser closing the <p>.
+        assert!(paragraph_has_component(&[el("em", vec![], vec![component("Box")])]));
+        assert!(!paragraph_has_component(&[el("button", vec![], vec![component("Box")])]));
+        assert!(!paragraph_has_component(&[text("plain")]));
+        // A literal block element in a paragraph is still refused: it always breaks.
+        let div = wrap(vec![el("p", vec![], vec![el("div", vec![], vec![])])]);
+        assert!(reparse_hazard(&div).is_some_and(|r| r.contains("<div> inside <p>")));
     }
 
     #[test]

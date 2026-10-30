@@ -10,6 +10,8 @@ import {
   endHydrationCollect,
   ssgAttrs,
   ssgComponent,
+  paragraphBlockTag,
+  ssgParagraph,
   ssgText,
 } from "./ssg-runtime.js";
 
@@ -184,5 +186,22 @@ describe("ssgAttrs", () => {
 
   test("tolerates a null or undefined spread", () => {
     expect(ssgAttrs([null, undefined, ["id", "x"]])).toBe(' id="x"');
+  });
+});
+
+describe("ssgParagraph", () => {
+  test("finds a block tag a component put in a paragraph, and nothing in inline markup", () => {
+    expect(paragraphBlockTag('a <x-badge><span>b</span></x-badge> c')).toBe(null);
+    expect(paragraphBlockTag('a <x-box><DIV class="d">b</DIV></x-box>')).toBe("div");
+    expect(paragraphBlockTag("<x-l><ul><li>i</li></ul></x-l>")).toBe("ul");
+    expect(paragraphBlockTag("<x-h><h2>t</h2></x-h>")).toBe("h2");
+    // <picture> and <param> start with "p" but don't close a paragraph.
+    expect(paragraphBlockTag("<x-i><picture></picture><param></x-i>")).toBe(null);
+  });
+
+  test("returns the paragraph's HTML unchanged either way", () => {
+    for (const html of ["a <x-b><span>b</span></x-b>", "a <x-b><div>b</div></x-b>"]) {
+      expect(ssgParagraph(html, "<B>")).toBe(html);
+    }
   });
 });

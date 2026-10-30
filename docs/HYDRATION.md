@@ -437,8 +437,17 @@ optimization (`template_html`); the same model now answers the hydrate question 
   wrapped in the section the parser would imply — in the *shared* lowering, so SSG, CSR and
   the claim walk all describe the same tree (a pure CSR build produced no `tbody` at all,
   so `table > tr` selectors used to match on one path and not the other).
-- **Anything else the parser reshapes is refused at compile time.** `<p><div>`, an island
-  inside a `<p>` (whose own view may open with a block element), `<a><a>`, `<form><form>`,
+- **A component inside a `<p>` is a recoverable region.** Its own view may open with a
+  block element, which closes the `<p>` early, but the compiler can't see that view. So the
+  SSG backend writes a `<!--p]-->` marker after the paragraph and wraps its HTML in
+  `ssgParagraph`, which warns at build time when a component really put a block element
+  there. The hydrate backend adopts the paragraph through `hydrateParagraph`: kept as served
+  when intact (inline markup, the usual MDX case), otherwise everything from the `<p>` to
+  its marker is removed and that one paragraph is rebuilt. The parser never moves comments,
+  so the marker always bounds what it made of the paragraph. A `{children}` slot inside a
+  `<p>` is the parent's content and is still refused (below).
+- **Anything else the parser reshapes is refused at compile time.** `<p><div>`, a
+  `{children}` slot inside a `<p>`, `<a><a>`, `<form><form>`,
   a dynamic region directly inside `<table>`: the view is not adoptable, the page/component
   falls back to a clean CSR build, and the compiler says which shape and why. The refusal is
   deliberately narrow — an `<a>` is closed only by another `<a>`, an `<li>` only by another

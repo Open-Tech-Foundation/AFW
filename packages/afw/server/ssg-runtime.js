@@ -185,6 +185,40 @@ export function ssgAttrs(entries) {
   return s;
 }
 
+// Tags that close an open `<p>` (the HTML parser's "close a p element" list). Mirrors
+// `CLOSES_P` in the compiler's static_tree.rs.
+const CLOSES_P = /<(address|article|aside|blockquote|center|details|dialog|dir|div|dl|dd|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hgroup|hr|li|listing|main|menu|nav|ol|p|plaintext|pre|search|section|summary|table|ul|xmp)[\s/>]/i;
+const warnedParagraphs = new Set();
+
+/** The first tag in a paragraph's inner HTML that would close the `<p>`, or null. */
+export function paragraphBlockTag(html) {
+  const m = CLOSES_P.exec(html);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * The inner HTML of a `<p>` holding components (`names`, e.g. "<Badge>"), returned
+ * unchanged. If a component's markup put a block element in it, the browser will close
+ * the paragraph early and hydration rebuilds it (`hydrateParagraph`), so say so once per
+ * page and paragraph, with the fix.
+ */
+export function ssgParagraph(html, names) {
+  const tag = paragraphBlockTag(html);
+  if (tag) {
+    const page = getRenderContext()?.route?.pathname ?? "";
+    const key = `${page}\0${names}\0${tag}`;
+    if (!warnedParagraphs.has(key)) {
+      warnedParagraphs.add(key);
+      console.warn(
+        `⚠ ${names} renders a <${tag}> inside a paragraph${page ? ` on ${page}` : ""}. ` +
+          "The browser moves it out of the <p>, so that paragraph is rebuilt on load. " +
+          "Put the component on its own line, or render inline markup (<span>) from it.",
+      );
+    }
+  }
+  return html;
+}
+
 /**
  * A dynamic hole's value → HTML: trusted `{__html}` raw, else escaped text. An
  * array (`{[<a/>, <b/>]}` or `{[1, 2, 3]}`) renders each item concatenated with no
