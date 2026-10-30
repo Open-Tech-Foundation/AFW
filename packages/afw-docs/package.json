@@ -1,7 +1,7 @@
 {
   "name": "@opentf/afw-docs",
   "version": "0.30.0",
-  "description": "Documentation-site generator for AFW — themed shell components (sidebar, TOC, callouts, tabs), a build-time nav generator, and a default light/dark theme.",
+  "description": "Documentation and blog sites built as ordinary AFW apps.",
   "type": "module",
   "scripts": {
     "build": "cp ../../LICENSE LICENSE"
@@ -48,19 +48,20 @@
     "!**/*.test.js"
   ],
   "keywords": [
+    "afw",
     "opentf",
     "documentation",
     "docs",
+    "blog",
     "mdx",
-    "static-site-generator",
-    "ssg"
+    "static-site-generator"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/Open-Tech-Foundation/afw.git",
     "directory": "packages/afw-docs"
   },
-  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "homepage": "https://afw.opentechf.org/packages/afw-docs",
   "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
   "license": "MIT",
   "peerDependencies": {
