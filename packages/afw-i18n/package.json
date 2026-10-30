@@ -1,7 +1,7 @@
 {
   "name": "@opentf/afw-i18n",
   "version": "1.27.0",
-  "description": "Internationalization for AFW — ICU messages, Intl formatters, and a reactive t() that pairs with the core's URL-prefix locale routing.",
+  "description": "ICU messages, Intl formatters and locale routing for AFW.",
   "main": "index.js",
   "module": "index.js",
   "type": "module",
@@ -19,6 +19,7 @@
     "!**/*.test.js"
   ],
   "keywords": [
+    "afw",
     "opentf",
     "i18n",
     "internationalization",
@@ -31,7 +32,7 @@
     "url": "https://github.com/Open-Tech-Foundation/afw.git",
     "directory": "packages/afw-i18n"
   },
-  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "homepage": "https://afw.opentechf.org/packages/afw-i18n",
   "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
   "license": "MIT",
   "dependencies": {
