@@ -113,14 +113,16 @@ export default function BlogIndex() {
 | --- | --- | --- |
 | `title` | string | Falls back to a humanized slug. |
 | `description` | string | Shown on the banner and the index card. |
-| `date` | string | `YYYY-MM-DD`; drives newest-first ordering. |
+| `date` | string | `YYYY-MM-DD`; drives newest-first ordering. A future date schedules the post (see [Drafts and scheduled posts](#drafts-and-scheduled-posts)). |
+| `updated` | string | `YYYY-MM-DD` of the last real edit, shown as "Updated …" on the banner when later than `date`. |
+| `draft` | boolean | `true` keeps the post out of production builds. |
 | `author` | string | Name shown in the meta row. |
 | `author_avatar` | string | Image URL shown next to the name. |
 | `author_role` | string | Optional label after the name. |
 | `cover` | string | Cover image (banner + card). |
 | `tags` | string | Comma-separated; rendered as chips. |
 | `order` | number | Overrides date ordering when present. |
-| `lastUpdated` | string \| false | Override the updated date, or `false` to never show it. |
+| `lastUpdated` | string | Same as `updated` (the docs-page spelling). |
 
 <Callout type="info" title="Frontmatter is flat">
   Values are scalars (string/number/boolean). `tags` is a comma-separated string that
@@ -134,16 +136,27 @@ is plain data, so you can build your own listing if you don't want `PostList`:
 
 ```jsx
 import { posts } from "@opentf/afw-docs/posts";
-// posts: { slug, path, title, description, date, author, authorAvatar,
-//          authorRole, cover, tags, readingTime, order }[]
+// posts: { slug, path, title, description, date, updated, author, authorAvatar,
+//          authorRole, cover, tags, readingTime, order, draft }[]
 ```
+
+## Drafts and scheduled posts
+
+A post with `draft: true`, or with a `date` later than the build, is unpublished. The
+dev server (`esdev start`) still shows it, marked **Draft**, so you can preview it. A
+production build leaves it out everywhere: the post list, both feeds, the sitemap,
+`llms.txt`, and the route table itself, so its text is in no bundle. A scheduled post
+goes live with the first build on or after its date.
+
+The same rule applies to `draft: true` on a docs page: it is left out of the sidebar
+and the build.
 
 ## Components
 
 | Component | Use |
 | --- | --- |
 | `BlogLayout` | Section layout — banner + TOC on posts, children on the index. |
-| `PostList` / `PostCard` | The index listing. |
+| `PostList` / `PostCard` | The index listing: the newest post as a full-width hero card, the rest as compact rows. `featured={false}` lists them all as rows. |
 | `PostBanner` | Cover + title + description + meta (used by `BlogLayout`). |
 | `PostMeta` | The date · author · reading-time row. |
 | `ReadingTime` | A `N min read` label. |
@@ -154,13 +167,15 @@ With `docs.search: { provider: "afw" }` and `siteOutputPlugin` configured,
 `BlogLayout`'s `data-afw-search-body` marker includes post articles in the same index
 as docs pages. The blog index is excluded because it only lists posts.
 
-## Last updated
+## Updated date
 
-Set `blog.lastUpdated: true` to show a "Last updated" line on a post — but only when it
-was edited *after* its publish `date`, so a freshly published post stays clean. The date
-comes from the file's last git commit (or a `lastUpdated` frontmatter override). See
-[Configuration → Last updated](/packages/afw-docs/configuration) for the details
-this shares with docs pages.
+A post shows "Updated …" next to its publish date when its frontmatter has an
+`updated` date on a later day than `date`. That date is also the post's
+`article:modified_time`, its JSON-LD `dateModified` and its Atom `<updated>`.
+
+Unlike docs pages, a post's updated date never comes from git: a bulk commit (a rename,
+a reformat) touches every post without changing what any of them says, and would date
+them all to that day. Set `updated` when you make an edit worth telling readers about.
 
 ## Feeds
 
@@ -169,7 +184,8 @@ Atom 1.0 feeds to `<dir>/rss.xml` and `<dir>/atom.xml` (for example, `/blog/rss.
 and `/blog/atom.xml`) when a `blog` block is configured. Set `site.url` so feed URLs
 are absolute. Posts appear newest-first unless `order` overrides their display
 order, with absolute links, publication dates from `date`, author metadata, and
-categories from `tags`.
+categories from `tags`. Each entry carries the full post, read from its prerendered
+page, so readers can show it without a click-through.
 
 The feed timestamp uses the newest valid post date even when an older post is
 pinned first. Invalid or missing dates are skipped when selecting that timestamp;
@@ -182,16 +198,14 @@ export default defineDocsConfig({
     dir: "blog",
     title: "Example Blog",          // feed title (optional)
     description: "Notes from the team", // feed description (optional)
+    language: "en",                 // feed language (optional; defaults to i18n.defaultLocale, then "en")
   },
 });
 ```
 
-Add an autodiscovery link to your `index.html` `<head>` so readers and browsers find it:
-
-```html index.html
-<link rel="alternate" type="application/rss+xml" title="Example Blog" href="/blog/rss.xml" />
-<link rel="alternate" type="application/atom+xml" title="Example Blog" href="/blog/atom.xml" />
-```
+Every prerendered page gets `<link rel="alternate">` tags for both feeds, so readers and
+browsers find them from any URL of the site. A page that already declares a feed (a link
+you wrote in `index.html`) is left as it is.
 
 <Callout type="info" title="Bring your own feed">
   Drop a `public/<dir>/rss.xml` or `public/<dir>/atom.xml` to take over either feed —
