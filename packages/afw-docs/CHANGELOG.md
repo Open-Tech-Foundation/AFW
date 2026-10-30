@@ -26,6 +26,10 @@
 
 ### Fixed
 
+- **`<Toc>` no longer pops in after load.** It renders the page's outline from
+  `router.toc` (the MDX `toc` export), so the list is in the served HTML and adopted at
+  hydration, with no layout shift. Pages without a `toc` export (plain JSX) still read
+  their headings from the DOM after mount.
 - The navbar and sidebar lost their layout after the rename. Hosts and the theme's
   elements both became `afw-<name>`, so host rules such as `display: contents` also
   hit the inner `<header>` and `<aside>`: the sidebar dropped out of the docs grid and

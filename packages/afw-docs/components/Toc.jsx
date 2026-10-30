@@ -1,28 +1,47 @@
-// "On this page" table of contents. Built from the rendered content headings (so it
-// works for both MDX and JSX pages), with scroll-spy highlighting via
-// IntersectionObserver. Rebuilds on route change.
+// "On this page" table of contents, with scroll-spy highlighting via IntersectionObserver.
+// Rebuilds on route change.
 //
-// The MDX front-end already emits stable heading ids (slugs); we read them from the
-// DOM after mount. (SSG output ships the heading anchors statically; this nav chrome
-// activates once the client bundle mounts.)
+// The outline comes from the page's `toc` export (`router.toc`, emitted by the MDX
+// front-end), so it is in the served HTML and adopted at hydration: no pop-in, no layout
+// shift. A page without one (plain JSX) falls back to reading its headings from the DOM
+// after mount, as before.
 
-import { onMount, router } from "@opentf/afw";
+import { isHydrating, onMount, router } from "@opentf/afw";
 
 export default function Toc() {
-  let items = $state([]);
+  const fromPage = () =>
+    (router.toc ?? [])
+      .filter((h) => h.depth === 2 || h.depth === 3)
+      .map((h) => ({ id: h.id, text: h.text, sub: h.depth === 3 }));
+
+  // A server-rendered `<Toc>` upgrades the moment its module defines it, which is during
+  // the router's route import and so before `router.toc` is set. It takes the outline the
+  // server rendered into it instead, so the adopt walk always sees the markup it expects.
+  const fromServer = () =>
+    Array.from(document.querySelectorAll("nav.afwd-toc .afwd-toc-link"), (a) => ({
+      id: decodeURIComponent((a.getAttribute("href") || "").slice(1)),
+      text: a.textContent || "",
+      sub: a.parentElement?.classList.contains("afwd-toc-sub") ?? false,
+    }));
+
+  let items = $state(isHydrating() && typeof document !== "undefined" ? fromServer() : fromPage());
   let activeId = $state("");
   let observer = null;
 
-  const build = () => {
+  // `initial`: an outline already rendered (served, then adopted) is kept as is. Assigning
+  // an equal array would rebuild the list the server sent, and `router.toc` may not be set
+  // yet when this first runs.
+  const build = (initial = false) => {
     if (typeof document === "undefined") return;
     const root = document.getElementById("afw-content");
     if (!root) return;
     const hs = Array.from(root.querySelectorAll("h2[id], h3[id]"));
-    items = hs.map((h) => ({
-      id: h.id,
-      text: h.textContent || "",
-      sub: h.tagName === "H3",
-    }));
+    const page = fromPage();
+    if (!(initial && items.length > 0)) {
+      items = page.length > 0
+        ? page
+        : hs.map((h) => ({ id: h.id, text: h.textContent || "", sub: h.tagName === "H3" }));
+    }
     if (observer) observer.disconnect();
     observer = new IntersectionObserver(
       (entries) => {
@@ -34,7 +53,7 @@ export default function Toc() {
   };
 
   onMount(() => {
-    build();
+    build(true);
     return () => observer && observer.disconnect();
   });
 
@@ -50,7 +69,7 @@ export default function Toc() {
       routed = true;
       return;
     }
-    if (typeof requestAnimationFrame !== "undefined") requestAnimationFrame(build);
+    if (typeof requestAnimationFrame !== "undefined") requestAnimationFrame(() => build());
   });
 
   return (

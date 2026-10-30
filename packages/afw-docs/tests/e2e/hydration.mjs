@@ -210,6 +210,21 @@ const CASES = [
     })()`,
   },
   {
+    name: "Toc serves the page's outline and adopts it (no pop-in)",
+    imports: `import Toc from "${COMPONENTS}/Toc.jsx"; import { setRouteToc } from "@opentf/afw";`,
+    // Stands in for the router publishing the page module's `toc` export.
+    setup: `setRouteToc({ toc: [{ depth: 2, id: "one", text: "One" }, { depth: 3, id: "two", text: "Two" }] });`,
+    body: `<div><div id="afw-content"><h2 id="one">One</h2><h3 id="two">Two</h3></div><Toc /></div>`,
+    props: {},
+    noSlot: true,
+    expectMarkup: [/afwd-toc-list/, /href="#one"/, /afwd-toc-sub/],
+    interact: `(async () => {
+      const links = [...document.querySelectorAll(".afwd-toc-link")];
+      return links.length === 2 && links.every((a) => a.__server)
+        && links[1].closest("li").classList.contains("afwd-toc-sub");
+    })()`,
+  },
+  {
     name: "Nested fragment adopts inline and its conditional stays live",
     setup: `let on = $state(true);`,
     body: `<div class="row"><><input class="probe" value="" /><span class="chip">Two</span>{on && <span class="chip extra">Three</span>}</><button class="toggle" onclick={() => (on = !on)}>t</button></div>`,

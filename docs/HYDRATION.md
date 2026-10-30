@@ -575,10 +575,10 @@ whitespace nodes, double mounts). The bar:
 - **JSX values are render-only during hydration.** A JSX value used as data (2.1f) is a
   `hydratableNode` in the hydrate build, not a DOM node: render it with `{value}`. Code that
   manipulates such a value imperatively (`icon.cloneNode()`) works only in client builds.
-- **A client-derived island has nothing to adopt.** `<Toc>` builds its outline from the rendered
-  headings at `onMount`, so the server ships an empty `<nav>` and the outline pops in (CLS).
-  Fixing it means feeding the page's `toc` export in as data rather than reading the DOM —
-  a data-hydration concern, not a DOM one.
+- **A client-derived island has nothing to adopt.** A component that builds its content from
+  the DOM at `onMount` ships empty and pops in. `<Toc>` avoids this on MDX pages by rendering
+  `router.toc` (the page's `toc` export); on a plain JSX page, which has no export, it still
+  reads the headings after mount.
 - MPA-only build optimization: when `nav: "mpa"`, components never client-build, so the
   build arm is dead and `hydrate.rs` could emit pure-adopt components (smaller bundle).
 
