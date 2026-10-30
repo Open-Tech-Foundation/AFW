@@ -24,6 +24,8 @@ export interface BlogConfig {
   dir?: string;
   title?: string;
   description?: string;
+  /** Feed language (RSS `<language>`); defaults to `i18n.defaultLocale`, then "en". */
+  language?: string;
   lastUpdated?: boolean;
 }
 export interface SiteConfig {

@@ -32,6 +32,32 @@ function iso8601(date) {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+/**
+ * A post's body for a feed, from its prerendered page: the inner HTML of the page's
+ * `<article class="afwd-prose">`, with what only a live page needs removed (hydration
+ * comments, scripts, `<template>`s, the copy buttons on code blocks) and root-relative
+ * `src`/`href` made absolute, since a feed reader has no base URL. A `cover` leads the
+ * body as an image. Returns "" when the page has no prose article.
+ */
+export function postContentHtml(pageHtml, baseUrl, cover) {
+  const m = String(pageHtml).match(/<article class="afwd-prose">([\s\S]*)<\/article>/);
+  if (!m) return "";
+  const body = m[1]
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<template\b[\s\S]*?<\/template>/gi, "")
+    .replace(/<button\b[\s\S]*?<\/button>/gi, "")
+    .replace(/\s(src|href)="\/(?!\/)/g, (_, attr) => ` ${attr}="${baseUrl.replace(/\/+$/, "")}/`)
+    .trim();
+  const image = cover ? `<p><img src="${esc(abs(baseUrl, cover))}" alt=""></p>` : "";
+  return image + body;
+}
+
+/** CDATA section around `s`, splitting any `]]>` inside it. */
+function cdata(s) {
+  return `<![CDATA[${String(s).replace(/]]>/g, "]]]]><![CDATA[>")}]]>`;
+}
+
 /** Newest valid publication instant, independent of post display order. */
 function newestPostDate(posts) {
   let newest = -Infinity;
@@ -73,6 +99,8 @@ export function renderBlogFeed({ posts = [], baseUrl, feedPath = "/blog/rss.xml"
       if (pubDate) parts.push(`      <pubDate>${pubDate}</pubDate>`);
       if (p.author) parts.push(`      <dc:creator>${esc(p.author)}</dc:creator>`);
       if (p.description) parts.push(`      <description>${esc(p.description)}</description>`);
+      // The full post (`postContentHtml`), so a reader can show it without a click-through.
+      if (p.content) parts.push(`      <content:encoded>${cdata(p.content)}</content:encoded>`);
       for (const tag of p.tags || []) parts.push(`      <category>${esc(tag)}</category>`);
       return `    <item>\n${parts.join("\n")}\n    </item>`;
     })
@@ -80,7 +108,7 @@ export function renderBlogFeed({ posts = [], baseUrl, feedPath = "/blog/rss.xml"
 
   return (
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
-    `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">\n` +
+    `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/">\n` +
     `  <channel>\n` +
     `    <title>${esc(title)}</title>\n` +
     `    <link>${esc(link)}</link>\n` +
@@ -121,11 +149,12 @@ export function renderAtomFeed({ posts = [], baseUrl, feedPath = "/blog/atom.xml
         `    <title>${esc(p.title)}</title>`,
         `    <link href="${esc(url)}"/>`,
         `    <id>${esc(url)}</id>`,
-        `    <updated>${published || updated}</updated>`,
+        `    <updated>${iso8601(p.updated) || published || updated}</updated>`,
       ];
       if (published) parts.push(`    <published>${published}</published>`);
       parts.push(`    <author><name>${esc(p.author || fallbackAuthor)}</name></author>`);
       if (p.description) parts.push(`    <summary>${esc(p.description)}</summary>`);
+      if (p.content) parts.push(`    <content type="html">${esc(p.content)}</content>`);
       for (const tag of p.tags || []) parts.push(`    <category term="${esc(tag)}"/>`);
       return `  <entry>\n${parts.join("\n")}\n  </entry>`;
     })

@@ -4,8 +4,10 @@
 // module `@opentf/afw-docs/posts` to the ordered post list. A pure build-time
 // consumer of the file tree — no compiler stage, no runtime cost.
 //
-// Post shape: `{ slug, path, title, description?, date?, author?, tags?, readingTime,
-// order? }`. Sorted newest-first by `date`; a numeric `order` (frontmatter) overrides.
+// Post shape: `{ slug, path, title, description?, date?, updated?, author?, tags?,
+// readingTime, order? }`. Sorted newest-first by `date`; a numeric `order` (frontmatter)
+// overrides. Drafts and future-dated posts are left out except under `esdev start`
+// (see publish.js).
 
 import { join } from "runtime:path";
 
@@ -13,6 +15,7 @@ import { exists, readEntries, readNames, readText } from "./host.js";
 
 import { readFrontmatter } from "./frontmatter.js";
 import { readingTime } from "./reading-time.js";
+import { frontmatterUpdated, isUnpublished, showsUnpublished } from "./publish.js";
 
 const VIRTUAL_ID = "@opentf/afw-docs/posts";
 // No NUL sentinel: the bundler marks a module virtual explicitly, and a `\0` in
@@ -25,8 +28,10 @@ const PAGE_RE = /^page\.(mdx|md)$/;
  * @param {string} opts.appDir       Absolute path to the project's `app/` directory.
  * @param {string} [opts.contentDir] Blog content folder under app/ (default "blog").
  * @param {Set<string>} [opts.exclude] Folder names to skip.
+ * @param {boolean} [opts.drafts]    List drafts and scheduled posts (default: only under
+ *                                   `esdev start`).
  */
-export function blogPostsPlugin({ appDir, contentDir = "blog", exclude = new Set() } = {}) {
+export function blogPostsPlugin({ appDir, contentDir = "blog", exclude = new Set(), drafts } = {}) {
   const root = join(appDir, contentDir);
   const base = "/" + contentDir;
   return {
@@ -37,10 +42,11 @@ export function blogPostsPlugin({ appDir, contentDir = "blog", exclude = new Set
     },
     load: {
       filter: { id: RESOLVED_ID },
-      async handler(id) {
+      async handler(id, ctx) {
         if (id !== RESOLVED_ID) return null;
         const watch = [];
-        const posts = (await exists(root)) ? await collectPosts(root, base, exclude, watch) : [];
+        const all = showsUnpublished(drafts, ctx);
+        const posts = (await exists(root)) ? await collectPosts(root, base, exclude, watch, all) : [];
         // The post list is generated from these files, which nothing imports —
         // declaring them is what rebuilds the chunk when a post's frontmatter changes.
         return {
@@ -61,16 +67,18 @@ export function blogPostsPlugin({ appDir, contentDir = "blog", exclude = new Set
  * @param {string} opts.appDir
  * @param {string} [opts.contentDir]
  * @param {Set<string>} [opts.exclude]
+ * @param {boolean} [opts.drafts]  Include drafts and scheduled posts (default false: this
+ *                                 feeds production output).
  */
-export async function loadPosts({ appDir, contentDir = "blog", exclude = new Set() } = {}) {
+export async function loadPosts({ appDir, contentDir = "blog", exclude = new Set(), drafts = false } = {}) {
   const root = join(appDir, contentDir);
   if (!(await exists(root))) return [];
-  return collectPosts(root, "/" + contentDir, exclude, []);
+  return collectPosts(root, "/" + contentDir, exclude, [], drafts);
 }
 
 // Automatic post metadata describes concrete folders; generated parameters are
 // unavailable during this scan and must not become card or feed URLs.
-async function collectPosts(root, base, exclude, watch) {
+async function collectPosts(root, base, exclude, watch, drafts) {
   const posts = [];
   for (const entry of await readEntries(root)) {
     if (
@@ -90,6 +98,7 @@ async function collectPosts(root, base, exclude, watch) {
     watch.push(file);
     const source = await readText(file);
     const fm = await readFrontmatter(file);
+    if (!drafts && isUnpublished(fm)) continue;
     posts.push(
       clean({
         slug: entry.name,
@@ -97,6 +106,10 @@ async function collectPosts(root, base, exclude, watch) {
         title: fm.title ?? humanize(entry.name),
         description: fm.description,
         date: fm.date != null ? String(fm.date) : undefined,
+        // Frontmatter only, never git: a bulk commit (a rename, a reformat) touches
+        // every post without changing what any of them says.
+        updated: frontmatterUpdated(fm),
+        draft: drafts && isUnpublished(fm) ? true : undefined,
         // Cover image (frontmatter `cover`) — shown on the post banner and the card.
         cover: fm.cover,
         author: fm.author,

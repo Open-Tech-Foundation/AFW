@@ -7,6 +7,7 @@
 export { docsNavPlugin } from "./docs-nav-plugin.js";
 export { blogPostsPlugin, loadPosts } from "./blog-posts-plugin.js";
 export { lastUpdatedPlugin, loadLastUpdated } from "./last-updated-plugin.js";
-export { renderAtomFeed, renderBlogFeed } from "./feed.js";
+export { isUnpublished } from "./publish.js";
+export { postContentHtml, renderAtomFeed, renderBlogFeed } from "./feed.js";
 export { renderLlmsFullTxt, renderLlmsTxt } from "./llms.js";
 export { indexWithAfwSearch } from "./search.js";

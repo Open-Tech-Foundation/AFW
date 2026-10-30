@@ -41,6 +41,8 @@ beforeAll(async () => {
   await page("docs", "# Docs\n");
   await page("docs/guide", "---\nlastUpdated: 2026-01-15\n---\n# Guide\n");
   await page("docs/hidden", "---\nlastUpdated: false\n---\n# Hidden\n");
+  await page("blog/edited", "---\ndate: 2026-01-01\nupdated: 2026-02-10\n---\n# Edited\n");
+  await page("blog/untouched", "---\ndate: 2026-01-01\n---\n# Untouched\n");
   await git(["add", "."]);
   await git(["commit", "-q", "-m", "pages"], "2026-03-01T10:00:00+05:30");
   await page("docs/draft", "# Untracked\n");
@@ -70,6 +72,16 @@ describe("last-updated map", () => {
     expect(map["/docs/guide"]).toBe("2026-01-15T00:00:00.000Z");
     expect("/docs/hidden" in map).toBe(false);
     expect("/docs/draft" in map).toBe(false);
+  });
+
+  test("blog posts take `updated` from frontmatter only, never from git", async () => {
+    const map = await loadLastUpdated({ appDir, blogDir: "blog" });
+    expect(map["/blog/edited"]).toBe("2026-02-10T00:00:00.000Z");
+    // Committed with the rest, but a commit is not an edit the author dated.
+    expect("/blog/untouched" in map).toBe(false);
+    expect(map["/docs"]).toBe("2026-03-01T10:00:00+05:30");
+    // Without `blogDir` the post is an ordinary page and git applies.
+    expect((await loadLastUpdated({ appDir }))["/blog/untouched"]).toBe("2026-03-01T10:00:00+05:30");
   });
 
   test("edit paths are repository-relative", async () => {

@@ -14,6 +14,7 @@ import { cwd } from "runtime:process";
 import { readEntries, runOut } from "./host.js";
 import { readFrontmatter } from "./frontmatter.js";
 import { resolveLastUpdated } from "./last-updated.js";
+import { frontmatterUpdated } from "./publish.js";
 
 const VIRTUAL_ID = "@opentf/afw-docs/updated";
 // No NUL sentinel: the bundler marks a module virtual explicitly, and a `\0` in
@@ -26,8 +27,10 @@ const MD_RE = /\.(mdx|md)$/;
  * @param {Object} opts
  * @param {string} opts.appDir
  * @param {Set<string>} [opts.exclude] Folder names to skip (mirrors route exclusions).
+ * @param {string} [opts.blogDir] The blog folder under `app/`. Its posts take their date
+ *   from frontmatter `updated` only, never git (see `collect`).
  */
-export function lastUpdatedPlugin({ appDir, exclude = new Set() } = {}) {
+export function lastUpdatedPlugin({ appDir, exclude = new Set(), blogDir } = {}) {
   return {
     name: "afw-last-updated",
     resolve: {
@@ -39,7 +42,7 @@ export function lastUpdatedPlugin({ appDir, exclude = new Set() } = {}) {
       async handler(id) {
         if (id !== RESOLVED_ID) return null;
         const watch = [];
-        const { updated, editPaths } = await collect(appDir, exclude, watch);
+        const { updated, editPaths } = await collect(appDir, exclude, watch, blogDir);
         // Default export: the `{ route: ISO }` last-updated map. Named `editPaths`:
         // `{ route: repo-relative-file }`, for building "Edit this page" links.
         return {
@@ -57,14 +60,14 @@ export function lastUpdatedPlugin({ appDir, exclude = new Set() } = {}) {
  * The `{ [routePath]: ISO }` last-updated map, callable directly (used by the SSG SEO
  * step). Mirrors what the virtual module exposes.
  */
-export async function loadLastUpdated({ appDir, exclude = new Set() } = {}) {
-  return (await collect(appDir, exclude, [])).updated;
+export async function loadLastUpdated({ appDir, exclude = new Set(), blogDir } = {}) {
+  return (await collect(appDir, exclude, [], blogDir)).updated;
 }
 
 /** Git repo root containing `dir`, or null (so edit links degrade gracefully). */
 const gitRoot = (dir) => runOut("git", ["rev-parse", "--show-toplevel"], dir);
 
-async function collect(appDir, exclude, watch) {
+async function collect(appDir, exclude, watch, blogDir) {
   // Plugin options are plain config data, so a relative `appDir` ("app") is relative
   // to the project directory plugins run in. Resolve it here: git runs from each
   // page's own folder, where a relative page path would point somewhere else.
@@ -76,7 +79,12 @@ async function collect(appDir, exclude, watch) {
   await walk(appDir, "", exclude, async (file, route) => {
     watch.push(file);
     const fm = MD_RE.test(file) ? await readFrontmatter(file) : {};
-    const iso = await resolveLastUpdated(file, fm.lastUpdated);
+    // A blog post's "updated" is an author's statement, so it is read from frontmatter
+    // alone. Git would date every post to the last bulk commit that touched them all.
+    const post = blogDir && route.startsWith(`/${blogDir}/`);
+    const iso = post
+      ? (frontmatterUpdated(fm) ? await resolveLastUpdated(file, frontmatterUpdated(fm)) : null)
+      : await resolveLastUpdated(file, fm.lastUpdated);
     if (iso) updated[route] = iso;
     // Repo-relative path (POSIX separators) for the "Edit this page" link.
     if (root0) editPaths[route] = relative(root0, file).split(/[\\/]/).join("/");

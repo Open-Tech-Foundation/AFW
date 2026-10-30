@@ -28,6 +28,9 @@
 
 ### Fixed
 
+- **Blog posts no longer show a git date as their "Last updated".** A post's updated date
+  is its frontmatter `updated` only (`lastUpdatedPlugin`/`loadLastUpdated` take `blogDir`),
+  so a rename or reformat commit no longer dates every post to that day.
 - **`<Toc>` no longer pops in after load.** It renders the page's outline from
   `router.toc` (the MDX `toc` export), so the list is in the served HTML and adopted at
   hydration, with no layout shift. Pages without a `toc` export (plain JSX) still read
@@ -61,6 +64,16 @@
   the browser build's `@opentf/web-docs/updated` map was empty while the prerender,
   which passes an absolute path, had dates. Every page showing "Last updated" failed
   hydration and was rebuilt on the client.
+
+### Added
+
+- **Drafts and scheduled posts.** A page with `draft: true`, or a `date` later than now,
+  is left out of the post list, the feeds and the docs nav except under `esdev start`,
+  where posts are marked **Draft**. `blogPostsPlugin`/`docsNavPlugin` take a `drafts`
+  option to override; `loadPosts` excludes them by default. `isUnpublished` is exported.
+- Post records carry `updated` (frontmatter `updated` or `lastUpdated`) and, in the dev
+  server, `draft`. Feed renderers accept a post `content` and `postContentHtml(pageHtml,
+  baseUrl, cover)` builds it from a prerendered page; `channel.language` sets RSS `<language>`.
 
 ## [0.30.0] - 2026-10-07
 

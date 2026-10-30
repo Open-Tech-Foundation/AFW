@@ -14,6 +14,7 @@ import { join, toFileURL } from "runtime:path";
 
 import { exists, readEntries, readNames, readText } from "./host.js";
 import { readFrontmatter } from "./frontmatter.js";
+import { isUnpublished, showsUnpublished } from "./publish.js";
 
 const VIRTUAL_ID = "@opentf/afw-docs/nav";
 // No NUL sentinel: the bundler marks a module virtual explicitly, and a `\0` in
@@ -42,8 +43,9 @@ function navDirectory(entry, exclude) {
  * @param {(file: string) => Promise<any>} [opts.importModule] How to read a `_meta.js`.
  *   The dev server passes a loader that re-evaluates the file after an edit; a plain
  *   `import()` cannot, because the runtime caches ESM by path for the process's life.
+ * @param {boolean} [opts.drafts] List draft pages (default: only under `esdev start`).
  */
-export function docsNavPlugin({ appDir, exclude = new Set(), importModule } = {}) {
+export function docsNavPlugin({ appDir, exclude = new Set(), importModule, drafts } = {}) {
   return {
     name: "afw-docs-nav",
     resolve: {
@@ -52,9 +54,9 @@ export function docsNavPlugin({ appDir, exclude = new Set(), importModule } = {}
     },
     load: {
       filter: { id: RESOLVED_ID },
-      async handler(id) {
+      async handler(id, hookCtx) {
         if (id !== RESOLVED_ID) return null;
-        const ctx = { watch: [], importModule };
+        const ctx = { watch: [], importModule, drafts: showsUnpublished(drafts, hookCtx) };
         const out = {};
         for (const entry of await readEntries(appDir)) {
           if (!navDirectory(entry, exclude)) continue;
@@ -177,13 +179,15 @@ async function buildNode(dir, route, key, parentMeta, ctx, exclude) {
     if (MD_RE.test(pf)) fm = await readFrontmatter(pf);
   }
   const children = await buildSection(dir, route, ctx, false, exclude);
+  // An unpublished page is left out of the production nav; its children still show.
+  const page = pf && (ctx.drafts || !isUnpublished(fm)) ? pf : null;
   // A directory that has neither a page nor children contributes nothing.
-  if (!pf && children.length === 0) return null;
+  if (!page && children.length === 0) return null;
 
   const title = metaLabel(parentMeta, key) ?? fm.sidebar_label ?? fm.title ?? humanize(key);
   return clean({
     title,
-    path: pf ? route : undefined,
+    path: page ? route : undefined,
     order: fm.order,
     items: children.length ? children : undefined,
   });

@@ -3,13 +3,13 @@ import { join } from "runtime:path";
 import { discard, tempDir, writeTree } from "../../afw-cli/tests/fixture.js";
 import { docsNavPlugin } from "../build/docs-nav-plugin.js";
 
-async function navigation(files, options = {}) {
+async function navigation(files, options = {}, hookCtx) {
   const dir = await tempDir("docs-nav");
   try {
     await writeTree(dir, files);
     const plugin = docsNavPlugin({ appDir: join(dir, "app"), ...options });
     const resolved = plugin.resolve.handler("@opentf/afw-docs/nav");
-    const result = await plugin.load.handler(resolved.id);
+    const result = await plugin.load.handler(resolved.id, hookCtx);
     return { tree: JSON.parse(result.code.slice("export default ".length).trim().replace(/;$/, "")), watched: result.dependsOn };
   } finally { await discard(dir); }
 }
@@ -63,4 +63,19 @@ test("dynamic-only groups disappear while their static landing pages and exclusi
     "app/excluded/page.mdx": page("Excluded section"),
   }, { exclude: new Set(["excluded"]) });
   expect(tree).toEqual({ "/docs": [{ title: "Topic landing", path: "/docs/topic" }] });
+});
+
+test("a draft page is in the dev server's nav only; its children stay listed", async () => {
+  const files = {
+    "app/docs/page.mdx": page("Docs"),
+    "app/docs/wip/page.mdx": "---\ntitle: WIP\ndraft: true\n---\n# WIP",
+    "app/docs/wip/child/page.mdx": page("Child"),
+  };
+  const built = await navigation(files, {}, { command: "build" });
+  expect(built.tree["/docs"]).toEqual([
+    { title: "Docs", path: "/docs" },
+    { title: "WIP", items: [{ title: "Child", path: "/docs/wip/child" }] },
+  ]);
+  const dev = await navigation(files, {}, { command: "start" });
+  expect(dev.tree["/docs"][1].path).toBe("/docs/wip");
 });

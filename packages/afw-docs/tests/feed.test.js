@@ -1,6 +1,6 @@
 import { describe, expect, test } from "../../afw-cli/tests/harness.js";
 
-import { renderAtomFeed, renderBlogFeed } from "../build/feed.js";
+import { postContentHtml, renderAtomFeed, renderBlogFeed } from "../build/feed.js";
 
 const posts = [
   {
@@ -97,3 +97,32 @@ for (const [name, render, tag] of [
     });
   });
 }
+
+describe("full post content", () => {
+  const page = `<html><body><main><article class="afwd-prose"><!--c[x--><p>Hi <a href="/docs">docs</a> <a href="//cdn.example/x">cdn</a></p>` +
+    `<div class="afw-code"><button class="afw-copy">Copy</button><pre>a ]]> b</pre></div><script>x()</script><img src="/a.png"></article></main></body></html>`;
+
+  test("postContentHtml keeps the prose, drops live-page parts and absolutizes root links", () => {
+    const html = postContentHtml(page, "https://example.com/", "/cover.png");
+    expect(html.startsWith('<p><img src="https://example.com/cover.png" alt=""></p>')).toBe(true);
+    expect(html).toContain('<a href="https://example.com/docs">');
+    expect(html).toContain('<a href="//cdn.example/x">');
+    expect(html).toContain('<img src="https://example.com/a.png">');
+    for (const gone of ["<!--", "<button", "<script"]) expect(html.includes(gone)).toBe(false);
+    expect(postContentHtml("<p>no article</p>", "https://example.com")).toBe("");
+  });
+
+  test("RSS carries it as content:encoded and Atom as html content; language is passed through", () => {
+    const content = postContentHtml(page, "https://example.com");
+    const entry = [{ ...posts[0], content, updated: "2026-07-05" }];
+    const rss = renderBlogFeed({ posts: entry, baseUrl: "https://example.com", channel: { language: "ta" } });
+    expect(rss).toContain('xmlns:content="http://purl.org/rss/1.0/modules/content/"');
+    expect(rss).toContain("<content:encoded><![CDATA[");
+    // A `]]>` in the post cannot end the CDATA section early.
+    expect(rss).toContain("a ]]]]><![CDATA[> b");
+    expect(rss).toContain("<language>ta</language>");
+    const atom = renderAtomFeed({ posts: entry, baseUrl: "https://example.com" });
+    expect(atom).toContain('<content type="html">&lt;p&gt;Hi');
+    expect(atom).toContain("<updated>2026-07-05T00:00:00.000Z</updated>");
+  });
+});
