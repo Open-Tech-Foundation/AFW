@@ -20,6 +20,11 @@
   JSON-LD and `data-afw-head` tags before adding the page's own, the same set the
   client's `updateRouteHead` removes on navigation.
 
+### Added
+
+- The release build warns when `docs.search.provider` is set to anything other than
+  `"afw"` (e.g. the retired `"pagefind"`), which otherwise turned search off silently.
+
 ## [1.30.0] - 2026-10-07
 
 ### Fixed

@@ -7,6 +7,7 @@ import { describe, expect, test } from "./harness.js";
 import {
   injectHead,
   injectMarkup,
+  searchProviderWarning,
   modulepreloadTags,
   serverEntrySource,
   stampHydrateSentinel,
@@ -193,3 +194,14 @@ describe("modulepreloadTags", () => {
   });
 });
 
+describe("searchProviderWarning", () => {
+  test("warns for a provider other than afw", () => {
+    expect(searchProviderWarning({ docs: { search: { provider: "pagefind" } } })).toContain('"pagefind" is not supported');
+  });
+
+  test("stays quiet for afw or no provider", () => {
+    expect(searchProviderWarning({ docs: { search: { provider: "afw" } } })).toBe(null);
+    expect(searchProviderWarning({ docs: {} })).toBe(null);
+    expect(searchProviderWarning(undefined)).toBe(null);
+  });
+});

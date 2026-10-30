@@ -3,7 +3,7 @@ import { file, remove } from "runtime:fs";
 import { join, resolve } from "runtime:path";
 import { cwd, env } from "runtime:process";
 import { exists, writeFile } from "./runtime.js";
-import { discoverPages, loadConfig, resolveCompiler, runBlogFeed, runDocsSearchIndex, runLlmsFiles } from "./shared.js";
+import { discoverPages, loadConfig, resolveCompiler, runBlogFeed, runDocsSearchIndex, runLlmsFiles, searchProviderWarning } from "./shared.js";
 import { step } from "./reporter.js";
 
 const REPORT = ".afw-prerender.json";
@@ -38,6 +38,8 @@ export function siteOutputPlugin({ root = ".", target = "web", prerenderTarget, 
         const appDir = join(siteRoot, "app");
         const excluded = new Set([...exclude, ...(env.EXCLUDE_ROUTES ?? "").split(",").filter(Boolean)]);
         const baseUrl = String(config?.site?.url ?? "").replace(/\/+$/, "");
+        const searchWarning = searchProviderWarning(config);
+        if (searchWarning) console.warn(searchWarning);
         if (config?.docs?.search?.provider === "afw") {
           const progress = step("Building search index");
           const { afwc } = await resolveCompiler();

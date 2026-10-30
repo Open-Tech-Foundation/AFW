@@ -227,6 +227,17 @@ export async function runLastUpdated(root, appDir, config, exclude = new Set()) 
   }
 }
 
+/**
+ * The warning for a `docs.search.provider` other than `"afw"`, or null. A retired value
+ * (e.g. `"pagefind"`) would otherwise turn search off without a word.
+ */
+export function searchProviderWarning(config) {
+  const provider = config?.docs?.search?.provider;
+  if (provider == null || provider === "afw") return null;
+  return `⚠ docs.search.provider ${JSON.stringify(provider)} is not supported; ` +
+    `use "afw" or remove it. Search is disabled for this build.`;
+}
+
 /** Index the completed SSG output when static search is enabled. Errors fail the build. */
 export async function runDocsSearchIndex(root, config, siteDir, afwc) {
   if (config?.docs?.search?.provider !== "afw") return null;
