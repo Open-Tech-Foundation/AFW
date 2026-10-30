@@ -41,6 +41,8 @@ await write(`${project}/esdev.json`, JSON.stringify({
 await write(`${project}/index.html`, '<html><body><div id="app"></div><script type="module" src="./entry.js"></script></body></html>');
 await write(`${project}/entry.js`, 'import { mountApp, navigate } from "@opentf/afw"; import { pages } from "@afw/routes"; import "./style.css"; window.__navigate=navigate; mountApp({pages, guard:(to,tools)=>{window.__guards=(window.__guards||0)+1;tools.next();}, target:document.getElementById("app")});');
 await write(`${project}/style.css`, 'body {min-height:3000px} #counter {color:rgb(10,20,30)}');
+await mkdir(`${project}/app/notes`, { recursive: true });
+await write(`${project}/app/notes/page.mdx`, '---\ntitle: Notes A\n---\n\nimport Counter from "../../Counter.jsx";\n\n# Notes\n\nFirst paragraph A.\n\n<Counter />\n\n## Usage\n\nMore text.\n');
 await write(`${project}/app/other/page.jsx`, 'export default function Other(){return <h1>Other A</h1>;}');
 await write(`${project}/app/page.jsx`, 'import Counter from "../Counter.jsx"; import Shell from "../Shell.jsx"; import Exposer from "../Exposer.jsx"; export const metadata = { title: "Home A" }; export default function Home() { let visits = $state(0); return <section><h1>Page D</h1><button id="visits" onclick={() => visits++}>Visits {visits}</button><Shell><Counter/></Shell><Exposer/><input id="draft"/></section>; }');
 await write(`${project}/Exposer.jsx`, 'export default function Exposer() { let n = $state(0); $expose({ greet() { n++; return "hi A " + n; } }); return <span id="exposer">{n}</span>; }');
@@ -223,6 +225,39 @@ try {
   await write(project+'/app/other/page.jsx',otherPage.replace('Other B','Other C'));
   await until('document.querySelector("h1")?.textContent==="Other C"');
   assert((await fetch(origin)).ok,'dev server survives fixing a compile error');
+  // An MDX page exports `metadata` and `toc`: body, frontmatter and heading edits all
+  // refresh in place, with the page's state and the document kept.
+  await evaluate('window.__navigate("/notes")');
+  // The dev server compiles a route on its first visit and may reload the page once it
+  // has (esdev's on-demand compile, not a refresh). Wait for the page to render and the
+  // document to stay put before measuring the refresh.
+  for (let settled = false, tries = 0; !settled; tries++) {
+    if (tries === 10) throw Error("/notes never settled: the page keeps reloading");
+    try {
+      await until('!!document.getElementById("counter") && document.querySelector("h1")?.textContent==="Notes"');
+      const before = await evaluate('window.__hmrDocumentToken');
+      await delay(1500);
+      settled = (await evaluate('window.__hmrDocumentToken')) === before && await evaluate('!!document.getElementById("counter")');
+    } catch (error) {
+      if (!String(error).includes("navigated")) throw error;
+      await delay(300);
+    }
+  }
+  await until('document.title==="Notes A"');
+  await evaluate('document.getElementById("counter").click();document.getElementById("counter").click()');
+  await until('document.getElementById("counter")?.textContent.endsWith(": 2")');
+  const mdxToken=await evaluate('window.__hmrDocumentToken');
+  const notes=project+'/app/notes/page.mdx';
+  await write(notes,(await file(notes).text()).replace('First paragraph A.','First paragraph B.'));
+  await until('document.body.textContent.includes("First paragraph B.")');
+  assert(await evaluate('window.__hmrDocumentToken')===mdxToken,'MDX body edit refreshes without a reload');
+  await write(notes,(await file(notes).text()).replace('title: Notes A','title: Notes B'));
+  await until('document.title==="Notes B"');
+  assert(await evaluate('window.__hmrDocumentToken')===mdxToken,'MDX frontmatter edit updates the title without a reload');
+  await write(notes,(await file(notes).text()).replace('## Usage','## Getting started'));
+  await until('document.getElementById("getting-started")?.textContent.startsWith("Getting started")');
+  assert(await evaluate('window.__hmrDocumentToken')===mdxToken,'MDX heading edit refreshes without a reload');
+  assert(await evaluate('window.__navigate && location.pathname==="/notes"'),'MDX refresh keeps the URL');
   const failures=errors.filter(error => error && !error.includes('/favicon.ico'));
   assert(failures.length===0,'no browser errors: '+JSON.stringify(failures));
   passed = true;
