@@ -24,7 +24,7 @@
 // tests/scripts too. Tests that hand-write their map can
 // omit this plugin from their config.
 
-import { Glob, stat } from "runtime:fs";
+import { file, Glob, stat } from "runtime:fs";
 import { cwd } from "runtime:process";
 import { dirname, join, resolve } from "runtime:path";
 
@@ -44,11 +44,38 @@ async function isDir(path) {
   }
 }
 
+/**
+ * Whether a Markdown page is unpublished: frontmatter `draft: true`, or a `date` later
+ * than now (scheduled). Production builds leave such pages out of the route table, so
+ * their text never reaches a bundle; the dev server (`esdev start`) keeps them. The same
+ * rule as `@opentf/afw-docs` publish.js, which drives the post list, feeds and docs nav.
+ */
+export async function isUnpublishedPage(path, now = Date.now()) {
+  if (!/\.(mdx|md)$/.test(path)) return false;
+  let source;
+  try {
+    source = await file(path).text();
+  } catch {
+    return false;
+  }
+  const block = source.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---/)?.[1];
+  if (!block) return false;
+  const field = (key) => {
+    const m = block.match(new RegExp(`^\\s*${key}\\s*:\\s*(.*?)\\s*$`, "m"));
+    return m ? m[1].replace(/^(["'])(.*)\1$/, "$2") : null;
+  };
+  if (field("draft") === "true") return true;
+  const date = field("date");
+  if (!date) return false;
+  const at = new Date(date).getTime();
+  return !Number.isNaN(at) && at > now;
+}
+
 /** Route files under `dir`: page / layout / 404 modules. No `exclude` option
  * exists on the scan, so subtrees are filtered here (per docs). Yields are
  * relative to `dir`, always `/`-separated, top-level files included.
  */
-async function discoverPages(dir, exclude = new Set()) {
+async function discoverPages(dir, exclude = new Set(), drafts = true) {
   const out = [];
   const scan = new Glob("**/{page,layout,404}.{mdx,md,jsx,tsx}").scan(dir);
   for await (const rel of scan) {
@@ -56,6 +83,7 @@ async function discoverPages(dir, exclude = new Set()) {
     if (/(^|\/)404\.(mdx|md)$/.test(rel)) {
       throw new Error(`Unsupported Markdown 404 route: ${join(dir, rel)}. Use 404.jsx or 404.tsx instead.`);
     }
+    if (!drafts && (await isUnpublishedPage(join(dir, rel)))) continue;
     out.push(join(dir, rel));
   }
   return out;
@@ -126,9 +154,10 @@ export function createAfwRoutes({ appDir = "app", exclude = [] } = {}) {
     },
     load: {
       filter: { id: /^@afw\/routes:/ },
-      async handler(id) {
+      async handler(id, ctx) {
         const root = id.slice("@afw/routes:".length);
-        const pages = await discoverPages(root, excluded);
+        // Drafts and scheduled pages are routes in the dev server only.
+        const pages = await discoverPages(root, excluded, ctx?.command === "start");
         const loaders = await discoverLoaders(root, excluded);
         const map = pages
           .map((p) => `  [${JSON.stringify(routeKey(p, root))}]: () => import(${JSON.stringify(p)}),`)

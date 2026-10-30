@@ -21,6 +21,12 @@
   layouts and the inner page in place (with the matching `@opentf/web` and
   `@opentf/web-compiler`). The README describes the new behavior.
 
+### Added
+
+- Draft and scheduled Markdown pages (frontmatter `draft: true`, or a `date` later than
+  now) are left out of the route table in production builds, so their text reaches no
+  bundle. `esdev start` keeps them. `isUnpublishedPage(path)` exposes the rule.
+
 ## [0.4.0] - 2026-10-06
 
 ### Changed

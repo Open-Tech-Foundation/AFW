@@ -94,3 +94,25 @@ test("route discovery rejects Markdown 404 files but respects excluded directori
     await remove(scratch, { recursive: true });
   }
 });
+
+test("draft and scheduled pages are routes under esdev start only", async () => {
+  await mkdir(".cache", { recursive: true });
+  const scratch = await makeTempDir({ dir: ".cache", prefix: "routes-drafts-" });
+  try {
+    await write(join(scratch, "page.mdx"), "# Home");
+    await mkdir(join(scratch, "wip"), { recursive: true });
+    await write(join(scratch, "wip", "page.mdx"), "---\ndraft: true\n---\n# WIP");
+    await mkdir(join(scratch, "soon"), { recursive: true });
+    await write(join(scratch, "soon", "page.md"), "---\ndate: 2999-01-01\n---\n# Soon");
+    const plugin = createAfwRoutes();
+    const build = (await plugin.load.handler(`@afw/routes:${scratch}`, { command: "build" })).code;
+    expect(build).toContain('["/app/page.mdx"]');
+    expect(build.includes("/wip/")).toBe(false);
+    expect(build.includes("/soon/")).toBe(false);
+    const start = (await plugin.load.handler(`@afw/routes:${scratch}`, { command: "start" })).code;
+    expect(start).toContain('["/app/wip/page.mdx"]');
+    expect(start).toContain('["/app/soon/page.md"]');
+  } finally {
+    await remove(scratch, { recursive: true });
+  }
+});

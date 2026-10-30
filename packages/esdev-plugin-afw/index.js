@@ -6,5 +6,5 @@
 
 export { closeCompilers, compileError, resolveCompiler, startCompilerServer } from "./compiler.js";
 export { createAfwPlugin, afwPlugin } from "./plugin.js";
-export { createAfwRoutes } from "./routes.js";
+export { createAfwRoutes, isUnpublishedPage } from "./routes.js";
 export { default, createAfwAppPlugin } from "./afw.js";
