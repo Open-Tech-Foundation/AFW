@@ -13,6 +13,13 @@
 - Rewrote the README: overview, install, configuration, API tables and links to the guides.
 - The published package includes the MIT `LICENSE` file, copied from the repository root by a new `build` script that the release workflow runs before publishing.
 
+### Fixed
+
+- Prerendered pages no longer carry duplicate head tags. `injectHead` now removes the
+  shell's static description, robots, `og:`/`twitter:`/`article:` meta, canonical link,
+  JSON-LD and `data-afw-head` tags before adding the page's own, the same set the
+  client's `updateRouteHead` removes on navigation.
+
 ## [1.30.0] - 2026-10-07
 
 ### Fixed

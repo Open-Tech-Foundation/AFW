@@ -96,10 +96,43 @@ export function stampRenderedPath(shellHtml, path) {
  */
 export function injectHead(shellHtml, headHtml) {
   if (!headHtml) return shellHtml;
-  let out = shellHtml;
+  let out = stripRouteHead(shellHtml);
   if (/<title[\s>]/i.test(headHtml)) out = out.replace(/<title>[\s\S]*?<\/title>\s*/i, "");
   // Function replacer so `$` in `headHtml` (e.g. a price in a meta description) is literal.
   return out.replace(/<\/head>/i, () => `${headHtml}\n</head>`);
+}
+
+const ROUTE_HEAD_TAG = /<(meta|link)\b[^>]*>\s*|<script\b([^>]*)>[\s\S]*?<\/script>\s*/gi;
+
+/** The attribute `name`'s value in an opening tag, lower-cased; "" if absent. */
+function attrOf(tag, name) {
+  const m = tag.match(new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i"));
+  return (m ? (m[1] ?? m[2] ?? m[3]) : "").toLowerCase();
+}
+
+/**
+ * Remove the shell's route-owned SEO tags (description, robots, `og:`/`twitter:`/`article:`,
+ * canonical, JSON-LD, anything marked `data-afw-head`) so the page's own head replaces them.
+ * This is the set the client's `updateRouteHead` (runtime/head.js) removes on navigation,
+ * so a prerendered page and a client-navigated one end up with the same head.
+ */
+function stripRouteHead(shellHtml) {
+  const head = shellHtml.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i);
+  if (!head) return shellHtml;
+  const inner = head[1].replace(ROUTE_HEAD_TAG, (tag, el) => {
+    if (/\sdata-afw-head\b/i.test(tag)) return "";
+    if (el?.toLowerCase() === "meta") {
+      const name = attrOf(tag, "name");
+      const property = attrOf(tag, "property");
+      if (name === "description" || name === "robots" || name.startsWith("twitter:")) return "";
+      if (property.startsWith("og:") || property.startsWith("article:")) return "";
+    } else if (el?.toLowerCase() === "link") {
+      if (attrOf(tag, "rel") === "canonical") return "";
+    } else if (attrOf(tag, "type") === "application/ld+json") return "";
+    return tag;
+  });
+  const start = head.index + head[0].indexOf(">") + 1;
+  return shellHtml.slice(0, start) + inner + shellHtml.slice(start + head[1].length);
 }
 
 /** Set/replace the shell's `<html lang>` for a localized page (i18n; docs/I18N.md §6). */

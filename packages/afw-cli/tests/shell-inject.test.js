@@ -69,6 +69,29 @@ describe("injectHead", () => {
     const out = injectHead(SHELL, `<meta name="description" content="from $189.00">`);
     expect(out).toContain(`content="from $189.00">`);
   });
+
+  test("drops the shell's static SEO tags so the page's own replace them", () => {
+    const shell = `<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<meta name="description" content="shell">
+<meta property="og:title" content="shell"><meta name='twitter:card' content="summary">
+<link rel="canonical" href="/"><link rel="stylesheet" href="/a.css">
+<script type="application/ld+json">{"@type":"WebSite"}</script>
+<script type="module" src="/entry.js"></script>
+</head><body></body></html>`;
+    const out = injectHead(shell, `<meta name="description" content="page">`);
+    expect(out).not.toContain("shell");
+    expect(out).not.toContain("twitter:card");
+    expect(out).not.toContain(`rel="canonical"`);
+    expect(out).not.toContain("WebSite");
+    expect(out).toContain(`content="page"`);
+    // Charset, viewport, stylesheets and executable scripts stay, as on the client.
+    expect(out).toContain(`<meta charset="utf-8">`);
+    expect(out).toContain(`name="viewport"`);
+    expect(out).toContain(`href="/a.css"`);
+    expect(out).toContain(`src="/entry.js"`);
+    expect(out).toContain("<body></body>");
+  });
 });
 
 describe("withHtmlLang (i18n)", () => {
@@ -169,3 +192,4 @@ describe("modulepreloadTags", () => {
     expect(modulepreloadTags(undefined)).toBe("");
   });
 });
+
