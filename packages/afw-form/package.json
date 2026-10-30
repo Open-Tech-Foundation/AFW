@@ -1,6 +1,6 @@
 {
   "name": "@opentf/afw-form",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "description": "Path-based reactive forms for AFW.",
   "main": "index.js",
   "module": "index.js",

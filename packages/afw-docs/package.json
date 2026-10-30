@@ -1,6 +1,6 @@
 {
   "name": "@opentf/afw-docs",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "description": "Documentation and blog sites built as ordinary AFW apps.",
   "type": "module",
   "scripts": {

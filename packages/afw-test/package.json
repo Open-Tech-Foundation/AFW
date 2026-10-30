@@ -1,6 +1,6 @@
 {
   "name": "@opentf/afw-test",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "description": "Render, query and interact with AFW components in tests.",
   "type": "module",
   "scripts": {
