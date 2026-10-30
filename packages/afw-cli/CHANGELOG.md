@@ -5,6 +5,8 @@
 
 ### Changed
 
+- Package metadata: the npm description matches the README, `homepage` points at
+  https://afw.opentechf.org/docs/deployment/static-generation instead of the GitHub README, and the keywords are refreshed.
 - Project renamed **OTF Web → AFW — App Framework for the Web**. All package,
   binary and crate names move with it (no compatibility aliases): `@opentf/web*` →
   `@opentf/afw*`, `esdev-plugin-web` → `esdev-plugin-afw`, the `otfw`/`otfwc`

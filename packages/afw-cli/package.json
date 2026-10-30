@@ -1,7 +1,7 @@
 {
   "name": "@opentf/afw-cli",
   "version": "1.30.0",
-  "description": "AFW SSG library — the pre-render driver for `esdev build` (`@opentf/afw-cli/ssg`). The `afw` dev-server/build commands are retired; apps build straight from esdev.json.",
+  "description": "Static generation for AFW apps, run as an esdev build step.",
   "type": "module",
   "scripts": {
     "build": "cp ../../LICENSE LICENSE"
@@ -22,18 +22,19 @@
     "@opentf/afw": "workspace:*"
   },
   "keywords": [
+    "afw",
     "opentf",
-    "web",
     "ssg",
-    "esdev",
-    "toolchain"
+    "static-site-generator",
+    "prerender",
+    "esdev"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/Open-Tech-Foundation/afw.git",
     "directory": "packages/afw-cli"
   },
-  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "homepage": "https://afw.opentechf.org/docs/deployment/static-generation",
   "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
   "license": "MIT",
   "publishConfig": {
