@@ -30,6 +30,13 @@
 
 ### Fixed
 
+- **Dev refresh no longer reloads every MDX page, page with `metadata`, `$expose`
+  component or module with a helper export.** Any other `export` in a module, and any
+  `$expose`, made the whole module a reload boundary, and MDX pages always export
+  `metadata` and `toc`. The refresh now compares the source of those exports and the
+  exposed method names: an edit to the view or the component code refreshes in place, and
+  only a change to the exports (which importers hold) or to the exposed API reloads. A
+  page's own `metadata`/`toc` are handed to the refresh and applied without a reload.
 - **A component inside a paragraph no longer rebuilds the whole page.** MDX wraps
   `text <Badge /> text` in a `<p>`, and any such paragraph made its page or component
   rebuild on load. The paragraph is now adopted as served when the component renders

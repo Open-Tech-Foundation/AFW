@@ -51,4 +51,4 @@ Open items carried over from the 2026-10 site and HMR audits.
 * [x] Portal guide's custom overlay demo lacks modal semantics, focus containment, Escape handling and focus restoration.
 * [x] Homepage render-pipeline tour pauses while hovered.
 * [x] Component refresh: page/layout edits keep route-tree state and leave unaffected layers and children in place.
-* [ ] Component refresh: mixed-export and `$expose` modules still reload. Re-check with `tsr test-e2e-hmr`.
+* [x] Component refresh: modules with other exports, `$expose` components and pages with `metadata`/`toc` (every MDX page) refresh in place; only an edit to those exports or the exposed names reloads.

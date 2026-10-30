@@ -5,6 +5,11 @@
 
 ### Changed
 
+- Dev refresh runtime: `registerHotModule(hot, entries, accept, exports)` and
+  `registerHotRoute(hot, factory, shape, exports, data)` replace the `safe` flag with the
+  source of the module's other exports, and `hotExpose` publishes `$expose` without
+  leaving a renamed method behind. `refreshHotRoute` applies the update's own metadata
+  and `toc`. Compiler-emitted; dev builds only.
 - Package metadata: the npm description matches the README, `homepage` points at
   https://afw.opentechf.org instead of the GitHub README, and the keywords are refreshed.
 - Project renamed **OTF Web → AFW — App Framework for the Web**. All package,

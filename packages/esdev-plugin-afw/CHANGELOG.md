@@ -5,6 +5,9 @@
 
 ### Changed
 
+- The development refresh section of the README lists what now refreshes in place
+  (metadata, headings, `$expose` methods, components beside helper exports) and what
+  still reloads.
 - Package metadata: the npm description matches the README, `homepage` points at
   https://afw.opentechf.org/docs/configuration instead of the GitHub README, and the keywords are refreshed.
 - Project renamed **OTF Web → AFW — App Framework for the Web**. All package,

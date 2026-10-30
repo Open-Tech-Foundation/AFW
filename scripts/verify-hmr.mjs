@@ -42,7 +42,8 @@ await write(`${project}/index.html`, '<html><body><div id="app"></div><script ty
 await write(`${project}/entry.js`, 'import { mountApp, navigate } from "@opentf/afw"; import { pages } from "@afw/routes"; import "./style.css"; window.__navigate=navigate; mountApp({pages, guard:(to,tools)=>{window.__guards=(window.__guards||0)+1;tools.next();}, target:document.getElementById("app")});');
 await write(`${project}/style.css`, 'body {min-height:3000px} #counter {color:rgb(10,20,30)}');
 await write(`${project}/app/other/page.jsx`, 'export default function Other(){return <h1>Other A</h1>;}');
-await write(`${project}/app/page.jsx`, 'import Counter from "../Counter.jsx"; import Shell from "../Shell.jsx"; export default function Home() { let visits = $state(0); return <section><h1>Page D</h1><button id="visits" onclick={() => visits++}>Visits {visits}</button><Shell><Counter/></Shell><input id="draft"/></section>; }');
+await write(`${project}/app/page.jsx`, 'import Counter from "../Counter.jsx"; import Shell from "../Shell.jsx"; import Exposer from "../Exposer.jsx"; export const metadata = { title: "Home A" }; export default function Home() { let visits = $state(0); return <section><h1>Page D</h1><button id="visits" onclick={() => visits++}>Visits {visits}</button><Shell><Counter/></Shell><Exposer/><input id="draft"/></section>; }');
+await write(`${project}/Exposer.jsx`, 'export default function Exposer() { let n = $state(0); $expose({ greet() { n++; return "hi A " + n; } }); return <span id="exposer">{n}</span>; }');
 await write(`${project}/app/layout.jsx`, 'export default function Layout(props) { return <main><p id="layout">Layout B</p>{props.children}</main>; }');
 await write(`${project}/Shell.jsx`, 'export default function Shell({children}) { return <div id="shell">Shell A{children}</div>; }');
 await write(`${project}/Counter.jsx`, `export default function Counter() {
@@ -152,8 +153,31 @@ try {
       assert(await evaluate('document.getElementById("counter").textContent.endsWith(": 0")'),'app/page.jsx rebuilds the page view and its children');
     }
   }
+  // A page's metadata is route data the router re-reads: editing it refreshes in place.
+  const metaToken=await evaluate('window.__hmrDocumentToken');
+  await until('document.title==="Home A"');
+  await write(project+'/app/page.jsx',(await file(project+'/app/page.jsx').text()).replace('Home A','Home B'));
+  await until('document.title==="Home B"');
+  assert(await evaluate('window.__hmrDocumentToken')===metaToken,'page metadata edit refreshes without a reload');
+  // `$expose`: an edited method body is re-installed on the same host; state survives.
+  assert(await evaluate('document.querySelector(".afw-exposer").greet()')==='hi A 1','exposed method callable');
+  const exposeHost=await evaluate('window.__exposeHost=document.querySelector(".afw-exposer");true');
+  await write(project+'/Exposer.jsx',(await file(project+'/Exposer.jsx').text()).replace('hi A','hi B'));
+  await until('String(document.querySelector(".afw-exposer")?.greet).includes("hi B")');
+  assert(exposeHost && await evaluate('window.__hmrDocumentToken')===metaToken,'$expose module edit refreshes without a reload');
+  assert(await evaluate('document.querySelector(".afw-exposer").greet()')==='hi B 2','the new method body runs against the kept state');
+  assert(await evaluate('document.querySelector(".afw-exposer")===window.__exposeHost && document.getElementById("exposer").textContent==="2"'),'exposed host and its state survive');
+  // Renaming an exposed method changes the API callers use: the module is invalidated, so
+  // its importer re-runs (or the page reloads) and no host keeps the stale method.
+  await write(project+'/Exposer.jsx',(await file(project+'/Exposer.jsx').text()).replace('greet()','wave()'));
+  await until('typeof document.querySelector(".afw-exposer")?.wave==="function"');
+  assert(await evaluate('document.querySelector(".afw-exposer").greet===undefined'),'renaming an exposed method leaves no stale method on the host');
+  await until('document.getElementById("counter")?.textContent==="Component C: 0"');
+  await evaluate('document.getElementById("counter").click();document.getElementById("counter").click();document.getElementById("counter").click()');
+  await until('document.getElementById("counter")?.textContent==="Component C: 3"');
+  const token2=await evaluate('window.__hmrDocumentToken');
   await write(project+'/Counter.jsx',(await file(project+'/Counter.jsx').text()).replace('let count=$state(0);','let count=$state(0); let extra=$state(1);'));
-  await until('window.__hmrDocumentToken!=='+JSON.stringify(token));
+  await until('window.__hmrDocumentToken!=='+JSON.stringify(token2));
   await until('document.getElementById("counter")?.textContent==="Component C: 0"');
   assert(true,'incompatible state declaration reloads');
   const shapeToken=await evaluate('window.__hmrDocumentToken');
@@ -161,8 +185,23 @@ try {
   await until('window.__hmrDocumentToken!=='+JSON.stringify(shapeToken));
   await until('document.getElementById("counter")?.textContent==="Component C: 0"');
   assert(true,'introducing a helper export reloads');
+  // With the helper unchanged, editing the component alone refreshes it in place.
+  const mixedToken=await evaluate('window.__hmrDocumentToken');
+  await evaluate('document.getElementById("counter").click()');
+  await until('document.getElementById("counter")?.textContent==="Component C: 1"');
+  await write(project+'/Counter.jsx',(await file(project+'/Counter.jsx').text()).replace('Component C','Component M'));
+  await until('document.getElementById("counter")?.textContent==="Component M: 1"');
+  assert(await evaluate('window.__hmrDocumentToken')===mixedToken,'component edit in a module with a helper export refreshes in place');
+  await write(project+'/Counter.jsx',(await file(project+'/Counter.jsx').text()).replace('Component M','Component C'));
+  await until('document.getElementById("counter")?.textContent==="Component C: 1"');
+  assert(await evaluate('window.__hmrDocumentToken')===mixedToken,'and keeps its state');
+  // Changing the helper reaches its importers, so that reloads.
+  await write(project+'/Counter.jsx',(await file(project+'/Counter.jsx').text()).replace('export const helper = 1;','export const helper = 2;'));
+  await until('window.__hmrDocumentToken!=='+JSON.stringify(mixedToken));
+  await until('document.getElementById("counter")?.textContent==="Component C: 0"');
+  assert(true,'changing a helper export reloads');
   const helperToken=await evaluate('window.__hmrDocumentToken');
-  const withProps=(await file(project+'/Counter.jsx').text()).replace('export const helper = 1;\n','').replace('function Counter()','function Counter({label = "Label"})').replace('<Badge/>','<Badge/><span id="prop">{label}</span>');
+  const withProps=(await file(project+'/Counter.jsx').text()).replace('export const helper = 2;\n','').replace('function Counter()','function Counter({label = "Label"})').replace('<Badge/>','<Badge/><span id="prop">{label}</span>');
   await write(project+'/Counter.jsx',withProps);
   await until('window.__hmrDocumentToken!=='+JSON.stringify(helperToken));
   await until('document.getElementById("prop")?.textContent==="Label"');

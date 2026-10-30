@@ -96,10 +96,15 @@ HTML without browser Custom Elements, so a server target can point straight at
 
 In `esdev start`, an edited component or page refreshes in place: the host, props
 and named `$state` values survive, while effects and lifecycle hooks are disposed
-and re-run. A compile error keeps the previous view on screen until the fix is
-saved. Changes the refresh cannot apply safely, such as renamed components or
-changed props, fall back to a reload. Release, server and test output contains no
-refresh code.
+and re-run. A page's `metadata` and headings (`toc`) refresh with it, and an edited
+`$expose` method is re-installed on the same host. A compile error keeps the previous
+view on screen until the fix is saved.
+
+Changes the refresh cannot apply safely fall back to a reload: renamed components,
+changed props or `$state` declarations, a renamed or removed exposed method, and an
+edit to a module's other exports (`export const SIZES = …`), whose importers hold the
+old value. Editing only the components in such a module still refreshes in place.
+Release, server and test output contains no refresh code.
 
 ## Source maps
 

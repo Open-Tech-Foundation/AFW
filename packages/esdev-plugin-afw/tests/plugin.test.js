@@ -99,12 +99,12 @@ test("only hot browser CSR builds emit component refresh and state slots", async
   expect(server.code).not.toContain("@opentf/afw/hmr");
 });
 
-test("mixed helper exports remain reload boundaries", async () => {
+test("a module with helper exports refreshes, comparing the exports' source", async () => {
   const result = await afwPlugin().transform.handler('export const value = 1; export default function Box() { return <p>Box</p>; }', "/Box.jsx", {
     command: "start", platform: "browser", hot: true,
   });
   expect(result.code).toContain("registerHotModule(import.meta.hot,");
-  expect(result.code).toContain(", false);");
+  expect(result.code).toContain(', true, "export const value = 1;\\n");');
 });
 
 test("hot pages expose refresh factories and production pages stay plain", async () => {
@@ -112,7 +112,7 @@ test("hot pages expose refresh factories and production pages stay plain", async
     const result = await afwPlugin().transform.handler(source, "/app/page.jsx", {
       command: hot ? "start" : "build", platform: "browser", hot,
     });
-    expect(result.code.includes('registerHotRoute(import.meta.hot, __afwRoute, true, "[\\"value:State\\"]")')).toBe(hot);
+    expect(result.code.includes('registerHotRoute(import.meta.hot, __afwRoute, "[\\"value:State\\"]", "", {  })')).toBe(hot);
     expect(result.code.includes('hotRouteState("value", () => signal("Hello"))')).toBe(hot);
     expect(result.code.includes("@opentf/afw/hmr")).toBe(hot);
   }

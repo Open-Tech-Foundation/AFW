@@ -665,7 +665,7 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
 // the declarations still match (see `registerHotRoute`), outer layouts keep their
 // nodes and state, and an edited layout receives the existing inner route view as
 // `children`, so the page and its components move into it without remounting.
-export async function refreshHotRoute(factory) {
+export async function refreshHotRoute(factory, data = null) {
   const index = currentNodes.findIndex(node => node.__afwHotFactory === factory);
   if (!rootEl || index < 0) return;
   const seq = navSeq;
@@ -688,16 +688,20 @@ export async function refreshHotRoute(factory) {
     const scroll = [window.scrollX, window.scrollY];
     const props = { params: match.params, query };
     if (inner) props.children = inner;
+    // `data` is the edited module's route data; the modules imported above are the
+    // originals. currentNodes runs page → innermost layout → root, the chain root first.
+    const namespace = module => typeof module === "function" ? { default: module } : module;
+    const fresh = module => (data ? { ...namespace(module), ...data } : namespace(module));
+    const page = index === 0 ? fresh(pageModule) : namespace(pageModule);
+    const layouts = layoutModules.map((module, i) => (index === layoutModules.length - i ? fresh(module) : namespace(module)));
+    // An edited page may have new headings: publish them before the view rebuilds.
+    setRouteToc(page);
     node = buildScopedView(() => factory(props, previous));
     previous.replaceWith(node);
     runCleanup(previous);
     currentNodes = currentNodes.map((current, i) => (i === index ? node : current));
     runMount(node);
-    const namespace = module => typeof module === "function" ? { default: module } : module;
-    const metadata = await resolveMetadataModules(
-      [...layoutModules, pageModule].map(namespace),
-      { params: match.params, query },
-    );
+    const metadata = await resolveMetadataModules([...layouts, page], { params: match.params, query });
     if (seq === navSeq) updateRouteHead(metadata, state.pathname.value);
     if (focusedId) document.getElementById(focusedId)?.focus({ preventScroll: true });
     window.scrollTo(...scroll);

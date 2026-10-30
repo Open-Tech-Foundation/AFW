@@ -195,7 +195,7 @@ fn import_header(uses: &Uses, runtime_imports: &[String]) -> String {
         format!("import {{ {} }} from \"@opentf/afw\";\n", merged.join(", "))
     };
     if uses.hot {
-        header.push_str("import { hotRouteState, hotState, registerHotModule, registerHotRoute } from \"@opentf/afw/hmr\";\n");
+        header.push_str("import { hotExpose, hotRouteState, hotState, registerHotModule, registerHotRoute } from \"@opentf/afw/hmr\";\n");
     }
     header
 }
@@ -804,13 +804,20 @@ fn emit_module_inner(
             if hot_route {
                 e.uses.hot = true;
                 body = body.replacen("export default function (", "function __afwRoute(", 1);
-                let safe = hot_boundary_safe(components, module_stmts, module_exprs);
                 // State names and kinds decide whether a refresh may reuse the view's
                 // slots; initializer edits are excluded, so existing values win.
                 let shape = format!("{:?}", state_shape(c));
+                // The page's other exports: a change there reaches importers, so it
+                // reloads. Route data the router re-reads on refresh is left out.
+                let exports = hot_exports_shape(module_stmts, module_exprs, true);
+                // This module's own route data, for the refresh: the router's import of
+                // the route returns the original module, not this update.
+                let data = hot_route_data(module_stmts, module_exprs);
                 body.push_str(&format!(
-                    "export default registerHotRoute(import.meta.hot, __afwRoute, {safe}, {});\n",
+                    "export default registerHotRoute(import.meta.hot, __afwRoute, {}, {}, {{ {} }});\n",
                     js_string(&shape),
+                    js_string(&exports),
+                    data.join(", "),
                 ));
             }
             combined.merge(&e.uses);
@@ -912,14 +919,21 @@ fn emit_module_inner(
                 format!("{}:{:?}", p.attr, default)
             }).collect::<Vec<_>>();
             let states = state_shape(c);
-            let signature = format!("{:?}|{:?}|{:?}|{}|{}",
-                props, states, c.children_local, c.is_default_export, c.is_named_export);
+            // The exposed method names: a parent calls them through its ref. Their bodies
+            // are re-installed on the same host by the refresh, so only the set matters.
+            let exposed: Vec<String> = c.exposes.iter().flat_map(|e| exposed_keys(&e.code)).collect();
+            let signature = format!("{:?}|{:?}|{:?}|{}|{}|{:?}",
+                props, states, c.children_local, c.is_default_export, c.is_named_export, exposed);
             format!("[{}Element, {}]", c.name, js_string(&signature))
         }).collect::<Vec<_>>().join(", ");
-        // Exposed APIs and exported helpers can affect importers beyond the view.
-        let safe = hot_boundary_safe(components, module_stmts, module_exprs);
-        let accept = if components.iter().any(|c| c.is_page) { ", false" } else { "" };
-        code.push_str(&format!("registerHotModule(import.meta.hot, [{entries}], {safe}{accept});\n"));
+        // Exported helpers reach importers beyond the view: the refresh compares their
+        // source and reloads only when it changed.
+        let exports = hot_exports_shape(module_stmts, module_exprs, false);
+        let accept = !components.iter().any(|c| c.is_page);
+        code.push_str(&format!(
+            "registerHotModule(import.meta.hot, [{entries}], {accept}, {});\n",
+            js_string(&exports)
+        ));
     } else {
         for define in defines { code.push_str(&define); }
     }
@@ -930,16 +944,102 @@ fn emit_module_inner(
     CsrModule { code, errors }
 }
 
-fn hot_boundary_safe(components: &[Lowered], stmts: &[BodyItem], exprs: &ExprTable) -> bool {
-    components.iter().all(|c| c.exposes.is_empty()) && !stmts.iter().any(|stmt| {
+/// What a hot refresh must not change silently: the source of the module's exported
+/// statements other than its components. An importer holds the old module's values, so a
+/// change there reloads; an edit to the components alone refreshes in place. With
+/// `route_data`, the exports the router re-reads on every refresh (`metadata`,
+/// `generateMetadata`, `toc`) and the build-only `getStaticPaths` are left out, so editing
+/// a page's metadata or headings refreshes too.
+fn hot_exports_shape(stmts: &[BodyItem], exprs: &ExprTable, route_data: bool) -> String {
+    const ROUTE_DATA: &[&str] = &["metadata", "generateMetadata", "toc", "getStaticPaths"];
+    let mut shape = String::new();
+    for stmt in stmts {
         let source = match stmt {
             BodyItem::Raw(source) => source,
             BodyItem::Jsx { template, .. } => template,
-            _ => return false,
+            _ => continue,
         };
-        crate::sourcemap::plain(exprs.source_map.as_deref(), source)
-            .trim_start().starts_with("export ")
-    })
+        let plain = crate::sourcemap::plain(exprs.source_map.as_deref(), source);
+        let text = plain.trim();
+        let Some(rest) = text.strip_prefix("export ") else { continue };
+        if route_data && exported_name(rest).is_some_and(|name| ROUTE_DATA.contains(&name)) {
+            continue;
+        }
+        shape.push_str(text);
+        shape.push('\n');
+    }
+    shape
+}
+
+/// The route data this page module exports (`metadata`, `generateMetadata`, `toc`), by name.
+fn hot_route_data(stmts: &[BodyItem], exprs: &ExprTable) -> Vec<String> {
+    let mut names = Vec::new();
+    for stmt in stmts {
+        let source = match stmt {
+            BodyItem::Raw(source) => source,
+            BodyItem::Jsx { template, .. } => template,
+            _ => continue,
+        };
+        let plain = crate::sourcemap::plain(exprs.source_map.as_deref(), source);
+        if let Some(name) = plain.trim().strip_prefix("export ").and_then(exported_name)
+            && matches!(name, "metadata" | "generateMetadata" | "toc")
+            && !names.iter().any(|n| n == name)
+        {
+            names.push(name.to_string());
+        }
+    }
+    names
+}
+
+/// The name an `export` declaration binds (`const x = …`, `function f`, `class C`), if
+/// it is one of those single-name forms.
+fn exported_name(decl: &str) -> Option<&str> {
+    let decl = decl.trim_start();
+    let decl = decl.strip_prefix("async ").unwrap_or(decl).trim_start();
+    let rest = ["const ", "let ", "var ", "function* ", "function ", "class "]
+        .iter()
+        .find_map(|kw| decl.strip_prefix(kw))?
+        .trim_start();
+    let end = rest.find(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$')).unwrap_or(rest.len());
+    (end > 0).then(|| &rest[..end])
+}
+
+/// The top-level keys of an `$expose({ … })` object literal: `show`, `hide`, `value`.
+fn exposed_keys(code: &str) -> Vec<String> {
+    let body = code.trim().trim_start_matches('(').trim_end_matches(')').trim();
+    let Some(body) = body.strip_prefix('{').and_then(|b| b.strip_suffix('}')) else {
+        return Vec::new();
+    };
+    let mut keys = Vec::new();
+    let (mut depth, mut quote, mut start) = (0i32, None::<char>, true);
+    let chars: Vec<char> = body.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if let Some(q) = quote {
+            if c == '\\' { i += 1; } else if c == q { quote = None; }
+        } else if matches!(c, '"' | '\'' | '`') {
+            quote = Some(c);
+        } else if matches!(c, '(' | '{' | '[') {
+            depth += 1;
+        } else if matches!(c, ')' | '}' | ']') {
+            depth -= 1;
+        } else if c == ',' && depth == 0 {
+            start = true;
+        } else if start && depth == 0 && (c.is_alphanumeric() || c == '_' || c == '$') {
+            let from = i;
+            while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') { i += 1; }
+            let word: String = chars[from..i].iter().collect();
+            if matches!(word.as_str(), "async" | "get" | "set") {
+                continue;
+            }
+            keys.push(word);
+            start = false;
+            continue;
+        }
+        i += 1;
+    }
+    keys
 }
 
 /// Where effect disposers go: nowhere (page) or a collection sink (component).
@@ -1177,11 +1277,22 @@ impl<'a> Emitter<'a> {
     }
 
     /// Emit `$expose(obj)` as `Object.assign(this, obj)`, publishing the object's
-    /// properties on the element (SPEC §3.2). Component path only.
+    /// properties on the element (SPEC §3.2). Component path only. A development build
+    /// uses `hotExpose`, which also drops what the previous version exposed, so a refresh
+    /// that renames or removes a method leaves no stale one on the host.
     fn emit_exposes(&mut self) {
-        for obj in self.lowered.exposes.clone() {
-            let code = self.effect_code(&obj);
-            self.line(format!("Object.assign(this, ({code}));"));
+        let objects: Vec<String> =
+            self.lowered.exposes.clone().iter().map(|obj| format!("({})", self.effect_code(obj))).collect();
+        if objects.is_empty() {
+            return;
+        }
+        if self.hot {
+            // One call for every `$expose`, so the stale-key cleanup sees the whole API.
+            self.line(format!("hotExpose(this, Object.assign({{}}, {}));", objects.join(", ")));
+        } else {
+            for code in objects {
+                self.line(format!("Object.assign(this, {code});"));
+            }
         }
     }
 
@@ -2982,6 +3093,15 @@ mod tests {
         );
     }
 
+    fn hot_component(source: &str) -> CsrModule {
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("M.tsx"), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        let m = crate::lower::lower_module("/app/M.tsx", &parsed.program, source, false)
+            .expect("a module");
+        emit_hot_module(&m.components, &m.module_stmts, &m.module_exprs)
+    }
+
     fn hot_page(source: &str) -> CsrModule {
         let sess = ParseSession::new();
         let parsed = sess.parse(Path::new("page.tsx"), source);
@@ -3003,11 +3123,37 @@ mod tests {
         // Derived values are recreated, not kept.
         assert!(out.code.contains("const double = computed("), "code:\n{}", out.code);
         assert!(
-            out.code.contains("registerHotRoute(import.meta.hot, __afwRoute, true, \"[\\\"count:State\\\", \\\"label:State\\\", \\\"double:Derived\\\"]\");"),
+            out.code.contains("registerHotRoute(import.meta.hot, __afwRoute, \"[\\\"count:State\\\", \\\"label:State\\\", \\\"double:Derived\\\"]\", \"\", {  });"),
             "code:\n{}",
             out.code
         );
-        assert!(out.code.contains("import { hotRouteState, hotState, registerHotModule, registerHotRoute } from \"@opentf/afw/hmr\";"), "code:\n{}", out.code);
+        assert!(out.code.contains("import { hotExpose, hotRouteState, hotState, registerHotModule, registerHotRoute } from \"@opentf/afw/hmr\";"), "code:\n{}", out.code);
+    }
+
+    #[test]
+    fn hot_route_exports_leave_out_route_data_and_pass_it_to_the_refresh() {
+        let out = hot_page(
+            "export const metadata = { title: \"A\" }; export const toc = []; export const KIND = \"x\"; \
+             export default function Page() { return <p/>; }",
+        );
+        assert!(out.is_complete(), "errors: {:?}", out.errors);
+        // Only the helper export is compared; metadata and toc reach the router directly.
+        assert!(
+            out.code.contains("registerHotRoute(import.meta.hot, __afwRoute, \"[]\", \"export const KIND = \\\"x\\\";\\n\", { metadata, toc });"),
+            "code:\n{}",
+            out.code
+        );
+    }
+
+    #[test]
+    fn hot_modules_compare_exports_and_exposed_names_not_a_blanket_reload() {
+        let out = hot_component(
+            "export const SIZES = [1]; export default function M() { let n = $state(0); \
+             $expose({ show() { n++; }, async load() {}, get size() { return n; } }); return <i>{n}</i>; }",
+        );
+        assert!(out.is_complete(), "errors: {:?}", out.errors);
+        assert!(out.code.contains("hotExpose(this, Object.assign({}, ({ show()"), "code:\n{}", out.code);
+        assert!(out.code.contains("|[\\\"show\\\", \\\"load\\\", \\\"size\\\"]\"]], true, \"export const SIZES = [1];\\n\");"), "code:\n{}", out.code);
     }
 
     #[test]

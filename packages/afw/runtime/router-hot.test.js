@@ -5,7 +5,7 @@
 import { afterEach, expect, test } from "runtime:test";
 import { effect, signal } from "../core/signals.js";
 import { hotRouteState, registerHotRoute } from "./hmr.js";
-import { mountApp, routes } from "./router.js";
+import { mountApp, router, routes } from "./router.js";
 
 const tick = async (n = 4) => { for (let i = 0; i < n; i++) await new Promise((r) => setTimeout(r, 0)); };
 
@@ -56,8 +56,8 @@ async function mountRoute(pageHot, layoutHot, pageV1, layoutV1) {
   app = document.createElement("div");
   document.body.appendChild(app);
   window.history.replaceState({}, "", "/");
-  const pages = { "/app/page.jsx": { default: registerHotRoute(pageHot, pageV1, true, '["count:State"]') } };
-  if (layoutHot) pages["/app/layout.jsx"] = { default: registerHotRoute(layoutHot, layoutV1, true, '["open:State"]') };
+  const pages = { "/app/page.jsx": { default: registerHotRoute(pageHot, pageV1, '["count:State"]') } };
+  if (layoutHot) pages["/app/layout.jsx"] = { default: registerHotRoute(layoutHot, layoutV1, '["open:State"]') };
   await mountApp({ target: app, pages });
   await tick();
 }
@@ -78,7 +78,7 @@ test("a page edit keeps its state and leaves the layout untouched", async () => 
   const head = app.querySelector(".head");
   expect(text(".page")).toBe("A:2");
 
-  registerHotRoute(pageHot, pageVersion("B"), true, '["count:State"]');
+  registerHotRoute(pageHot, pageVersion("B"), '["count:State"]');
   await tick();
 
   expect(text(".page")).toBe("B:2");
@@ -94,7 +94,7 @@ test("a page edit that changes its state declarations starts fresh", async () =>
   app.querySelector(".inc").click();
   expect(text(".page")).toBe("A:1");
 
-  registerHotRoute(pageHot, pageVersion("B", "total"), true, '["total:State"]');
+  registerHotRoute(pageHot, pageVersion("B", "total"), '["total:State"]');
   await tick();
 
   expect(text(".page")).toBe("B:0");
@@ -111,7 +111,7 @@ test("a layout edit keeps the page node, the page state and the layout state", a
   slots.get("open").value = 5;
   expect(text(".head")).toBe("L1:5");
 
-  registerHotRoute(layoutHot, layoutVersion("L2"), true, '["open:State"]');
+  registerHotRoute(layoutHot, layoutVersion("L2"), '["open:State"]');
   await tick();
 
   const newLayout = app.querySelector(".layout");
@@ -136,7 +136,7 @@ test("a failed layout rebuild keeps the current view and its page", async () => 
   const original = console.error;
   console.error = (...args) => errors.push(args);
   try {
-    registerHotRoute(layoutHot, layoutVersion("L2", { fail: true }), true, '["open:State"]');
+    registerHotRoute(layoutHot, layoutVersion("L2", { fail: true }), '["open:State"]');
     await tick();
   } finally {
     console.error = original;
@@ -148,11 +148,33 @@ test("a failed layout rebuild keeps the current view and its page", async () => 
 
 test("editing a factory that is not on screen changes nothing", async () => {
   const pageHot = fakeHot(), otherHot = fakeHot();
-  registerHotRoute(otherHot, pageVersion("Other"), true, '["count:State"]');
+  registerHotRoute(otherHot, pageVersion("Other"), '["count:State"]');
   await mountRoute(pageHot, null, pageVersion("A"));
   const node = app.querySelector(".page");
-  registerHotRoute(otherHot, pageVersion("Other2"), true, '["count:State"]');
+  registerHotRoute(otherHot, pageVersion("Other2"), '["count:State"]');
   await tick();
   expect(app.querySelector(".page")).toBe(node);
   expect(text(".page")).toBe("A:0");
+});
+
+test("an update's own metadata and toc reach the refresh, not the originally imported module's", async () => {
+  const pageHot = fakeHot();
+  await mountRoute(pageHot, null, pageVersion("A"));
+  registerHotRoute(pageHot, pageVersion("B"), '["count:State"]', "", {
+    metadata: { title: "Edited title" },
+    toc: [{ depth: 2, id: "new", text: "New" }],
+  });
+  await tick();
+  expect(text(".page")).toBe("B:0");
+  expect(document.title).toBe("Edited title");
+  expect(router.toc).toEqual([{ depth: 2, id: "new", text: "New" }]);
+  expect(pageHot.invalidated).toBe(0);
+});
+
+test("a changed helper export invalidates instead of refreshing", async () => {
+  const pageHot = fakeHot();
+  await mountRoute(pageHot, null, pageVersion("A"));
+  registerHotRoute(pageHot, pageVersion("B"), '["count:State"]', "export const KIND = 1;\n");
+  await tick();
+  expect(pageHot.invalidated).toBe(1);
 });

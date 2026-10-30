@@ -19,12 +19,19 @@ export function hotRouteState(key, create) {
   return routeSlots.get(key);
 }
 
-export function registerHotRoute(hot, factory, safe, shape = "") {
+/**
+ * `exports` is the source of the page's exports other than its view and the route data the
+ * router re-reads (see the compiler's `hot_exports_shape`). Importers hold the old values,
+ * so a change there reloads; an edit to the view, its metadata or its headings refreshes.
+ */
+export function registerHotRoute(hot, factory, shape = "", exports = "", data = {}) {
   if (!hot) return factory;
-  if (!safe) {
-    if (hot.data.afwRouteBoundary) hot.invalidate();
+  if (hot.data.afwRouteBoundary && hot.data.afwExports !== exports) {
+    hot.data.afwExports = exports;
+    hot.invalidate();
     return factory;
   }
+  hot.data.afwExports = exports;
   hot.data.afwRouteBoundary = true;
   const record = hot.keep("afw-route", () => {
     const entry = { factory, shape };
@@ -61,9 +68,12 @@ export function registerHotRoute(hot, factory, safe, shape = "") {
   const updated = record.factory !== factory || record.shape !== shape;
   record.factory = factory;
   record.shape = shape;
+  // `data`: this update's `metadata`/`generateMetadata`/`toc`, which the router's import of
+  // the route (the original module) would not see.
+  record.data = data;
   hot.accept();
   if (updated) queueMicrotask(() => {
-    if (!hot.data.afwInvalidated) void refreshHotRoute(record.view);
+    if (!hot.data.afwInvalidated) void refreshHotRoute(record.view, record.data);
   });
   return record.view;
 }
@@ -111,16 +121,35 @@ function refresh(record, hosts) {
   }
 }
 
-export function registerHotModule(hot, entries, safe, accept = true) {
+/**
+ * `exports` is the source of the module's exports other than its components: importers
+ * hold the old values, so a change there reloads, while an edit to the components alone
+ * refreshes them in place. Each entry's shape covers what a refresh can't carry over
+ * (props, state declarations, the exposed method names).
+ */
+/**
+ * `$expose` in a development build: publish `api` on the host like `Object.assign`, after
+ * removing whatever the previous version of the component exposed there. A refresh
+ * re-runs the component on the same host, so a renamed or removed method would otherwise
+ * linger beside its replacement.
+ */
+export function hotExpose(host, api) {
+  for (const key of host.__afwExposed ?? []) if (!(key in api)) delete host[key];
+  Object.assign(host, api);
+  host.__afwExposed = Object.keys(api);
+}
+
+export function registerHotModule(hot, entries, accept = true, exports = "") {
   const signature = entries.map(([component, shape]) => [component.tag, shape]);
   const previous = hot?.data.afwSignature;
-  if (previous && (!safe || JSON.stringify(previous) !== JSON.stringify(signature))) {
+  if (previous && (JSON.stringify(previous) !== JSON.stringify(signature) || hot.data.afwExports !== exports)) {
     hot.data.afwInvalidated = true;
     hot.invalidate();
     return;
   }
   if (hot) {
     hot.data.afwSignature = signature;
+    hot.data.afwExports = exports;
     hot.data.afwInvalidated = false;
   }
   const changed = [];
@@ -166,5 +195,5 @@ export function registerHotModule(hot, entries, safe, accept = true) {
   }));
   jobs.sort((a, b) => a.depth - b.depth);
   for (const { record, host } of jobs) refresh(record, [host]);
-  if (safe && accept) hot?.accept();
+  if (accept) hot?.accept();
 }
