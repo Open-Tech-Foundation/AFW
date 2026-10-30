@@ -17,6 +17,9 @@
 
 ### Fixed
 
+- `article:modified_time` and `article:published_time` are emitted on articles only (an
+  `og:type` "article" page, or one with a publish `date`), no longer on index and landing
+  pages.
 - A blog post's `article:modified_time` comes from its frontmatter `updated`, never git,
   so a bulk commit no longer dates every post to that day.
 - Prerendered pages no longer carry duplicate head tags. `injectHead` now removes the

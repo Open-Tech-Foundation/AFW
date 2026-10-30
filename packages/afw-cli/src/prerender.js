@@ -143,9 +143,13 @@ export async function runPrerender({ root, pages, afwEntry, afwc, shellHtml, out
         // SEO: expose the page's last-updated time (git/frontmatter) as Open Graph's
         // article:modified_time so crawlers see when the content actually changed,
         // and a frontmatter `date` as article:published_time (blog posts).
-        const iso = lastUpdated[path];
-        if (iso) head += `\n<meta data-afw-head="" property="article:modified_time" content="${escapeXml(iso)}">`;
+        // Article tags only on an article: `og:type` "article", or a page with a publish
+        // `date`. An index or a landing page is a website; a modified time there
+        // describes nothing.
         const published = typeof metadata?.date === "string" ? metadata.date.trim() : "";
+        const article = metadata?.openGraph?.type === "article" || Boolean(published);
+        const iso = article ? lastUpdated[path] : null;
+        if (iso) head += `\n<meta data-afw-head="" property="article:modified_time" content="${escapeXml(iso)}">`;
         if (published) head += `\n<meta data-afw-head="" property="article:published_time" content="${escapeXml(published)}">`;
         // Static hosts decode requested URLs when locating files. Decode generated
         // segments once; leave literal static folder names unchanged.
