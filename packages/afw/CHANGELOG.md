@@ -43,6 +43,10 @@
 
 ### Fixed
 
+- **Dev refresh of a fragment-root page** (every MDX page, any `<>…</>` view) applies the
+  edit. The fragment is empty once inserted, so the refresh replaced nothing and the old
+  content stayed; a layout refresh would also have lost the page. Route views now keep the
+  nodes a fragment root held, and the refresh replaces or re-parents exactly those.
 - A text hole holding server-rendered elements (JSX passed as a value, such as a `Tabs`
   panel's content) no longer discards them on hydration. `claimText` keeps the server
   nodes and `bindText` adopts them when the value is the server's `{ __html }` stand-in
