@@ -1,4 +1,4 @@
-# @opentf/esdev-plugin-web
+# @opentf/esdev-plugin-afw
 
 ## [Unreleased]
 
