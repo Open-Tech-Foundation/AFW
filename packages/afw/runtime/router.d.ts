@@ -80,6 +80,7 @@ export function resolveModule(entry: any): Promise<any>;
  * so a page reading `router.pathname`/`params`/`query` resolves to the route being
  * pre-rendered. The client uses `navigate` instead.
  */
+export function setRouteToc(pageModule: any): void;
 export function setRouteState({ pathname, search, params, locale, data }?: {
     locale?: string | null;
     data?: unknown;
@@ -141,6 +142,8 @@ export namespace router {
     const params: any;
     const locale: any;
     const data: any;
+    /** The current page's headings (MDX `export const toc`), or `[]`. */
+    const toc: { depth: number; id: string; text: string }[];
     function push(path: any): Promise<void>;
     function replace(path: any): Promise<void>;
 }

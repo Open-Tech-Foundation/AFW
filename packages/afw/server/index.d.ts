@@ -37,6 +37,8 @@ export const router: {
   readonly params: RouteParams;
   readonly locale: string | null;
   readonly data: unknown;
+  /** The current page's headings (MDX `export const toc`), or `[]`. */
+  readonly toc: { depth: number; id: string; text: string }[];
 };
 export function matchRoute(pathname: string): { entry: unknown; params: RouteParams; route: string } | null;
 export function configureI18n(config: { locales: string[]; defaultLocale?: string } | null): void;
@@ -45,6 +47,8 @@ export function resolveLocale(pathname: string): { locale: string | null; path: 
 export function localizePath(pathname: string, locale?: string | null): string;
 /** Set the current request's locale during server rendering. */
 export function setLocale(locale: string | null): void;
+/** Publish a page module's `toc` export as `router.toc`. */
+export function setRouteToc(pageModule: { toc?: unknown } | null | undefined): void;
 /** Set the current request's route state directly. */
 export function setRouteState(state?: {
   pathname?: string;

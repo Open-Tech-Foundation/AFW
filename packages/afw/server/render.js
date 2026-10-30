@@ -13,6 +13,7 @@ import {
   resolveModule,
   routes,
   setRouteState,
+  setRouteToc,
 } from "../runtime/router.js";
 import { resolveMetadata } from "./head.js";
 import { beginHydrationCollect, endHydrationCollect } from "./ssg-runtime.js";
@@ -60,6 +61,8 @@ async function renderInContext(pathname, params, search, data) {
   );
   const page = pageModule?.default ?? pageModule;
   const layouts = layoutModules.map(module => module?.default ?? module);
+  // Before any factory runs, so a layout's `<Toc>` serves the page's outline.
+  setRouteToc(pageModule);
 
   // Each context owns its hydration ids, including when another render is nested.
   let html, hydration;

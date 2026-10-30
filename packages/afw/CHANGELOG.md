@@ -15,6 +15,10 @@
 
 ### Added
 
+- `router.toc`: the current page's headings (the MDX `export const toc`), or `[]`. It is
+  set from the page module before any page or layout factory runs, during server render,
+  hydration and client navigation, so a layout can render a page outline as data.
+  `setRouteToc(pageModule)` sets it directly (tests, custom renderers).
 - `openGraph.locale` and `openGraph.alternateLocale` (string or array) metadata fields,
   rendered as `og:locale` and `og:locale:alternate`; no more `meta: [...]` escape hatch.
 - `ssgAttrs(entries)` in the SSG runtime: merges an element's spread objects and named

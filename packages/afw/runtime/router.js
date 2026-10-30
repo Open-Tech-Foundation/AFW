@@ -40,6 +40,7 @@ const state = {
   params: signal({}),
   locale: signal(null),
   data: signal(undefined),
+  toc: signal([]),
 };
 
 export const routes = { pages: {}, layouts: {}, notFound: null, loaderRoutes: new Set() };
@@ -154,6 +155,10 @@ export const router = {
   get data() {
     return routeValue("data");
   },
+  /** The current page's headings (`export const toc`, emitted for MDX), or `[]`. */
+  get toc() {
+    return routeValue("toc");
+  },
   push: (path) => navigate(path),
   replace: (path) => navigate(path, true),
 };
@@ -267,6 +272,7 @@ export async function buildRouteNode(match, query = {}) {
   const modules = [...layoutModules, pageModule].map(namespace);
   const pageFactory = pageModule?.default ?? pageModule;
   const layoutFactories = layoutModules.map(module => module?.default ?? module);
+  setRouteToc(pageModule);
   let node = buildScopedView(() => pageFactory(props));
   const nodes = [node];
   try {
@@ -298,6 +304,7 @@ export async function hydrateRouteNode(match, query, rootEl) {
   // checked after they all land rather than short-circuiting on the page: bailing
   // early would only skip imports the CSR fallback below is about to need anyway.
   const [pageMod, ...layoutMods] = await resolveAll([match.entry, ...chain], resolveModule);
+  setRouteToc(pageMod);
   if (!pageMod || typeof pageMod.hydrateAt !== "function") return null;
   // The whole chain must be adoptable — one non-adoptable layout means a clean CSR build.
   if (layoutMods.some((m) => !m || typeof m.hydrateAt !== "function")) return null;
@@ -339,6 +346,18 @@ export async function resolveModule(entry) {
  * so a page reading `router.pathname`/`params`/`query` resolves to the route being
  * pre-rendered. The client uses `navigate` instead.
  */
+/**
+ * Publish the page module's `toc` export as `router.toc`. Called once the page module is
+ * resolved and before any factory runs, so a layout's `<Toc>` renders the same outline on
+ * the server, at hydration and after a client navigation.
+ */
+export function setRouteToc(pageModule) {
+  const toc = Array.isArray(pageModule?.toc) ? pageModule.toc : [];
+  const route = getRenderContext()?.route;
+  if (route) route.toc = toc;
+  else state.toc.value = toc;
+}
+
 export function setRouteState({ pathname = "/", search = "", params = {}, locale, data } = {}) {
   const route = getRenderContext()?.route;
   if (route) {

@@ -23,6 +23,18 @@ beforeEach(resetRoutes);
 afterEach(resetRoutes);
 
 describe("server render (SSG, string-based)", () => {
+  test("a layout reads the page's toc export through router.toc", async () => {
+    const toc = [{ depth: 2, id: "usage", text: "Usage" }];
+    registerRoutes({
+      "/app/layout.jsx": { default: ({ children }) => `<nav>${router.toc.map((h) => h.id).join(",")}</nav>${children}` },
+      "/app/docs/page.mdx": { ...page("<h2 id=\"usage\">Usage</h2>"), toc },
+      "/app/plain/page.jsx": page("<p>no toc</p>"),
+    });
+    expect((await renderRoute("/docs")).html).toBe('<nav>usage</nav><h2 id="usage">Usage</h2>');
+    // A page without the export gets an empty outline, never the previous page's.
+    expect((await renderRoute("/plain")).html).toBe("<nav></nav><p>no toc</p>");
+  });
+
   test("lazy bare factories keep props and attached metadata without being invoked as loaders again", async () => {
     const factory = Object.assign(({ params }) => `<p>${params.id}</p>`, {
       metadata: { description: "Factory metadata" },
