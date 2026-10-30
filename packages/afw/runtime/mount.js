@@ -26,6 +26,9 @@ export function buildScopedView(view) {
   try {
     const lc = (node.__lifecycle ??= { mounts: [], cleanups: [] });
     lc.cleanups.push(owned.dispose);
+    // A fragment root (an MDX page, a `<>…</>` view) is empty once inserted. Keep the
+    // nodes it held, so the router can still find the view to replace or re-parent.
+    if (node.nodeType === 11) node.__afwNodes = Array.from(node.childNodes);
     return node;
   } catch (error) {
     try { owned.dispose(); } catch (cleanupError) { console.error(cleanupError); }

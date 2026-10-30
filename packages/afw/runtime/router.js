@@ -665,6 +665,19 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
 // the declarations still match (see `registerHotRoute`), outer layouts keep their
 // nodes and state, and an edited layout receives the existing inner route view as
 // `children`, so the page and its components move into it without remounting.
+// The nodes a route view occupies in the document: the element itself, or the nodes a
+// fragment root held (see `buildScopedView`).
+const viewNodes = (node) => (node?.nodeType === 11 ? node.__afwNodes ?? [] : node ? [node] : []);
+
+// A route view to pass on as a layout's `children`: a fragment root is empty once
+// inserted, so it is refilled with the nodes it held.
+function asChildren(node) {
+  if (node?.nodeType !== 11) return node;
+  const frag = document.createDocumentFragment();
+  frag.append(...viewNodes(node));
+  return frag;
+}
+
 export async function refreshHotRoute(factory, data = null) {
   const index = currentNodes.findIndex(node => node.__afwHotFactory === factory);
   if (!rootEl || index < 0) return;
@@ -675,8 +688,9 @@ export async function refreshHotRoute(factory, data = null) {
   if (!match) return;
   const query = Object.fromEntries(state.searchParams.value);
   const inner = index > 0 ? currentNodes[index - 1] : null;
-  const innerParent = inner?.parentNode;
-  const innerNext = inner?.nextSibling;
+  const innerFirst = viewNodes(inner)[0];
+  const innerParent = innerFirst?.parentNode;
+  const innerNext = viewNodes(inner).at(-1)?.nextSibling;
   let node;
   try {
     const [pageModule, ...layoutModules] = await resolveAll(
@@ -687,7 +701,7 @@ export async function refreshHotRoute(factory, data = null) {
     const focusedId = rootEl.contains(document.activeElement) ? document.activeElement.id : null;
     const scroll = [window.scrollX, window.scrollY];
     const props = { params: match.params, query };
-    if (inner) props.children = inner;
+    if (inner) props.children = asChildren(inner);
     // `data` is the edited module's route data; the modules imported above are the
     // originals. currentNodes runs page → innermost layout → root, the chain root first.
     const namespace = module => typeof module === "function" ? { default: module } : module;
@@ -697,7 +711,10 @@ export async function refreshHotRoute(factory, data = null) {
     // An edited page may have new headings: publish them before the view rebuilds.
     setRouteToc(page);
     node = buildScopedView(() => factory(props, previous));
-    previous.replaceWith(node);
+    const old = viewNodes(previous);
+    if (old.length === 0) throw new Error("the refreshed view has no nodes in the document to replace");
+    old[0].parentNode.insertBefore(node, old[0]);
+    for (const n of old) n.remove();
     runCleanup(previous);
     currentNodes = currentNodes.map((current, i) => (i === index ? node : current));
     runMount(node);
@@ -708,7 +725,9 @@ export async function refreshHotRoute(factory, data = null) {
     clearError({ phase: "route" });
   } catch (error) {
     // A failed layout build may already hold the inner view; put it back.
-    if (inner && innerParent && inner.parentNode !== innerParent) innerParent.insertBefore(inner, innerNext ?? null);
+    if (innerParent && innerFirst.parentNode !== innerParent) {
+      for (const n of viewNodes(inner)) innerParent.insertBefore(n, innerNext ?? null);
+    }
     if (node && !node.isConnected) runCleanup(node);
     reportError(error, { phase: "route", path: state.pathname.value });
   }

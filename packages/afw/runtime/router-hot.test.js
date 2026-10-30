@@ -178,3 +178,47 @@ test("a changed helper export invalidates instead of refreshing", async () => {
   await tick();
   expect(pageHot.invalidated).toBe(1);
 });
+
+// An MDX page (or any `<>…</>` view) has a fragment root: once inserted the fragment is
+// empty, so a refresh has to replace the nodes it held, and a layout refresh has to get
+// them back as its children.
+function fragmentVersion(label) {
+  return () => {
+    const frag = document.createDocumentFragment();
+    const h = document.createElement("h2");
+    h.className = "frag";
+    h.textContent = label;
+    const p = document.createElement("p");
+    p.className = "frag-body";
+    p.textContent = `${label} body`;
+    frag.append(h, p);
+    return frag;
+  };
+}
+
+test("a fragment-root page refreshes in place, replacing exactly its nodes", async () => {
+  const pageHot = fakeHot(), layoutHot = fakeHot();
+  await mountRoute(pageHot, layoutHot, fragmentVersion("F1"), layoutVersion("L"));
+  expect(text(".frag")).toBe("F1");
+  const layout = app.querySelector(".layout");
+
+  registerHotRoute(pageHot, fragmentVersion("F2"), '["count:State"]');
+  await tick();
+  expect(text(".frag")).toBe("F2");
+  expect(app.querySelectorAll(".frag").length).toBe(1);
+  expect(app.querySelectorAll(".frag-body").length).toBe(1);
+  expect(app.querySelector(".layout")).toBe(layout);
+
+  // A layout refresh gets the page's nodes back as its children, not an empty fragment.
+  registerHotRoute(layoutHot, layoutVersion("L2"), '["open:State"]');
+  await tick();
+  expect(text(".head").startsWith("L2")).toBe(true);
+  expect(text(".frag")).toBe("F2");
+  expect(app.querySelectorAll(".frag").length).toBe(1);
+
+  // And the page refreshes again under the new layout.
+  registerHotRoute(pageHot, fragmentVersion("F3"), '["count:State"]');
+  await tick();
+  expect(text(".frag")).toBe("F3");
+  expect(app.querySelectorAll(".frag, .frag-body").length).toBe(2);
+});
