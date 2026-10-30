@@ -1,7 +1,7 @@
 {
   "name": "@opentf/esdev-plugin-afw",
   "version": "0.4.0",
-  "description": "AFW plugins for esdev's runtime:build bundler — compile .jsx/.tsx/.mdx through the afwc IR compiler.",
+  "description": "Compile AFW components and serve file-based routes in esdev.",
   "type": "module",
   "scripts": {
     "build": "cp ../../LICENSE LICENSE"
@@ -23,11 +23,12 @@
     "esdev": ">=0.16.0"
   },
   "keywords": [
+    "afw",
     "opentf",
     "esdev",
     "esdev-plugin",
-    "afwc",
     "jsx",
+    "mdx",
     "bundler-plugin"
   ],
   "repository": {
@@ -35,10 +36,8 @@
     "url": "https://github.com/Open-Tech-Foundation/afw.git",
     "directory": "packages/esdev-plugin-afw"
   },
-  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
-  "bugs": {
-    "url": "https://github.com/Open-Tech-Foundation/afw/issues"
-  },
+  "homepage": "https://afw.opentechf.org/docs/configuration",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
