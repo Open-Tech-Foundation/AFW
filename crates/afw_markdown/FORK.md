@@ -57,6 +57,12 @@ Measured with `to_mdast` under the parse options `mdx::mdx_to_jsx` uses,
 End to end, `mdx_to_jsx` over a 74 KB → 2.4 MB MDX ladder goes from superlinear
 (2.0 s at 1.2 MB, growing ~3× per doubling) to flat 2× per doubling.
 
+### `PUNCTUATION` is re-exported
+
+`lib.rs` re-exports `util::unicode::PUNCTUATION` (the Unicode punctuation and symbol
+table CommonMark already uses) so `afwc` can strip punctuation from heading slugs in
+every script the way github-slugger does, without a second copy of the table.
+
 ## Retiring the fork
 
 Upstream is unaware of this; 1.0.0 is the current release. If a later release

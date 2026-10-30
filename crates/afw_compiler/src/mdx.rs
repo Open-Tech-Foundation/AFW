@@ -8,6 +8,7 @@
 //! fenced code is highlighted at build time with `syntect`; YAML frontmatter
 //! becomes `export const metadata = {…}` (consumed by the SSG `<head>` pass).
 
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use markdown::mdast::{AttributeContent, AttributeValue, Node};
@@ -81,9 +82,27 @@ struct Emit {
     metadata: Option<String>,
     /// Heading entries `(depth, id, text)` collected for the table of contents.
     toc: Vec<(u8, String, String)>,
+    /// How often each heading slug has been handed out, for github-slugger's `-1`, `-2`.
+    slugs: HashMap<String, usize>,
 }
 
 impl Emit {
+    /// The heading's slug, made unique within the page the way github-slugger does it:
+    /// the second "Usage" becomes `usage-1`, the third `usage-2`.
+    fn unique_slug(&mut self, text: &str) -> String {
+        let base = slugify(text);
+        let mut slug = base.clone();
+        while self.slugs.contains_key(&slug) {
+            let n = self.slugs.get_mut(&base).map(|n| {
+                *n += 1;
+                *n
+            });
+            slug = format!("{base}-{}", n.unwrap_or(1));
+        }
+        self.slugs.insert(slug.clone(), 0);
+        slug
+    }
+
     fn nodes(&mut self, nodes: &[Node]) -> String {
         nodes.iter().map(|n| self.node(n)).collect()
     }
@@ -118,7 +137,7 @@ impl Emit {
             Node::Heading(n) => {
                 let inner = self.nodes(&n.children);
                 let text = node_text(node);
-                let id = slugify(&text);
+                let id = self.unique_slug(&text);
                 let d = n.depth.clamp(1, 6);
                 self.toc.push((d, id.clone(), text));
                 // A self-linking anchor (the hover `#`) so each heading is shareable.
@@ -485,18 +504,27 @@ fn component_name(file: &str) -> String {
 
 /// GitHub-style heading slug: lowercased, non-alphanumerics collapsed to `-`.
 fn slugify(text: &str) -> String {
+    // github-slugger, the de facto standard (GitHub, rehype-slug, Docusaurus, VitePress):
+    // lowercase, drop punctuation and symbols except `-` and `_`, and turn each space
+    // into `-`. `mongodb+srv` → `mongodbsrv`, `a — b` → `a--b`. Letters, digits and
+    // combining marks of every script are kept.
     let mut out = String::new();
-    let mut dash = false;
-    for c in text.chars() {
-        if c.is_alphanumeric() {
-            out.extend(c.to_lowercase());
-            dash = false;
-        } else if !out.is_empty() && !dash {
+    for c in text.chars().flat_map(char::to_lowercase) {
+        if c == ' ' {
             out.push('-');
-            dash = true;
+        } else if c == '-' || c == '_' {
+            out.push(c);
+        } else if c.is_ascii_punctuation()
+            || markdown::PUNCTUATION.contains(&c)
+            || c.is_control()
+            || c.is_whitespace()
+        {
+            continue;
+        } else {
+            out.push(c);
         }
     }
-    out.trim_end_matches('-').to_string()
+    out
 }
 
 /// Minimal frontmatter → JS object literal: flat `key: value` scalar lines. Values
@@ -783,6 +811,28 @@ marker: "
             r#""amount": 1.25"#, r#""empty": """#, r#""date": "2026-10-03""#,
         ] {
             assert!(out.contains(field), "missing {field}: {out}");
+        }
+    }
+
+    #[test]
+    fn heading_ids_follow_github_slugger() {
+        let out = mdx_to_jsx(
+            "## mongodb+srv\n\n## FsFile — the file(path) handle\n\n## snake_case & co.\n\n## சொல் தமிழ்",
+            "a.mdx",
+        )
+        .unwrap();
+        assert!(out.contains("id=\"mongodbsrv\""), "{out}");
+        assert!(out.contains("id=\"fsfile--the-filepath-handle\""), "{out}");
+        assert!(out.contains("id=\"snake_case--co\""), "{out}");
+        // Combining vowel signs stay, so non-Latin headings keep readable slugs.
+        assert!(out.contains("id=\"சொல்-தமிழ்\""), "{out}");
+    }
+
+    #[test]
+    fn repeated_headings_get_numbered_ids() {
+        let out = mdx_to_jsx("## Usage\n\n## Usage\n\n## Usage-1\n\n## Usage", "a.mdx").unwrap();
+        for id in ["usage", "usage-1", "usage-1-1", "usage-2"] {
+            assert!(out.contains(&format!("<h2 id=\"{id}\">")), "{id}: {out}");
         }
     }
 

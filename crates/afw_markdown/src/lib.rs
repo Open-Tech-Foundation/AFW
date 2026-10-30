@@ -56,6 +56,10 @@ pub use util::character_reference::{decode_named, decode_numeric};
 #[doc(hidden)]
 pub use util::identifier::{id_cont, id_start};
 
+// **AFW fork**: exposed for `afwc`'s GitHub-style heading slugs.
+#[doc(hidden)]
+pub use util::unicode::PUNCTUATION;
+
 #[doc(hidden)]
 pub use util::sanitize_uri::sanitize;
 

@@ -5,6 +5,12 @@
 
 ### Changed
 
+- **Heading ids follow github-slugger**, the convention GitHub, rehype-slug, Docusaurus
+  and VitePress use: punctuation is dropped rather than turned into `-`, and each space
+  becomes `-` (`mongodb+srv` → `#mongodbsrv`, `FsFile — the file(path) handle` →
+  `#fsfile--the-filepath-handle`). Repeated headings now get unique ids (`usage`,
+  `usage-1`, …) instead of sharing one. Deep links to headings with punctuation in
+  their text change; update any links that point at the old ids.
 - Project renamed **OTF Web → AFW — App Framework for the Web**. All package,
   binary and crate names move with it (no compatibility aliases): `@opentf/web*` →
   `@opentf/afw*`, `esdev-plugin-web` → `esdev-plugin-afw`, the `otfw`/`otfwc`
