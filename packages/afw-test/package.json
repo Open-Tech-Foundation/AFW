@@ -1,7 +1,7 @@
 {
   "name": "@opentf/afw-test",
   "version": "1.27.0",
-  "description": "DOM testing utilities for AFW",
+  "description": "Render, query and interact with AFW components in tests.",
   "type": "module",
   "scripts": {
     "build": "cp ../../LICENSE LICENSE"
@@ -40,8 +40,8 @@
     "browser-runner.js"
   ],
   "keywords": [
-    "opentf",
     "afw",
+    "opentf",
     "testing",
     "testing-library",
     "web-components"
@@ -51,7 +51,7 @@
     "url": "https://github.com/Open-Tech-Foundation/afw.git",
     "directory": "packages/afw-test"
   },
-  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "homepage": "https://afw.opentechf.org/packages/afw-test",
   "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
   "license": "MIT",
   "engines": {
