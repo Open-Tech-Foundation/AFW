@@ -45,7 +45,7 @@
 ## Known issues
 Open items carried over from the 2026-10 site and HMR audits.
 * [x] SSG omits spread attributes and multi-node (fragment) roots. Both now render on the server.
-* [ ] Hydration: a view with spread props still falls back to a clean client build instead of adopting the server DOM.
+* [x] Hydration: views with spread props adopt the server DOM instead of rebuilding on the client.
 * [x] `@opentf/afw-docs` `Tabs`: add tab/tabpanel roles, selection state and arrow-key navigation.
 * [x] `@opentf/afw-docs` `BlogLayout`: show "Last updated" only when the update is later than publication, not merely different.
 * [x] Portal guide's custom overlay demo lacks modal semantics, focus containment, Escape handling and focus restoration.

@@ -210,6 +210,25 @@ const CASES = [
     })()`,
   },
   {
+    name: "Element spread adopts in place, keeps the later attribute and wires its handler",
+    setup: `let clicks = $state(0); const attrs = { id: "spread", class: "from-spread", "data-x": "1", onclick: () => clicks++ };`,
+    body: `<section {...attrs} class="b"><input class="probe" value="" /><p class="count">{clicks}</p></section>`,
+    props: {},
+    noSlot: true,
+    // Served merged: the spread's `id`/`data-x`, and the later `class` over the spread's.
+    expectMarkup: [/<section id="spread" class="b" data-x="1">/],
+    preHydrate: `document.querySelector("input.probe").value = "typed early";`,
+    interact: `(async () => {
+      const input = document.querySelector("input.probe");
+      const section = document.querySelector("section#spread");
+      section.click();
+      await new Promise((r) => setTimeout(r, 30));
+      return document.querySelectorAll("input.probe").length === 1 && input.value === "typed early"
+        && section.className === "b" && section.dataset.x === "1"
+        && document.querySelector("p.count").textContent === "1";
+    })()`,
+  },
+  {
     name: "Adopted JSX prop value stays reactive to the parent's state",
     imports: `import Tabs from "${COMPONENTS}/Tabs.jsx";`,
     setup: `let n = $state(1);`,

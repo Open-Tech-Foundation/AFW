@@ -572,8 +572,6 @@ whitespace nodes, double mounts). The bar:
 
 **Open:**
 
-- **Spread props in a view** (`<div {...rest}/>`) make a component non-adoptable — it falls back
-  to a clean CSR build. The remaining first-paint rebuilds on the docs site are all this.
 - **JSX values are render-only during hydration.** A JSX value used as data (2.1f) is a
   `hydratableNode` in the hydrate build, not a DOM node: render it with `{value}`. Code that
   manipulates such a value imperatively (`icon.cloneNode()`) works only in client builds.

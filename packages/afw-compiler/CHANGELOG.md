@@ -28,6 +28,10 @@
 
 ### Fixed
 
+- Components with spread props (`<div {...rest}/>`, `<Card {...props}/>`) now adopt
+  their server HTML on hydration instead of rebuilding it on first paint (a visible
+  flash). The spread is re-applied reactively, wiring any handlers it carries, and an
+  attribute written after it is set again behind it, so it still wins as in a client build.
 - The "can't be adopted" hydration warning names the component it means
   (`component <Card> inside <p>`) instead of "a component", so an MDX page that puts a
   component inline in a paragraph points straight at it.

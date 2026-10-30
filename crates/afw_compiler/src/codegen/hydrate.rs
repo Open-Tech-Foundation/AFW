@@ -805,8 +805,10 @@ impl<'a> Emitter<'a> {
                 if static_tree::is_static(node) {
                     return var;
                 }
+                let mut after_spread = false;
                 for prop in props {
-                    self.emit_prop(&var, prop);
+                    self.emit_prop(&var, prop, after_spread);
+                    after_spread |= prop.name.is_empty();
                 }
                 // Raw text (`<textarea>`, `<title>`, `<style>`, `<script>`): its content is
                 // not markup, so there are no hole markers to claim and no cursor to walk —
@@ -855,8 +857,10 @@ impl<'a> Emitter<'a> {
                 // cannot recover static props from the hydration payload the way a compiled
                 // component does — their statics must be re-applied here.
                 let builtin = tags::builtin_tag(name).is_some();
+                let mut after_spread = false;
                 for prop in props {
-                    self.emit_component_prop(&var, prop, builtin);
+                    self.emit_component_prop(&var, prop, builtin || after_spread);
+                    after_spread |= prop.name.is_empty();
                 }
                 if !children.is_empty() {
                     self.emit_slotted_children(&var, children);
@@ -1148,7 +1152,12 @@ impl<'a> Emitter<'a> {
     /// Wire a prop onto an already-claimed **host element**. Static attributes are in
     /// the server HTML, so they are skipped; only dynamic attributes, events, and `ref`
     /// produce code.
-    fn emit_prop(&mut self, el: &str, prop: &Prop) {
+    ///
+    /// A spread re-applies its object in an effect, as CSR does (it also wires any `on*`
+    /// handlers the object carries). That write lands on attributes the server already
+    /// merged, so a static attribute written *after* the spread (`after_spread`) is set
+    /// again behind it, keeping the CSR order where the later attribute wins.
+    fn emit_prop(&mut self, el: &str, prop: &Prop, after_spread: bool) {
         if prop.name == "ref" {
             if let PropValue::Dynamic(expr) = &prop.value {
                 self.line(format!("{}.value = {el};", self.code(*expr)));
@@ -1156,10 +1165,23 @@ impl<'a> Emitter<'a> {
             return;
         }
         if prop.name.is_empty() {
-            self.errors.push("hydrate: spread props are not supported yet (Phase 2.1)".into());
+            if let PropValue::Dynamic(expr) = &prop.value {
+                let code = self.code(*expr);
+                self.bind(format!("effect(() => spread({el}, ({code}), false))"));
+            }
             return;
         }
         match &prop.value {
+            PropValue::Static(value) if after_spread => {
+                self.line(format!(
+                    "{el}.setAttribute({}, {});",
+                    js_string(&prop.name),
+                    js_string(value)
+                ));
+            }
+            PropValue::Boolean if after_spread => {
+                self.line(format!("{el}.setAttribute({}, \"\");", js_string(&prop.name)));
+            }
             PropValue::Static(_) | PropValue::Boolean => {} // already serialized into the server HTML
             PropValue::Dynamic(expr) => {
                 let code = self.code(*expr);
@@ -1194,8 +1216,14 @@ impl<'a> Emitter<'a> {
             }
             return;
         }
+        // A spread sets the object's keys as properties, as CSR does. The island payload
+        // already carried them; this keeps them reactive. A static prop after the spread
+        // is re-applied behind it (`builtin` is passed true for those) so it still wins.
         if prop.name.is_empty() {
-            self.errors.push("hydrate: spread props are not supported yet (Phase 2.1)".into());
+            if let PropValue::Dynamic(expr) = &prop.value {
+                let code = self.code(*expr);
+                self.bind(format!("effect(() => spread({el}, ({code}), true))"));
+            }
             return;
         }
         match &prop.value {
@@ -1751,23 +1779,50 @@ mod tests {
     }
 
     #[test]
+    fn an_element_spread_is_adopted_and_reapplied_in_source_order() {
+        let m = emit_component(
+            "export default function Panel({ children, ...rest }){ \
+             return <section id=\"a\" {...rest} class=\"b\" hidden>{children}</section>; }",
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // The module holds the CSR build and the adopt walk; the adopt half is the second
+        // spread effect, and must re-apply only what follows the spread.
+        let adopt = &m.code[m.code.rfind("spread(el").expect(&format!("spread:\n{}", m.code))..];
+        assert!(m.code.matches("effect(() => spread(el").count() >= 2, "adopt spread:\n{}", m.code);
+        assert!(adopt.contains(".setAttribute(\"class\", \"b\")"), "later static wins:\n{}", m.code);
+        assert!(adopt.contains(".setAttribute(\"hidden\", \"\")"), "boolean re-applied:\n{}", m.code);
+        // `id` came before the spread: the server HTML already holds the merged value.
+        assert!(!adopt.contains(".setAttribute(\"id\""), "earlier static skipped:\n{}", m.code);
+    }
+
+    #[test]
+    fn a_component_spread_is_adopted_as_properties() {
+        let m = emit_component(
+            "export default function Wrap(props){ return <div><Card {...props} title=\"t\"/></div>; }",
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        let adopt = &m.code[m.code.rfind(", true))").expect(&format!("spread as props:\n{}", m.code))..];
+        assert!(adopt.contains("setProp(") && adopt.contains("\"title\", \"t\")"), "later static wins:\n{}", m.code);
+    }
+
+    #[test]
     fn a_build_that_can_run_mid_hydration_is_wrapped_in_run_build() {
         // Regression (docs/HYDRATION.md §3.5): a component the hydrate backend can't adopt —
-        // here because it spreads props onto an element, which the adopt walk can't claim yet —
+        // here because it puts an island inside a `<p>`, which the parser would restructure —
         // falls to `RebuildIfServerChildren` and rebuilds on first paint. That rebuild runs
         // while `isHydrating()` is still set, so its fresh child islands must build, not adopt
         // DOM this component just created. Codegen brackets the build in `runBuild(() => …)`,
         // which clears the flag for the build's synchronous span.
         let m = emit_component(
-            "export default function Panel({ framed, children, ...rest }){ \
-             return framed ? <section {...rest}><div class=\"b\">{children}</div></section> : <div class=\"b\">{children}</div>; }",
+            "export default function Panel({ framed, children }){ \
+             return framed ? <p>a <Box/> {children}</p> : <div class=\"b\">{children}</div>; }",
         );
         // An unsupported shape is a *non-fatal* adopt error: it's reported (so the gap is
         // visible) but the module still emits — with this component demoted to
         // `RebuildIfServerChildren`.
         assert!(
-            m.errors.iter().any(|e| e.contains("spread props")),
-            "the spread makes it non-adoptable:\n{:?}",
+            m.errors.iter().any(|e| e.contains("inside <p>")),
+            "the island in a paragraph makes it non-adoptable:\n{:?}",
             m.errors,
         );
         // The RebuildIfServerChildren build is wrapped in runBuild.
