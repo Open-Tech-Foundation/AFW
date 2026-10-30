@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-10-30
+
 ### Fixed
 
 - Server bundles (prerender, API routes, loaders) alias each `@opentf/afw` export
