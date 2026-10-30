@@ -1606,6 +1606,45 @@
       justify-self: end;
     }
   }
+  /* Subscribe links: icons at the top of the index, a line under each post. */
+  .afwd-feed-links {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .afwd-feed-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--afw-border);
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--afw-text-muted);
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .afwd-feed-link:hover,
+  .afwd-feed-link:focus-visible {
+    color: var(--afw-accent);
+    border-color: var(--afw-accent);
+  }
+  .afwd-feed-icon {
+    flex: none;
+  }
+  .afwd-feed-inline {
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--afw-border);
+    font-size: 0.85rem;
+    color: var(--afw-text-muted);
+  }
+  .afwd-feed-inline a {
+    color: var(--afw-accent);
+  }
+
   .afwd-blog-back {
     display: inline-block;
     margin-bottom: 1.5rem;

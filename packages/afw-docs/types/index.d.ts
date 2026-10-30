@@ -21,6 +21,8 @@ export interface BlogLayoutProps extends ChildrenProps {
   frame?: boolean;
   indexPath?: string;
   siteUrl?: string;
+  /** Show RSS/Atom subscribe links on the index and under each post (default true). */
+  feeds?: boolean;
 }
 export interface NavbarProps {
   config?: DocsConfig;
@@ -64,3 +66,5 @@ export function PostCard(props: { post: BlogPost }): Node;
 export function PostBanner(props: { post: BlogPost } | Partial<BlogPost>): Node;
 export function PostMeta(props: { post: BlogPost } | Partial<BlogPost>): Node;
 export function ReadingTime(props: { minutes?: number }): Node;
+/** RSS and Atom subscribe links for the feeds under `base` (default "/blog"). */
+export function FeedLinks(props: { base?: string; variant?: "icons" | "inline" }): Node;

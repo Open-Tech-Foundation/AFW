@@ -34,6 +34,7 @@ import "./components/PostCard.jsx";
 import "./components/PostBanner.jsx";
 import "./components/PostMeta.jsx";
 import "./components/ReadingTime.jsx";
+import "./components/FeedLinks.jsx";
 
 export { createSearch } from "./search.js";
 
@@ -65,3 +66,4 @@ export { default as PostCard } from "./components/PostCard.jsx";
 export { default as PostBanner } from "./components/PostBanner.jsx";
 export { default as PostMeta } from "./components/PostMeta.jsx";
 export { default as ReadingTime } from "./components/ReadingTime.jsx";
+export { default as FeedLinks } from "./components/FeedLinks.jsx";

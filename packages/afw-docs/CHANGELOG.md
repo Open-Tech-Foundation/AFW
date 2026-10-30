@@ -76,6 +76,9 @@
 
 ### Added
 
+- **Feed subscribe links.** `BlogLayout` shows RSS and Atom links at the top of the blog
+  index and a "Subscribe: RSS · Atom" line under each post; `feeds={false}` turns them off.
+  The `FeedLinks` component (`variant="icons"` or `"inline"`) is exported for custom layouts.
 - **Drafts and scheduled posts.** A page with `draft: true`, or a `date` later than now,
   is left out of the post list, the feeds and the docs nav except under `esdev start`,
   where posts are marked **Draft**. `blogPostsPlugin`/`docsNavPlugin` take a `drafts`

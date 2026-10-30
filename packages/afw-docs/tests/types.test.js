@@ -66,7 +66,7 @@ test("published docs types support strict starters, virtual entries and checked 
       import {
         Callout, Card, Cards, Tabs, Steps, Table, CodeBlock, Tooltip, LastUpdated,
         NavbarLink, Sidebar, SidebarToggle, NavIcon, Toc, ThemeToggle, Search,
-        SearchTrigger, Breadcrumbs, Pagination, ReadingTime, PostCard, PostBanner,
+        SearchTrigger, Breadcrumbs, Pagination, ReadingTime, FeedLinks, PostCard, PostBanner,
         PostMeta, createSearch as rootSearch, type BlogPost, type DocsNavItem,
       } from "@opentf/afw-docs";
       import { defineDocsConfig } from "@opentf/afw-docs/config";
@@ -82,7 +82,7 @@ test("published docs types support strict starters, virtual entries and checked 
         <NavbarLink link={{label: "Docs", href: "/docs", external: false}}/>
         <Sidebar nav={nav}/><SidebarToggle/><NavIcon name="book"/><Toc/><ThemeToggle/>
         <Search/><SearchTrigger/><Breadcrumbs nav={nav}/><Pagination nav={nav}/>
-        <ReadingTime minutes={2}/><PostCard post={post}/><PostBanner post={post}/>
+        <ReadingTime minutes={2}/><FeedLinks base="/news" variant="inline"/><PostCard post={post}/><PostBanner post={post}/>
         <PostMeta author="Author" date="2026-10-03"/><PostBanner title="Title"/>
       </Cards>;
       async function query() {

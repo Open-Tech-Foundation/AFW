@@ -22,6 +22,7 @@ import Navbar from "./Navbar.jsx";
 import Footer from "./Footer.jsx";
 import Toc from "./Toc.jsx";
 import PostBanner from "./PostBanner.jsx";
+import FeedLinks from "./FeedLinks.jsx";
 import { editedAfterPublish } from "./post-dates.js";
 
 // Structured data for crawlers: the current post as a BlogPosting, emitted in
@@ -48,6 +49,8 @@ export default function BlogLayout(props) {
   const frame = props.frame !== false;
   const indexPath = props.indexPath || "/blog";
   const siteUrl = props.siteUrl || "";
+  // Subscribe links on the index and under each post; `feeds={false}` turns them off.
+  const feeds = props.feeds !== false;
 
   const post = posts.find((p) => p.path === router.pathname);
   // The post's own frontmatter `updated`, shown in the banner. Never git: see blog-posts-plugin.js.
@@ -67,12 +70,16 @@ export default function BlogLayout(props) {
         <PostBanner post={post} showUpdated />
         <RawHtml html={blogPostingJsonLd(post, siteUrl, editedIso || post.date)} />
         <article class="afwd-prose">{props.children}</article>
+        {feeds ? <FeedLinks base={indexPath} variant="inline" /> : null}
       </main>
       <Toc />
     </div>
   ) : (
     <div class="afwd-blog afwd-blog-index">
-      <main class="afwd-blog-main">{props.children}</main>
+      <main class="afwd-blog-main">
+        {feeds ? <FeedLinks base={indexPath} /> : null}
+        {props.children}
+      </main>
     </div>
   );
 

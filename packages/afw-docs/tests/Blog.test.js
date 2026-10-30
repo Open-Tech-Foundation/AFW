@@ -6,6 +6,7 @@ import { describe, expect, test } from "runtime:test";
 import { render } from "@opentf/afw-test";
 import PostList from "../components/PostList.jsx";
 import PostBanner from "../components/PostBanner.jsx";
+import FeedLinks from "../components/FeedLinks.jsx";
 
 const POSTS = [
   { slug: "new", path: "/blog/new", title: "Newest", description: "Fresh.", date: "2026-10-29", author: "Ada", authorAvatar: "/a.svg", cover: "/c.svg", readingTime: 8 },
@@ -79,5 +80,28 @@ describe("PostBanner", () => {
     const view = render(PostBanner, { post: { ...POSTS[0], draft: true } });
     await tick();
     expect(view.container.querySelector(".afwd-post-draft").textContent).toBe("Draft");
+  });
+});
+
+describe("FeedLinks", () => {
+  test("icon links to both feeds under the base, as plain anchors with accessible names", async () => {
+    const view = render(FeedLinks, { base: "/news/" });
+    await tick();
+    const nav = view.container.querySelector("nav.afwd-feed-links");
+    expect(nav.getAttribute("aria-label")).toBe("Subscribe");
+    const links = [...nav.querySelectorAll("a")];
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/news/rss.xml", "/news/atom.xml"]);
+    expect(links.map((a) => a.getAttribute("type"))).toEqual(["application/rss+xml", "application/atom+xml"]);
+    expect(links.map((a) => a.getAttribute("aria-label"))).toEqual(["Subscribe via RSS", "Subscribe via Atom"]);
+    expect(links.every((a) => a.querySelector("svg[aria-hidden='true']"))).toBe(true);
+    expect(view.container.querySelector("afw-link")).toBe(null);
+  });
+
+  test("the inline variant is one subscribe line, defaulting to /blog", async () => {
+    const view = render(FeedLinks, { variant: "inline" });
+    await tick();
+    const line = view.container.querySelector("p.afwd-feed-inline");
+    expect(line.textContent.replace(/\s+/g, " ").trim()).toBe("Subscribe: RSS · Atom");
+    expect([...line.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual(["/blog/rss.xml", "/blog/atom.xml"]);
   });
 });
