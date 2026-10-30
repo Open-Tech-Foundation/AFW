@@ -14,6 +14,10 @@ test("framework resolution selects the server entry only for server rendering", 
   } };
   for (const routes of [true, false]) {
     const plugin = afwPlugin({ routes });
+    // The host filter decides whether the handler runs at all.
+    const filter = plugin.resolve.filter.id;
+    expect(["@opentf/afw", "@opentf/afw/runtime"].every((id) => filter.test(id))).toBe(true);
+    expect(["@opentf/afw/server", "@opentf/afw-docs", "@opentf/web"].some((id) => filter.test(id))).toBe(false);
     for (const source of ["@opentf/afw", "@opentf/afw/runtime"]) {
       expect(await plugin.resolve.handler(source, "/app/shared.js", ctx)).toEqual({ id: "/pkg/server/index.js" });
       expect(await plugin.resolve.handler(source, "/app/shared.js", { ...ctx, platform: "browser" })).toBeNull();

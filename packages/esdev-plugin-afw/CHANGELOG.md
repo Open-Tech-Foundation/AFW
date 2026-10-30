@@ -30,6 +30,12 @@
   now) are left out of the route table in production builds, so their text reaches no
   bundle. `esdev start` keeps them. `isUnpublishedPage(path)` exposes the rule.
 
+### Fixed
+
+- In a server build, a plain JS module that imports `@opentf/afw` resolves to the
+  DOM-free `@opentf/afw/server` entry again. The resolver still matched the pre-rename
+  `@opentf/web` name, so such modules got the browser runtime.
+
 ## [0.4.0] - 2026-10-06
 
 ### Changed

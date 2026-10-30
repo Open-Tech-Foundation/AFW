@@ -71,7 +71,7 @@ export function createAfwPlugin({ target, mode = "spa", failOnError = false, onR
 // framework imports to the same DOM-free entry as compiled server components.
 function serverImports(target) {
   return {
-    filter: { id: /^@opentf\/web(?:\/runtime)?$/ },
+    filter: { id: /^@opentf\/afw(?:\/runtime)?$/ },
     async handler(source, importer, ctx) {
       if ((target ?? (ctx?.platform === "server" ? "ssg" : undefined)) !== "ssg") return null;
       return ctx.resolve("@opentf/afw/server", importer);
