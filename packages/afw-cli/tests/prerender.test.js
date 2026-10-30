@@ -70,3 +70,24 @@ test("article:* tags go on articles only: og:type article or a dated page, never
     expect(await page("guide")).toContain('property="article:modified_time" content="2026-10-01T00:00:00Z"');
   } finally { await discard(dir); }
 });
+
+test("a page with state prerenders: the compiler's @opentf/afw/signals import resolves", async () => {
+  const dir = await tempDir("signals-prerender");
+  try {
+    await writeTree(dir, {
+      "package.json": '{"type":"module"}',
+      "app/page.jsx": `export default function Home() { let n = $state(2); const d = $derived(n * 2); return <p id="n">{n} {d}</p>; }`,
+    });
+    const outDir = join(dir, "dist");
+    const result = await runPrerender({
+      root: dir,
+      pages: [join(dir, "app/page.jsx")],
+      afwEntry: join(root, "packages/afw/index.js"),
+      afwc: join(root, "target/debug/afwc"),
+      shellHtml: '<html><head></head><body><div id="app" data-afw-hydrate></div></body></html>',
+      outDir, baseUrl: "https://example.com",
+    });
+    expect(result.failed).toEqual([]);
+    expect(await file(join(outDir, "index.html")).text()).toContain('<p id="n"><!--$-->2<!--/--> <!--$-->4<!--/--></p>');
+  } finally { await discard(dir); }
+});

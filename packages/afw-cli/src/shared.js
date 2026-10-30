@@ -369,6 +369,26 @@ export async function runLlmsFiles(root, appDir, pages, config, siteDir, baseUrl
 }
 
 /**
+ * Resolve-aliases pinning every `@opentf/afw` import of a server bundle to the package
+ * beside `afwEntry` (its `index.js`), one entry per subpath in the package's `exports`.
+ * An alias also covers the subpaths under its key, so a lone `"@opentf/afw": index.js`
+ * turned the compiler's `@opentf/afw/signals` import into `index.js/signals`. Longer keys
+ * come first; types-only exports (`./jsx-runtime`) have no runtime file to alias.
+ */
+export async function afwAliases(afwEntry) {
+  const dir = dirname(afwEntry);
+  const { exports = {} } = JSON.parse(await readText(join(dir, "package.json")));
+  const aliases = {};
+  for (const [key, target] of Object.entries(exports).sort((a, b) => b[0].length - a[0].length)) {
+    if (key === "." || !key.startsWith("./")) continue;
+    const file = typeof target === "string" ? target : target?.default ?? target?.import;
+    if (typeof file === "string" && !file.endsWith(".d.ts")) aliases[`@opentf/afw/${key.slice(2)}`] = join(dir, file);
+  }
+  aliases["@opentf/afw"] = afwEntry;
+  return aliases;
+}
+
+/**
  * Discover file-based routes under `app/`: every page/layout and the 404. This list is
  * what gets prerendered, so drafts and scheduled Markdown pages (`isUnpublishedPage`)
  * are left out: no HTML, no sitemap entry, no `llms.txt` line.
@@ -584,12 +604,11 @@ export async function emitApiBundle({ root, appDir, afwEntry, exclude, i18n, out
   const entry = join(tmp, "api-entry.js");
   await writeFile(entry, apiEntrySource(discovered, appDir, i18n));
 
-  const serverApi = join(dirname(afwEntry), "server", "index.js");
   await mkdirp(outDir);
   const bundle = await build({
     input: entry,
     platform: "node",
-    resolve: { alias: { "@opentf/afw/server": serverApi, "@opentf/afw": afwEntry }, extensions: EXTENSIONS },
+    resolve: { alias: await afwAliases(afwEntry), extensions: EXTENSIONS },
     external: (id) => !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("@opentf/afw"),
   });
   try {
@@ -636,12 +655,11 @@ export async function emitLoaderBundle({ root, appDir, afwEntry, exclude, i18n, 
   const entry = join(tmp, "loaders-entry.js");
   await writeFile(entry, loaderEntrySource(files, appDir, i18n));
 
-  const serverApi = join(dirname(afwEntry), "server", "index.js");
   await mkdirp(outDir);
   const bundle = await build({
     input: entry,
     platform: "node",
-    resolve: { alias: { "@opentf/afw/server": serverApi, "@opentf/afw": afwEntry }, extensions: EXTENSIONS },
+    resolve: { alias: await afwAliases(afwEntry), extensions: EXTENSIONS },
     external: (id) => !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("@opentf/afw"),
   });
   try {
@@ -727,11 +745,10 @@ export async function buildServerBundle({
   const entry = join(tmp, "ssg-entry.js");
   await writeFile(entry, serverEntrySource(pages, i18n));
 
-  const serverApi = join(dirname(afwEntry), "server", "index.js");
   const bundle = await build({
     input: entry,
     resolve: {
-      alias: { "@opentf/afw/server": serverApi, "@opentf/afw": afwEntry },
+      alias: await afwAliases(afwEntry),
       extensions: EXTENSIONS,
     },
     // The runtime guards its dev diagnostics on `process.env.NODE_ENV`, and there is

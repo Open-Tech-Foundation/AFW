@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Server bundles (prerender, API routes, loaders) alias each `@opentf/afw` export
+  (`/signals`, `/server`, `/runtime`, …) to its file, from the package's `exports`.
+  The single `"@opentf/afw": index.js` alias also covers subpaths under esdev 0.25, so a
+  page with `$state` failed to prerender: "cannot resolve @opentf/afw/signals … names no
+  module".
+
 ## [1.31.0] - 2026-10-30
 
 

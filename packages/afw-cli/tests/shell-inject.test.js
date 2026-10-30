@@ -5,6 +5,7 @@
 import { describe, expect, test } from "./harness.js";
 
 import {
+  afwAliases,
   injectHead,
   injectMarkup,
   searchProviderWarning,
@@ -203,5 +204,20 @@ describe("searchProviderWarning", () => {
     expect(searchProviderWarning({ docs: { search: { provider: "afw" } } })).toBe(null);
     expect(searchProviderWarning({ docs: {} })).toBe(null);
     expect(searchProviderWarning(undefined)).toBe(null);
+  });
+});
+
+describe("afwAliases", () => {
+  test("pins every runtime export of the package, longer subpaths first", async () => {
+    const root = new URL("../../afw/index.js", import.meta.url).pathname;
+    const aliases = await afwAliases(root);
+    const keys = Object.keys(aliases);
+    expect(aliases["@opentf/afw"]).toBe(root);
+    expect(aliases["@opentf/afw/signals"].endsWith("/afw/core/signals.js")).toBe(true);
+    expect(aliases["@opentf/afw/server"].endsWith("/afw/server/index.js")).toBe(true);
+    expect(keys.indexOf("@opentf/afw/server/adapters/node") < keys.indexOf("@opentf/afw/server")).toBe(true);
+    expect(keys.at(-1)).toBe("@opentf/afw");
+    // Types-only exports have no runtime file.
+    expect("@opentf/afw/jsx-runtime" in aliases).toBe(false);
   });
 });
