@@ -111,7 +111,7 @@ a page can set `openGraph.image` without dropping a layout's `openGraph.siteName
 | `description` | `<meta name="description">` | Also feeds OG/Twitter when those omit their own |
 | `canonical` | `<link rel="canonical">` | Relative paths become absolute when `site.url` is set |
 | `robots` | `<meta name="robots">` | String (`"noindex, nofollow"`) or `{ index, follow, noarchive, … }` |
-| `openGraph` | `og:*` tags | `title`, `description`, `type`, `url`, `image`, `siteName` |
+| `openGraph` | `og:*` tags | `title`, `description`, `type`, `url`, `image`, `siteName`, `locale`, `alternateLocale` |
 | `twitter` | `twitter:*` tags | `card`, `title`, `description`, `image` — falls back to OG. `card` auto-upgrades to `summary_large_image` when an image exists and `card` is omitted |
 | `jsonLd` | `<script type="application/ld+json">` | Object or pre-serialized string |
 | `meta` | Extra `<meta>` tags | `[{ name \| property \| httpEquiv, content }]` |

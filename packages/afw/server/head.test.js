@@ -89,6 +89,14 @@ describe("resolveMetadata (layout → page → generateMetadata merge)", () => {
 });
 
 describe("renderHead", () => {
+  test("emits og:locale and its alternates", () => {
+    const html = renderHead({ title: "T", openGraph: { locale: "en_US", alternateLocale: ["fr_FR", "de_DE"] } }, {});
+    expect(html).toContain('<meta property="og:locale" content="en_US">');
+    expect(html).toContain('<meta property="og:locale:alternate" content="fr_FR">');
+    expect(html).toContain('<meta property="og:locale:alternate" content="de_DE">');
+    expect(renderHead({ title: "T" }, {})).not.toContain("og:locale");
+  });
+
   test("emits title, description, canonical, OG and Twitter tags", () => {
     const html = renderHead(
       { title: "About", description: "desc", canonical: "/about" },

@@ -134,6 +134,8 @@ export function renderHead(meta = {}, { path = "/", baseUrl = "", managed = fals
   push(metaTag("property", "og:url", og.url ? absUrl(baseUrl, og.url) : canonical));
   push(metaTag("property", "og:image", ogImage));
   push(metaTag("property", "og:site_name", og.siteName));
+  push(metaTag("property", "og:locale", og.locale));
+  for (const alt of [].concat(og.alternateLocale ?? [])) push(metaTag("property", "og:locale:alternate", alt));
 
   // Twitter Card (falls back to Open Graph / top-level values).
   const tw = isPlainObject(meta.twitter) ? meta.twitter : {};

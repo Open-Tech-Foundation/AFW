@@ -15,6 +15,8 @@
 
 ### Added
 
+- `openGraph.locale` and `openGraph.alternateLocale` (string or array) metadata fields,
+  rendered as `og:locale` and `og:locale:alternate`; no more `meta: [...]` escape hatch.
 - `ssgAttrs(entries)` in the SSG runtime: merges an element's spread objects and named
   attributes (last wins) into one attribute string, skipping handlers and `ref`.
 - `hydratableNode(build, adopt)` and `adoptedChildren()`: JSX values passed as data
