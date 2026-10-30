@@ -210,6 +210,25 @@ const CASES = [
     })()`,
   },
   {
+    name: "Nested fragment adopts inline and its conditional stays live",
+    setup: `let on = $state(true);`,
+    body: `<div class="row"><><input class="probe" value="" /><span class="chip">Two</span>{on && <span class="chip extra">Three</span>}</><button class="toggle" onclick={() => (on = !on)}>t</button></div>`,
+    props: {},
+    noSlot: true,
+    expectMarkup: [/<div class="row"><input class="probe"/],
+    preHydrate: `document.querySelector("input.probe").value = "typed early";`,
+    interact: `(async () => {
+      const input = document.querySelector("input.probe");
+      document.querySelector("button.toggle").click();
+      await new Promise((r) => setTimeout(r, 30));
+      const hidden = !document.querySelector(".extra");
+      document.querySelector("button.toggle").click();
+      await new Promise((r) => setTimeout(r, 30));
+      return hidden && !!document.querySelector(".extra") && input.value === "typed early"
+        && document.querySelectorAll("input.probe").length === 1;
+    })()`,
+  },
+  {
     name: "Element spread adopts in place, keeps the later attribute and wires its handler",
     setup: `let clicks = $state(0); const attrs = { id: "spread", class: "from-spread", "data-x": "1", onclick: () => clicks++ };`,
     body: `<section {...attrs} class="b"><input class="probe" value="" /><p class="count">{clicks}</p></section>`,

@@ -28,6 +28,9 @@
 
 ### Fixed
 
+- A `<>…</>` nested inside an element or a slot no longer makes its component rebuild on
+  hydration ("fragment / multi-node root is not supported yet"). Its children are adopted
+  inline off the parent's cursor, the way the server writes them.
 - Components with spread props (`<div {...rest}/>`, `<Card {...props}/>`) now adopt
   their server HTML on hydration instead of rebuilding it on first paint (a visible
   flash). The spread is re-applied reactively, wiring any handlers it carries, and an

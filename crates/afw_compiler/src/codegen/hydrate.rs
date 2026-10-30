@@ -781,11 +781,23 @@ impl<'a> Emitter<'a> {
     /// node, so it stays unsupported (a safe rebuild fallback) in `emit_node`.
     fn emit_root_view(&mut self, cur: &str, view: &ViewNode) {
         if let ViewNode::Fragment(children) = view {
-            for child in children {
-                self.emit_node(cur, child);
-            }
+            self.emit_children(cur, children);
         } else {
             self.emit_node(cur, view);
+        }
+    }
+
+    /// Adopt a run of sibling nodes off `cur`. A nested `<>…</>` contributes its children
+    /// inline, with no markers of its own (the SSG backend concatenates them and CSR appends
+    /// them in place), so it is flattened into the run rather than claimed as a node.
+    fn emit_children(&mut self, cur: &str, children: &[ViewNode]) {
+        for child in children {
+            match child {
+                ViewNode::Fragment(inner) => self.emit_children(cur, inner),
+                _ => {
+                    self.emit_node(cur, child);
+                }
+            }
         }
     }
 
@@ -828,9 +840,7 @@ impl<'a> Emitter<'a> {
                     let child_cur = self.fresh("__c");
                     self.uses.cursor = true;
                     self.line(format!("const {child_cur} = cursor({var});"));
-                    for child in children {
-                        self.emit_node(&child_cur, child);
-                    }
+                    self.emit_children(&child_cur, children);
                 }
                 var
             }
@@ -1138,9 +1148,7 @@ impl<'a> Emitter<'a> {
         self.uses.hydrate_slot = true;
         let slot_cur = self.fresh("__sc");
         let saved = std::mem::take(&mut self.lines);
-        for child in children {
-            self.emit_node(&slot_cur, child);
-        }
+        self.emit_children(&slot_cur, children);
         let body = std::mem::replace(&mut self.lines, saved);
         self.line(format!("hydrateSlot({host}, ({slot_cur}) => {{"));
         for l in &body {
@@ -1776,6 +1784,18 @@ mod tests {
         );
         // No standalone `hydrate` export — a component hydrates via its class, not a factory.
         assert!(!m.code.contains("export function hydrate"), "no page factory:\n{}", m.code);
+    }
+
+    #[test]
+    fn a_nested_fragment_is_adopted_inline() {
+        // `<div><>…</></div>`: the fragment adds no node or marker of its own, so its
+        // children are claimed in sequence off the div's cursor.
+        let m = emit_component(
+            "export default function F(){ let on=$state(true); \
+             return <div><><span>One</span><>{on && <i>x</i>}</></><button onclick={() => on = !on}>t</button></div>; }",
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("claimElement(__c2, \"span\")"), "fragment child claimed off the div:\n{}", m.code);
     }
 
     #[test]
