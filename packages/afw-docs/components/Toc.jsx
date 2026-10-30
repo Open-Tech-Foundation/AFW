@@ -8,6 +8,9 @@
 
 import { isHydrating, onMount, router } from "@opentf/afw";
 
+const sameOutline = (a, b) =>
+  a.length === b.length && a.every((h, i) => h.id === b[i].id && h.text === b[i].text && h.sub === b[i].sub);
+
 export default function Toc() {
   const fromPage = () =>
     (router.toc ?? [])
@@ -38,9 +41,12 @@ export default function Toc() {
     const hs = Array.from(root.querySelectorAll("h2[id], h3[id]"));
     const page = fromPage();
     if (!(initial && items.length > 0)) {
-      items = page.length > 0
+      const next = page.length > 0
         ? page
         : hs.map((h) => ({ id: h.id, text: h.textContent || "", sub: h.tagName === "H3" }));
+      // Only a real change replaces the list: the router publishing the same headings
+      // (at startup, after the served outline was adopted) must not rebuild it.
+      if (!sameOutline(items, next)) items = next;
     }
     if (observer) observer.disconnect();
     observer = new IntersectionObserver(
@@ -57,7 +63,7 @@ export default function Toc() {
     return () => observer && observer.disconnect();
   });
 
-  // Rebuild when the route changes (content swaps under the same layout). Effects run at
+  // Rebuild when the route or its headings change (content swaps under the same layout). Effects run at
   // construction — before `onMount` — so the first run would schedule a second, redundant
   // build of the same headings: on first paint the outline was built once by `onMount` and
   // then torn down and rebuilt a frame later, a visible flicker on every docs page. Skip that
@@ -65,6 +71,8 @@ export default function Toc() {
   let routed = false;
   $effect(() => {
     router.pathname;
+    // A hot refresh of the page publishes its new headings without a navigation.
+    router.toc;
     if (!routed) {
       routed = true;
       return;

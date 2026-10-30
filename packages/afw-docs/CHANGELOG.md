@@ -35,6 +35,9 @@
 
 ### Fixed
 
+- `<Toc>` follows `router.toc`, so a dev refresh that edits a page's headings updates the
+  outline, and it replaces the list only when the headings actually differ, so the router
+  publishing the same outline at startup never rebuilds the served one.
 - `LastUpdated` renders its date with a conditional view instead of an early `return null`,
   which the compiler now rejects and which never updated when `date` changed.
 - A post's BlogPosting JSON-LD names the site as `publisher` (`config.title`, with
