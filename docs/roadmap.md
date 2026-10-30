@@ -12,13 +12,13 @@
 * [x] Compiler enforcement.
 * [x] Children/Slot support (Light DOM).
 * [x] Tailwind CSS v4 integration.
-* [ ] Fragment support (<>...</>).
+* [x] Fragment support (<>...</>).
 
 ## Phase 3: Advanced Features
 * [ ] Conditional rendering helper.
 * [ ] List rendering helper (keyed reconcile).
 * [ ] Shadow DOM support for style isolation.
-* [ ] Server-Side Rendering (SSR) / Static Site Generation (SSG).
+* [x] Server-Side Rendering (SSR) / Static Site Generation (SSG). Streaming is tracked below.
 
 ## API Routes — see [docs/API.md](API.md)
 * [x] Phase A: file-based `app/api/**` `Request→Response` handlers, method exports, `[param]`/`[...rest]`, nested `_middleware`, runtime handlers and API-bundle emission (`dist/server/api.js`); native esdev fullstack orchestration remains to be verified, Node/Fetch adapters.
@@ -44,7 +44,8 @@
 
 ## Known issues
 Open items carried over from the 2026-10 site and HMR audits.
-* [ ] SSG omits spread attributes and multi-node (fragment) roots; the client restores them after hydration.
+* [x] SSG omits spread attributes and multi-node (fragment) roots. Both now render on the server.
+* [ ] Hydration: a view with spread props still falls back to a clean client build instead of adopting the server DOM.
 * [x] `@opentf/afw-docs` `Tabs`: add tab/tabpanel roles, selection state and arrow-key navigation.
 * [x] `@opentf/afw-docs` `BlogLayout`: show "Last updated" only when the update is later than publication, not merely different.
 * [x] Portal guide's custom overlay demo lacks modal semantics, focus containment, Escape handling and focus restoration.

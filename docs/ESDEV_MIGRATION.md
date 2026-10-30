@@ -43,7 +43,7 @@ Checks run for this verification:
 
 - Original Markdown/MDX source maps (current maps target generated JSX).
 - MDX 404 routes are rejected; use `404.jsx`/`404.tsx`.
-- SSG omits spread attributes and multi-node roots (warned during builds).
+- Views with spread props render on the server but are rebuilt on the client instead of adopted (warned during builds).
 - Benchmarks: the published tables predate the migration. Re-run all four engines
   under the same conditions before replacing them.
 

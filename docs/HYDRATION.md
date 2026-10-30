@@ -581,8 +581,6 @@ whitespace nodes, double mounts). The bar:
   headings at `onMount`, so the server ships an empty `<nav>` and the outline pops in (CLS).
   Fixing it means feeding the page's `toc` export in as data rather than reading the DOM —
   a data-hydration concern, not a DOM one.
-- **Fragment / multi-node *route* roots** — a page/layout whose view root is a fragment still
-  falls back to a clean CSR build (component fragment roots now adopt, §3.2).
 - MPA-only build optimization: when `nav: "mpa"`, components never client-build, so the
   build arm is dead and `hydrate.rs` could emit pure-adopt components (smaller bundle).
 
