@@ -68,8 +68,8 @@ which case components only ever adopt (the build arm is dead and can later be dr
 > place via `hydrateHole`) all hydrate, as do **JSX values passed as data** — a JSX prop value,
 > JSX inside module-level or component-local data (`const tabs = [{ content: <A/> }]`), and a
 > component's children read as a value — which adopt wherever they are rendered (2.1f).
-> **Not yet:** spread props in a view — it falls back to a clean CSR build
-> (`RebuildIfServerChildren`), which preserves the slotted children (§3.5).
+> Spread props adopt too: the server serializes the merged attributes, and the adopt walk
+> re-applies the spread in an effect, then any attribute written after it.
 
 | Mode | Nav | First paint | Subsequent nav | Components |
 |---|---|---|---|---|
