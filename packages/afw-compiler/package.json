@@ -1,7 +1,7 @@
 {
   "name": "@opentf/afw-compiler",
   "version": "0.20.0",
-  "description": "AFW native toolchain (afwc) — component compilation and documentation indexing in one platform binary.",
+  "description": "afwc, the AFW compiler and docs indexer, as one native binary.",
   "type": "module",
   "scripts": {
     "build": "cp ../../LICENSE LICENSE"
@@ -19,10 +19,12 @@
     "esdev": ">=0.16.0"
   },
   "keywords": [
+    "afw",
     "opentf",
     "compiler",
     "jsx",
     "web-components",
+    "rust",
     "ssg"
   ],
   "repository": {
@@ -30,7 +32,7 @@
     "url": "https://github.com/Open-Tech-Foundation/afw.git",
     "directory": "packages/afw-compiler"
   },
-  "homepage": "https://github.com/Open-Tech-Foundation/afw#readme",
+  "homepage": "https://afw.opentechf.org/docs",
   "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
   "license": "MIT",
   "publishConfig": {

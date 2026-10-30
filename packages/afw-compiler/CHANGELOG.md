@@ -5,6 +5,8 @@
 
 ### Changed
 
+- Package metadata: the npm description matches the README, `homepage` points at
+  https://afw.opentechf.org/docs instead of the GitHub README, and the keywords are refreshed.
 - **Heading ids follow github-slugger**, the convention GitHub, rehype-slug, Docusaurus
   and VitePress use: punctuation is dropped rather than turned into `-`, and each space
   becomes `-` (`mongodb+srv` → `#mongodbsrv`, `FsFile — the file(path) handle` →
