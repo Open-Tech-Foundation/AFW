@@ -32,7 +32,7 @@ export default function Navbar(props) {
         <div class="afwd-navbar-lead">
           <SidebarToggle />
           <Link href={config.homeUrl || "/"} class="afwd-navbar-brand">
-            {config.logo ? <img src={config.logo} alt="" class="afwd-navbar-logo" /> : null}
+            {config.logo ? <img src={config.logo} alt="" class="afwd-navbar-logo" width="28" height="28" /> : null}
             <span class="afwd-navbar-title">{config.title || "Docs"}</span>
             {config.version ? <span class="afwd-navbar-version">{config.version}</span> : null}
           </Link>

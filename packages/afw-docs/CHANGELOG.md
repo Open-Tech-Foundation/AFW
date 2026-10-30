@@ -35,6 +35,9 @@
 
 ### Fixed
 
+- A post's BlogPosting JSON-LD names the site as `publisher` (`config.title`, with
+  `config.logo`) and the post page as `mainEntityOfPage`, as Google's article guidelines ask.
+- The navbar logo has `width`/`height`, so the header no longer shifts while it loads.
 - Post covers and author avatars have empty `alt` text. The title and author name sit
   right beside them, so screen readers read each one once.
 - **Blog posts no longer show a git date as their "Last updated".** A post's updated date

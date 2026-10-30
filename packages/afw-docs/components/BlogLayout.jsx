@@ -27,18 +27,27 @@ import { editedAfterPublish } from "./post-dates.js";
 
 // Structured data for crawlers: the current post as a BlogPosting, emitted in
 // the body (JSON-LD is discovered wherever it sits). `siteUrl` (optional site
-// origin) absolutizes the post/cover URLs. Fields the post lacks are omitted.
-function blogPostingJsonLd(post, siteUrl, dateModified) {
+// origin) absolutizes the post/cover URLs. Fields the post lacks are omitted. The
+// site (`config.title`, `config.logo`) is the publisher, as Google's article
+// guidelines ask.
+function blogPostingJsonLd(post, siteUrl, dateModified, config = {}) {
   const base = (siteUrl || "").replace(/\/+$/, "");
   const abs = (p) => (p ? base + p : undefined);
   const article = { "@context": "https://schema.org", "@type": "BlogPosting" };
   if (post.title) article.headline = post.title;
   if (post.description) article.description = post.description;
-  if (post.path) article.url = abs(post.path) || post.path;
+  if (post.path) {
+    article.url = abs(post.path) || post.path;
+    article.mainEntityOfPage = { "@type": "WebPage", "@id": article.url };
+  }
   if (post.cover) article.image = abs(post.cover) || post.cover;
   if (post.date) article.datePublished = post.date;
   if (dateModified) article.dateModified = dateModified;
   if (post.author) article.author = { "@type": "Person", name: post.author };
+  if (config.title) {
+    article.publisher = { "@type": "Organization", name: config.title };
+    if (config.logo) article.publisher.logo = { "@type": "ImageObject", url: abs(config.logo) || config.logo };
+  }
   const json = JSON.stringify(article).replace(/</g, "\\u003c");
   return `<script type="application/ld+json">${json}</script>`;
 }
@@ -68,7 +77,7 @@ export default function BlogLayout(props) {
           ← {config.title ? `${config.title} Blog` : "Blog"}
         </Link>
         <PostBanner post={post} showUpdated />
-        <RawHtml html={blogPostingJsonLd(post, siteUrl, editedIso || post.date)} />
+        <RawHtml html={blogPostingJsonLd(post, siteUrl, editedIso || post.date, config)} />
         <article class="afwd-prose">{props.children}</article>
         {feeds ? <FeedLinks base={indexPath} variant="inline" /> : null}
       </main>

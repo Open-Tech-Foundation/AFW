@@ -7,6 +7,8 @@ import { render } from "@opentf/afw-test";
 import PostList from "../components/PostList.jsx";
 import PostBanner from "../components/PostBanner.jsx";
 import FeedLinks from "../components/FeedLinks.jsx";
+import BlogLayout from "../components/BlogLayout.jsx";
+import { setRouteState } from "@opentf/afw";
 
 const POSTS = [
   { slug: "new", path: "/blog/new", title: "Newest", description: "Fresh.", date: "2026-10-29", author: "Ada", authorAvatar: "/a.svg", cover: "/c.svg", readingTime: 8 },
@@ -103,5 +105,23 @@ describe("FeedLinks", () => {
     const line = view.container.querySelector("p.afwd-feed-inline");
     expect(line.textContent.replace(/\s+/g, " ").trim()).toBe("Subscribe: RSS · Atom");
     expect([...line.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual(["/blog/rss.xml", "/blog/atom.xml"]);
+  });
+});
+
+describe("BlogLayout structured data", () => {
+  test("a post's BlogPosting names the site as publisher and the page as its main entity", async () => {
+    setRouteState({ pathname: "/blog/new" });
+    const view = render(BlogLayout, {
+      posts: POSTS, frame: false, siteUrl: "https://example.com",
+      config: { title: "Example", logo: "/logo.svg" },
+    });
+    await tick();
+    const ld = JSON.parse(view.container.querySelector('script[type="application/ld+json"]').textContent);
+    expect(ld.publisher).toEqual({ "@type": "Organization", name: "Example", logo: { "@type": "ImageObject", url: "https://example.com/logo.svg" } });
+    expect(ld.mainEntityOfPage).toEqual({ "@type": "WebPage", "@id": "https://example.com/blog/new" });
+    expect(ld.image).toBe("https://example.com/c.svg");
+    // The index carries the subscribe icons; the post carries the inline line.
+    expect(view.container.querySelector(".afwd-feed-inline")).not.toBe(null);
+    setRouteState({ pathname: "/" });
   });
 });
