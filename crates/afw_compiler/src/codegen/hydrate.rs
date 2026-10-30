@@ -1553,7 +1553,7 @@ mod tests {
         // and leaves the host hoisted out of it and empty.
         let m = emit("export default function P(){ let n=$state(0); return <p>a <Box/> {n}</p>; }");
         assert!(!m.is_complete());
-        assert!(m.errors[0].contains("a component inside <p>"), "{:?}", m.errors);
+        assert!(m.errors[0].contains("component <Box> inside <p>"), "{:?}", m.errors);
     }
 
     #[test]

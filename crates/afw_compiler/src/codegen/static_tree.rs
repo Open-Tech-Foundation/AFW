@@ -522,11 +522,13 @@ fn table_text_err(ctx: Ctx) -> String {
     )
 }
 
-fn node_label(node: &ViewNode) -> &'static str {
+/// Names the node in a diagnostic. A component is named by its tag, so a build with many
+/// MDX pages says which component in which paragraph to move.
+fn node_label(node: &ViewNode) -> String {
     match node {
-        ViewNode::Component { .. } => "a component",
-        ViewNode::Children => "a {children} slot",
-        _ => "dynamic content",
+        ViewNode::Component { name, .. } => format!("component <{name}>"),
+        ViewNode::Children => "a {children} slot".into(),
+        _ => "dynamic content".into(),
     }
 }
 
@@ -941,7 +943,7 @@ mod tests {
         // The component's *own* view may start with a block element, which closes the
         // `<p>` and hoists the host out of it — leaving the walk nothing to claim.
         let tree = wrap(vec![el("p", vec![], vec![text("a "), component("Box"), text(" b")])]);
-        assert!(reparse_hazard(&tree).is_some_and(|r| r.contains("a component inside <p>")));
+        assert!(reparse_hazard(&tree).is_some_and(|r| r.contains("component <Box> inside <p>")));
         // …but the same island as a sibling of the paragraph is fine.
         let sibling = wrap(vec![el("p", vec![], vec![text("a")]), component("Box")]);
         assert_eq!(reparse_hazard(&sibling), None);

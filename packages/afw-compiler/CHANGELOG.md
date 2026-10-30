@@ -22,6 +22,9 @@
 
 ### Fixed
 
+- The "can't be adopted" hydration warning names the component it means
+  (`component <Card> inside <p>`) instead of "a component", so an MDX page that puts a
+  component inline in a paragraph points straight at it.
 - SSG renders spread props (`<div {...rest}/>`, `<Card {...props}/>`) instead of dropping
   the element's attributes or the whole component from the served HTML. An element with a
   spread merges all its attributes at runtime in source order, so a later attribute
