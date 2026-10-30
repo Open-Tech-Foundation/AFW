@@ -74,7 +74,7 @@ AFW component functions are **executed once** during initialization. This "Init-
 
 #### 2.6.1 Static vs. Reactive Conditionals
 Top-level `if` statements and ternaries are **static**. They are evaluated only once at mount.
-- **Static Pattern**: `if (!user) return <Login />` will never switch to the main layout even if `user` becomes truthy later.
+- **Early returns are a compile error**: `if (!user) return <Login />; return <Main />;` is rejected at the early `return`. Only the final top-level `return` is the view; an earlier one would be evaluated once and its result discarded.
 - **Reactive Pattern**: To switch layouts reactively, return a stable root and use inline conditionals: `return <div>{user ? <Main /> : <Login />}</div>`.
 
 #### 2.6.2 Variable Declarations

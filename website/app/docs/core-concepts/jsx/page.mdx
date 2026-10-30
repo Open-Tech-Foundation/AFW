@@ -269,8 +269,8 @@ return user ? <Dashboard user={user} /> : <Login />;
 <ConditionalDemo />
 
 <Callout type="warning" title="Init-once traps">
-  Conditionals written **outside** JSX holes — `if (!user) return <Login />`, or JSX
-  cached in a `const` — run once at first connect and never flip. Put show/hide logic
+  JSX cached in a `const` outside a JSX hole runs once at first connect and never
+  flips, and an early `if (!user) return <Login />` is a compile error. Put show/hide logic
   **inside** JSX braces or a single conditional `return`. See
   [Templating — Init-once vs reactive](/docs/core-concepts/templating#init-once-vs-reactive-conditionals).
 </Callout>
@@ -384,7 +384,7 @@ These are valid JavaScript but not supported (or not reactive) in AFW JSX:
 | --- | --- |
 | `<Foo.Bar />` member components | No static Custom Element tag — import `Bar` directly |
 | `ref={(el) => …}` callback refs | Use `$ref` + `onMount` / `$effect` / `$expose` |
-| `if (cond) return <A />` guards | Init-once — not a reactive region |
+| `if (cond) return <A />` guards | Compile error: only the final `return` is the view |
 | `const view = cond ? <A/> : <B/>` then `{view}` | JSX cached in a local — frozen at connect |
 | JSX built in a loop but never returned | Component must **return** its view as JSX |
 | Computed destructuring keys `{ [key]: val }` | Props must use static identifier keys |

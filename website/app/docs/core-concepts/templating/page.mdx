@@ -77,15 +77,19 @@ truthy mounts it again on the next change:
 These patterns read signals **once** during initialization. Changing the signal later does
 **not** swap the UI.
 
-Early return guard — frozen at first connect:
+Early return guard. This is a compile error ("returns before its view"): a component's
+body runs once, so only its final `return` is rendered, and an earlier one would be
+discarded:
 
 ```jsx
 export default function Dashboard() {
   let user = $state(null);
-  if (!user) return <Login />; // ❌ never flips when user logs in
+  if (!user) return <Login />; // ❌ compile error
   return <MainApp user={user} />;
 }
 ```
+
+Write the choice into the view instead: `return user ? <MainApp user={user} /> : <Login />;`.
 
 JSX cached in a local — builders run once, branch is fixed:
 
@@ -97,23 +101,11 @@ export default function Dashboard() {
 }
 ```
 
-Separate top-level `return` paths — the compiler builds the view from a single return
-expression; guard `return`s in `if` blocks do not become a reactive switch:
-
-```jsx
-export default function Dashboard() {
-  let user = $state(null);
-  if (user) {
-    return <MainApp user={user} />; // ❌ not a reactive region
-  }
-  return <Login />;
-}
-```
 
 <Callout type="warning" title="Rule of thumb">
   If the conditional must react to `$state`, write it as an **inline JSX hole** or as a
-  **single `return` whose branches are JSX** (`return cond ? <A/> : <B/>`). Do not guard
-  with `if (…) return …` or cache JSX in a variable.
+  **single `return` whose branches are JSX** (`return cond ? <A/> : <B/>`). Do not cache
+  JSX in a variable; an early `if (…) return …` doesn't compile.
 </Callout>
 
 <Callout type="tip" title="Stable root for layout chrome">
