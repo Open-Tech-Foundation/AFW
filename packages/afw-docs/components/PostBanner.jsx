@@ -8,11 +8,11 @@ export default function PostBanner(props) {
   return (
     <header class="afwd-post-banner">
       {post.cover ? (
-        <img class="afwd-post-cover" src={post.cover} alt={post.title} />
+        <img class="afwd-post-cover" src={post.cover} alt="" />
       ) : null}
       <h1 class="afwd-post-title">{post.title}</h1>
       {post.description ? <p class="afwd-post-desc">{post.description}</p> : null}
-      <PostMeta post={post} />
+      <PostMeta post={post} showUpdated={props.showUpdated} />
       {post.tags && post.tags.length ? (
         <div class="afwd-post-tags">
           {post.tags.map((tag) => (

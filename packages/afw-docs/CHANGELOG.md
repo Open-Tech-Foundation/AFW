@@ -5,6 +5,13 @@
 
 ### Changed
 
+- **The blog index leads with the newest post** as a full-width hero card; the rest are
+  compact rows with a thumbnail beside the text. `<PostList featured={false}>` lists
+  them all as rows.
+- A post card reads title, excerpt, then the author · date · reading-time row, and its
+  title is an `<h2>`, so the index has a heading per post.
+- The post banner shows "Updated …" beside the publish date when the frontmatter
+  `updated` is a later day. The separate "Last updated" line under the post is gone.
 - Package metadata: the npm description matches the README, `homepage` points at
   https://afw.opentechf.org/packages/afw-docs instead of the GitHub README, and the keywords are refreshed.
 - Project renamed **OTF Web → AFW — App Framework for the Web**. All package,
@@ -28,6 +35,8 @@
 
 ### Fixed
 
+- Post covers and author avatars have empty `alt` text. The title and author name sit
+  right beside them, so screen readers read each one once.
 - **Blog posts no longer show a git date as their "Last updated".** A post's updated date
   is its frontmatter `updated` only (`lastUpdatedPlugin`/`loadLastUpdated` take `blogDir`),
   so a rename or reformat commit no longer dates every post to that day.

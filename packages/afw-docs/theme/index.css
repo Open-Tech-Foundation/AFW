@@ -1654,8 +1654,12 @@
   }
   .afwd-reading-time,
   .afwd-post-author,
-  .afwd-post-date {
+  .afwd-post-date,
+  .afwd-post-updated {
     white-space: nowrap;
+  }
+  .afwd-post-meta > .afwd-post-draft::before {
+    content: none;
   }
 
   /* Tags. */
@@ -1675,6 +1679,16 @@
     color: var(--afw-text-muted);
   }
 
+  .afwd-post-draft {
+    padding: 0 0.5rem;
+    border-radius: 9999px;
+    border: 1px dashed var(--afw-border);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
   /* Index listing. */
   .afwd-post-list {
     display: flex;
@@ -1691,10 +1705,11 @@
     color: var(--afw-accent);
   }
   .afwd-post-card .afwd-post-meta {
-    margin-top: 0;
+    margin-top: 0.75rem;
   }
   .afwd-post-card-title {
-    margin-top: 0.4rem;
+    margin: 0;
+    line-height: 1.3;
     font-size: 1.35rem;
     font-weight: 700;
     color: var(--afw-text);
@@ -1745,5 +1760,45 @@
     border-radius: 0.6rem;
     border: 1px solid var(--afw-border);
     margin-bottom: 1rem;
+  }
+
+  /* The newest post: the index's hero. */
+  .afwd-post-card-featured {
+    border-top: 0;
+    padding-top: 0.5rem;
+  }
+  .afwd-post-card-featured .afwd-post-card-cover {
+    margin-bottom: 1.25rem;
+  }
+  .afwd-post-card-featured .afwd-post-card-title {
+    font-size: clamp(1.6rem, 4vw, 2.25rem);
+    line-height: 1.2;
+  }
+  .afwd-post-card-featured .afwd-post-card-desc {
+    font-size: 1.05rem;
+  }
+
+  /* Every other post: a compact row with a thumbnail beside the text. */
+  .afwd-post-rows .afwd-post-card.afwd-has-cover {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 7rem;
+    gap: 1rem;
+    align-items: start;
+  }
+  .afwd-post-rows .afwd-post-card-cover {
+    grid-column: 2;
+    grid-row: 1;
+    aspect-ratio: 16 / 10;
+    margin: 0;
+  }
+  .afwd-post-rows .afwd-post-card-body {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  @media (min-width: 640px) {
+    .afwd-post-rows .afwd-post-card.afwd-has-cover {
+      grid-template-columns: minmax(0, 1fr) 11rem;
+      gap: 1.5rem;
+    }
   }
 }

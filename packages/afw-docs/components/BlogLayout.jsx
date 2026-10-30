@@ -17,13 +17,11 @@
 // The layout factory re-runs on every navigation (the router rebuilds the route +
 // layout chain), so reading `router.pathname` resolves to the page being shown.
 import { Link, RawHtml, router } from "@opentf/afw";
-import updated from "@opentf/afw-docs/updated";
 
 import Navbar from "./Navbar.jsx";
 import Footer from "./Footer.jsx";
 import Toc from "./Toc.jsx";
 import PostBanner from "./PostBanner.jsx";
-import LastUpdated from "./LastUpdated.jsx";
 import { editedAfterPublish } from "./post-dates.js";
 
 // Structured data for crawlers: the current post as a BlogPosting, emitted in
@@ -52,7 +50,8 @@ export default function BlogLayout(props) {
   const siteUrl = props.siteUrl || "";
 
   const post = posts.find((p) => p.path === router.pathname);
-  const editedIso = post && editedAfterPublish(updated[post.path], post.date) ? updated[post.path] : null;
+  // The post's own frontmatter `updated`, shown in the banner. Never git: see blog-posts-plugin.js.
+  const editedIso = post && editedAfterPublish(post.updated, post.date) ? post.updated : null;
 
   const body = post ? (
     <div class="afwd-blog afwd-blog-post">
@@ -65,10 +64,9 @@ export default function BlogLayout(props) {
         <Link href={indexPath} class="afwd-blog-back" data-afw-search-ignore>
           ← {config.title ? `${config.title} Blog` : "Blog"}
         </Link>
-        <PostBanner post={post} />
+        <PostBanner post={post} showUpdated />
         <RawHtml html={blogPostingJsonLd(post, siteUrl, editedIso || post.date)} />
         <article class="afwd-prose">{props.children}</article>
-        {editedIso ? <LastUpdated date={editedIso} /> : null}
       </main>
       <Toc />
     </div>

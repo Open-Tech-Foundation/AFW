@@ -79,7 +79,7 @@ run = "esdev test --config=esdev.test.json packages/esdev-plugin-afw/tests"
 
 [tasks.test-afw-docs]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json packages/afw-docs/tests/types.test.js packages/afw-docs/tests/docs-nav.test.js packages/afw-docs/tests/blog-posts.test.js packages/afw-docs/tests/frontmatter.test.js packages/afw-docs/tests/feed.test.js packages/afw-docs/tests/post-dates.test.js packages/afw-docs/tests/format.test.js packages/afw-docs/tests/last-updated.test.js packages/afw-docs/tests/llms.test.js packages/afw-docs/tests/search.test.js packages/afw-docs/tests/search-integration.test.js packages/afw-docs/tests/tokenizer.test.js packages/afw-docs/tests/theme-namespace.test.js"
+run = "esdev test --config=esdev.test.json packages/afw-docs/tests/types.test.js packages/afw-docs/tests/docs-nav.test.js packages/afw-docs/tests/blog-posts.test.js packages/afw-docs/tests/frontmatter.test.js packages/afw-docs/tests/feed.test.js packages/afw-docs/tests/post-dates.test.js packages/afw-docs/tests/publish.test.js packages/afw-docs/tests/format.test.js packages/afw-docs/tests/last-updated.test.js packages/afw-docs/tests/llms.test.js packages/afw-docs/tests/search.test.js packages/afw-docs/tests/search-integration.test.js packages/afw-docs/tests/tokenizer.test.js packages/afw-docs/tests/theme-namespace.test.js"
 
 # esdev pre-bundles npm dependencies into one shared cache (node_modules/.esdev/deps).
 # Suites that import Testing Library would each populate it on a cold cache, and run
@@ -94,7 +94,7 @@ run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup 
 # Tests use CSR independently of the website's hydrate build configuration.
 [tasks.test-afw-docs-dom]
 deps = ["build-compiler", "warm-test-deps"]
-run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-docs/tests/MobileDrawer.test.js packages/afw-docs/tests/SidebarCollapseAll.test.js packages/afw-docs/tests/Tabs.test.js"
+run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-docs/tests/MobileDrawer.test.js packages/afw-docs/tests/SidebarCollapseAll.test.js packages/afw-docs/tests/Tabs.test.js packages/afw-docs/tests/Blog.test.js"
 
 [tasks.test-afw-form]
 deps = ["build-compiler", "warm-test-deps"]
