@@ -220,15 +220,15 @@ function _createForm(options = {}) {
     syncStore(touchedStore, mirrorLeaves(snapshot(valuesStore), true));
     isSubmittingSig.value = true;
     submitCountSig.value++;
-    await runValidation();
-    if (!hasTruthy(toRawValue(errorsStore))) {
-      try {
+    // `finally` covers a validator that throws or rejects as well as `fn`, so a
+    // failed submit never leaves the form stuck in `isSubmitting`.
+    try {
+      await runValidation();
+      if (!hasTruthy(toRawValue(errorsStore))) {
         await fn(snapshot(valuesStore));
         isSubmittedSig.value = true;
-      } finally {
-        isSubmittingSig.value = false;
       }
-    } else {
+    } finally {
       isSubmittingSig.value = false;
     }
   };

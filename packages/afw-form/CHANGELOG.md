@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `handleSubmit` resets `isSubmitting` when the validator throws or rejects (a failed
+  network check, a broken schema). The form used to stay in the submitting state, so a
+  submit button disabled on `isSubmitting` never came back.
+
 ## [1.28.0] - 2026-10-30
 
 

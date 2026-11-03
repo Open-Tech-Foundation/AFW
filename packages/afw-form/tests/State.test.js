@@ -71,6 +71,34 @@ describe("AFW Forms Library - State Helpers", () => {
     expect(form.isSubmitted).toBe(true);
   });
 
+  test("a validator that rejects or throws ends the submit", async () => {
+    for (const validator of [
+      async () => { throw new Error("network down"); },
+      () => { throw new Error("bad schema"); },
+    ]) {
+      let called = false;
+      const form = createForm({ initialValues: { name: "Alice" }, validator });
+      const handler = form.handleSubmit(() => { called = true; });
+      let error;
+      try { await handler(); } catch (e) { error = e; }
+      expect(error instanceof Error).toBe(true);
+      expect(called).toBe(false);
+      expect(form.isSubmitting).toBe(false);
+      expect(form.isValidating).toBe(false);
+      expect(form.isSubmitted).toBe(false);
+      expect(form.submitCount).toBe(1);
+    }
+  });
+
+  test("a submit handler that throws ends the submit without marking it submitted", async () => {
+    const form = createForm({ initialValues: { name: "Alice" } });
+    let error;
+    try { await form.handleSubmit(async () => { throw new Error("save failed"); })(); } catch (e) { error = e; }
+    expect(error?.message).toBe("save failed");
+    expect(form.isSubmitting).toBe(false);
+    expect(form.isSubmitted).toBe(false);
+  });
+
   test("reset() restores initial state", () => {
     const form = createForm({
       initialValues: { count: 0 }
