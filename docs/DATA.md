@@ -42,6 +42,9 @@ export default async function loader({ params, query, request, locale, locals })
 }
 ```
 
+`query` holds one value per name; a repeated name keeps its last value. Under a
+request server, `new URL(request.url).searchParams.getAll(name)` reads every value.
+
 A named `loader` export is also accepted — the spelling Phase B's co-located
 form will compile to. An app-owned server passes the live Fetch `Request`;
 `request` is `undefined` at SSG prerender. `locals` is the per-request bag stamped

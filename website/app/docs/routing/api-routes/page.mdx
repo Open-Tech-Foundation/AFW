@@ -32,6 +32,8 @@ never both — the toolchain errors on the conflict (as in Next.js's App Router)
 
 Export one function per HTTP method. The second argument is a context with the
 route `params`, parsed `query`, the request `url`, and a mutable `locals` bag.
+`query` holds one value per name, so `?tag=a&tag=b` gives `{ tag: "b" }`; read every
+value with `context.url.searchParams.getAll("tag")`.
 
 ```js
 // app/api/users/[id]/route.js

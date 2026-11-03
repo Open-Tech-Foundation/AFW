@@ -21,6 +21,13 @@
   body that fails after the headers are sent now aborts the connection instead of
   appending a JSON error to the partial response.
 
+### Changed
+
+- Documented how `query` handles a repeated name (API context, loader context and
+  `router.query`): one value per name, and the last value wins. `?tag=a&tag=b` gives
+  `{ tag: "b" }`; read every value with `searchParams.getAll(name)` from the request
+  URL or `router.searchParams`. Behaviour is unchanged and now covered by tests.
+
 ## [0.33.0] - 2026-10-30
 
 

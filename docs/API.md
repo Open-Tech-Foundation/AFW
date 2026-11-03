@@ -46,6 +46,9 @@ the resolved route params, parsed query, the `URL`, a mutable `locals` bag, and 
 on runtimes that pass them through `fetch` (Cloudflare Workers) — the platform
 `env` (bindings: `env.DB` for D1, KV, secrets) and `ctx` (`ctx.waitUntil`).
 
+`query` holds one value per name: `?tag=a&tag=b` gives `{ tag: "b" }`. Read every
+value of a repeated name with `context.url.searchParams.getAll("tag")`.
+
 ```js
 // app/api/users/[id]/route.js
 export async function GET(request, { params, query }) {

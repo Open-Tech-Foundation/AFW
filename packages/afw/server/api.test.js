@@ -57,6 +57,16 @@ describe("createApiHandler", () => {
     expect(await (await handle(req("/api/users/42"))).json()).toEqual({ id: "42" });
   });
 
+  test("a repeated query name keeps its last value; url.searchParams has them all", async () => {
+    const handle = createApiHandler({
+      "/app/api/search/route.js": {
+        GET: (_r, { query, url }) => Response.json({ query, all: url.searchParams.getAll("tag") }),
+      },
+    });
+    const body = await (await handle(req("/api/search?tag=a&tag=b&q=x"))).json();
+    expect(body).toEqual({ query: { tag: "b", q: "x" }, all: ["a", "b"] });
+  });
+
   test("a [param] route beats a catch-all whatever the param names", async () => {
     const text = (body) => () => new Response(body);
     const handle = createApiHandler({

@@ -40,7 +40,7 @@ import type {
 | Field | Type | Description |
 | --- | --- | --- |
 | `params` | `RouteParams` | Dynamic segments (`[param]` → `string`, `[...rest]` → `string[]`). |
-| `query` | `Record<string, string>` | Parsed query string. |
+| `query` | `Record<string, string>` | Parsed query string, one value per name (a repeated name keeps its last value; use `url.searchParams.getAll(name)` for all). |
 | `url` | `URL` | Parsed request URL. |
 | `locals` | `Record<string, unknown>` | Mutable bag; pipeline middleware writes, handlers and [loaders](/docs/data-fetching) read. |
 | `env` | `unknown` | Workers bindings (`env.DB`, KV, secrets); `undefined` on Bun/Node. |

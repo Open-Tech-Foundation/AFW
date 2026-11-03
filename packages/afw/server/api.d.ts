@@ -20,7 +20,9 @@ export type RouteParams = Record<string, string | string[]>;
 export interface ApiContext {
   /** Dynamic route params resolved from the matched path. */
   params: RouteParams;
-  /** Parsed query-string parameters. */
+  /** Parsed query-string parameters, one string per name: a repeated name keeps its
+   *  last value (`?tag=a&tag=b` → `{ tag: "b" }`). Read every value with
+   *  `url.searchParams.getAll("tag")`. */
   query: Record<string, string>;
   /** The parsed request URL. */
   url: URL;

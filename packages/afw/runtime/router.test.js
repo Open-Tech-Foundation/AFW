@@ -606,3 +606,14 @@ test("navigation renders a static page shadowed by a dynamic sibling", async () 
     expect(app.textContent).toBe("Post");
   } finally { app.remove(); }
 });
+
+test("router.query keeps the last value of a repeated name; searchParams has them all", async () => {
+  routes.pages = {}; routes.layouts = {}; routes.notFound = null;
+  const app = document.createElement("div"); document.body.appendChild(app);
+  window.history.replaceState({}, "", "/search?tag=a&tag=b");
+  try {
+    await mountApp({ target: app, pages: { "/app/search/page.jsx": { default: page("Search") } } });
+    expect(router.query).toEqual({ tag: "b" });
+    expect(router.searchParams.getAll("tag")).toEqual(["a", "b"]);
+  } finally { app.remove(); }
+});

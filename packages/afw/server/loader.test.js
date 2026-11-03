@@ -77,6 +77,22 @@ describe("registry matching", () => {
   });
 });
 
+describe("query", () => {
+  test("a repeated name keeps its last value; the request has them all", async () => {
+    const registry = createLoaderRegistry(
+      {
+        "/proj/app/search/loader.js": mod(({ query, request }) => ({
+          query,
+          all: new URL(request.url).searchParams.getAll("tag"),
+        })),
+      },
+      { appDir: "/proj/app" },
+    );
+    const res = await registry.handle(new Request("http://localhost/search/__data.json?tag=a&tag=b"));
+    expect(await res.json()).toEqual({ query: { tag: "b" }, all: ["a", "b"] });
+  });
+});
+
 describe("registry precedence", () => {
   test("static beats [param] beats catch-all, whatever the param names", () => {
     const registry = createLoaderRegistry(

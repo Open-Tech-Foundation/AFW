@@ -57,7 +57,7 @@ export default function Todos() {
 | Field | What it is |
 | --- | --- |
 | `params` | Route params from `[param]` / `[...rest]` segments, percent-decoded (catch-alls as arrays). |
-| `query` | Parsed query-string object. Empty at SSG time. |
+| `query` | Parsed query-string object, one value per name (a repeated name keeps its last value; use `new URL(request.url).searchParams.getAll(name)` for all). Empty at SSG time. |
 | `request` | The live `Request` when supplied by a request server; `undefined` at SSG prerender. |
 | `locale` | The active locale (path-prefix i18n), or `null`. |
 | `locals` | Per-request bag from [middleware](/docs/routing/middleware) (`context.locals`); `{}` when no middleware runs (e.g. SSG prerender). |

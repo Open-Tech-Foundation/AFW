@@ -32,7 +32,8 @@ import { router } from "@opentf/afw";
 | --- | --- |
 | `router.pathname` | Current path (reactive). |
 | `router.params` | Dynamic route params (reactive). |
-| `router.query` | Parsed query string (reactive). |
+| `router.query` | Parsed query string, one value per name (reactive). A repeated name keeps its last value. |
+| `router.searchParams` | The full `URLSearchParams`, for repeated names: `router.searchParams.getAll("tag")` (reactive). |
 | `router.locale` | Active locale when i18n is enabled, else `null` (reactive). |
 | `router.push(path)` | Navigate, pushing a history entry. |
 | `router.replace(path)` | Navigate, replacing the current entry. |

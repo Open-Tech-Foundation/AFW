@@ -33,6 +33,8 @@ export function registerRoutes(modules: Record<string, unknown>): void;
 export const router: {
   readonly pathname: string;
   readonly searchParams: URLSearchParams;
+  /** One string per name; a repeated name keeps its last value. Use
+   *  `searchParams.getAll(name)` for every value. */
   readonly query: Record<string, string>;
   readonly params: RouteParams;
   readonly locale: string | null;
@@ -104,6 +106,8 @@ import type { RouteParams } from "./api.js";
  *  Request under serve/dev and undefined at SSG prerender; `locals` is reserved. */
 export interface LoaderContext {
   params: RouteParams;
+  /** One string per name; a repeated name keeps its last value. For every value, read
+   *  `new URL(request.url).searchParams.getAll(name)` (request servers only). */
   query: Record<string, string>;
   request?: Request;
   locale: string | null;
