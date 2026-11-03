@@ -23,6 +23,9 @@
   server when the app has server routes. A failed page fails the build. `baseUrl`
   feeds canonical links and `sitemap.xml`. The dev server renders pages on the client
   in every mode, as esdev's does.
+- SSG builds let other plugins take part through their `api`: `afwPrerenderData()`
+  supplies the site URL and per-page last-updated times, `afwFinish()` post-processes
+  the prerendered site (used by `@opentf/afw-docs/vite`).
 - `vite preview` of an `ssg` build serves each prerendered page at its clean URL
   (`/docs/intro`, not only `/docs/intro/`) and `404.html` with status 404 for unknown
   pages. Vite's preview served the home page's HTML for both, which the client then

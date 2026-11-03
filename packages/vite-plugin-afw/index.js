@@ -87,13 +87,28 @@ export default function afw({
   let projectRoot = nodeHost.cwd();
   let server = null; // the afwc client, started on the first compiled module
   let serverPromise = null;
+  let afwcBinary; // the resolved compiler path, shared with other plugins' build steps
+
+  // The compiler binary. Resolved on demand: under Vite's builder each environment
+  // build gets its own plugin instances, so the one running \`buildApp\` may never
+  // have compiled a module itself.
+  async function compilerBinary() {
+    afwcBinary ??= (await resolveCompiler(nodeHost, {
+      cliDir: slash(fileURLToPath(new URL(".", import.meta.url))),
+      resolvePackagedCompiler: afwcPath,
+    })).afwc;
+    return afwcBinary;
+  }
   const appRoots = new Set(); // resolved app dirs, for route-file watching
 
   function compiler() {
     serverPromise ??= resolveCompiler(nodeHost, {
       cliDir: slash(fileURLToPath(new URL(".", import.meta.url))),
       resolvePackagedCompiler: afwcPath,
-    }).then(({ afwc }) => (server = startCompilerServer(afwc, { sourceMap: true, spawn: nodeHost.spawn })));
+    }).then(({ afwc }) => {
+      afwcBinary = afwc;
+      return (server = startCompilerServer(afwc, { sourceMap: true, spawn: nodeHost.spawn }));
+    });
     return serverPromise;
   }
 
@@ -110,15 +125,25 @@ export default function afw({
   const serverPages = () => command === "build" && mode !== "spa";
 
   // Static generation: render every route of the built server bundle into the client.
-  async function prerenderSite({ clientOut, serverOut }) {
+  // Other plugins take part through their `api`: `afwPrerenderData()` supplies the site
+  // URL and per-page last-updated times, `afwFinish()` post-processes the output
+  // (`@opentf/afw-docs/vite`: search index, feeds, llms.txt).
+  async function prerenderSite({ clientOut, serverOut, plugins }) {
+    const helpers = plugins.map((p) => p.api).filter(Boolean);
+    const data = await Promise.all(helpers.filter((a) => a.afwPrerenderData).map((a) => a.afwPrerenderData()));
+    const siteUrl = baseUrl || data.find((d) => d?.baseUrl)?.baseUrl || "";
+    const lastUpdated = Object.assign({}, ...data.map((d) => d?.lastUpdated ?? {}));
     const app = await import(pathToFileURL(join(serverOut, "app.js")).href);
     const shellHtml = stampHydrateSentinel(await readFile(join(clientOut, "index.html"), "utf8"));
     const result = await prerender(nodeHost, {
       render: app.render, shellHtml, outDir: slash(clientOut), publicDir: nodeHost.path.join(projectRoot, "public"),
-      baseUrl, i18n, loaders: app.loaders,
+      baseUrl: siteUrl, lastUpdated, i18n, loaders: app.loaders,
     });
     if (result.failed.length) throw new Error(`AFW prerender failed for ${result.failed.join(", ")}`);
     console.log(`AFW prerendered ${result.count} page(s)${result.skipped.length ? `; skipped ${result.skipped.join(", ")} (no getStaticPaths)` : ""}`);
+    for (const api of helpers) {
+      if (api.afwFinish) await api.afwFinish({ outDir: slash(clientOut), siteDescription: result.siteDescription, baseUrl: siteUrl, afwc: await compilerBinary() });
+    }
   }
   // The app directory the server half serves. It has no importing entry, so a leaf
   // `appDir` is found from the project root.
@@ -170,7 +195,7 @@ export default function afw({
           async buildApp(builder) {
             await builder.build(builder.environments.client);
             await builder.build(builder.environments.ssr);
-            if (mode === "ssg") await prerenderSite({ clientOut, serverOut });
+            if (mode === "ssg") await prerenderSite({ clientOut, serverOut, plugins: builder.config.plugins });
             if (!ship) await rm(serverOut, { recursive: true, force: true });
           },
         },
