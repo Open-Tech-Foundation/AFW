@@ -22,6 +22,7 @@ Compose both: middleware is authoritative; the route guard keeps the SPA feel af
 | `app/_middleware.js` | Every request |
 | `app/admin/_middleware.js` | `/admin` and everything under it |
 | `app/api/_middleware.js` | `/api` and everything under it |
+| `app/users/[id]/_middleware.js` | `/users/7`, `/users/7/edit`, and so on (not `/users`) |
 
 Multiple middleware compose **outermost-first**: `app/_middleware.js` wraps
 `app/admin/_middleware.js`, which wraps the route.

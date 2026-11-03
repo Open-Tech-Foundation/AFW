@@ -290,6 +290,20 @@ describe("createApiHandler", () => {
   });
 });
 
+describe("createApiHandler — middleware in dynamic folders", () => {
+  test("a _middleware under [param] guards the matching endpoints", async () => {
+    const handle = createApiHandler(
+      {
+        "/app/api/orgs/[org]/members/route.js": { GET: (_r, c) => Response.json(c.locals) },
+        "/app/api/orgs/route.js": { GET: () => Response.json({ list: true }) },
+      },
+      { "/app/api/orgs/[org]/_middleware.js": { default: (_r, c, next) => ((c.locals.guarded = true), next()) } },
+    );
+    expect(await (await handle(req("/api/orgs/acme/members"))).json()).toEqual({ guarded: true });
+    expect(await (await handle(req("/api/orgs"))).json()).toEqual({ list: true });
+  });
+});
+
 describe("createFetchHandler", () => {
   test("returns the handler Response when a route matches", async () => {
     const handle = createApiHandler({ "/app/api/status/route.js": { GET: () => Response.json({ ok: true }) } });

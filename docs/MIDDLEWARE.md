@@ -19,6 +19,7 @@ separate matcher config:
 | `app/_middleware.js` | every request |
 | `app/admin/_middleware.js` | `/admin` and everything under it |
 | `app/api/_middleware.js` | `/api/*` (the classic API guard) |
+| `app/users/[id]/_middleware.js` | `/users/7`, `/users/7/edit`, … (not `/users`) |
 
 Middleware are **plain server modules** (never shipped to the client). The default
 export (or named `middleware` export) has the signature `(request, context, next)`:

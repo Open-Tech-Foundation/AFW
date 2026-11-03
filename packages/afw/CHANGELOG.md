@@ -11,6 +11,10 @@
 - API routes and route loaders rank by the same specificity rules: `/api/[id]` beats
   `/api/[...rest]`. They were sorted by the length of the route string, so a catch-all
   with a longer param name could take requests meant for a `[param]` route.
+- `_middleware` files inside dynamic folders run. `app/users/[id]/_middleware.js` was
+  compared literally against the request path, so it never matched `/users/7` and a
+  guard placed there was silently skipped. Applies to pipeline middleware and the
+  API-scoped middleware in `createApiHandler`.
 
 ## [0.33.0] - 2026-10-30
 

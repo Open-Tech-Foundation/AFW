@@ -19,15 +19,7 @@
 //     middleware), mirroring the loader registry (loader.js `match`).
 
 import { DATA_FILE } from "../runtime/route-data.js";
-
-/** See `stripAppDir` in api.js — exact-prefix strip with a `/app` segment fallback. */
-function stripAppDir(filePath, appDir) {
-  if (appDir) {
-    const base = appDir.replace(/\/+$/, "");
-    if (filePath.startsWith(base + "/")) return filePath.slice(base.length);
-  }
-  return filePath.replace(/^.*\/app(?=\/)/, "");
-}
+import { compareRoutes, compileScope, normalizePath as normalize, stripAppDir } from "../runtime/route-match.js";
 
 /** The folder route a `_middleware.{js,ts}` file governs: `app/api/_middleware.js`
  *  → `/api` (applies to `/api` and everything nested under it); `app/_middleware.js`
@@ -37,7 +29,15 @@ export function middlewareScopeFromPath(filePath, appDir) {
   return r === "" ? "/" : r;
 }
 
-const normalize = (p) => (p || "/").replace(/(.)\/+$/, "$1");
+/**
+ * Sort comparator for middleware scopes: outermost (fewest segments) first, so
+ * `app/_middleware` wraps `app/api/_middleware`; at equal depth a dynamic folder
+ * wraps a static one. Ties fall back to a lexical order, independent of discovery.
+ */
+export function outermostFirst(a, b) {
+  const depth = (s) => s.split("/").filter(Boolean).length;
+  return depth(a.scope) - depth(b.scope) || compareRoutes(b.scope, a.scope);
+}
 
 /**
  * Build the middleware runner from a discovered `{ absFilePath: namespace }` map.
@@ -57,10 +57,12 @@ export function createMiddleware(middlewareModules = {}, { appDir, i18n } = {}) 
   for (const file in middlewareModules) {
     const mod = middlewareModules[file];
     const fn = mod.default ?? mod.middleware;
-    if (typeof fn === "function") entries.push({ scope: middlewareScopeFromPath(file, appDir), fn });
+    if (typeof fn === "function") {
+      const scope = middlewareScopeFromPath(file, appDir);
+      entries.push({ scope, matcher: compileScope(scope), fn });
+    }
   }
-  // Outermost (shortest scope) runs first, so `app/_middleware` wraps `app/api/_middleware`.
-  entries.sort((a, b) => a.scope.length - b.scope.length);
+  entries.sort(outermostFirst);
 
   const i18nOn = !!(i18n && Array.isArray(i18n.locales) && i18n.locales.length);
   const defaultLocale = i18nOn ? (i18n.defaultLocale ?? i18n.locales[0]) : null;
@@ -95,7 +97,7 @@ export function createMiddleware(middlewareModules = {}, { appDir, i18n } = {}) 
     const url = new URL(request.url);
     const context = { url, locals: {}, env, ctx };
     const path = scopePath(url.pathname);
-    const chain = entries.filter((e) => e.scope === "/" || path === e.scope || path.startsWith(e.scope + "/"));
+    const chain = entries.filter((e) => e.matcher.test(path));
     let next = (req) => terminal(req, context);
     for (let i = chain.length - 1; i >= 0; i--) {
       const { fn } = chain[i];

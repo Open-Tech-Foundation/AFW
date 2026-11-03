@@ -14,8 +14,8 @@
 // approach of the page router (runtime/router.js `matchRoute`) so behavior is
 // identical across pages and API and across every deployment target.
 
-import { compareRoutes, compileRoute, decodeParams, normalizePath as normalize, stripAppDir } from "../runtime/route-match.js";
-import { middlewareScopeFromPath } from "./middleware.js";
+import { compareRoutes, compileRoute, compileScope, decodeParams, normalizePath as normalize, stripAppDir } from "../runtime/route-match.js";
+import { middlewareScopeFromPath, outermostFirst } from "./middleware.js";
 
 // Scope derivation lives in middleware.js now that middleware governs the whole
 // pipeline, not just API routes; re-exported here for backward compatibility.
@@ -71,10 +71,13 @@ export function createApiHandler(routeModules = {}, middlewareModules = {}, { ap
   for (const file in middlewareModules) {
     const mod = middlewareModules[file];
     const fn = mod.default ?? mod.middleware;
-    if (typeof fn === "function") middleware.push({ scope: middlewareScopeFromPath(file, appDir), fn });
+    if (typeof fn === "function") {
+      const scope = middlewareScopeFromPath(file, appDir);
+      middleware.push({ scope, matcher: compileScope(scope), fn });
+    }
   }
-  // Outermost (shortest scope) runs first, so `/api/_middleware` wraps `/api/users/_middleware`.
-  middleware.sort((a, b) => a.scope.length - b.scope.length);
+  // Outermost runs first, so `/api/_middleware` wraps `/api/users/_middleware`.
+  middleware.sort(outermostFirst);
 
   return async function handle(request, env, ctx, init) {
     const url = new URL(request.url);
@@ -126,9 +129,7 @@ export function createApiHandler(routeModules = {}, middlewareModules = {}, { ap
 
     // Compose the applicable middleware chain around dispatch (outermost first).
     // The root scope ("/", from an `app/_middleware.*`) governs every route.
-    const chain = middleware.filter(
-      (mw) => mw.scope === "/" || pathname === mw.scope || pathname.startsWith(mw.scope + "/"),
-    );
+    const chain = middleware.filter((mw) => mw.matcher.test(pathname));
     let next = dispatch;
     for (let i = chain.length - 1; i >= 0; i--) {
       const { fn } = chain[i];

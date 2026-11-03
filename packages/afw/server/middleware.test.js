@@ -40,6 +40,42 @@ describe("createMiddleware — scope selection", () => {
     expect(hits).toBe(2);
   });
 
+  test("a _middleware in a dynamic folder governs the concrete paths under it", async () => {
+    const seen = [];
+    const runner = createMiddleware({
+      "/app/users/[id]/_middleware.js": mw((r, _c, next) => (seen.push(new URL(r.url).pathname), next())),
+      "/app/docs/[...slug]/_middleware.js": mw((r, _c, next) => (seen.push(`docs ${new URL(r.url).pathname}`), next())),
+    });
+    await runner.run(req("/users/7"), echo);
+    await runner.run(req("/users/7/edit"), echo);
+    await runner.run(req("/users/7/__data.json"), echo); // its loader data too
+    await runner.run(req("/users"), echo); // the parent folder is outside the scope
+    await runner.run(req("/docs/a/b"), echo);
+    await runner.run(req("/docs"), echo);
+    expect(seen).toEqual(["/users/7", "/users/7/edit", "/users/7/__data.json", "docs /docs/a/b"]);
+  });
+
+  test("a dynamic-folder guard can block the request", async () => {
+    const runner = createMiddleware({
+      "/app/users/[id]/_middleware.js": mw(() => new Response("denied", { status: 403 })),
+    });
+    expect((await runner.run(req("/users/7"), echo)).status).toBe(403);
+    expect((await runner.run(req("/users"), echo)).status).toBe(200);
+  });
+
+  test("outer folders wrap nested dynamic ones, a dynamic folder wraps a static sibling", async () => {
+    const order = [];
+    const tag = (name) => mw(async (_r, _c, next) => (order.push(name), next()));
+    const runner = createMiddleware({
+      "/app/users/[id]/settings/_middleware.js": tag("settings"),
+      "/app/users/[id]/_middleware.js": tag("[id]"),
+      "/app/users/admin/_middleware.js": tag("admin"),
+      "/app/users/_middleware.js": tag("users"),
+    });
+    await runner.run(req("/users/admin/settings"), echo);
+    expect(order).toEqual(["users", "[id]", "admin", "settings"]);
+  });
+
   test("chains compose outermost-first and unwind innermost-first", async () => {
     const order = [];
     const runner = createMiddleware({
