@@ -1,6 +1,7 @@
 // Real-browser check of the Vite workflow's dev loop (`tsr test-e2e-vite`): Vite's dev
-// server on a copy of the SPA fixture, driven in headless Chrome over CDP. Covers first
-// render, events, client navigation, and in-place refresh of a page and a component.
+// server on a copy of the full-stack fixture, driven in headless Chrome over CDP. Covers
+// first render, events, client navigation, loader data served by Node, and in-place
+// refresh of a component, a page and a layout.
 //
 // Run with Node: `node packages/vite-plugin-afw/e2e/dev.mjs`. Chrome comes from
 // CHROME_BIN / CHROMIUM_BIN, else /usr/bin/chromium.
@@ -23,7 +24,8 @@ function check(ok, label) {
   console.log(`${ok ? "PASS" : "FAIL"} ${label}`);
 }
 
-const { dir, cleanup } = await copyFixture("spa");
+const { dir, cleanup } = await copyFixture("fullstack");
+process.chdir(dir); // the fixture's loader reads data relative to the working directory
 const profile = await mkdtemp(join(tmpdir(), "afw-vite-chrome-"));
 let server, browser, ws;
 try {
@@ -72,6 +74,9 @@ try {
   await evaluate(`document.querySelector('a[href="/about"]').click()`);
   check(await until("document.querySelector('main h1')?.textContent === 'About'"), "client navigation renders the Markdown page");
   check((await evaluate("window.__marker")) === "kept", "client navigation does not reload");
+  await evaluate(`document.querySelector('a[href="/todos"]').click()`);
+  check(await until("document.querySelectorAll('#todos li').length === 2"), "client navigation fetches loader data from the Node server");
+  check((await evaluate("window.__marker")) === "kept", "the loader-data navigation does not reload");
   await evaluate(`document.querySelector('a[href="/"]').click()`);
   await until("document.getElementById('counter')");
   await evaluate("document.getElementById('counter').click()");

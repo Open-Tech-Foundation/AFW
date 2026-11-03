@@ -38,6 +38,29 @@ mountApp({ pages, guard, loaders: loaderRoutes, target: document.getElementById(
 
 Then `vite` for development and `vite build` for production.
 
+## Server routes
+
+API routes (`route.js`), middleware (`_middleware.js`) and loaders (`loader.js`) run
+on Node, so they can use any npm package, native addons included:
+
+```js
+// app/api/thumbnail/route.js
+import sharp from "sharp";
+
+export async function POST(request) {
+  const image = await sharp(Buffer.from(await request.arrayBuffer())).resize(200).webp().toBuffer();
+  return new Response(image, { headers: { "content-type": "image/webp" } });
+}
+```
+
+- **Development:** `vite` runs them inside the dev server. Edits and new files apply
+  without a restart.
+- **Production:** when the app has server files, `vite build` writes `dist/client` and
+  `dist/server`. Start it with `node dist/server/index.js` (`PORT`, `HOST`). It serves
+  the client behind your middleware, answers API routes and loader data, and returns
+  the app shell for page navigations. For your own server, import `createHandler` from
+  `dist/server/app.js`; it is a standard Fetch handler.
+
 ## Options
 
 | Option | Default | Purpose |
@@ -46,6 +69,8 @@ Then `vite` for development and `vite build` for production.
 | `appDir` | `"app"` | The routes folder. A bare name is found beside the importing entry |
 | `exclude` | `[]` | Folders under `appDir` that hold no routes |
 | `routes` | `true` | `false` drops the `@afw/routes` module |
+| `server` | `"auto"` | Build `dist/server`: `"auto"` when the app has server files, or `true`/`false` |
+| `i18n` | — | `{ locales, defaultLocale }`: locale prefixes server middleware and loaders strip |
 | `target` | — | Force one compiler backend (`csr`, `ssg`, `hydrate`) |
 
 ## What it does

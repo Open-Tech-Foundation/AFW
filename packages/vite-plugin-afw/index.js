@@ -11,22 +11,32 @@
 //   import { guard, pages, loaderRoutes } from "@afw/routes";
 //   mountApp({ pages, guard, loaders: loaderRoutes, target: document.getElementById("app") });
 //
-// Server code runs on Node, so server routes, loaders and SSR can use any npm
-// package, native addons included.
+// Server code — API routes, middleware, loaders — runs on Node, in the dev server
+// and in the built `dist/server/index.js`, so it can use any npm package, native
+// addons included.
 
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  FRAMEWORK_IMPORT, ROUTES_ID, SOURCE_FILTER,
-  chooseTarget, compileModule, resolveAppRoot, resolveCompiler, routesModule, startCompilerServer,
-  usesServerEntry, validateOptions,
+  FRAMEWORK_IMPORT, ROUTES_ID, SERVER_ID, SOURCE_FILTER,
+  chooseTarget, compileModule, discoverServerFiles, hasServerFiles, resolveAppRoot, resolveCompiler,
+  routesModule, serverModule, startCompilerServer, usesServerEntry, validateOptions,
 } from "@opentf/afw-build";
+import { sendWebResponse, toWebRequest } from "@opentf/afw/server/adapters/node";
 import { afwcPath } from "@opentf/afw-compiler/node";
 
 import { nodeHost } from "./host.js";
 
 const VIRTUAL_PREFIX = `\0${ROUTES_ID}:`;
+const SERVER_PREFIX = `\0${SERVER_ID}:`;
+// The built server's entry: starts the Node server around `@afw/server`.
+const NODE_SERVER_ID = "@afw/node-server";
 const ROUTE_FILE = /(?:^|\/)(?:(?:page|layout|404)\.(?:mdx|md|jsx|tsx)|loader\.(?:js|ts)|routeGuard\.(?:js|ts))$/;
+const SERVER_FILE = /(?:^|\/)(?:route\.(?:jsx?|tsx?)|_middleware\.(?:jsx?|tsx?)|loader\.(?:js|ts)|page\.(?:mdx|md|jsx|tsx))$/;
+// The dev server's fallback: nothing on the app's server answered, so Vite serves it.
+const PASS_HEADER = "x-afw-vite-pass";
+const pass = () => new Response(null, { status: 404, headers: { [PASS_HEADER]: "1" } });
 // AFW's own packages ship ES modules and JSX sources the compiler must see, so the
 // dependency optimizer leaves them alone.
 const OWN_PACKAGES = ["@opentf/afw", "@opentf/afw-docs", "@opentf/afw-form", "@opentf/afw-i18n", "@opentf/afw-test"];
@@ -44,16 +54,23 @@ const slash = (p) => p.replaceAll("\\", "/");
 
 /**
  * @param {{ mode?: "spa" | "ssg" | "ssr", appDir?: string, exclude?: string[],
- *           routes?: boolean, target?: "csr" | "ssg" | "hydrate" }} [options]
+ *           routes?: boolean, server?: boolean | "auto", target?: "csr" | "ssg" | "hydrate",
+ *           i18n?: { locales: string[], defaultLocale?: string } }} [options]
  *   `mode` — how pages render in release builds (as in the esdev plugin).
  *   `appDir` — the routes folder; a leaf name anchors beside the importing entry.
  *   `exclude` — folders under `appDir` that hold no routes. `routes: false` drops the
- *   `@afw/routes` module. `target` forces one compiler backend (tests, custom builds).
+ *   `@afw/routes` module. `server` — build `dist/server` (default `"auto"`: when the
+ *   app has API routes, middleware or loaders). `target` forces one compiler backend.
+ *   `i18n` — locale prefixes the server's middleware and loaders strip.
  */
-export default function afw({ mode = "spa", appDir = "app", exclude = [], routes = true, target } = {}) {
+export default function afw({
+  mode = "spa", appDir = "app", exclude = [], routes = true, server: serverBuild = "auto", target, i18n = null,
+} = {}) {
   validateOptions({ mode, target });
+  if (![true, false, "auto"].includes(serverBuild)) throw new Error(`AFW server option must be true, false or "auto"`);
 
   let command = "serve";
+  let projectRoot = nodeHost.cwd();
   let server = null; // the afwc client, started on the first compiled module
   let serverPromise = null;
   const appRoots = new Set(); // resolved app dirs, for route-file watching
@@ -74,43 +91,98 @@ export default function afw({ mode = "spa", appDir = "app", exclude = [], routes
   }
 
   const isServer = (ctx, options) => ctx.environment?.config?.consumer === "server" || !!options?.ssr;
+  // The app directory the server half serves. It has no importing entry, so a leaf
+  // `appDir` is found from the project root.
+  const serverRoot = () => resolveAppRoot(nodeHost, appDir, join(projectRoot, "index.html").replaceAll("\\", "/"));
 
   return {
     name: "afw",
     enforce: "pre",
 
-    config() {
+    async config(userConfig, env) {
       // The compiler owns these extensions; Vite's own JSX/TS transform must not
       // re-read the compiled output as JSX. Vite 8 transforms with Oxc, Vite 7 with esbuild.
-      const transformer = this?.meta?.rolldownVersion ? "oxc" : "esbuild";
-      return {
-        [transformer]: { exclude: [SOURCE_FILTER] },
+      const rolldown = !!this?.meta?.rolldownVersion;
+      const config = {
+        [rolldown ? "oxc" : "esbuild"]: { exclude: [SOURCE_FILTER] },
         optimizeDeps: { exclude: [...OWN_PACKAGES] },
-        ssr: { noExternal: [/^@opentf\/afw/] },
+        // AFW's own server code is bundled into dist/server; the app's npm
+        // dependencies stay external and load from node_modules at run time.
+        ssr: { noExternal: [/^@opentf\/afw/, /^@opentf\/vite-plugin-afw/] },
+      };
+      if (env.command !== "build" || serverBuild === false) return config;
+      projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());
+      if (serverBuild === "auto" && !hasServerFiles(await discoverServerFiles(nodeHost, await serverRoot(), { exclude }))) return config;
+      // A full-stack build: the client into dist/client, the Node server into
+      // dist/server (`index.js` starts it, `app.js` exports `createHandler`).
+      const outDir = userConfig.build?.outDir ?? "dist";
+      const bundlerOptions = rolldown ? "rolldownOptions" : "rollupOptions";
+      return {
+        ...config,
+        environments: {
+          client: { build: { outDir: `${outDir}/client` } },
+          ssr: { build: { outDir: `${outDir}/server`, [bundlerOptions]: { input: { index: NODE_SERVER_ID, app: SERVER_ID } } } },
+        },
+        builder: {
+          async buildApp(builder) {
+            await builder.build(builder.environments.client);
+            await builder.build(builder.environments.ssr);
+          },
+        },
       };
     },
 
     configResolved(config) {
       command = config.command;
+      projectRoot = slash(config.root);
     },
 
     configureServer(devServer) {
       devServer.httpServer?.once("close", closeCompiler);
-      // A new or deleted route file changes the route table, not just one module.
-      const refresh = (file) => {
-        const path = slash(file);
-        if (!ROUTE_FILE.test(path) || ![...appRoots].some((root) => path.startsWith(`${root}/`))) return;
+      // A new or deleted route file changes the route table, not just one module; a
+      // new or deleted server file changes `@afw/server`.
+      const invalidate = (prefix, roots) => {
         for (const env of Object.values(devServer.environments ?? { client: devServer })) {
           const graph = env.moduleGraph;
-          for (const root of appRoots) {
-            const mod = graph?.getModuleById?.(VIRTUAL_PREFIX + root);
+          for (const root of roots) {
+            const mod = graph?.getModuleById?.(prefix + root);
             if (mod) graph.invalidateModule(mod);
           }
         }
+      };
+      const refresh = (file) => {
+        const path = slash(file);
+        if (SERVER_FILE.test(path)) void serverRoot().then((root) => invalidate(SERVER_PREFIX, [root]));
+        if (!ROUTE_FILE.test(path) || ![...appRoots].some((root) => path.startsWith(`${root}/`))) return;
+        invalidate(VIRTUAL_PREFIX, appRoots);
         devServer.ws.send({ type: "full-reload" });
       };
       devServer.watcher.on("add", refresh);
       devServer.watcher.on("unlink", refresh);
+
+      // Server routes run on Node inside the dev server. Installed after Vite's own
+      // middlewares, so modules and assets never reach the app's `_middleware`; what
+      // the app's server doesn't answer falls through to Vite (the app shell).
+      return () => {
+        devServer.middlewares.use(async (req, res, next) => {
+          // Vite rewrites page navigations to /index.html before this point.
+          const url = req.url;
+          req.url = req.originalUrl ?? req.url;
+          try {
+            const app = await devServer.ssrLoadModule(SERVER_ID);
+            const response = await app.createHandler({ fallback: pass })(await toWebRequest(req));
+            if (response.headers.get(PASS_HEADER)) {
+              req.url = url;
+              return next();
+            }
+            await sendWebResponse(res, response);
+          } catch (error) {
+            req.url = url;
+            devServer.ssrFixStacktrace?.(error);
+            next(error);
+          }
+        });
+      };
     },
 
     async closeBundle() {
@@ -118,6 +190,8 @@ export default function afw({ mode = "spa", appDir = "app", exclude = [], routes
     },
 
     async resolveId(source, importer, options) {
+      if (source === SERVER_ID) return SERVER_PREFIX + (await serverRoot());
+      if (source === NODE_SERVER_ID) return `\0${NODE_SERVER_ID}`;
       if (routes && source === ROUTES_ID) {
         const root = await resolveAppRoot(nodeHost, appDir, importer ? slash(cleanId(importer)) : undefined);
         appRoots.add(root);
@@ -130,6 +204,20 @@ export default function afw({ mode = "spa", appDir = "app", exclude = [], routes
     },
 
     async load(id) {
+      if (id === `\0${NODE_SERVER_ID}`) {
+        return (
+          `import { createHandler } from ${JSON.stringify(SERVER_ID)};\n` +
+          `import { startServer } from "@opentf/vite-plugin-afw/server";\n` +
+          `export { createHandler };\n` +
+          `await startServer({ createHandler, clientDir: new URL("../client/", import.meta.url) });\n`
+        );
+      }
+      if (id.startsWith(SERVER_PREFIX)) {
+        const root = id.slice(SERVER_PREFIX.length);
+        const { code, files } = await serverModule(nodeHost, root, { exclude, i18n });
+        for (const file of files) this.addWatchFile(file);
+        return { code, map: null };
+      }
       if (!id.startsWith(VIRTUAL_PREFIX)) return null;
       const root = id.slice(VIRTUAL_PREFIX.length);
       // Drafts and scheduled pages are routes in the dev server only.

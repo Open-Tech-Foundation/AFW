@@ -7,11 +7,13 @@
     "build": "cp ../../LICENSE LICENSE"
   },
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./server": "./server.js"
   },
   "files": [
     "index.js",
-    "host.js"
+    "host.js",
+    "server.js"
   ],
   "engines": {
     "node": ">=22"
