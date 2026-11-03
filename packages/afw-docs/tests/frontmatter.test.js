@@ -2,6 +2,7 @@ import { expect, test } from "runtime:test";
 import { dirname, fromFileURL, join, toFileURL } from "runtime:path";
 import { Command } from "runtime:system";
 import { discard, tempDir, writeFile } from "../../afw-cli/tests/fixture.js";
+import "../build/index.js"; // installs the esdev build host
 import { readFrontmatter } from "../build/frontmatter.js";
 
 async function read(source) {

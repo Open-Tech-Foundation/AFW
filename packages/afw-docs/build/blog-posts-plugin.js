@@ -9,9 +9,7 @@
 // overrides. Drafts and future-dated posts are left out except under `esdev start`
 // (see publish.js).
 
-import { join } from "runtime:path";
-
-import { exists, readEntries, readNames, readText } from "./host.js";
+import { exists, join, readEntries, readNames, readText } from "./host.js";
 
 import { readFrontmatter } from "./frontmatter.js";
 import { readingTime } from "./reading-time.js";
@@ -32,8 +30,6 @@ const PAGE_RE = /^page\.(mdx|md)$/;
  *                                   `esdev start`).
  */
 export function blogPostsPlugin({ appDir, contentDir = "blog", exclude = new Set(), drafts } = {}) {
-  const root = join(appDir, contentDir);
-  const base = "/" + contentDir;
   return {
     name: "afw-blog-posts",
     resolve: {
@@ -44,18 +40,26 @@ export function blogPostsPlugin({ appDir, contentDir = "blog", exclude = new Set
       filter: { id: RESOLVED_ID },
       async handler(id, ctx) {
         if (id !== RESOLVED_ID) return null;
-        const watch = [];
-        const all = showsUnpublished(drafts, ctx);
-        const posts = (await exists(root)) ? await collectPosts(root, base, exclude, watch, all) : [];
+        const { code, files } = await blogPostsModule({ appDir, contentDir, exclude, drafts: showsUnpublished(drafts, ctx) });
         // The post list is generated from these files, which nothing imports —
         // declaring them is what rebuilds the chunk when a post's frontmatter changes.
-        return {
-          code: `export const posts = ${JSON.stringify(posts)};\nexport default posts;\n`,
-          dependsOn: watch,
-        };
+        return { code, dependsOn: files };
       },
     },
   };
+}
+
+/**
+ * The `@opentf/afw-docs/posts` module source and the post files it lists — the
+ * toolchain-neutral half of `blogPostsPlugin`, shared with the Vite plugin.
+ *
+ * @returns {Promise<{ code: string, files: string[] }>}
+ */
+export async function blogPostsModule({ appDir, contentDir = "blog", exclude = new Set(), drafts = false } = {}) {
+  const root = join(appDir, contentDir);
+  const watch = [];
+  const posts = (await exists(root)) ? await collectPosts(root, "/" + contentDir, exclude, watch, drafts) : [];
+  return { code: `export const posts = ${JSON.stringify(posts)};\nexport default posts;\n`, files: watch };
 }
 
 /**

@@ -8,9 +8,7 @@
 // isn't in git history the value is simply null and the UI omits it. This runs in dev
 // and build alike — the displayed time is always the real last content change.
 
-import { dirname } from "runtime:path";
-
-import { runOut } from "./host.js";
+import { dirname, runOut } from "./host.js";
 
 /** Last git commit (committer ISO-8601) that touched `file`, or null. */
 export async function gitLastUpdated(file) {

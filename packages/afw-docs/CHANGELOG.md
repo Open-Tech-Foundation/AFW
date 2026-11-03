@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The build modules (navigation, posts, last-updated, `llms.txt`, feeds, search
+  indexing) reach files, processes and paths through a host instead of `runtime:*`
+  modules, so the Vite workflow can run them on Node. `@opentf/afw-docs/build`
+  installs the ES-Runtime host and keeps every export. `docsNavModule`,
+  `blogPostsModule` and `lastUpdatedModule` return each virtual module's source and
+  the files it was generated from.
+
 ## [0.31.0] - 2026-10-30
 
 

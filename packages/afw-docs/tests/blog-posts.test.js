@@ -1,6 +1,7 @@
 import { expect, test } from "runtime:test";
 import { join } from "runtime:path";
 import { discard, tempDir, writeTree } from "../../afw-cli/tests/fixture.js";
+import "../build/index.js"; // installs the esdev build host
 import { blogPostsPlugin, loadPosts } from "../build/blog-posts-plugin.js";
 import { renderAtomFeed, renderBlogFeed } from "../build/feed.js";
 

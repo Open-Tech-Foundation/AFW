@@ -8,10 +8,7 @@
 // The same map is needed by the SSG step for the `article:modified_time` SEO tag, so
 // the scan is exposed as a callable (`loadLastUpdated`) too.
 
-import { join, relative, resolve } from "runtime:path";
-import { cwd } from "runtime:process";
-
-import { readEntries, runOut } from "./host.js";
+import { cwd, join, readEntries, relative, resolve, runOut } from "./host.js";
 import { readFrontmatter } from "./frontmatter.js";
 import { resolveLastUpdated } from "./last-updated.js";
 import { frontmatterUpdated } from "./publish.js";
@@ -41,18 +38,27 @@ export function lastUpdatedPlugin({ appDir, exclude = new Set(), blogDir } = {})
       filter: { id: RESOLVED_ID },
       async handler(id) {
         if (id !== RESOLVED_ID) return null;
-        const watch = [];
-        const { updated, editPaths } = await collect(appDir, exclude, watch, blogDir);
-        // Default export: the `{ route: ISO }` last-updated map. Named `editPaths`:
-        // `{ route: repo-relative-file }`, for building "Edit this page" links.
-        return {
-          code:
-            `export default ${JSON.stringify(updated)};\n` +
-            `export const editPaths = ${JSON.stringify(editPaths)};\n`,
-          dependsOn: watch,
-        };
+        const { code, files } = await lastUpdatedModule({ appDir, exclude, blogDir });
+        return { code, dependsOn: files };
       },
     },
+  };
+}
+
+/**
+ * The `@opentf/afw-docs/updated` module source and the page files it covers — the
+ * toolchain-neutral half of `lastUpdatedPlugin`, shared with the Vite plugin. Default
+ * export: the `{ route: ISO }` last-updated map. Named `editPaths`:
+ * `{ route: repo-relative-file }`, for building "Edit this page" links.
+ *
+ * @returns {Promise<{ code: string, files: string[] }>}
+ */
+export async function lastUpdatedModule({ appDir, exclude = new Set(), blogDir } = {}) {
+  const watch = [];
+  const { updated, editPaths } = await collect(appDir, exclude, watch, blogDir);
+  return {
+    code: `export default ${JSON.stringify(updated)};\nexport const editPaths = ${JSON.stringify(editPaths)};\n`,
+    files: watch,
   };
 }
 

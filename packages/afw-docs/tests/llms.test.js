@@ -3,6 +3,7 @@ import { makeTempDir, remove } from "runtime:fs";
 import { join } from "runtime:path";
 
 import { writeFile } from "../../afw-cli/tests/fixture.js";
+import "../build/index.js"; // installs the esdev build host
 import { renderLlmsFullTxt, renderLlmsTxt } from "../build/llms.js";
 
 const roots = [];

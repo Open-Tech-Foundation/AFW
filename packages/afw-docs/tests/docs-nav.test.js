@@ -1,6 +1,7 @@
 import { expect, test } from "runtime:test";
 import { join } from "runtime:path";
 import { discard, tempDir, writeTree } from "../../afw-cli/tests/fixture.js";
+import "../build/index.js"; // installs the esdev build host
 import { docsNavPlugin } from "../build/docs-nav-plugin.js";
 
 async function navigation(files, options = {}, hookCtx) {

@@ -1,4 +1,4 @@
-import { dirname, relative, sep } from "runtime:path";
+import { dirname, relative } from "./host.js";
 
 import { exists, readText } from "./host.js";
 
@@ -12,9 +12,9 @@ function abs(baseUrl, path) {
 }
 
 function routePath(appDir, file) {
-  const rel = relative(appDir, file).split(sep).join("/");
+  const rel = relative(appDir, file).split(/[\\/]/).join("/");
   if (!PAGE_RE.test(rel)) return null;
-  const dir = dirname(rel).split(sep).join("/");
+  const dir = dirname(rel).split(/[\\/]/).join("/");
   if (dir === ".") return "/";
   const segments = dir.split("/");
   if (segments.some((seg) => seg.startsWith("_") || seg.startsWith(".") || seg.includes("["))) {

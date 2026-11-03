@@ -10,9 +10,7 @@
 // Tree node shape: `{ title, path?, order?, items?: Node[] }`. A node with `path`
 // is a link; a node with `items` is a (possibly also linked) group.
 
-import { join, toFileURL } from "runtime:path";
-
-import { exists, readEntries, readNames, readText } from "./host.js";
+import { exists, join, readEntries, readNames, readText, toFileUrl } from "./host.js";
 import { readFrontmatter } from "./frontmatter.js";
 import { isUnpublished, showsUnpublished } from "./publish.js";
 
@@ -56,20 +54,31 @@ export function docsNavPlugin({ appDir, exclude = new Set(), importModule, draft
       filter: { id: RESOLVED_ID },
       async handler(id, hookCtx) {
         if (id !== RESOLVED_ID) return null;
-        const ctx = { watch: [], importModule, drafts: showsUnpublished(drafts, hookCtx) };
-        const out = {};
-        for (const entry of await readEntries(appDir)) {
-          if (!navDirectory(entry, exclude)) continue;
-          const base = "/" + entry.name;
-          out[base] = await buildSection(join(appDir, entry.name), base, ctx, true, exclude);
-        }
+        const { code, files } = await docsNavModule({ appDir, exclude, importModule, drafts: showsUnpublished(drafts, hookCtx) });
         // The files this tree was generated from. They are not imports, so nothing else
         // ties them to this module — declaring them is what makes the dev server rebuild the
         // chunk holding the sidebar when a page's frontmatter or a `_meta.*` changes.
-        return { code: `export default ${JSON.stringify(out)};\n`, dependsOn: ctx.watch };
+        return { code, dependsOn: files };
       },
     },
   };
+}
+
+/**
+ * The `@opentf/afw-docs/nav` module source and the files it was generated from — the
+ * toolchain-neutral half of `docsNavPlugin`, shared with the Vite plugin.
+ *
+ * @returns {Promise<{ code: string, files: string[] }>}
+ */
+export async function docsNavModule({ appDir, exclude = new Set(), importModule, drafts = false } = {}) {
+  const ctx = { watch: [], importModule, drafts };
+  const out = {};
+  for (const entry of await readEntries(appDir)) {
+    if (!navDirectory(entry, exclude)) continue;
+    const base = "/" + entry.name;
+    out[base] = await buildSection(join(appDir, entry.name), base, ctx, true, exclude);
+  }
+  return { code: `export default ${JSON.stringify(out)};\n`, files: ctx.watch };
 }
 
 /** Load a folder's `_meta` (ordering + labels). Supports `.js`/`.mjs`/`.json`. */
@@ -83,7 +92,7 @@ async function loadMeta(dir, ctx) {
       // A query string does not bust the ESM cache (it is keyed by path and ignores
       // `?t=`), so a host that needs live `_meta` edits supplies a loader that can
       // re-read the file; without one this is a plain, once-per-process import.
-      const mod = await (ctx.importModule?.(p) ?? import(toFileURL(p).href));
+      const mod = await (ctx.importModule?.(p) ?? import(toFileUrl(p)));
       return mod.default ?? mod;
     } catch (e) {
       console.warn(`⚠ [@opentf/afw-docs] could not load ${p}: ${e?.message ?? e}`);
