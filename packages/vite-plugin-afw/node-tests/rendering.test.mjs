@@ -151,3 +151,52 @@ describe("mode: ssg", () => {
     }
   });
 });
+
+describe("i18n", () => {
+  const i18n = { locales: ["en", "fr"], defaultLocale: "en" };
+  // The client entry needs the same locales, so hydration resolves the same route.
+  const localize = (dir) => writeFile(join(dir, "entry.js"),
+    'import { mountApp } from "@opentf/afw";\nimport { guard, loaderRoutes, pages } from "@afw/routes";\n' +
+    `mountApp({ pages, guard, loaders: loaderRoutes, i18n: ${JSON.stringify(i18n)}, target: document.getElementById("app") });\n`);
+
+  test("ssg prerenders every page per locale, with lang and hreflang alternates", async () => {
+    const { dir, cleanup } = await copyFixture("spa");
+    try {
+      await localize(dir);
+      await buildApp(dir, { mode: "ssg", i18n, baseUrl: "https://example.test" });
+      const fr = await readFile(join(dir, "dist", "fr", "about", "index.html"), "utf8");
+      assert.match(fr, /<html lang="fr">/);
+      assert.match(fr, /data-afw-hydrate="\/fr\/about"/);
+      assert.match(fr, /hreflang="en"[^>]*href="[^"]*\/about"|href="[^"]*\/about"[^>]*hreflang="en"/);
+      assert.match(fr, /hreflang="x-default"/);
+      assert.match(await readFile(join(dir, "dist", "about", "index.html"), "utf8"), /<html lang="en">/);
+      assert.ok(await exists(join(dir, "dist", "fr", "index.html")));
+      assert.match(await readFile(join(dir, "dist", "sitemap.xml"), "utf8"), /https:\/\/example\.test\/fr\/about/);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test("ssr renders a locale-prefixed request in that locale", async () => {
+    const { dir, cleanup } = await copyFixture("fullstack");
+    let child;
+    try {
+      await localize(dir);
+      await buildApp(dir, { mode: "ssr", i18n });
+      let origin;
+      ({ child, origin } = startBuiltServer(dir));
+      origin = await origin;
+      const fr = await fetch(`${origin}/fr/todos`, { headers: html });
+      assert.equal(fr.status, 200);
+      const page = await fr.text();
+      assert.match(page, /<html lang="fr">/);
+      assert.match(page, /data-afw-hydrate="\/fr\/todos"/);
+      assert.match(page, /write the Vite plugin/, "the loader runs for the localized URL");
+      assert.match(await (await fetch(`${origin}/todos`, { headers: html })).text(), /<html lang="en">/);
+    } finally {
+      child?.kill();
+      await cleanup();
+    }
+  });
+});
+
