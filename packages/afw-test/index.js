@@ -8,7 +8,7 @@ const mountedComponents = new Map();
 /** Mount a registered component, page factory, or tag and bind DOM queries to it. */
 export function render(Component, props = {}) {
   if (typeof document === 'undefined') {
-    throw new Error('render() requires esdev test --dom (or --browser)');
+    throw new Error('render() needs a DOM: run esdev test with --dom (or --browser), or set a Vitest DOM environment');
   }
   const container = document.createElement('div');
   let dispose = () => {};

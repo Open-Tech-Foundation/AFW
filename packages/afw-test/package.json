@@ -9,7 +9,8 @@
   "main": "index.js",
   "types": "./index.d.ts",
   "peerDependencies": {
-    "@opentf/afw": "workspace:*"
+    "@opentf/afw": "workspace:*",
+    "vitest": ">=4"
   },
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
@@ -28,6 +29,10 @@
       "types": "./setup.d.ts",
       "default": "./setup.js"
     },
+    "./vitest": {
+      "types": "./vitest.d.ts",
+      "default": "./vitest.js"
+    },
     "./browser-runner": "./browser-runner.js",
     "./browser-runner.js": "./browser-runner.js",
     "./package.json": "./package.json"
@@ -37,6 +42,8 @@
     "index.d.ts",
     "setup.js",
     "setup.d.ts",
+    "vitest.js",
+    "vitest.d.ts",
     "browser-runner.js"
   ],
   "keywords": [
@@ -59,5 +66,10 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   }
 }

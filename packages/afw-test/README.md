@@ -66,6 +66,31 @@ automatic cleanup:
 }
 ```
 
+## With Vitest
+
+In the Vite + Node workflow, run the same tests under [Vitest](https://vitest.dev).
+`@opentf/vite-plugin-afw` compiles components for the test's DOM, and the
+`@opentf/afw-test/vitest` setup file registers cleanup after each test:
+
+```sh
+pnpm add -D @opentf/afw-test @opentf/vite-plugin-afw vite vitest happy-dom
+```
+
+```js
+// vite.config.js
+import afw from "@opentf/vite-plugin-afw";
+
+export default {
+  plugins: [afw()],
+  test: {
+    environment: "happy-dom", // or "jsdom"
+    setupFiles: ["@opentf/afw-test/vitest"],
+  },
+};
+```
+
+Import `test` and `expect` from `vitest`; `render` and `userEvent` work as above.
+
 ## Two engines
 
 | Command | Runs in | Use for |

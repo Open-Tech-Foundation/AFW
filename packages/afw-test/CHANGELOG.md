@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- `@opentf/afw-test/vitest`: a Vitest setup file that registers `cleanup` after each
+  test, for the Vite + Node workflow. `render`, the queries and `userEvent` work
+  unchanged under Vitest's `happy-dom` or `jsdom` environment.
+
+### Changed
+
+- `render()` without a DOM names both ways to get one: esdev's `--dom`/`--browser`, or
+  a Vitest DOM environment.
+
 ## [1.28.0] - 2026-10-30
 
 
