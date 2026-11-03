@@ -19,6 +19,13 @@ function fakeHot() {
   };
 }
 
+// Vite's `import.meta.hot`: the same `data`, `accept` and `invalidate`, but no `keep`.
+function fakeViteHot() {
+  const hot = fakeHot();
+  delete hot.keep;
+  return hot;
+}
+
 const log = [];
 // A page factory version: `$state` count kept in route slots, a button to change it.
 function pageVersion(label, stateName = "count") {
@@ -221,4 +228,20 @@ test("a fragment-root page refreshes in place, replacing exactly its nodes", asy
   await tick();
   expect(text(".frag")).toBe("F3");
   expect(app.querySelectorAll(".frag, .frag-body").length).toBe(2);
+});
+
+test("a page edit refreshes in place under Vite's hot API, which has no keep()", async () => {
+  const pageHot = fakeViteHot(), layoutHot = fakeViteHot();
+  await mountRoute(pageHot, layoutHot, pageVersion("A"), layoutVersion("L"));
+  app.querySelector(".inc").click();
+  const layout = app.querySelector(".layout");
+  expect(text(".page")).toBe("A:1");
+
+  registerHotRoute(pageHot, pageVersion("B"), '["count:State"]');
+  await tick();
+
+  expect(text(".page")).toBe("B:1");
+  expect(app.querySelector(".layout")).toBe(layout);
+  expect(pageHot.invalidated).toBe(0);
+  expect(pageHot.accepted).toBe(2);
 });

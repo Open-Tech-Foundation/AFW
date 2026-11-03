@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- The development refresh runtime works under Vite's `import.meta.hot`, which has no
+  `keep()`. Page and layout refresh keeps its record in `hot.data` there, the
+  equivalent Vite API; under esdev it still uses `hot.keep`.
+
 - Page routing ranks routes by specificity: a static page such as `/blog/new` is no
   longer shadowed by a dynamic sibling (`/blog/[slug]`) or a catch-all. The winner used
   to depend on file discovery order, which differs between file systems. Applies to

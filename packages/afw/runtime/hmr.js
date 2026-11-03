@@ -1,4 +1,6 @@
-// Imported only by development compiler output. The Custom Elements registry
+// Imported only by development compiler output. It runs under esdev's and Vite's
+// `import.meta.hot`: it uses `data`, `accept` and `invalidate`, which both provide,
+// and `keep` where esdev has it (see `keep` below). The Custom Elements registry
 // caches lifecycle callbacks at define time, so stable callbacks dispatch to the
 // current implementation rather than redefining an existing tag.
 import { scope } from "../core/signals.js";
@@ -20,6 +22,18 @@ export function hotRouteState(key, create) {
 }
 
 /**
+ * A value made once and returned on every replacement of the module. esdev provides
+ * `hot.keep`; Vite's `import.meta.hot` has no `keep`, but its `data` object survives
+ * replacement the same way, so the value is kept there.
+ */
+function keep(hot, key, make) {
+  if (typeof hot.keep === "function") return hot.keep(key, make);
+  const slot = `afwKeep:${key}`;
+  if (!(slot in hot.data)) hot.data[slot] = make();
+  return hot.data[slot];
+}
+
+/**
  * `exports` is the source of the page's exports other than its view and the route data the
  * router re-reads (see the compiler's `hot_exports_shape`). Importers hold the old values,
  * so a change there reloads; an edit to the view, its metadata or its headings refreshes.
@@ -33,7 +47,7 @@ export function registerHotRoute(hot, factory, shape = "", exports = "", data = 
   }
   hot.data.afwExports = exports;
   hot.data.afwRouteBoundary = true;
-  const record = hot.keep("afw-route", () => {
+  const record = keep(hot, "afw-route", () => {
     const entry = { factory, shape };
     // `previous` is the view node this build replaces during a refresh. Its state
     // slots carry over when the declarations still match; otherwise state is fresh.
