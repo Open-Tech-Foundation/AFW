@@ -89,6 +89,9 @@ importers:
       '@opentf/afw':
         specifier: workspace:*
         version: link:../afw
+      '@opentf/afw-build':
+        specifier: workspace:*
+        version: link:../afw-build
       '@opentf/esdev-plugin-afw':
         specifier: workspace:*
         version: link:../esdev-plugin-afw

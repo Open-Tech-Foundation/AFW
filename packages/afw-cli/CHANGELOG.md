@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `runPrerender` renders through `prerender` from `@opentf/afw-build`, the
+  implementation the Vite workflow uses too; its options and result are unchanged.
+  The HTML shell helpers are re-exported from there.
+
 ## [1.32.0] - 2026-10-30
 
 ### Fixed

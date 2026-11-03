@@ -16,6 +16,7 @@
     "esdev": ">=0.16.0"
   },
   "dependencies": {
+    "@opentf/afw-build": "workspace:*",
     "@opentf/esdev-plugin-afw": "workspace:*"
   },
   "peerDependencies": {
