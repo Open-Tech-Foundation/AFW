@@ -8,3 +8,4 @@ export { closeCompilers, compileError, resolveCompiler, startCompilerServer } fr
 export { createAfwPlugin, afwPlugin } from "./plugin.js";
 export { createAfwRoutes, isUnpublishedPage } from "./routes.js";
 export { default, createAfwAppPlugin } from "./afw.js";
+export { esdevHost } from "./host.js";

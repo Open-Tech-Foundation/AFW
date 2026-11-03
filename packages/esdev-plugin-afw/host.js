@@ -1,7 +1,7 @@
 // The ES-Runtime host for `@opentf/afw-build` (see its host.js): file access,
 // processes and paths through `runtime:*` modules — no `node:` builtins.
 
-import { file, readDir, stat } from "runtime:fs";
+import { file, mkdir, readDir, stat, write } from "runtime:fs";
 import { dirname, join, resolve } from "runtime:path";
 import { cwd, env } from "runtime:process";
 import { Command } from "runtime:system";
@@ -9,6 +9,10 @@ import { Command } from "runtime:system";
 export const esdevHost = {
   readText: (path) => file(path).text(),
   readDir: (path) => readDir(path),
+  async writeText(path, text) {
+    await mkdir(dirname(path), { recursive: true });
+    await write(path, text);
+  },
   async kind(path) {
     try {
       const s = await stat(path);

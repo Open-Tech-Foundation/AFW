@@ -9,6 +9,11 @@
   its exports and behaviour and supplies the ES-Runtime host (`host.js`). Discovered
   routes are listed in sorted order instead of file-system order.
 
+### Added
+
+- `esdevHost`: the ES-Runtime host for `@opentf/afw-build`, for esdev build steps
+  that use the shared core (the `@opentf/afw-cli` prerender does).
+
 ## [0.5.0] - 2026-10-30
 
 
