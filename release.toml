@@ -18,6 +18,14 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
+"@opentf/afw-build" = [
+    "**/*.md",
+    "**/__tests__/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/test/**",
+    "**/tests/**",
+]
 "@opentf/esdev-plugin-afw" = [
     "**/*.md",
     "**/__tests__/**",
@@ -66,6 +74,15 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
+
+[[package]]
+name = "@opentf/afw-build"
+adapter = "npm"
+mode = "publish"
+matrix = false
+command = "npm run build"
+artifacts = ""
+manifest = "packages/afw-build/package.json"
 
 [[package]]
 name = "@opentf/esdev-plugin-afw"

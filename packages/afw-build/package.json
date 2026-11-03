@@ -1,0 +1,38 @@
+{
+  "name": "@opentf/afw-build",
+  "version": "0.0.0",
+  "description": "The toolchain-neutral core of AFW's build: compiler client, compile targets and file-based routing.",
+  "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "host.js",
+    "compiler-client.js",
+    "compile.js",
+    "resolve-compiler.js",
+    "routes.js"
+  ],
+  "keywords": [
+    "afw",
+    "opentf",
+    "build",
+    "compiler",
+    "routing"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Open-Tech-Foundation/afw.git",
+    "directory": "packages/afw-build"
+  },
+  "homepage": "https://afw.opentechf.org/docs",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

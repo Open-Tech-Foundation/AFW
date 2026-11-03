@@ -82,6 +82,8 @@ importers:
 
   packages/afw: {}
 
+  packages/afw-build: {}
+
   packages/afw-cli:
     dependencies:
       '@opentf/afw':
@@ -146,6 +148,9 @@ importers:
 
   packages/esdev-plugin-afw:
     dependencies:
+      '@opentf/afw-build':
+        specifier: workspace:*
+        version: link:../afw-build
       '@opentf/afw-compiler':
         specifier: workspace:*
         version: link:../afw-compiler
