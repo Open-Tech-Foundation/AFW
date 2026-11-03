@@ -14,6 +14,7 @@
 // approach of the page router (runtime/router.js `matchRoute`) so behavior is
 // identical across pages and API and across every deployment target.
 
+import { compareRoutes, compileRoute, decodeParams, normalizePath as normalize, stripAppDir } from "../runtime/route-match.js";
 import { middlewareScopeFromPath } from "./middleware.js";
 
 // Scope derivation lives in middleware.js now that middleware governs the whole
@@ -21,21 +22,6 @@ import { middlewareScopeFromPath } from "./middleware.js";
 export { middlewareScopeFromPath };
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
-
-/**
- * Strip the app-directory prefix from a route/middleware file path. When the
- * caller knows the app dir (the CLI always does), the exact prefix is removed —
- * unambiguous even for an `app/app/...` folder. Without it, fall back to the last
- * complete `/app` path segment; the lookahead keeps folders that merely *start*
- * with "app" (`/appointments`, `/apps`) intact.
- */
-function stripAppDir(filePath, appDir) {
-  if (appDir) {
-    const base = appDir.replace(/\/+$/, "");
-    if (filePath.startsWith(base + "/")) return filePath.slice(base.length);
-  }
-  return filePath.replace(/^.*\/app(?=\/)/, "");
-}
 
 /**
  * Derive the API route path from a `.../app/<...>/route.{js,ts}` file path — the
@@ -48,32 +34,6 @@ export function apiRouteFromPath(filePath, appDir) {
   const r = stripAppDir(filePath, appDir).replace(/\/route\.(jsx?|tsx?)$/, "");
   return r === "" ? "/" : r;
 }
-
-/** Compile a route path with `[param]` / `[...rest]` segments to a matcher regex.
- *  Named groups become route params; literal parts are regex-escaped (a `v1.0`
- *  folder must not match `v1X0`); the optional trailing slash is tolerated. */
-function compilePattern(route) {
-  const src = route
-    .split(/(\[\.\.\.[^\]]+\]|\[[^\]]+\])/)
-    .map((part) => {
-      if (part.startsWith("[...")) return `(?<${part.slice(4, -1)}>.+)`;
-      if (part.startsWith("[")) return `(?<${part.slice(1, -1)}>[^/]+)`;
-      return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    })
-    .join("");
-  return new RegExp(`^${src}/?$`);
-}
-
-// Percent-decode a matched param segment; malformed input stays raw rather than throwing.
-const decodeParam = (s) => {
-  try {
-    return decodeURIComponent(s);
-  } catch {
-    return s;
-  }
-};
-
-const normalize = (p) => (p || "/").replace(/(.)\/+$/, "$1");
 
 /** The `Allow` header value for a handler module: the methods it exports, plus the
  *  auto-provided HEAD (when GET exists) and OPTIONS. */
@@ -101,11 +61,11 @@ export function createApiHandler(routeModules = {}, middlewareModules = {}, { ap
   const routes = [];
   for (const file in routeModules) {
     const route = apiRouteFromPath(file, appDir);
-    routes.push({ route, pattern: compilePattern(route), module: routeModules[file], dynamic: route.includes("[") });
+    routes.push({ route, pattern: compileRoute(route), module: routeModules[file] });
   }
-  // Static routes before dynamic, longer (more specific) before shorter, so the
-  // most specific match wins deterministically regardless of discovery order.
-  routes.sort((a, b) => a.dynamic - b.dynamic || b.route.length - a.route.length);
+  // Most specific first, segment by segment (static, then `[param]`, then
+  // `[...rest]`), so the winner never depends on discovery order or param names.
+  routes.sort((a, b) => compareRoutes(a.route, b.route));
 
   const middleware = [];
   for (const file in middlewareModules) {
@@ -126,14 +86,9 @@ export function createApiHandler(routeModules = {}, middlewareModules = {}, { ap
       const m = pathname.match(r.pattern);
       if (!m) continue;
       matched = r;
-      params = { ...(m.groups || {}) };
       // Params reach handlers percent-decoded (`/users/John%20Doe` → "John Doe");
       // catch-all segments are split first so an encoded `%2F` never adds a segment.
-      for (const k in params) {
-        params[k] = r.route.includes(`[...${k}]`)
-          ? params[k].split("/").map(decodeParam)
-          : decodeParam(params[k]);
-      }
+      params = decodeParams(r.route, m.groups);
       break;
     }
     if (!matched) return null; // no API route — fall through to SSR / 404

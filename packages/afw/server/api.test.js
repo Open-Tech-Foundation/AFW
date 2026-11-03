@@ -57,6 +57,30 @@ describe("createApiHandler", () => {
     expect(await (await handle(req("/api/users/42"))).json()).toEqual({ id: "42" });
   });
 
+  test("a [param] route beats a catch-all whatever the param names", async () => {
+    const text = (body) => () => new Response(body);
+    const handle = createApiHandler({
+      "/app/api/[...everything]/route.js": { GET: text("catch-all") },
+      "/app/api/[id]/route.js": { GET: text("id") },
+      "/app/api/health/route.js": { GET: text("static") },
+      "/app/api/[a]/[b]/route.js": { GET: text("two params") },
+    });
+    expect(await (await handle(req("/api/5"))).text()).toBe("id");
+    expect(await (await handle(req("/api/health"))).text()).toBe("static");
+    expect(await (await handle(req("/api/x/y"))).text()).toBe("two params");
+    expect(await (await handle(req("/api/x/y/z"))).text()).toBe("catch-all");
+  });
+
+  test("a static segment beats a param at the first point the routes differ", async () => {
+    const text = (body) => () => new Response(body);
+    const handle = createApiHandler({
+      "/app/api/[org]/settings/route.js": { GET: text("org settings") },
+      "/app/api/users/[id]/route.js": { GET: text("user") },
+    });
+    expect(await (await handle(req("/api/users/settings"))).text()).toBe("user");
+    expect(await (await handle(req("/api/acme/settings"))).text()).toBe("org settings");
+  });
+
   test("params arrive percent-decoded (catch-all segments too)", async () => {
     const handle = createApiHandler({
       "/app/api/users/[id]/route.js": { GET: (_r, { params }) => Response.json(params.id) },

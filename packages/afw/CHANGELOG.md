@@ -8,6 +8,9 @@
   longer shadowed by a dynamic sibling (`/blog/[slug]`) or a catch-all. The winner used
   to depend on file discovery order, which differs between file systems. Applies to
   client navigation and server rendering.
+- API routes and route loaders rank by the same specificity rules: `/api/[id]` beats
+  `/api/[...rest]`. They were sorted by the length of the route string, so a catch-all
+  with a longer param name could take requests meant for a `[param]` route.
 
 ## [0.33.0] - 2026-10-30
 

@@ -18,15 +18,7 @@
 // behave identically across pages, endpoints, and loaders.
 
 import { DATA_FILE } from "../runtime/route-data.js";
-
-/** See `stripAppDir` in api.js — exact-prefix strip with a `/app` segment fallback. */
-function stripAppDir(filePath, appDir) {
-  if (appDir) {
-    const base = appDir.replace(/\/+$/, "");
-    if (filePath.startsWith(base + "/")) return filePath.slice(base.length);
-  }
-  return filePath.replace(/^.*\/app(?=\/)/, "");
-}
+import { compareRoutes, compileRoute, decodeParams, normalizePath as normalize, stripAppDir } from "../runtime/route-match.js";
 
 /** The page route a `.../app/<...>/loader.{js,ts}` file feeds (folder = URL):
  *  `app/todos/loader.js` → `/todos`, `app/loader.js` → `/`. */
@@ -34,29 +26,6 @@ export function loaderRouteFromPath(filePath, appDir) {
   const r = stripAppDir(filePath, appDir).replace(/\/loader\.(js|ts)$/, "");
   return r === "" ? "/" : r;
 }
-
-/** Compile a route with `[param]` / `[...rest]` segments to a matcher regex (see api.js). */
-function compilePattern(route) {
-  const src = route
-    .split(/(\[\.\.\.[^\]]+\]|\[[^\]]+\])/)
-    .map((part) => {
-      if (part.startsWith("[...")) return `(?<${part.slice(4, -1)}>.+)`;
-      if (part.startsWith("[")) return `(?<${part.slice(1, -1)}>[^/]+)`;
-      return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    })
-    .join("");
-  return new RegExp(`^${src}/?$`);
-}
-
-const decodeParam = (s) => {
-  try {
-    return decodeURIComponent(s);
-  } catch {
-    return s;
-  }
-};
-
-const normalize = (p) => (p || "/").replace(/(.)\/+$/, "$1");
 
 /**
  * Signal "this page does not exist for these params" from inside a loader — the
@@ -112,10 +81,10 @@ export function createLoaderRegistry(loaderModules = {}, { appDir, i18n } = {}) 
     const fn = ns.default ?? ns.loader;
     if (typeof fn !== "function") continue; // a loader file without a loader export is inert
     const route = loaderRouteFromPath(file, appDir);
-    entries.push({ route, pattern: compilePattern(route), fn, dynamic: route.includes("[") });
+    entries.push({ route, pattern: compileRoute(route), fn });
   }
-  // Static before dynamic, longer before shorter — most specific wins (see api.js).
-  entries.sort((a, b) => a.dynamic - b.dynamic || b.route.length - a.route.length);
+  // Most specific first, segment by segment — the same ranking as pages and API routes.
+  entries.sort((a, b) => compareRoutes(a.route, b.route));
 
   const i18nOn = !!(i18n && Array.isArray(i18n.locales) && i18n.locales.length);
   const defaultLocale = i18nOn ? (i18n.defaultLocale ?? i18n.locales[0]) : null;
@@ -135,13 +104,7 @@ export function createLoaderRegistry(loaderModules = {}, { appDir, i18n } = {}) 
     for (const e of entries) {
       const m = path.match(e.pattern);
       if (!m) continue;
-      const params = { ...(m.groups || {}) };
-      for (const k in params) {
-        params[k] = e.route.includes(`[...${k}]`)
-          ? params[k].split("/").map(decodeParam)
-          : decodeParam(params[k]);
-      }
-      return { route: e.route, params, locale, fn: e.fn };
+      return { route: e.route, params: decodeParams(e.route, m.groups), locale, fn: e.fn };
     }
     return null;
   }

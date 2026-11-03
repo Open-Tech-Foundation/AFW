@@ -77,6 +77,23 @@ describe("registry matching", () => {
   });
 });
 
+describe("registry precedence", () => {
+  test("static beats [param] beats catch-all, whatever the param names", () => {
+    const registry = createLoaderRegistry(
+      {
+        "/proj/app/items/[...everything]/loader.js": mod(() => "rest"),
+        "/proj/app/items/[id]/loader.js": mod(() => "id"),
+        "/proj/app/items/new/loader.js": mod(() => "new"),
+      },
+      { appDir: "/proj/app" },
+    );
+    expect(registry.match("/items/new").route).toBe("/items/new");
+    expect(registry.match("/items/7").route).toBe("/items/[id]");
+    expect(registry.match("/items/a/b").route).toBe("/items/[...everything]");
+    expect(registry.routes).toEqual(["/items/new", "/items/[id]", "/items/[...everything]"]);
+  });
+});
+
 describe("i18n locale prefix", () => {
   const registry = createLoaderRegistry(
     { "/proj/app/todos/loader.js": mod(({ locale }) => ({ locale })) },
