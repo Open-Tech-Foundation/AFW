@@ -39,6 +39,9 @@ export function memoryHost(files = {}, { cwd = "/", env = {}, spawn, run } = {})
       }
       return [...names].map(([name, dirish]) => ({ name, isDir: dirish, isFile: !dirish, isSymlink: false }));
     },
+    async writeText(path, text) {
+      tree.set(norm(path), text);
+    },
     async kind(path) {
       const p = norm(path);
       return tree.has(p) ? "file" : isDir(p) ? "dir" : null;

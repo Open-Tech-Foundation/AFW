@@ -43,7 +43,7 @@ describe("serverModule", () => {
     expect(code).toContain('import * as l1 from "/site/app/todos/loader.js";');
     expect(code).toContain('const options = {"appDir":"/site/app","i18n":{"locales":["en","fr"],"defaultLocale":"en"}};');
     expect(code).toContain('export const loaderRoutes = ["/","/todos"];');
-    expect(code).toContain("export function createHandler({ fallback } = {})");
+    expect(code).toContain("export function createHandler({ files, renderPage, fallback } = {})");
     expect(files.length).toBe(4);
   });
 
@@ -51,6 +51,21 @@ describe("serverModule", () => {
     const { code, files } = await serverModule(app({ "page.jsx": "" }), "/site/app");
     expect(code).toContain("const routeModules = {\n\n};");
     expect(files).toEqual([]);
+  });
+
+  test("with pages, registers every route file and exports the renderer", async () => {
+    const host = app({ "page.jsx": "", "layout.jsx": "", "404.jsx": "", "blog/page.md": "---\ndraft: true\n---", "api/route.js": "" });
+    const { code, files } = await serverModule(host, "/site/app", { pages: true, drafts: false, i18n: { locales: ["en", "fr"] } });
+    expect(code).toContain('import * as p0 from "/site/app/404.jsx";');
+    expect(code).toContain('["/app/layout.jsx"]: p1,');
+    expect(code).not.toContain("blog/page.md");
+    expect(code).toContain("configureI18n(options.i18n);");
+    expect(code).toContain("export function createPageRenderer({ shell, baseUrl = \"\" })");
+    expect(code).toContain('import { renderDocument } from "@opentf/afw-build/document";');
+    expect(files).toContain("/site/app/page.jsx");
+    const plain = await serverModule(host, "/site/app");
+    expect(plain.code).not.toContain("createPageRenderer");
+    expect(plain.code).not.toContain("registerRoutes");
   });
 
   test("a layout conflict is an error", async () => {

@@ -26,6 +26,8 @@
  * @typedef {object} BuildHost
  * @property {(path: string) => Promise<string>} readText  Read a UTF-8 file.
  * @property {(path: string) => Promise<DirEntry[]>} readDir  List a directory.
+ * @property {(path: string, text: string) => Promise<void>} writeText
+ *   Write a UTF-8 file, creating missing parent directories.
  * @property {(path: string) => Promise<"file" | "dir" | null>} kind
  *   What is at `path` (symlinks followed), or `null` when nothing is, or it is unreadable.
  * @property {(program: string, args: string[]) => Promise<ChildProcess>} spawn

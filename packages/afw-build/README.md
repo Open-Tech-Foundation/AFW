@@ -18,6 +18,8 @@ You normally install one of those, not this package directly.
 | `compile.js` | Compiler target rules (`chooseTarget`), the compile-error stub, route-module detection |
 | `resolve-compiler.js` | Finds `afwc`: `AFWC_BIN`, the prebuilt `@opentf/afw-compiler` binary, or a cargo build in a source checkout |
 | `routes.js` | File-based routing: page, layout, 404 and loader discovery, and the `@afw/routes` module |
+| `document.js` | The HTML document: shell helpers and `renderDocument`, shared by SSR and static generation |
+| `prerender.js` | Static generation: pages, loader data, `404.html`, sitemap and robots |
 | `server.js` | Server routing: API routes, middleware and loaders composed into the `@afw/server` handler |
 | `host.js` | The host interface the above run against |
 

@@ -7,7 +7,8 @@
     "build": "cp ../../LICENSE LICENSE"
   },
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./document": "./document.js"
   },
   "files": [
     "index.js",
@@ -16,7 +17,9 @@
     "compile.js",
     "resolve-compiler.js",
     "routes.js",
-    "server.js"
+    "server.js",
+    "document.js",
+    "prerender.js"
   ],
   "keywords": [
     "afw",

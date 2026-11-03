@@ -16,3 +16,9 @@ export {
   resolveAppRoot, routeKey, routesModule,
 } from "./routes.js";
 export { SERVER_ID, discoverServerFiles, hasServerFiles, serverConflicts, serverModule } from "./server.js";
+export {
+  DATA_FILE, alternateLinks, escapeXml, i18nSettings, injectBeforeBody, injectHead, injectHydrationData,
+  injectMarkup, injectRouteData, localizePath, modulepreloadTags, renderDocument, renderNotFound, splitLocale,
+  stampHydrateSentinel, stampRenderedPath, withHtmlLang,
+} from "./document.js";
+export { prerender, robotsTxt, sitemapXml } from "./prerender.js";

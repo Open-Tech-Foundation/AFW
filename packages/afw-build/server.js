@@ -3,9 +3,16 @@
 // `app/`, check how they sit beside pages, and generate the `@afw/server` module that
 // composes them into one Fetch handler:
 //
-//   import { createHandler } from "@afw/server";
-//   const handle = createHandler({ fallback: (request) => serveStaticOrShell(request) });
-//   const response = await handle(request);   // middleware → API → loader data → fallback
+//   import { createHandler, createPageRenderer } from "@afw/server";
+//   const handle = createHandler({
+//     files: serveBuiltFile,                          // optional: built assets
+//     renderPage: createPageRenderer({ shell }),      // optional: server-rendered pages
+//     fallback: () => new Response("Not Found", { status: 404 }),
+//   });
+//   const response = await handle(request);
+//   // middleware → API routes → loader data → files → page render → fallback
+
+import { discoverPages, routeKey } from "./routes.js";
 
 /** The specifier a server entry imports. */
 export const SERVER_ID = "@afw/server";
@@ -101,14 +108,19 @@ export function serverConflicts(host, dir, files) {
 /**
  * Generate the `@afw/server` module for the app at `root`. It exports the composed
  * pieces (`apiHandler`, `apiRoutes`, `middleware`, `loaders`) and `createHandler`,
- * whose Fetch handler runs middleware around API routes, then loader data, then the
- * `fallback` — static files, the app shell or a rendered page, as the host decides.
- * Throws on a layout conflict.
+ * whose Fetch handler runs middleware around API routes and loader data, then the
+ * optional `files` and `renderPage` steps, then `fallback`. Throws on a layout conflict.
  *
- * @param {{ exclude?: string[], i18n?: { locales: string[], defaultLocale?: string } | null }} [options]
+ * With `pages`, the module also registers every page (compiled for the server) and
+ * exports `render` (the render API static generation needs) and
+ * `createPageRenderer({ shell, baseUrl })`, a `renderPage` step built on
+ * `renderDocument`. `drafts: false` leaves unpublished Markdown pages out.
+ *
+ * @param {{ exclude?: string[], i18n?: { locales: string[], defaultLocale?: string } | null,
+ *           pages?: boolean, drafts?: boolean }} [options]
  * @returns {Promise<{ code: string, files: string[] }>}
  */
-export async function serverModule(host, root, { exclude = [], i18n = null } = {}) {
+export async function serverModule(host, root, { exclude = [], i18n = null, pages = false, drafts = true } = {}) {
   const files = await discoverServerFiles(host, root, { exclude });
   const problems = serverConflicts(host, root, files);
   if (problems.length) throw new Error(`AFW server routes:\n  ${problems.join("\n  ")}`);
@@ -121,6 +133,32 @@ export async function serverModule(host, root, { exclude = [], i18n = null } = {
   if (i18n && Array.isArray(i18n.locales) && i18n.locales.length) {
     options.i18n = { locales: i18n.locales, defaultLocale: i18n.defaultLocale ?? i18n.locales[0] };
   }
+  const pageFiles = pages ? await discoverPages(host, root, { exclude, drafts }) : [];
+  const p = group(pageFiles, "p");
+  const renderPart = pages
+    ? `import { collectRoutePaths, configureI18n, registerRoutes, renderHead, renderRoute, resolveMetadata } from "@opentf/afw/server";\n` +
+      `import { renderDocument } from "@opentf/afw-build/document";\n` +
+      (p.imports ? `${p.imports}\n` : "") +
+      (options.i18n ? `configureI18n(options.i18n);\n` : "") +
+      `registerRoutes({\n${pageFiles.map((f, i) => `  [${JSON.stringify(routeKey(f, root))}]: p${i},`).join("\n")}\n});\n` +
+      `export const render = { renderRoute, renderHead, collectRoutePaths, resolveMetadata };\n` +
+      `/** A \`renderPage\` step: server-render page requests (\`GET\`/\`HEAD\`) into \`shell\`. */\n` +
+      `export function createPageRenderer({ shell, baseUrl = "" }) {\n` +
+      `  return async (request, { locals = {} } = {}) => {\n` +
+      `    const method = request.method.toUpperCase();\n` +
+      `    if (method !== "GET" && method !== "HEAD") return null;\n` +
+      `    const url = new URL(request.url);\n` +
+      `    const doc = await renderDocument(render, {\n` +
+      `      shell, url: url.pathname, search: url.search, loaders, baseUrl, i18n: options.i18n ?? null,\n` +
+      `      loaderContext: { request, query: Object.fromEntries(url.searchParams), locals },\n` +
+      `    });\n` +
+      `    if (!doc) return null;\n` +
+      `    return new Response(method === "HEAD" ? null : doc.html, {\n` +
+      `      status: doc.status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" },\n` +
+      `    });\n` +
+      `  };\n` +
+      `}\n`
+    : "";
   const code =
     `import { createApiHandler, createFetchHandler, createLoaderRegistry, createMiddleware } from "@opentf/afw/server";\n` +
     [r.imports, m.imports, l.imports].filter(Boolean).join("\n") + "\n" +
@@ -133,15 +171,23 @@ export async function serverModule(host, root, { exclude = [], i18n = null } = {
     `export const middleware = createMiddleware(middlewareModules, options);\n` +
     `export const loaders = createLoaderRegistry(loaderModules, options);\n` +
     `export const loaderRoutes = ${JSON.stringify(loaderRoutePatterns(host, root, files.loaders))};\n` +
-    `// API routes, then loader data (\`<path>/__data.json\`), sharing middleware's locals.\n` +
-    `async function routes(request, env, ctx, init) {\n` +
-    `  return (await apiRoutes(request, env, ctx, init)) ?? (await loaders.handle(request, { locals: init?.locals ?? {} }));\n` +
-    `}\n` +
-    `/** A Fetch handler: middleware around API routes and loader data, then \`fallback\`. */\n` +
-    `export function createHandler({ fallback } = {}) {\n` +
-    `  return createFetchHandler(routes, { middleware, fallback });\n` +
+    renderPart +
+    `/**\n` +
+    ` * A Fetch handler. Inside the middleware: API routes, loader data (\`<path>/__data.json\`),\n` +
+    ` * then \`files(request)\` and \`renderPage(request, { locals })\` when given (each may\n` +
+    ` * return null to pass). Then \`fallback\`.\n` +
+    ` */\n` +
+    `export function createHandler({ files, renderPage, fallback } = {}) {\n` +
+    `  const terminal = async (request, env, ctx, init) => {\n` +
+    `    const locals = init?.locals ?? {};\n` +
+    `    return (await apiRoutes(request, env, ctx, init)) ??\n` +
+    `      (await loaders.handle(request, { locals })) ??\n` +
+    `      (files ? await files(request) : null) ??\n` +
+    `      (renderPage ? await renderPage(request, { locals }) : null);\n` +
+    `  };\n` +
+    `  return createFetchHandler(terminal, { middleware, fallback });\n` +
     `}\n`;
-  return { code, files: [...files.routes, ...files.middleware, ...files.loaders] };
+  return { code, files: [...files.routes, ...files.middleware, ...files.loaders, ...pageFiles] };
 }
 
 function loaderRoutePatterns(host, root, loaders) {

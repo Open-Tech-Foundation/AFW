@@ -13,6 +13,15 @@
   `app/`, composed into one Fetch handler (`createHandler({ fallback })`) that runs
   middleware around API routes, then loader data, then the fallback. Layout mistakes
   (a page and an API route in one folder, a loader with no page) fail with a message.
+- `renderDocument`: renders one URL into a complete HTML document (markup, head,
+  hydration props, loader data, `lang` and hreflang alternates), shared by static
+  generation and per-request SSR. The shell helpers (`injectMarkup`, `injectHead`,
+  `stampHydrateSentinel` and the rest) move here from `@opentf/afw-cli`.
+- `prerender`: static generation against the host — every route and locale,
+  `__data.json` files, `404.html`, `sitemap.xml` and `robots.txt`.
+- `serverModule({ pages: true })` also registers every page and exports `render` and
+  `createPageRenderer`; `createHandler` takes `files` and `renderPage` steps.
+- Hosts provide `writeText`.
 - The compiler child keeps its parent process alive only while a compile is in flight,
   on hosts that offer `ref`/`unref` (Node). A build or test that never closes the
   compiler still exits.
