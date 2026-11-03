@@ -39,6 +39,14 @@ Checks run for this verification:
 | Fullstack starter needed an `HTMLElement` bootstrap | 0.16 | 0.17 template targets `server.js` (with `@opentf/afw` 0.31) | `packages/afw/server/index.test.js` loads the server entry with no DOM |
 | Route chunks imported an unhashed `entry.js` in production builds | 0.14, 0.15 | 0.16 | `tsr bench -- afw`, site build |
 
+## Upstream esdev issues (later releases)
+
+| Issue | Seen in | Fix | Regression coverage here |
+| --- | --- | --- | --- |
+| `esdev test --browser` left `runtime:test` unresolved (an alias-plugin regression), so every browser test file failed to load with "Failed to fetch dynamically imported module …/setup0.js" | 0.25 | 0.26 ([release notes](https://github.com/Open-Tech-Foundation/ES-Runtime/releases/tag/esdev%400.26.0)) | `tsr test-e2e-afw-test` |
+
+Use esdev 0.26 or newer for the browser tier (`esdev upgrade`).
+
 ## Framework follow-ups
 
 - Original Markdown/MDX source maps (current maps target generated JSX).
