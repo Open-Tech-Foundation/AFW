@@ -66,3 +66,4 @@ packages/afw-cli/tests/afw-*/
 
 # Copied from the root by each package's build script before publishing
 packages/*/LICENSE
+packages/create-afw/versions.json

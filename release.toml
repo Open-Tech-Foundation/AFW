@@ -1,5 +1,5 @@
 adapters = ["npm"]
-skip_publish = ["@opentf/create-afw"]
+skip_publish = []
 tag_format = "{name}@{version}"
 provider = "github"
 default_branch = "main"
@@ -25,6 +25,11 @@ github_release_notes = "auto-generate"
     "**/*.spec.*",
     "**/test/**",
     "**/tests/**",
+]
+"@opentf/create-afw" = [
+    "**/*.md",
+    "**/node-tests/**",
+    "**/scripts/**",
 ]
 "@opentf/vite-plugin-afw" = [
     "**/*.md",
@@ -93,6 +98,15 @@ matrix = false
 command = "npm run build"
 artifacts = ""
 manifest = "packages/afw-build/package.json"
+
+[[package]]
+name = "@opentf/create-afw"
+adapter = "npm"
+mode = "publish"
+matrix = false
+command = "npm run build"
+artifacts = ""
+manifest = "packages/create-afw/package.json"
 
 [[package]]
 name = "@opentf/vite-plugin-afw"

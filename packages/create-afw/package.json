@@ -1,0 +1,51 @@
+{
+  "name": "@opentf/create-afw",
+  "version": "0.0.0",
+  "description": "Create an AFW app on Vite and Node: npm create @opentf/afw.",
+  "type": "module",
+  "bin": {
+    "create-afw": "./index.js"
+  },
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE && node scripts/write-versions.mjs"
+  },
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "templates.js",
+    "versions.js",
+    "versions.json"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@opentf/afw": "workspace:*",
+    "@opentf/afw-test": "workspace:*",
+    "@opentf/vite-plugin-afw": "workspace:*",
+    "happy-dom": "21.0.4",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "keywords": [
+    "afw",
+    "opentf",
+    "create",
+    "scaffold",
+    "vite",
+    "starter"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Open-Tech-Foundation/afw.git",
+    "directory": "packages/create-afw"
+  },
+  "homepage": "https://afw.opentechf.org/docs",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
