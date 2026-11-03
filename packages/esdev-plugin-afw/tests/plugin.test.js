@@ -147,7 +147,7 @@ test("a starter config loads the default factory and builds browser and server r
         await copy(from, to);
       }
     }
-    for (const name of ["afw", "esdev-plugin-afw", "afw-compiler"]) {
+    for (const name of ["afw", "afw-build", "esdev-plugin-afw", "afw-compiler"]) {
       const packageDir = join(root, "packages", name);
       const manifest = await file(join(packageDir, "package.json")).json();
       for (const path of ["package.json", ...manifest.files.filter(path => !path.startsWith("!") && path !== "bin")]) {

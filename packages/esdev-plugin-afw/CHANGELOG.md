@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The compiler client, target rules, compiler resolution and route discovery now come
+  from `@opentf/afw-build`, the core shared with the Vite workflow. This package keeps
+  its exports and behaviour and supplies the ES-Runtime host (`host.js`). Discovered
+  routes are listed in sorted order instead of file-system order.
+
 ## [0.5.0] - 2026-10-30
 
 

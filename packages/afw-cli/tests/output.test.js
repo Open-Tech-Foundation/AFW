@@ -30,7 +30,7 @@ test("finish indexes prerendered staging, preserves overrides, and protects depl
         await copy(from, to);
       }
     }
-    for (const name of ["afw", "afw-cli", "afw-docs", "afw-compiler", "esdev-plugin-afw"]) {
+    for (const name of ["afw", "afw-build", "afw-cli", "afw-docs", "afw-compiler", "esdev-plugin-afw"]) {
       const source = join(root, "packages", name);
       const manifest = await file(join(source, "package.json")).json();
       for (const path of ["package.json", ...manifest.files.filter(path => !path.startsWith("!") && path !== "bin")]) {

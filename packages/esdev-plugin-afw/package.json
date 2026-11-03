@@ -12,11 +12,13 @@
   "files": [
     "index.js",
     "compiler.js",
+    "host.js",
     "plugin.js",
     "routes.js",
     "afw.js"
   ],
   "dependencies": {
+    "@opentf/afw-build": "workspace:*",
     "@opentf/afw-compiler": "workspace:*"
   },
   "engines": {

@@ -11,7 +11,7 @@ async function copyPath(from, to) {
     for (const entry of await readDir(from)) await copyPath(`${from}/${entry.name}`, `${to}/${entry.name}`);
   } else { await mkdir(to.slice(0, to.lastIndexOf('/')), { recursive: true }); await copy(from, to); }
 }
-for (const name of ["afw", "esdev-plugin-afw", "afw-compiler"]) {
+for (const name of ["afw", "afw-build", "esdev-plugin-afw", "afw-compiler"]) {
   const source = `${root}/packages/${name}`;
   const manifest = await file(`${source}/package.json`).json();
   for (const path of ["package.json", ...manifest.files.filter(path => !path.startsWith('!') && path !== 'bin')]) {

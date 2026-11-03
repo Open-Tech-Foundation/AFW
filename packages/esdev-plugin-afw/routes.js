@@ -24,154 +24,46 @@
 // tests/scripts too. Tests that hand-write their map can
 // omit this plugin from their config.
 
-import { file, Glob, stat } from "runtime:fs";
-import { cwd } from "runtime:process";
-import { dirname, join, resolve } from "runtime:path";
+import {
+  ROUTES_ID,
+  isUnpublishedPage as isUnpublishedWith,
+  resolveAppRoot,
+  routesModule,
+} from "@opentf/afw-build";
 
-async function isFile(path) {
-  try {
-    return (await stat(path)).isFile;
-  } catch {
-    return false;
-  }
-}
-
-async function isDir(path) {
-  try {
-    return (await stat(path)).isDir;
-  } catch {
-    return false;
-  }
-}
+import { esdevHost } from "./host.js";
 
 /**
  * Whether a Markdown page is unpublished: frontmatter `draft: true`, or a `date` later
  * than now (scheduled). Production builds leave such pages out of the route table, so
- * their text never reaches a bundle; the dev server (`esdev start`) keeps them. The same
- * rule as `@opentf/afw-docs` publish.js, which drives the post list, feeds and docs nav.
+ * their text never reaches a bundle; the dev server (`esdev start`) keeps them.
  */
-export async function isUnpublishedPage(path, now = Date.now()) {
-  if (!/\.(mdx|md)$/.test(path)) return false;
-  let source;
-  try {
-    source = await file(path).text();
-  } catch {
-    return false;
-  }
-  const block = source.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---/)?.[1];
-  if (!block) return false;
-  const field = (key) => {
-    const m = block.match(new RegExp(`^\\s*${key}\\s*:\\s*(.*?)\\s*$`, "m"));
-    return m ? m[1].replace(/^(["'])(.*)\1$/, "$2") : null;
-  };
-  if (field("draft") === "true") return true;
-  const date = field("date");
-  if (!date) return false;
-  const at = new Date(date).getTime();
-  return !Number.isNaN(at) && at > now;
-}
-
-/** Route files under `dir`: page / layout / 404 modules. No `exclude` option
- * exists on the scan, so subtrees are filtered here (per docs). Yields are
- * relative to `dir`, always `/`-separated, top-level files included.
- */
-async function discoverPages(dir, exclude = new Set(), drafts = true) {
-  const out = [];
-  const scan = new Glob("**/{page,layout,404}.{mdx,md,jsx,tsx}").scan(dir);
-  for await (const rel of scan) {
-    if ([...exclude].some((name) => rel === name || rel.startsWith(`${name}/`))) continue;
-    if (/(^|\/)404\.(mdx|md)$/.test(rel)) {
-      throw new Error(`Unsupported Markdown 404 route: ${join(dir, rel)}. Use 404.jsx or 404.tsx instead.`);
-    }
-    if (!drafts && (await isUnpublishedPage(join(dir, rel)))) continue;
-    out.push(join(dir, rel));
-  }
-  return out;
-}
-
-async function discoverLoaders(dir, exclude) {
-  const routes = new Map();
-  for await (const rel of new Glob("**/loader.{js,ts}").scan(dir)) {
-    if ([...exclude].some((name) => rel === name || rel.startsWith(`${name}/`))) continue;
-    const pattern = rel.replace(/(^|\/)loader\.(js|ts)$/, "") || "/";
-    const route = pattern.startsWith("/") ? pattern : `/${pattern}`;
-    if (routes.has(route)) throw new Error(`Conflicting loaders for ${route}: ${routes.get(route)} and ${join(dir, rel)}`);
-    routes.set(route, join(dir, rel));
-  }
-  return [...routes].sort(([a], [b]) => a.localeCompare(b));
-}
-
-function stripAppPrefix(filePath, appDir) {
-  if (appDir) {
-    const base = appDir.replace(/\/+$/, "");
-    if (filePath.startsWith(base + "/")) return filePath.slice(base.length);
-  }
-  return filePath.replace(/^.*\/app(?=\/)/, "");
-}
-
-/** The map key for a route file — keeps `/app` so `routeFromPath` resolves it. */
-function routeKey(filePath, appDir) {
-  return `/app${stripAppPrefix(filePath, appDir)}`;
-}
-
-/** The optional `app/routeGuard.{js,ts}` path, or null. */
-async function findGuard(appDir) {
-  for (const f of [join(appDir, "routeGuard.js"), join(appDir, "routeGuard.ts")]) {
-    if (await isFile(f)) return f;
-  }
-  return null;
+export function isUnpublishedPage(path, now = Date.now()) {
+  return isUnpublishedWith(esdevHost, path, now);
 }
 
 export function createAfwRoutes({ appDir = "app", exclude = [] } = {}) {
-  const excluded = new Set(exclude);
-  // A leaf `appDir` ("app") anchors at the importing entry's site root — the
-  // entry lives beside `app/` in every app, so one option value serves the
-  // website, the playground, and standalone checkouts alike, whatever config
-  // (`--config`) or cwd the build runs under. A nested path ("website/app")
-  // keeps the legacy meaning: resolved against the process cwd.
-  const nested = appDir.includes("/");
-  async function resolveRoot(importer) {
-    if (nested || !importer) return resolve(cwd(), appDir);
-    let dir = dirname(importer);
-    for (;;) {
-      if (await isDir(join(dir, appDir))) return join(dir, appDir);
-      const up = dirname(dir);
-      if (up === dir) return resolve(cwd(), appDir);
-      dir = up;
-    }
-  }
   return {
     name: "afw-routes",
     // The importer is only visible to `resolve` (as a positional), never to
     // `load` — so `resolve` answers a per-site virtual id (`@afw/routes:<appRoot>`)
     // and `load` parses its site back out. Stateless across concurrent builds.
     resolve: {
-      filter: { id: "@afw/routes" },
+      filter: { id: ROUTES_ID },
       async handler(source, importer) {
-        const appRoot = await resolveRoot(importer);
-        return { id: `@afw/routes:${appRoot}`, virtual: true };
+        const appRoot = await resolveAppRoot(esdevHost, appDir, importer);
+        return { id: `${ROUTES_ID}:${appRoot}`, virtual: true };
       },
     },
     load: {
       filter: { id: /^@afw\/routes:/ },
       async handler(id, ctx) {
-        const root = id.slice("@afw/routes:".length);
+        const root = id.slice(ROUTES_ID.length + 1);
         // Drafts and scheduled pages are routes in the dev server only.
-        const pages = await discoverPages(root, excluded, ctx?.command === "start");
-        const loaders = await discoverLoaders(root, excluded);
-        const map = pages
-          .map((p) => `  [${JSON.stringify(routeKey(p, root))}]: () => import(${JSON.stringify(p)}),`)
-          .join("\n");
-        const guard = await findGuard(root);
-        const code =
-          `export const pages = {\n${map}\n};\n` +
-          `export const loaderRoutes = ${JSON.stringify(loaders.map(([route]) => route))};\n` +
-          (guard
-            ? `export { default as guard } from ${JSON.stringify(guard)};\n`
-            : `export const guard = undefined;\n`);
+        const { code, files } = await routesModule(esdevHost, root, { exclude, drafts: ctx?.command === "start" });
         // The discovered files, so an edit rebuilds the map. (Directories are
         // not listed: `dependsOn` names files the graph cannot discover.)
-        return { code, type: "js", dependsOn: [...pages, ...loaders.map(([, file]) => file), ...(guard ? [guard] : [])] };
+        return { code, type: "js", dependsOn: files };
       },
     },
   };
