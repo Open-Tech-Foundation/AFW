@@ -15,3 +15,4 @@ export {
   discoverLoaders, discoverPages, findGuard, isUnpublishedPage, isUnpublishedSource,
   resolveAppRoot, routeKey, routesModule,
 } from "./routes.js";
+export { SERVER_ID, discoverServerFiles, hasServerFiles, serverConflicts, serverModule } from "./server.js";

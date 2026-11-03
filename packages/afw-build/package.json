@@ -15,7 +15,8 @@
     "compiler-client.js",
     "compile.js",
     "resolve-compiler.js",
-    "routes.js"
+    "routes.js",
+    "server.js"
   ],
   "keywords": [
     "afw",
