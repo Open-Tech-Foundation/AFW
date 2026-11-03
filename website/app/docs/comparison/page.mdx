@@ -1,0 +1,210 @@
+---
+title: Comparison
+description: How AFW compares with Next.js, TanStack Start, React Router, Nuxt, SvelteKit, Astro and SolidStart — rendering, routing, data, tooling and maturity, including where AFW is behind.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Comparison
+
+This page compares AFW with the frameworks it is most often weighed against:
+**Next.js**, **TanStack Start**, **React Router** (framework mode, the successor of
+Remix), **Nuxt**, **SvelteKit**, **Astro** and **SolidStart**. It covers what each one
+gives you out of the box, and it is explicit about where AFW is behind.
+
+<Callout type="info" title="Checked November 2026">
+  Versions compared: Next.js 16, TanStack Start 1.0, React Router 7, Nuxt 4,
+  SvelteKit 2, Astro 6, SolidStart 2, and AFW's next release. Frameworks move quickly;
+  each one's own documentation is the authority on its current features. Runtime and
+  build-speed numbers are on [Benchmarks](/docs/benchmarks), not here.
+</Callout>
+
+## At a glance
+
+| | UI model | Rendering engine | Toolchain | Server runtime | Maturity |
+| --- | --- | --- | --- | --- | --- |
+| **AFW** | JSX compiled to Custom Elements | Signals → direct DOM, no virtual DOM | esdev (ES-Runtime) or Vite | ES-Runtime or Node; any Fetch-native platform | Alpha |
+| **Next.js** | React | Virtual DOM; React Server Components | Turbopack | Node, edge; Vercel and adapters | Mature |
+| **TanStack Start** | React (Solid also supported) | Virtual DOM | Vite | Node and serverless platforms | Stable (1.0, October 2026) |
+| **React Router** | React | Virtual DOM | Vite | Node and serverless platforms | Mature |
+| **Nuxt** | Vue | Virtual DOM with compiler hints | Vite | Nitro (many presets) | Mature |
+| **SvelteKit** | Svelte 5 (`.svelte` + runes) | Compiled, fine-grained | Vite | Adapters (Node, serverless, static) | Mature |
+| **Astro** | Any (React, Vue, Svelte, Solid…) or none | Static HTML plus islands | Vite | Adapters (Node, serverless) | Mature |
+| **SolidStart** | Solid (JSX + signals) | Signals → direct DOM, no virtual DOM | Vite | Node and serverless platforms | Stable (2.0); Solid 2 moves its server features into core |
+
+## How to read the tables
+
+✅ built in&nbsp;·&nbsp;🟡 partial, experimental, or through an official add-on&nbsp;·&nbsp;❌ not available.
+"Built in" means it works in a new project without extra packages. Where a framework
+supports something only through a community package, it is marked ❌, not 🟡.
+
+## Rendering
+
+| | AFW | Next.js | TanStack Start | React Router | Nuxt | SvelteKit | Astro | SolidStart |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Client-rendered app (SPA) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Static generation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Server rendering per request | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Streaming server rendering | ❌ | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | ✅ |
+| Hydration that reuses server DOM | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Per-component hydration (islands) | ✅ ¹ | 🟡 ² | ❌ | ❌ | 🟡 | ❌ | ✅ | ❌ |
+| Server components | ❌ | ✅ | 🟡 ³ | 🟡 ³ | 🟡 | ❌ | 🟡 ⁴ | ❌ |
+| Incremental / cached regeneration | ❌ | ✅ | 🟡 | 🟡 | ✅ | 🟡 | 🟡 | 🟡 |
+
+1. Every AFW component is its own Custom Element and adopts its server-rendered DOM
+   independently; there is no page-level hydration root to opt out of.
+2. Only Client Components hydrate; Server Components never ship to the browser.
+3. Experimental: TanStack Start and React Router both ship React Server Components
+   behind experimental or `unstable` APIs.
+4. Astro's server islands render a component on the server after the page loads.
+
+## Routing
+
+| | AFW | Next.js | TanStack Start | React Router | Nuxt | SvelteKit | Astro | SolidStart |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| File-based routes, dynamic and catch-all segments | ✅ | ✅ | ✅ | ✅ ⁵ | ✅ | ✅ | ✅ | ✅ |
+| Nested layouts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Fully type-checked routes and params | ❌ | 🟡 | ✅ | ✅ | 🟡 | 🟡 | ❌ | ❌ |
+| Route groups and optional segments | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Per-route error and loading UI | 🟡 ⁶ | ✅ | ✅ | ✅ | 🟡 | 🟡 | ❌ | 🟡 |
+| Server middleware | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Client-side route guards | ✅ | 🟡 | ✅ | 🟡 | ✅ | 🟡 | ❌ | 🟡 |
+| Link prefetching | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View transitions | ❌ | 🟡 | 🟡 | ✅ | 🟡 | 🟡 | ✅ | ❌ |
+| Locale-prefix routing (i18n) | ✅ | 🟡 | ❌ | ❌ | 🟡 | 🟡 | ✅ | ❌ |
+
+5. React Router supports file-based routes through its file-routes convention or a
+   route config file.
+6. AFW has an `<ErrorBoundary>` component and a single `404` page, not per-route
+   error or loading files.
+
+## Data and server
+
+| | AFW | Next.js | TanStack Start | React Router | Nuxt | SvelteKit | Astro | SolidStart |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Route data loaders | 🟡 ⁷ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Mutations / server functions | ❌ | ✅ | ✅ | ✅ | 🟡 | 🟡 ⁸ | ✅ | ✅ |
+| API routes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cookie helpers | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Server code on Node with any npm package | ✅ ⁹ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Deploy as a standard Fetch handler | ✅ | 🟡 | ✅ | ✅ | ✅ | 🟡 | 🟡 | ✅ |
+| Capability-secured server runtime | ✅ ¹⁰ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+7. Page loaders only; no layout loaders, and no redirect from a loader (middleware can
+   redirect).
+8. SvelteKit has stable form actions; its remote functions are still experimental.
+9. In the Vite + Node workflow, API routes, middleware and loaders run on Node in
+   development and production, native addons such as `sharp` included.
+10. In the esdev workflow, the server runs on ES-Runtime, which grants file, network
+    and process access only as declared. It does not run Node APIs.
+
+## Pages, content and SEO
+
+| | AFW | Next.js | TanStack Start | React Router | Nuxt | SvelteKit | Astro | SolidStart |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Page metadata API (title, Open Graph, canonical) | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | 🟡 | 🟡 |
+| Sitemap and robots.txt from the build | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | 🟡 | ❌ |
+| Markdown and MDX pages | ✅ | 🟡 | ❌ | ❌ | 🟡 | ❌ | ✅ | 🟡 |
+| Docs and blog theme: sidebar, search, RSS/Atom, `llms.txt` | ✅ ¹¹ | ❌ | ❌ | ❌ | 🟡 | ❌ | 🟡 | ❌ |
+| Image optimization | ❌ | ✅ | ❌ | ❌ | 🟡 | 🟡 | ✅ | ❌ |
+
+11. [`@opentf/afw-docs`](/packages/afw-docs) — the theme this site is built with.
+
+## Tooling and libraries
+
+| | AFW | Next.js | TanStack Start | React Router | Nuxt | SvelteKit | Astro | SolidStart |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Project scaffolder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Hot reload that keeps component state | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Compile errors with file, line and code frame | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| TypeScript | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| First-party forms library | ✅ | ❌ | ✅ ¹² | ❌ | ❌ | ❌ | ❌ | ❌ |
+| First-party i18n library | ✅ | ❌ | ❌ | ❌ | 🟡 | ❌ | 🟡 | ❌ |
+| First-party component testing library | ✅ | ❌ | ❌ | ❌ | 🟡 | ❌ | 🟡 | ❌ |
+| Components usable outside the framework | ✅ ¹³ | ❌ | ❌ | ❌ | ❌ | 🟡 | ❌ | ❌ |
+| Devtools | 🟡 | ✅ | ✅ | 🟡 | ✅ | 🟡 | ✅ | 🟡 |
+
+12. TanStack Form, from the same project.
+13. Every AFW component is a standard Custom Element, so it works in plain HTML or
+    inside another framework. Svelte can compile components to custom elements as an
+    option.
+
+## Where AFW differs
+
+- **Components are web standards.** Each one is a real `HTMLElement`. There is no
+  framework runtime to mount and no virtual DOM to reconcile: the Rust compiler emits
+  the DOM operations each view needs, and each `{expression}` binds to the signal it
+  reads.
+- **Islands without opting in.** Because every component is its own element, each
+  adopts its server-rendered DOM on its own. Astro offers this as an explicit model;
+  in AFW it is how hydration works.
+- **Two toolchains, one app.** The same `app/` folder builds with
+  [esdev and ES-Runtime](/docs/getting-started/installation) — a single binary with a
+  capability-secured server runtime — or with Vite and Node, for server code that
+  needs the Node ecosystem.
+- **More of the stack is first-party.** Forms, i18n, component testing and a
+  documentation theme with search, feeds and `llms.txt` ship from the same project,
+  versioned together.
+
+## Where AFW is behind
+
+AFW is alpha. Compared with the frameworks above it does not yet have:
+
+- **Server functions and actions** — the typed RPC that Next.js, TanStack Start,
+  React Router, Astro and SolidStart provide. Mutations go through API routes today.
+- **Streaming server rendering** — pages render to one complete HTML string, and
+  loaders finish before rendering starts.
+- **Richer loaders** — layout loaders and redirects from a loader.
+- **Routing conventions** — route groups, optional segments, per-route error and
+  loading files, and fully type-checked routes in the style of TanStack Router.
+- **Navigation polish** — link prefetching and view transitions.
+- **Image optimization**, and **cached or incremental regeneration**.
+- **Ecosystem and maturity** — none of the others is new, and React, Vue and Svelte
+  each come with a large library ecosystem AFW cannot match yet. APIs can change
+  between minor versions.
+
+The [roadmap](https://github.com/Open-Tech-Foundation/afw/blob/main/docs/roadmap.md)
+tracks these.
+
+## Choosing
+
+**Next.js** — you want React with Server Components, a caching model built into the
+framework, and the largest ecosystem and hosting support. AFW has no server
+components and no data cache.
+
+**TanStack Start** — you want React (or Solid) with end-to-end type safety: typed
+routes, search params and server functions. AFW's routes and params are not type-checked
+across the app, and it has no server functions yet.
+
+**React Router** — you want the Remix model in React: loaders, actions and progressive
+enhancement, with a gradual path from a client router. AFW has loaders but no actions.
+
+**Nuxt** — you want Vue, a large module ecosystem, and Nitro's deployment presets.
+
+**SvelteKit** — you want a compiled, fine-grained framework with its own component
+syntax and mature form actions. AFW is closest to it in rendering approach, with JSX
+and Custom Elements instead of `.svelte` files.
+
+**Astro** — your site is mostly content and you want to mix UI frameworks or ship no
+JavaScript by default. AFW is a single-framework alternative with built-in docs and
+blog support.
+
+**SolidStart** — you want Solid's signals and JSX, which are the closest to AFW's
+model; SolidStart has server functions and streaming today.
+
+**AFW** — you want components that are web standards, fine-grained updates with no
+virtual DOM, and first-party forms, i18n, testing and docs, and you can work with an
+alpha framework while the gaps above close.
+
+## Sources
+
+The feature status of the other frameworks comes from their documentation and release
+notes as of November 2026:
+[Next.js 16](https://nextjs.org/blog/next-16) ·
+[TanStack Start](https://tanstack.com/start/latest/docs) ·
+[React Router](https://reactrouter.com) ·
+[Nuxt](https://nuxt.com) ·
+[SvelteKit remote functions](https://svelte.dev/docs/kit/remote-functions) ·
+[Astro 6](https://docs.astro.build/en/guides/upgrade-to/v6/) ·
+[SolidStart 2](https://github.com/solidjs/solid-start/releases).
+Found something out of date? [Open an issue](https://github.com/Open-Tech-Foundation/afw/issues).

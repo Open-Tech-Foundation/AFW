@@ -9,6 +9,7 @@ export default {
   "data-fetching": "Data Fetching",
   configuration: "Project Configuration",
   benchmarks: "Benchmarks",
+  comparison: "Comparison",
   deployment: "Deployment",
   troubleshooting: "Troubleshooting",
   core: "Runtime API",
