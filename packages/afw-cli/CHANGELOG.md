@@ -7,6 +7,10 @@
 - `runPrerender` renders through `prerender` from `@opentf/afw-build`, the
   implementation the Vite workflow uses too; its options and result are unchanged.
   The HTML shell helpers are re-exported from there.
+- `runDocsSearchIndex`, `runBlogFeed` and `runLlmsFiles` keep their signatures but run
+  the shared steps in `@opentf/afw-docs` (the same code as the Vite workflow), so they
+  need an `@opentf/afw-docs` released with them. With an older one, feeds and
+  `llms.txt` are skipped with a warning and search fails with an update message.
 
 ## [1.32.0] - 2026-10-30
 

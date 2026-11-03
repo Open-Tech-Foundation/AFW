@@ -130,69 +130,33 @@ export function searchProviderWarning(config) {
     `use "afw" or remove it. Search is disabled for this build.`;
 }
 
+// The post-prerender docs steps live in `@opentf/afw-docs` (build/finish.js), shared
+// with the Vite workflow. These wrappers keep this package's signatures and resolve the
+// app's own `@opentf/afw-docs`.
+async function docsBuild(root) {
+  const entry = await resolveFrom("@opentf/afw-docs/build", root);
+  const mod = await import(toFileURL(entry).href);
+  if (typeof mod.runBlogFeed !== "function") {
+    throw new Error("this @opentf/afw-docs predates the shared build steps; update @opentf/afw-docs");
+  }
+  return mod;
+}
+
 /** Index the completed SSG output when static search is enabled. Errors fail the build. */
 export async function runDocsSearchIndex(root, config, siteDir, afwc) {
   if (config?.docs?.search?.provider !== "afw") return null;
-  const entry = await resolveFrom("@opentf/afw-docs/build", root);
-  const { indexWithAfwSearch } = await import(toFileURL(entry).href);
-  return indexWithAfwSearch({ siteDir, afwc });
+  return (await docsBuild(root)).runDocsSearchIndex(config, siteDir, afwc);
 }
 
 /**
- * Generate blog feeds when the project has a `blog` config and a base URL. Scans the
- * post folders, renders RSS 2.0 + Atom 1.0, and writes them under
- * `<siteDir>/<blogDir>/`. Project-supplied `public/<blogDir>/{rss,atom}.xml` files
- * take precedence independently. Returns `{ paths, urls, count }` or null (no blog /
- * no base URL / all feeds overridden / package missing). Resolved from the app's
- * `@opentf/afw-docs`.
+ * Generate blog feeds when the project has a `blog` config and a base URL: RSS 2.0 and
+ * Atom 1.0 under `<siteDir>/<blogDir>/`, linked from every page. A
+ * `public/<blogDir>/{rss,atom}.xml` file wins. Returns `{ paths, urls, count }` or null.
  */
 export async function runBlogFeed(root, appDir, config, siteDir, baseUrl, exclude = new Set()) {
-  const blog = config?.blog;
-  if (!blog) return null;
-  if (!baseUrl) {
-    console.warn("⚠ blog feeds skipped: no site URL (pass --base-url or set afw.config)");
-    return null;
-  }
-  const contentDir = blog.dir ?? "blog";
+  if (!config?.blog) return null;
   try {
-    const entry = await resolveFrom("@opentf/afw-docs/build", root);
-    const { loadPosts, postContentHtml, renderAtomFeed, renderBlogFeed } = await import(toFileURL(entry).href);
-    const posts = await loadPosts({ appDir, contentDir, exclude });
-    // Full post bodies, read back from the prerendered pages this hook runs after.
-    for (const post of posts) {
-      const page = join(siteDir, post.path.replace(/^\/+/, ""), "index.html");
-      if (await exists(page)) post.content = postContentHtml(await readText(page), baseUrl, post.cover);
-    }
-    const title = blog.title || (config?.docs?.title ? `${config.docs.title} Blog` : "Blog");
-    const channel = {
-      title,
-      description: blog.description || title,
-      link: `/${contentDir}`,
-      language: blog.language || config?.i18n?.defaultLocale || "en",
-    };
-    const feeds = [
-      {
-        file: "rss.xml",
-        path: `/${contentDir}/rss.xml`,
-        render: renderBlogFeed,
-      },
-      {
-        file: "atom.xml",
-        path: `/${contentDir}/atom.xml`,
-        render: renderAtomFeed,
-      },
-    ];
-    const written = [];
-    for (const feed of feeds) {
-      if (await exists(join(root, "public", contentDir, feed.file))) continue; // honor override
-      const out = join(siteDir, contentDir, feed.file);
-      await writeFile(out, feed.render({ posts, baseUrl, feedPath: feed.path, channel }));
-      written.push(feed.path);
-    }
-    if (!written.length) return null;
-    await injectFeedLinks(siteDir, title, contentDir);
-    const origin = baseUrl.replace(/\/+$/, "");
-    return { paths: written, urls: written.map((path) => origin + path), count: posts.length };
+    return await (await docsBuild(root)).runBlogFeed({ root, appDir, config, siteDir, baseUrl, exclude });
   } catch (e) {
     console.warn(`⚠ blog feeds skipped: ${e?.message ?? e}`);
     return null;
@@ -200,59 +164,13 @@ export async function runBlogFeed(root, appDir, config, siteDir, baseUrl, exclud
 }
 
 /**
- * Advertise the blog feeds from every prerendered page: a `<link rel="alternate">` for
- * RSS and Atom in each `<head>`, so a reader finds them from any URL of the site. A page
- * that already declares a feed (a hand-written link in the shell) is left alone.
- */
-async function injectFeedLinks(siteDir, title, contentDir) {
-  const t = String(title).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-  const links =
-    `<link rel="alternate" type="application/rss+xml" title="${t}" href="/${contentDir}/rss.xml">\n` +
-    `<link rel="alternate" type="application/atom+xml" title="${t}" href="/${contentDir}/atom.xml">\n`;
-  const walk = async (dir) => {
-    for (const entry of await readEntries(dir)) {
-      const full = join(dir, entry.name);
-      if (entry.isDir) await walk(full);
-      else if (entry.name.endsWith(".html")) {
-        const html = await readText(full);
-        if (/type="application\/(rss|atom)\+xml"/.test(html) || !/<\/head>/i.test(html)) continue;
-        await writeFile(full, html.replace(/<\/head>/i, () => `${links}</head>`));
-      }
-    }
-  };
-  await walk(siteDir);
-}
-
-/**
- * Generate `/llms.txt` and `/llms-full.txt` for docs/blog sites from the same
- * filesystem route list used by the app build. Project-supplied public files override
- * each output independently. `siteDescription` is the site's own description (resolved
- * from the app's metadata during the build) — llms.txt summarizes the site with it
- * rather than with a generic line.
+ * Generate `/llms.txt` and `/llms-full.txt` for docs/blog sites. Files in `public/`
+ * override each output. `siteDescription` summarizes the site.
  */
 export async function runLlmsFiles(root, appDir, pages, config, siteDir, baseUrl, { siteDescription = "" } = {}) {
   if (!config?.docs && !config?.blog) return null;
-  const candidates = [
-    { file: "llms.txt", render: "renderLlmsTxt" },
-    { file: "llms-full.txt", render: "renderLlmsFullTxt" },
-  ];
-  const outputs = [];
-  for (const out of candidates) {
-    if (!(await exists(join(root, "public", out.file)))) outputs.push(out);
-  }
-  if (!outputs.length) return null;
-
   try {
-    const entry = await resolveFrom("@opentf/afw-docs/build", root);
-    const mod = await import(toFileURL(entry).href);
-    const written = [];
-    for (const out of outputs) {
-      const render = mod[out.render];
-      if (typeof render !== "function") continue;
-      await writeFile(join(siteDir, out.file), await render({ appDir, pages, baseUrl, config, siteDescription }));
-      written.push(`/${out.file}`);
-    }
-    return written.length ? { paths: written } : null;
+    return await (await docsBuild(root)).runLlmsFiles({ root, appDir, pages, config, siteDir, baseUrl, siteDescription });
   } catch (e) {
     console.warn(`⚠ llms.txt skipped: ${e?.message ?? e}`);
     return null;
