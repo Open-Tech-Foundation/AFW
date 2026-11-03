@@ -8,15 +8,18 @@
   },
   "main": "index.js",
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./node": "./node.js"
   },
   "files": [
     "index.js",
     "extract.js",
+    "node.js",
     "bin"
   ],
   "engines": {
-    "esdev": ">=0.16.0"
+    "esdev": ">=0.16.0",
+    "node": ">=22"
   },
   "keywords": [
     "afw",

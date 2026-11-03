@@ -72,6 +72,12 @@ run = "esdev test --config=esdev.test.json packages/afw-cli/tests packages/afw-c
 deps = ["build-compiler"]
 run = "esdev test --config=esdev.test.json --dom packages/afw/core/errors.test.js packages/afw/runtime/lifecycle.test.js packages/afw/runtime/resource.test.js packages/afw/runtime/clsx.test.js packages/afw/runtime/dom.test.js packages/afw/runtime/router.test.js packages/afw/runtime/router-data.test.js packages/afw/runtime/router-hydrate.test.js packages/afw/runtime/router-hot.test.js packages/afw/runtime/hydratable.test.js packages/afw/runtime/router-nav.test.js packages/afw/runtime/hydrate.e2e.test.js"
 
+# The Vite + Node workflow's Node-side code (`node-tests/` folders, kept apart from
+# the esdev suites' `tests/`), on Node's built-in runner.
+[tasks.test-node]
+deps = ["build-compiler"]
+run = "node --test 'packages/*/node-tests/*.test.mjs'"
+
 # @opentf/afw-build: the toolchain-neutral build core, against an in-memory host.
 [tasks.test-afw-build]
 run = "esdev test --config=esdev.test.json packages/afw-build/tests"
@@ -124,7 +130,7 @@ run = "esdev test --config=esdev.test.json benchmarks/tests/tooling.test.js"
 
 # Independent processes — cargo and the ES-Runtime — so they overlap.
 [tasks.test]
-deps = ["test-rust", "test-esdev", "test-esdev-dom", "test-afw-build", "test-esdev-plugin", "test-afw-docs", "test-afw-docs-dom", "test-afw-form", "test-afw-i18n", "test-afw-test", "test-site", "test-benchmark-tooling"]
+deps = ["test-rust", "test-esdev", "test-esdev-dom", "test-afw-build", "test-node", "test-esdev-plugin", "test-afw-docs", "test-afw-docs-dom", "test-afw-form", "test-afw-i18n", "test-afw-test", "test-site", "test-benchmark-tooling"]
 parallel = true
 
 # Real-browser tier (docs/HYDRATION.md §5) — framework-behavior suites (docs shell

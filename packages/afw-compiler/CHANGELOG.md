@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- `@opentf/afw-compiler/node`: `afwcPath()` for Node, for the Vite workflow. Same
+  binaries, `AFWC_BIN` override and decompress-on-first-use as the ES-Runtime resolver.
+
 ### Fixed
 
 - Every component (not pages) brackets its connect with `enterHost`/`exitHost`, as
