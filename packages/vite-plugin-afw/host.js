@@ -2,7 +2,7 @@
 // paths through Node's builtins, with paths normalised to `/` separators.
 
 import { spawn as spawnChild } from "node:child_process";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable, Writable } from "node:stream";
 
@@ -13,6 +13,10 @@ export const nodeHost = {
   async readDir(dir) {
     const entries = await readdir(dir, { withFileTypes: true });
     return entries.map((e) => ({ name: e.name, isFile: e.isFile(), isDir: e.isDirectory(), isSymlink: e.isSymbolicLink() }));
+  },
+  async writeText(file, text) {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, text);
   },
   async kind(file) {
     try {

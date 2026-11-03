@@ -15,13 +15,15 @@
 // and in the built `dist/server/index.js`, so it can use any npm package, native
 // addons included.
 
+import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   FRAMEWORK_IMPORT, ROUTES_ID, SERVER_ID, SOURCE_FILTER,
   chooseTarget, compileModule, discoverServerFiles, hasServerFiles, resolveAppRoot, resolveCompiler,
-  routesModule, serverModule, startCompilerServer, usesServerEntry, validateOptions,
+  prerender, routesModule, serverModule, stampHydrateSentinel, startCompilerServer, usesServerEntry,
+  validateOptions,
 } from "@opentf/afw-build";
 import { sendWebResponse, toWebRequest } from "@opentf/afw/server/adapters/node";
 import { afwcPath } from "@opentf/afw-compiler/node";
@@ -61,10 +63,12 @@ const slash = (p) => p.replaceAll("\\", "/");
  *   `exclude` — folders under `appDir` that hold no routes. `routes: false` drops the
  *   `@afw/routes` module. `server` — build `dist/server` (default `"auto"`: when the
  *   app has API routes, middleware or loaders). `target` forces one compiler backend.
- *   `i18n` — locale prefixes the server's middleware and loaders strip.
+ *   `i18n` — locale prefixes the server's middleware, loaders and pages strip.
+ *   `baseUrl` — the site's absolute URL, for canonical links and `sitemap.xml`.
  */
 export default function afw({
   mode = "spa", appDir = "app", exclude = [], routes = true, server: serverBuild = "auto", target, i18n = null,
+  baseUrl = "",
 } = {}) {
   validateOptions({ mode, target });
   if (![true, false, "auto"].includes(serverBuild)) throw new Error(`AFW server option must be true, false or "auto"`);
@@ -91,6 +95,21 @@ export default function afw({
   }
 
   const isServer = (ctx, options) => ctx.environment?.config?.consumer === "server" || !!options?.ssr;
+  // Release server bundles render pages unless the app is an SPA; the dev server
+  // renders pages on the client, so its `@afw/server` carries server routes only.
+  const serverPages = () => command === "build" && mode !== "spa";
+
+  // Static generation: render every route of the built server bundle into the client.
+  async function prerenderSite({ clientOut, serverOut }) {
+    const app = await import(pathToFileURL(join(serverOut, "app.js")).href);
+    const shellHtml = stampHydrateSentinel(await readFile(join(clientOut, "index.html"), "utf8"));
+    const result = await prerender(nodeHost, {
+      render: app.render, shellHtml, outDir: slash(clientOut), publicDir: nodeHost.path.join(projectRoot, "public"),
+      baseUrl, i18n, loaders: app.loaders,
+    });
+    if (result.failed.length) throw new Error(`AFW prerender failed for ${result.failed.join(", ")}`);
+    console.log(`AFW prerendered ${result.count} page(s)${result.skipped.length ? `; skipped ${result.skipped.join(", ")} (no getStaticPaths)` : ""}`);
+  }
   // The app directory the server half serves. It has no importing entry, so a leaf
   // `appDir` is found from the project root.
   const serverRoot = () => resolveAppRoot(nodeHost, appDir, join(projectRoot, "index.html").replaceAll("\\", "/"));
@@ -110,23 +129,33 @@ export default function afw({
         // dependencies stay external and load from node_modules at run time.
         ssr: { noExternal: [/^@opentf\/afw/, /^@opentf\/vite-plugin-afw/] },
       };
-      if (env.command !== "build" || serverBuild === false) return config;
+      if (env.command !== "build") return config;
       projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());
-      if (serverBuild === "auto" && !hasServerFiles(await discoverServerFiles(nodeHost, await serverRoot(), { exclude }))) return config;
-      // A full-stack build: the client into dist/client, the Node server into
-      // dist/server (`index.js` starts it, `app.js` exports `createHandler`).
-      const outDir = userConfig.build?.outDir ?? "dist";
+      // Whether to ship a Node server: always for server-rendered pages; otherwise
+      // when asked, or ("auto") when the app has API routes, middleware or loaders.
+      const ship = mode === "ssr" || serverBuild === true ||
+        (serverBuild === "auto" && hasServerFiles(await discoverServerFiles(nodeHost, await serverRoot(), { exclude })));
+      if (!ship && mode !== "ssg") return config;
+      const outDir = nodeHost.path.resolve(projectRoot, userConfig.build?.outDir ?? "dist");
       const bundlerOptions = rolldown ? "rolldownOptions" : "rollupOptions";
+      // A static site with no server keeps the client at dist/ and renders from a
+      // throwaway server bundle; otherwise dist/client + dist/server (`index.js`
+      // starts the Node server, `app.js` exports `createHandler`).
+      const clientOut = ship ? `${outDir}/client` : outDir;
+      const serverOut = ship ? `${outDir}/server` : nodeHost.path.join(projectRoot, "node_modules", ".afw-ssg");
+      const input = ship ? { index: NODE_SERVER_ID, app: SERVER_ID } : { app: SERVER_ID };
       return {
         ...config,
         environments: {
-          client: { build: { outDir: `${outDir}/client` } },
-          ssr: { build: { outDir: `${outDir}/server`, [bundlerOptions]: { input: { index: NODE_SERVER_ID, app: SERVER_ID } } } },
+          client: { build: { outDir: clientOut } },
+          ssr: { build: { outDir: serverOut, emptyOutDir: true, [bundlerOptions]: { input } } },
         },
         builder: {
           async buildApp(builder) {
             await builder.build(builder.environments.client);
             await builder.build(builder.environments.ssr);
+            if (mode === "ssg") await prerenderSite({ clientOut, serverOut });
+            if (!ship) await rm(serverOut, { recursive: true, force: true });
           },
         },
       };
@@ -190,7 +219,7 @@ export default function afw({
     },
 
     async resolveId(source, importer, options) {
-      if (source === SERVER_ID) return SERVER_PREFIX + (await serverRoot());
+      if (source === SERVER_ID) return SERVER_PREFIX + (await serverRoot()) + (serverPages() ? "?pages" : "");
       if (source === NODE_SERVER_ID) return `\0${NODE_SERVER_ID}`;
       if (routes && source === ROUTES_ID) {
         const root = await resolveAppRoot(nodeHost, appDir, importer ? slash(cleanId(importer)) : undefined);
@@ -206,15 +235,16 @@ export default function afw({
     async load(id) {
       if (id === `\0${NODE_SERVER_ID}`) {
         return (
-          `import { createHandler } from ${JSON.stringify(SERVER_ID)};\n` +
+          `import * as app from ${JSON.stringify(SERVER_ID)};\n` +
           `import { startServer } from "@opentf/vite-plugin-afw/server";\n` +
-          `export { createHandler };\n` +
-          `await startServer({ createHandler, clientDir: new URL("../client/", import.meta.url) });\n`
+          `export const { createHandler } = app;\n` +
+          `await startServer({ app, mode: ${JSON.stringify(mode)}, baseUrl: ${JSON.stringify(baseUrl)}, clientDir: new URL("../client/", import.meta.url) });\n`
         );
       }
       if (id.startsWith(SERVER_PREFIX)) {
-        const root = id.slice(SERVER_PREFIX.length);
-        const { code, files } = await serverModule(nodeHost, root, { exclude, i18n });
+        const [root, query] = id.slice(SERVER_PREFIX.length).split("?");
+        const pages = query === "pages";
+        const { code, files } = await serverModule(nodeHost, root, { exclude, i18n, pages, drafts: !pages });
         for (const file of files) this.addWatchFile(file);
         return { code, map: null };
       }

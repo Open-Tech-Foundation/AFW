@@ -38,6 +38,19 @@ mountApp({ pages, guard, loaders: loaderRoutes, target: document.getElementById(
 
 Then `vite` for development and `vite build` for production.
 
+## Rendering modes
+
+| `mode` | Development | `vite build` |
+| --- | --- | --- |
+| `spa` | Client-rendered | Client bundle; with server routes, also the Node server |
+| `ssr` | Client-rendered | Hydrating client plus a Node server that renders each page request |
+| `ssg` | Client-rendered | Every route prerendered to HTML. A static site in `dist/`, or `dist/client` beside the Node server when the app has server routes |
+
+Server-rendered and prerendered pages are marked for hydration, so the client adopts
+the server's DOM instead of rebuilding it. Loader data is inlined into the page.
+Dynamic routes are prerendered from their `getStaticPaths`. Set `baseUrl` for
+canonical links and `sitemap.xml`.
+
 ## Server routes
 
 API routes (`route.js`), middleware (`_middleware.js`) and loaders (`loader.js`) run
@@ -70,7 +83,8 @@ export async function POST(request) {
 | `exclude` | `[]` | Folders under `appDir` that hold no routes |
 | `routes` | `true` | `false` drops the `@afw/routes` module |
 | `server` | `"auto"` | Build `dist/server`: `"auto"` when the app has server files, or `true`/`false` |
-| `i18n` | — | `{ locales, defaultLocale }`: locale prefixes server middleware and loaders strip |
+| `i18n` | — | `{ locales, defaultLocale }`: locale prefixes for server routes and rendered pages |
+| `baseUrl` | `""` | The site's absolute URL, for canonical links and `sitemap.xml` |
 | `target` | — | Force one compiler backend (`csr`, `ssg`, `hydrate`) |
 
 ## What it does

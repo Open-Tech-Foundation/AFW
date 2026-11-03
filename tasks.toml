@@ -162,11 +162,19 @@ run = "esdev test --config=esdev.test.json --browser --setup=@opentf/afw-test/se
 [tasks.test-e2e-benchmark-runner]
 run = "esdev test --config=esdev.test.json benchmarks/tests/browser-runner.test.js"
 
-# The Vite + Node workflow's dev loop in headless Chrome: render, events, client
+# The Vite + Node workflow in headless Chrome. The dev loop: render, events, client
 # navigation, and in-place refresh of components, pages and layouts.
-[tasks.test-e2e-vite]
+[tasks.test-e2e-vite-dev]
 deps = ["build-compiler"]
 run = "node packages/vite-plugin-afw/e2e/dev.mjs"
+
+# Server-rendered pages from the built Node server: the client adopts the server DOM.
+[tasks.test-e2e-vite-ssr]
+deps = ["build-compiler"]
+run = "node packages/vite-plugin-afw/e2e/ssr.mjs"
+
+[tasks.test-e2e-vite]
+deps = ["test-e2e-vite-dev", "test-e2e-vite-ssr"]
 
 [tasks.test-e2e-hmr]
 deps = ["build-compiler"]

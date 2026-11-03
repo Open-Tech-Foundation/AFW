@@ -16,3 +16,10 @@
   dist/server/index.js`, `PORT`/`HOST`) that serves `dist/client` behind the app's
   middleware, and `dist/server/app.js` for custom servers. The `server` option
   (`"auto"`, `true`, `false`) controls the server build.
+- Rendering modes. `mode: "ssr"` builds a hydrating client and a Node server that
+  renders each page request (loaders run with the request and middleware `locals`;
+  unknown pages render the 404 page with status 404). `mode: "ssg"` prerenders every
+  route at build time: a static site in `dist/`, or `dist/client` beside the Node
+  server when the app has server routes. A failed page fails the build. `baseUrl`
+  feeds canonical links and `sitemap.xml`. The dev server renders pages on the client
+  in every mode, as esdev's does.

@@ -1,20 +1,22 @@
 // The production Node server for the Vite workflow: `vite build` emits
-// `dist/server/index.js`, which calls `startServer` with the app's composed handler.
-// Every request runs the app's middleware; API routes and loader data answer first,
-// then built files from `dist/client`, then the app shell for page navigations.
+// `dist/server/index.js`, which calls `startServer` with the built app. Every request
+// runs the app's middleware; API routes and loader data answer first, then built
+// files from `dist/client`, then pages: the app shell (spa), prerendered files (ssg)
+// or a server render (ssr).
 //
 //   node dist/server/index.js            # PORT and HOST from the environment
 //
-// For a custom server, import `createHandler` from `dist/server/app.js` and pass
-// `fallback: staticFallback(clientDir)`; the handler is a plain Fetch handler.
+// For a custom server, import `createHandler` (and, for ssr, `createPageRenderer`)
+// from `dist/server/app.js`; the handler is a plain Fetch handler.
 
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
+import { stampHydrateSentinel } from "@opentf/afw-build/document";
 import { toNodeListener } from "@opentf/afw/server/adapters/node";
 
 const TYPES = {
@@ -43,16 +45,22 @@ async function fileResponse(path, method, headers = {}) {
   return new Response(Readable.toWeb(createReadStream(path)), { status: 200, headers: head });
 }
 
+const notFound = () => new Response("Not Found", { status: 404 });
+
+function clientRoot(clientDir) {
+  return normalize(typeof clientDir === "string" ? clientDir : fileURLToPath(clientDir));
+}
+
 /**
- * The fallback for requests the app's server routes don't answer: a built file from
- * `clientDir` (hashed `/assets/*` cached for a year), else `index.html` for page
- * navigations (`GET`/`HEAD` asking for HTML), else 404.
+ * A `files` step: a built file from `clientDir` for `GET`/`HEAD`, or `null` to pass.
+ * Hashed `/assets/*` are cached for a year. With `html: false` (server-rendered
+ * pages), HTML files are left to the page renderer — the raw shell is never served.
  */
-export function staticFallback(clientDir) {
-  const root = normalize(typeof clientDir === "string" ? clientDir : fileURLToPath(clientDir));
+export function staticFiles(clientDir, { html = true } = {}) {
+  const root = clientRoot(clientDir);
   return async (request) => {
     const method = request.method.toUpperCase();
-    if (method !== "GET" && method !== "HEAD") return new Response("Not Found", { status: 404 });
+    if (method !== "GET" && method !== "HEAD") return null;
     let pathname;
     try {
       pathname = decodeURIComponent(new URL(request.url).pathname);
@@ -60,28 +68,70 @@ export function staticFallback(clientDir) {
       return new Response("Bad Request", { status: 400 });
     }
     const file = normalize(join(root, pathname));
-    if (file !== root && !file.startsWith(root.endsWith(sep) ? root : root + sep)) {
-      return new Response("Not Found", { status: 404 });
-    }
+    if (file !== root && !file.startsWith(root.endsWith(sep) ? root : root + sep)) return notFound();
+    if (!html && extname(file).toLowerCase() === ".html") return null;
     const immutable = pathname.startsWith("/assets/") ? { "cache-control": "public, max-age=31536000, immutable" } : {};
-    const found = (await fileResponse(file, method, immutable)) ?? (await fileResponse(join(file, "index.html"), method));
+    return (await fileResponse(file, method, immutable)) ?? (html ? await fileResponse(join(file, "index.html"), method) : null);
+  };
+}
+
+const wantsHtml = (request) =>
+  ["GET", "HEAD"].includes(request.method.toUpperCase()) && (request.headers.get("accept") ?? "").includes("text/html");
+
+/**
+ * The fallback for an SPA: built files, else `index.html` for page navigations
+ * (`GET`/`HEAD` asking for HTML), else 404.
+ */
+export function staticFallback(clientDir) {
+  const files = staticFiles(clientDir);
+  const root = clientRoot(clientDir);
+  return async (request) => {
+    const found = await files(request);
     if (found) return found;
-    if ((request.headers.get("accept") ?? "").includes("text/html")) {
-      const shell = await fileResponse(join(root, "index.html"), method, { "cache-control": "no-cache" });
+    if (wantsHtml(request)) {
+      const shell = await fileResponse(join(root, "index.html"), request.method.toUpperCase(), { "cache-control": "no-cache" });
       if (shell) return shell;
     }
-    return new Response("Not Found", { status: 404 });
+    return notFound();
+  };
+}
+
+/** A prerendered site's fallback: its `404.html` (status 404) for page navigations. */
+function notFoundPage(clientDir) {
+  const root = clientRoot(clientDir);
+  return async (request) => {
+    if (wantsHtml(request)) {
+      const page = await fileResponse(join(root, "404.html"), request.method.toUpperCase());
+      if (page) return new Response(page.body, { status: 404, headers: page.headers });
+    }
+    return notFound();
   };
 }
 
 /**
- * Start the app on Node. `createHandler` is the `@afw/server` export; `clientDir` the
- * built client (`dist/client`). Resolves to the listening `http.Server`.
+ * Start the app on Node. `app` is the built `@afw/server` module; `clientDir` the
+ * built client (`dist/client`). `mode` picks how pages are served: `spa` (the app
+ * shell), `ssg` (prerendered files, `404.html`) or `ssr` (rendered per request).
+ * Resolves to the listening `http.Server`.
  */
-export function startServer({
-  createHandler, clientDir, port = Number(process.env.PORT ?? 3000), host = process.env.HOST ?? "0.0.0.0",
+export async function startServer({
+  app, createHandler = app?.createHandler, clientDir, mode = "spa", baseUrl = "",
+  port = Number(process.env.PORT ?? 3000), host = process.env.HOST ?? "0.0.0.0",
 } = {}) {
-  const handler = createHandler({ fallback: staticFallback(clientDir) });
+  let handler;
+  if (mode === "ssr") {
+    if (typeof app?.createPageRenderer !== "function") throw new Error("startServer: mode \"ssr\" needs an app built with pages");
+    const shell = stampHydrateSentinel(await readFile(join(clientRoot(clientDir), "index.html"), "utf8"));
+    handler = createHandler({
+      files: staticFiles(clientDir, { html: false }),
+      renderPage: app.createPageRenderer({ shell, baseUrl }),
+      fallback: notFound,
+    });
+  } else if (mode === "ssg") {
+    handler = createHandler({ files: staticFiles(clientDir), fallback: notFoundPage(clientDir) });
+  } else {
+    handler = createHandler({ fallback: staticFallback(clientDir) });
+  }
   const server = createServer(toNodeListener(handler));
   return new Promise((resolve, reject) => {
     server.once("error", reject);
