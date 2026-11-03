@@ -22,6 +22,7 @@ import { prepareRouteHead, updateRouteHead } from "./head.js";
 import { beginHydration, cursor, endHydration, renderedForPath } from "./hydrate.js";
 import { buildScopedView, runCleanup, runMount } from "./mount.js";
 import { fetchRouteData, readInlineRouteData } from "./route-data.js";
+import { compareRoutes, compileRoute, decodeParams } from "./route-match.js";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -386,30 +387,29 @@ export function setRouteState({ pathname = "/", search = "", params = {}, locale
  */
 export function matchRoute(pathname) {
   pathname = resolveLocale(pathname).path;
-  for (const route in routes.pages) {
-    // `[param]` / `[...rest]` become named groups; literal parts are regex-escaped
-    // (a `v1.0` folder must not match `v1X0`).
-    const pattern = route
-      .split(/(\[\.\.\.[^\]]+\]|\[[^\]]+\])/)
-      .map((part) => {
-        if (part.startsWith("[...")) return `(?<${part.slice(4, -1)}>.+)`;
-        if (part.startsWith("[")) return `(?<${part.slice(1, -1)}>[^/]+)`;
-        return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      })
-      .join("");
-    const m = pathname.match(new RegExp(`^${pattern}/?$`));
+  for (const { route, pattern } of rankedPages()) {
+    const m = pathname.match(pattern);
     if (m) {
-      const params = { ...(m.groups || {}) };
-      for (const k in params) {
-        try {
-          params[k] = route.includes(`[...${k}]`)
-            ? params[k].split("/").map(decodeURIComponent) : decodeURIComponent(params[k]);
-        } catch { return null; }
-      }
+      const params = decodeParams(route, m.groups, { strict: true });
+      if (!params) return null;
       return { entry: routes.pages[route], params, route };
     }
   }
   return null;
+}
+
+// Compiled page patterns, most specific first (route-match.js `compareRoutes`), so a
+// static `/blog/new` beats `/blog/[slug]` whatever order the files were discovered in.
+// Rebuilt when the set of routes changes (registration, HMR, tests swapping the table).
+let ranked = { key: null, list: [] };
+function rankedPages() {
+  const names = Object.keys(routes.pages);
+  const key = names.join("\0");
+  if (ranked.key !== key) {
+    const list = names.sort(compareRoutes).map((route) => ({ route, pattern: compileRoute(route) }));
+    ranked = { key, list };
+  }
+  return ranked.list;
 }
 
 // Monotonic navigation sequence: a navigation that awaited its loader-data fetch

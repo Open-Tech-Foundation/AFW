@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Page routing ranks routes by specificity: a static page such as `/blog/new` is no
+  longer shadowed by a dynamic sibling (`/blog/[slug]`) or a catch-all. The winner used
+  to depend on file discovery order, which differs between file systems. Applies to
+  client navigation and server rendering.
+
 ## [0.33.0] - 2026-10-30
 
 

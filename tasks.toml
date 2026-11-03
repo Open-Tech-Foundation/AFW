@@ -62,7 +62,7 @@ run = "cargo test"
 # Runtime-native tests: the SSG lib, scaffolder, and framework's pure core/server paths.
 [tasks.test-esdev]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json packages/afw-cli/tests packages/afw-compiler/tests packages/afw/core/reactive.test.js packages/afw/core/signals.test.js packages/afw/esdev-tests/clsx.test.js packages/afw/esdev-tests/jsx-types.test.js packages/afw/server/api.test.js packages/afw/server/cookies.test.js packages/afw/server/head.test.js packages/afw/server/index.test.js packages/afw/server/loader.test.js packages/afw/server/middleware.test.js packages/afw/server/render.test.js packages/afw/server/ssg-runtime.test.js packages/afw/server/adapters/node.test.js"
+run = "esdev test --config=esdev.test.json packages/afw-cli/tests packages/afw-compiler/tests packages/afw/core/reactive.test.js packages/afw/core/signals.test.js packages/afw/runtime/route-match.test.js packages/afw/esdev-tests/clsx.test.js packages/afw/esdev-tests/jsx-types.test.js packages/afw/server/api.test.js packages/afw/server/cookies.test.js packages/afw/server/head.test.js packages/afw/server/index.test.js packages/afw/server/loader.test.js packages/afw/server/middleware.test.js packages/afw/server/render.test.js packages/afw/server/ssg-runtime.test.js packages/afw/server/adapters/node.test.js"
 
 # DOM suites: these ran under happy-dom's ambient `document` before; under esdev
 # the `--dom` realm provides it instead (esdev's URL is http://localhost/, so the

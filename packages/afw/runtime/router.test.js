@@ -570,3 +570,39 @@ test("component route refresh updates its head without changing history", async 
     expect(window.location.pathname).toBe("/hot");
   } finally { app.remove(); document.head.innerHTML = originalHead; }
 });
+
+test("matchRoute prefers static over dynamic routes whatever the registration order", () => {
+  routes.pages = {}; routes.layouts = {}; routes.notFound = null;
+  // Discovery order puts the dynamic folders first (`[` sorts before lowercase letters).
+  registerRoutes({
+    "/app/blog/[...rest]/page.jsx": { default: page("rest") },
+    "/app/blog/[slug]/page.jsx": { default: page("slug") },
+    "/app/blog/new/page.jsx": { default: page("new") },
+  });
+  expect(matchRoute("/blog/new")?.route).toBe("/blog/new");
+  const slug = matchRoute("/blog/hello");
+  expect([slug.route, slug.params]).toEqual(["/blog/[slug]", { slug: "hello" }]);
+  const rest = matchRoute("/blog/a/b");
+  expect([rest.route, rest.params]).toEqual(["/blog/[...rest]", { rest: ["a", "b"] }]);
+
+  // A route added later (HMR, a swapped table) is ranked too.
+  routes.pages = { "/blog/[slug]": { default: page("slug") } };
+  expect(matchRoute("/blog/new")?.route).toBe("/blog/[slug]");
+  registerRoutes({ "/app/blog/new/page.jsx": { default: page("new") } });
+  expect(matchRoute("/blog/new")?.route).toBe("/blog/new");
+});
+
+test("navigation renders a static page shadowed by a dynamic sibling", async () => {
+  routes.pages = {}; routes.layouts = {}; routes.notFound = null;
+  const app = document.createElement("div"); document.body.appendChild(app);
+  window.history.replaceState({}, "", "/blog/new");
+  try {
+    await mountApp({ target: app, pages: {
+      "/app/blog/[slug]/page.jsx": { default: page("Post") },
+      "/app/blog/new/page.jsx": { default: page("New post") },
+    } });
+    expect(app.textContent).toBe("New post");
+    await navigate("/blog/first");
+    expect(app.textContent).toBe("Post");
+  } finally { app.remove(); }
+});
