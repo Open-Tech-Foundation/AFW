@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-11-03
+
 ### Fixed
 
 - `t()` picks up catalog changes. `setCatalog()` and `loadLocale()` replaced a catalog

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-11-03
+
 ### Added
 
 - `@opentf/afw-docs/vite`: the docs and blog generators for the Vite + Node workflow.

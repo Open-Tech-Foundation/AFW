@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.33.0] - 2026-11-03
+
 ### Changed
 
 - `runPrerender` renders through `prerender` from `@opentf/afw-build`, the

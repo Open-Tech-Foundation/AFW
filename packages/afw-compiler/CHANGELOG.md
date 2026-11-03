@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-03
+
 ### Added
 
 - `@opentf/afw-compiler/node`: `afwcPath()` for Node, for the Vite workflow. Same
