@@ -1658,10 +1658,12 @@ fn classify<'a>(callable: Callable<'a>, scoping: &Scoping, source: &str, is_page
     // templates them through the `Lowerer` so an embedded JSX value gets
     // node-builder branches.
 
-    // A component (not a page — pages have no element) that reads `$context` needs
-    // its connect bracketed so the resolver can find the host. Computed before the
-    // struct move below.
-    let needs_host = !is_page && infos.iter().any(|i| i.kind == SignalKind::Context);
+    // Every component (not a page — pages have no element) brackets its connect with
+    // the host stack: `$context` resolves its provider from it, and libraries scope
+    // per-instance state with `getCurrentInstance()` (e.g. `createForm`). Bracketing
+    // only `$context` consumers left other components with no instance — or, when
+    // nested inside a consumer's connect, with the consumer's.
+    let needs_host = !is_page;
 
     Classified {
         by_symbol,

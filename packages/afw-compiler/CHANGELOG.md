@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Every component (not pages) brackets its connect with `enterHost`/`exitHost`, as
+  `getCurrentInstance()` documents. Only `$context` consumers did, so other components
+  saw no instance, or a `$context` parent's when nested inside its connect. Libraries
+  that scope state per instance, such as `createForm`, got the wrong one.
+
 ## [0.21.0] - 2026-10-30
 
 

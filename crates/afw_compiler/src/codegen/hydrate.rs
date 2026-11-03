@@ -1839,7 +1839,7 @@ mod tests {
             m.code
         );
         assert!(
-            m.code.contains("import { signal, bindText, handleError, isHydrating, runBuild, HydrationMismatch, reportError }"),
+            m.code.contains("import { signal, bindText, handleError, enterHost, exitHost, isHydrating, runBuild, HydrationMismatch, reportError }"),
             "hydration helpers imported:\n{}",
             m.code
         );

@@ -2219,7 +2219,7 @@ mod tests {
         // the `lower` helper) namespaces the tag so same-named components don't collide.
         assert_eq!(
             m.code,
-            "import { signal, bindText, handleError } from \"@opentf/afw\";\n\
+            "import { signal, bindText, handleError, enterHost, exitHost } from \"@opentf/afw\";\n\
              export class CounterElement extends HTMLElement {\n  \
              static tag = \"afw-counter-4e54f4d4\";\n  \
              connectedCallback() {\n    \
@@ -2228,6 +2228,7 @@ mod tests {
              this._mounted = true;\n    \
              this._cleanups = [];\n    \
              this.classList.add(\"afw-counter\");\n    \
+             enterHost(this);\n    \
              try {\n    \
              const count = signal(0);\n    \
              const el0 = document.createElement(\"button\");\n    \
@@ -2238,6 +2239,8 @@ mod tests {
              this.appendChild(el0);\n    \
              } catch (e) {\n      \
              handleError(this, e, { phase: \"render\", component: \"Counter\" });\n    \
+             } finally {\n      \
+             exitHost();\n    \
              }\n  \
              }\n  \
              disconnectedCallback() {\n    \
@@ -2266,6 +2269,16 @@ mod tests {
         // `<UserList/>` is not a sibling here, so it's addressed via the imported
         // binding's `.tag` (collision-free; the hash lives on UserList's own class).
         assert!(m.code.contains("document.createElement(UserList.tag)"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn every_component_brackets_its_connect_with_the_host_stack() {
+        // `getCurrentInstance()` must name the component running its body even when it
+        // reads no `$context` — libraries scope per-instance state by it (`createForm`).
+        let m = emit_component(&lower("export function Plain() { return <p>hi</p>; }"));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("enterHost(this);"), "code: {}", m.code);
+        assert!(m.code.contains("} finally {\n      exitHost();"), "code: {}", m.code);
     }
 
     #[test]
@@ -2914,7 +2927,7 @@ mod tests {
             "export function C() { let on = $state(true); let label = $state(\"hi\"); return <div>{on ? <strong>{label}</strong> : <em>off</em>}</div>; }",
         ));
         assert!(m.is_complete(), "errors: {:?}", m.errors);
-        assert!(m.code.contains("import { signal, bindText, bindChild, handleError }"), "code: {}", m.code);
+        assert!(m.code.contains("import { signal, bindText, bindChild, handleError, enterHost, exitHost }"), "code: {}", m.code);
         // Builders are LOCAL (inside connectedCallback) so they close over `label`.
         assert!(m.code.contains("function C_node0() {"), "code: {}", m.code);
         assert!(m.code.contains("function C_node1() {"), "code: {}", m.code);
@@ -2950,7 +2963,7 @@ mod tests {
             "export function C() { let o = $state({}); let xs = $state([]); return <div {...o} class=\"base\">{...xs}</div>; }",
         ));
         assert!(m.is_complete(), "errors: {:?}", m.errors);
-        assert!(m.code.contains("import { signal, effect, bindChild, spread, handleError }"), "code: {}", m.code);
+        assert!(m.code.contains("import { signal, effect, bindChild, spread, handleError, enterHost, exitHost }"), "code: {}", m.code);
         // Spread applied (effect), then the static class override — source order.
         let spread_at = m.code.find("effect(() => spread(el0, (o.value), false))").expect("spread");
         let class_at = m.code.find("el0.setAttribute(\"class\", \"base\")").expect("class");
