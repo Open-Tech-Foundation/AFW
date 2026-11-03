@@ -168,6 +168,22 @@ Keep your build targets and `siteOutputPlugin` entry from
 [Static Generation](/docs/deployment/static-generation). A blog also needs
 `blogPostsPlugin`, with `appDir: "app"` and a `contentDir` matching `blog.dir`.
 
+### With Vite
+
+In the Vite + Node workflow, one plugin does all of this. It reads the same
+`afw.config.js`, generates the sidebar, post list and last-updated data, and after
+the prerender writes the search index, the blog feeds and `llms.txt`:
+
+```js
+// vite.config.js
+import afw from "@opentf/vite-plugin-afw";
+import afwDocs from "@opentf/afw-docs/vite";
+
+export default { plugins: [afw({ mode: "ssg" }), afwDocs()] };
+```
+
+Test search with `vite build` and `vite preview`.
+
 ## Search
 
 Set `docs.search: { provider: "afw" }` and configure `siteOutputPlugin` after
