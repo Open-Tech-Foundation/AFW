@@ -38,6 +38,19 @@
 * [ ] Original Markdown/MDX source maps: current maps target the generated `?afw-jsx` intermediate. The Markdown front end still needs to supply the preceding mapping.
 * [x] Native esdev starters (spa, fullstack, docs, library) verified on esdev 0.16. Open upstream issues: [ESDEV_MIGRATION.md](ESDEV_MIGRATION.md).
 
+## Toolchains — esdev + ES-Runtime and Vite + Node
+Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE.md §8).
+* [x] Shared core: compiler client, targets, routes, `@afw/server`, HTML document, prerender.
+* [x] Vite: dev with in-place refresh, SPA/SSR/SSG builds, server routes on Node in dev and `dist/server`.
+* [x] Vitest support (`@opentf/afw-test/vitest`, happy-dom and jsdom).
+* [x] `npm create @opentf/afw` starters (spa, fullstack, ssr, ssg; TS or JS).
+* [x] `@opentf/afw-docs/vite`: navigation, posts, last-updated, search index, feeds, `llms.txt`.
+* [x] Native addons in server routes (tested with `sharp` in dev and production).
+* [ ] Vite prerender: `<link rel="modulepreload">` hints per route (esdev's prerender emits them).
+* [ ] Server-rendered pages in the dev server (both workflows render pages on the client in dev).
+* [ ] `@opentf/afw-docs/vite` finishing steps under `mode: "ssr"` (today: `ssg` only).
+* [ ] `afw-cli`'s server entry (`apiEntrySource`, `serverEntrySource`) on `afw-build`'s `serverModule`.
+
 ## Streaming (for future review)
 * [ ] Streamed SSR. Today `renderRoute()` returns one complete HTML string and loaders block rendering.
 * [ ] Evaluate [Declarative Partial Updates](https://github.com/WICG/declarative-partial-updates/blob/main/patching-explainer.md) (`<?start>`/`<?marker>` placeholders filled by `<template for>`) for out-of-order streaming. A WICG proposal shipping in one browser so far; the hydration walk would need to adopt content the parser moves into place.

@@ -126,11 +126,14 @@ covers the HTML entry, routes and TypeScript setup.
 | --- | --- |
 | [`@opentf/afw`](packages/afw) | **Start here.** Runtime: signals, DOM bindings, router, `Link`, server rendering |
 | [`@opentf/esdev-plugin-afw`](packages/esdev-plugin-afw) | esdev plugin: compiles `.jsx`/`.tsx`/`.mdx` and serves file-based routes |
+| [`@opentf/vite-plugin-afw`](packages/vite-plugin-afw) | Vite plugin: the same compilation and routes, server routes and SSR/SSG on Node |
+| [`@opentf/create-afw`](packages/create-afw) | `npm create @opentf/afw`: Vite + Node starters (spa, fullstack, ssr, ssg) |
+| [`@opentf/afw-build`](packages/afw-build) | The toolchain-neutral build core both plugins share |
 | [`@opentf/afw-compiler`](packages/afw-compiler) | The `afwc` native binary for every platform: compilation and docs indexing |
 | [`@opentf/afw-cli`](packages/afw-cli) | Static-generation library behind `esdev build` prerender steps |
 | [`@opentf/afw-form`](packages/afw-form) | Path-based reactive forms with sync, async and schema validation |
 | [`@opentf/afw-i18n`](packages/afw-i18n) | ICU messages, `Intl` formatters and URL-prefix locale routing |
-| [`@opentf/afw-test`](packages/afw-test) | Render and query components with Testing Library in esdev's DOM |
+| [`@opentf/afw-test`](packages/afw-test) | Render and query components with Testing Library, under esdev or Vitest |
 | [`@opentf/afw-docs`](packages/afw-docs) | Documentation and blog theme: sidebar, search, TOC, callouts, feeds |
 
 ## Design

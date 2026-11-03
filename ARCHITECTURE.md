@@ -420,30 +420,47 @@ Tracked here as the discussion progresses:
 ## 8. Toolchain & runtime _(decided)_
 
 The framework owns its compiler and its runtime. Development, bundling, HMR
-transport, testing and preview come from **esdev** (ES-Runtime's development
-binary), which bundles with **Rolldown**. **We do not build on Vite.**
+transport, testing and preview come from a host toolchain. AFW has **two official
+workflows** over one shared core:
+
+- **esdev + ES-Runtime**: ES-Runtime's development binary, bundling with Rolldown.
+  The reference workflow: one binary, capability-secured.
+- **Vite + Node**: for server code that needs the Node ecosystem (ORMs, database
+  drivers, native addons such as `sharp`, Node hosting).
 
 ### 8.1 Layering
 
 ```
-esdev (ES-Runtime)                   ← dev server, build targets, bundling, HMR, tests
-  ├─ @opentf/esdev-plugin-afw        ← resolve/load/transform hooks, @afw/routes
-  │    └─ Compiler (afwc: oxc → IRs → codegen)  ← §3
-  └─ Runtime (shipped JS)            ← DOM ops, reactivity, hydration (browser)
+esdev (ES-Runtime)                    Vite (Node)
+  └─ @opentf/esdev-plugin-afw           └─ @opentf/vite-plugin-afw
+        (ES-Runtime host)                     (Node host)
+              └──────── @opentf/afw-build ────────┘   ← compiler client, targets, routes,
+                              │                          server module, HTML document,
+                              │                          prerender (toolchain-neutral)
+                              └─ Compiler (afwc: oxc → IRs → codegen)  ← §3
+Runtime (shipped JS)                  ← DOM ops, reactivity, hydration, server render
 ```
+
+`@opentf/afw-docs` follows the same split: its build modules run on an installed
+host, with `@opentf/afw-docs/build` for esdev and `@opentf/afw-docs/vite` for Vite.
 
 ### 8.2 Decisions
 
-1. **esdev hosts the toolchain.** The framework-owned `afw` dev server and build
-   driver were retired in favor of declarative `esdev.json` targets. The plugin
-   is the only integration point; projects configure it, not a framework CLI.
+1. **Two toolchains, one core.** Features land in the shared core
+   (`@opentf/afw-build`, the runtime, `@opentf/afw/server`); the plugins only wire
+   them into their toolchain's hooks. Core code imports no `runtime:*` or `node:*`
+   module; platform access comes from a host object, and tests enforce this.
 2. **The compiler stays a native binary.** `afwc` runs as a long-lived compiler
    service per build; the plugin passes sources in and returns code plus source
-   maps, so esdev composes maps and owns final chunking.
+   maps, so the toolchain composes maps and owns final chunking.
 3. **We do not write a bundler.** Module resolution, tree-shaking, npm
-   compatibility, CSS, and the asset pipeline come from esdev/Rolldown.
+   compatibility, CSS, and the asset pipeline come from the host toolchain.
 4. **The runtime is independent of the toolchain.** It is shipped JS that runs in
-   the browser; it has no dependency on the bundler or dev server.
-5. **Fullstack wiring is app-owned.** A server entry composes `renderRoute`,
-   loaders, API routes and middleware from `@opentf/afw/server`; SSG runs as a
-   prerender target through `@opentf/afw-cli/ssg`.
+   the browser; it has no dependency on the bundler or dev server. Its hot-refresh
+   code uses the `import.meta.hot` API both toolchains provide.
+5. **The server contract is a Fetch handler.** API routes, loaders and middleware
+   compose into one `Request → Response` handler (`@opentf/afw/server`). ES-Runtime
+   and Node are the CI-tested runtimes; other Fetch-native platforms run it through
+   `createFetchHandler`. Under esdev the server entry is app-owned and SSG runs as a
+   prerender target through `@opentf/afw-cli/ssg`; under Vite the plugin generates
+   the server (`dist/server`) and the prerender from the same core.
