@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-03
+
 ### Added
 
 - New package: the toolchain-neutral core of the AFW build, shared by the esdev and

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-03
+
 ### Changed
 
 - The compiler client, target rules, compiler resolution and route discovery now come

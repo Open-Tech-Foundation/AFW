@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-03
+
 ### Fixed
 
 - The development refresh runtime works under Vite's `import.meta.hot`, which has no

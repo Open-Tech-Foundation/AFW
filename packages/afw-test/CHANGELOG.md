@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-11-03
+
 ### Added
 
 - `@opentf/afw-test/vitest`: a Vitest setup file that registers `cleanup` after each

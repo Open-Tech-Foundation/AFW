@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-11-03
+
 ### Fixed
 
 - `handleSubmit` resets `isSubmitting` when the validator throws or rejects (a failed
