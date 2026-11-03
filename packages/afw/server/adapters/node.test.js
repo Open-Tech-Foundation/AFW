@@ -46,23 +46,76 @@ function fakeReq({ method = "GET", url = "/", headers = {}, body = "" } = {}) {
   return stream;
 }
 
-// A minimal ServerResponse capturing status/headers/body.
-function fakeRes() {
-  return {
+// A minimal ServerResponse capturing status/headers/body, with the write/drain/close
+// surface the adapter streams through. `writable: false` makes `write()` report a
+// full buffer until `drain()` is called.
+function fakeRes({ writable = true } = {}) {
+  const listeners = {};
+  const res = {
     statusCode: 0,
     headers: null,
     headersSent: false,
     body: "",
+    chunks: [],
+    ended: false,
+    destroyed: null,
     writeHead(status, headers) {
       this.statusCode = status;
       this.headers = headers;
       this.headersSent = true;
     },
+    write(chunk) {
+      const text = new TextDecoder().decode(chunk);
+      this.chunks.push(text);
+      this.body += text;
+      return writable;
+    },
     end(chunk) {
-      if (chunk) this.body += new TextDecoder().decode(chunk);
+      if (chunk) this.body += typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+      this.ended = true;
+    },
+    destroy(error) {
+      this.destroyed = error;
+    },
+    on(ev, fn) {
+      (listeners[ev] ??= []).push(fn);
+      return res;
+    },
+    once(ev, fn) {
+      const wrapped = (...args) => {
+        res.off(ev, wrapped);
+        fn(...args);
+      };
+      return res.on(ev, wrapped);
+    },
+    off(ev, fn) {
+      listeners[ev] = (listeners[ev] ?? []).filter((f) => f !== fn);
+      return res;
+    },
+    emit(ev) {
+      for (const fn of [...(listeners[ev] ?? [])]) fn();
+    },
+    listenerCount(ev) {
+      return (listeners[ev] ?? []).length;
     },
   };
+  return res;
 }
+
+// A response body the test feeds by hand, to observe what is written before it ends.
+function manualStream() {
+  let controller;
+  const stream = new ReadableStream({ start: (c) => (controller = c) });
+  const encode = (t) => new TextEncoder().encode(t);
+  return {
+    stream,
+    push: (text) => controller.enqueue(encode(text)),
+    close: () => controller.close(),
+    error: (e) => controller.error(e),
+  };
+}
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe("toWebRequest", () => {
   test("builds a Fetch Request with method, url, and headers", async () => {
@@ -97,6 +150,56 @@ describe("sendWebResponse", () => {
   });
 });
 
+describe("sendWebResponse — streaming", () => {
+  test("chunks are written as they are produced, before the body ends", async () => {
+    const res = fakeRes();
+    const body = manualStream();
+    const done = sendWebResponse(res, new Response(body.stream, { headers: { "content-type": "text/event-stream" } }));
+    body.push("data: 1\n\n");
+    await flush();
+    expect(res.chunks).toEqual(["data: 1\n\n"]);
+    expect(res.ended).toBe(false);
+    body.push("data: 2\n\n");
+    body.close();
+    await done;
+    expect(res.chunks).toEqual(["data: 1\n\n", "data: 2\n\n"]);
+    expect(res.ended).toBe(true);
+    expect(res.listenerCount("close")).toBe(0);
+  });
+
+  test("waits for drain when the socket buffer is full", async () => {
+    const res = fakeRes({ writable: false });
+    const body = manualStream();
+    const done = sendWebResponse(res, new Response(body.stream));
+    body.push("a");
+    body.push("b");
+    await flush();
+    expect(res.chunks).toEqual(["a"]); // holding "b" until the buffer drains
+    res.emit("drain");
+    await flush();
+    expect(res.chunks).toEqual(["a", "b"]);
+    res.emit("drain");
+    body.close();
+    await done;
+    expect(res.ended).toBe(true);
+  });
+
+  test("a client disconnect cancels the body", async () => {
+    let cancelled = false;
+    const stream = new ReadableStream({
+      pull: (c) => new Promise((r) => setTimeout(() => (c.enqueue(new TextEncoder().encode("tick")), r()), 1)),
+      cancel: () => { cancelled = true; },
+    });
+    const res = fakeRes();
+    const done = sendWebResponse(res, new Response(stream));
+    await new Promise((r) => setTimeout(r, 10));
+    res.emit("close");
+    await done;
+    expect(cancelled).toBe(true);
+    expect(res.ended).toBe(false);
+  });
+});
+
 describe("toNodeListener", () => {
   test("routes a matched request through the handler", async () => {
     const listener = toNodeListener(async () => Response.json({ hit: true }));
@@ -115,6 +218,26 @@ describe("toNodeListener", () => {
     await toNodeListener(async () => null, { fallback: () => new Response("shell", { status: 200 }) })(fakeReq(), resFb);
     expect(resFb.statusCode).toBe(200);
     expect(resFb.body).toBe("shell");
+  });
+
+  test("a body that fails mid-stream aborts the connection instead of appending JSON", async () => {
+    const body = manualStream();
+    const res = fakeRes();
+    const done = toNodeListener(async () => new Response(body.stream))(fakeReq(), res);
+    body.push("partial");
+    await flush();
+    body.error(new Error("upstream died"));
+    await done;
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toBe("partial");
+    expect(res.destroyed?.message).toBe("upstream died");
+  });
+
+  test("a handler that throws before responding still gets a 500", async () => {
+    const res = fakeRes();
+    await toNodeListener(async () => { throw new Error("boom"); })(fakeReq(), res);
+    expect(res.statusCode).toBe(500);
+    expect(JSON.parse(res.body)).toEqual({ error: "Internal Server Error" });
   });
 });
 

@@ -45,11 +45,30 @@ export async function sendWebResponse(res, webRes) {
   const cookies = webRes.headers.getSetCookie?.() ?? [];
   if (cookies.length > 0) headers["set-cookie"] = cookies;
   res.writeHead(webRes.status, headers);
-  if (webRes.body) {
-    const buf = Buffer.from(await webRes.arrayBuffer());
-    res.end(buf);
-  } else {
+  if (!webRes.body) {
     res.end();
+    return;
+  }
+  // Stream the body chunk by chunk, so server-sent events and large downloads reach
+  // the client as they are produced instead of after the whole body is buffered.
+  // Honour backpressure (`write()` returning false waits for "drain") and stop
+  // reading when the client goes away.
+  const reader = webRes.body.getReader();
+  let closed = false;
+  const onClose = () => {
+    closed = true;
+    reader.cancel().catch(() => {});
+  };
+  res.on?.("close", onClose);
+  try {
+    while (!closed) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!res.write(value)) await new Promise((resolve) => res.once("drain", resolve));
+    }
+  } finally {
+    res.off?.("close", onClose);
+    if (!closed) res.end();
   }
 }
 
@@ -66,9 +85,15 @@ export function toNodeListener(handler, { fallback } = {}) {
       if (!webRes) webRes = fallback ? await fallback(request) : new Response("Not Found", { status: 404 });
       await sendWebResponse(res, webRes);
     } catch (e) {
-      if (!res.headersSent) res.writeHead(500, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: "Internal Server Error" }));
       console.error("✗ API (node adapter):", e?.stack ?? e);
+      if (res.headersSent) {
+        // Mid-stream failure: the status is already out, so appending an error body
+        // would corrupt the response. Abort the connection instead.
+        res.destroy?.(e);
+        return;
+      }
+      res.writeHead(500, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "Internal Server Error" }));
     }
   };
 }

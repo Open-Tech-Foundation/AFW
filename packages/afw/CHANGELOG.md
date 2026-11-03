@@ -15,6 +15,11 @@
   compared literally against the request path, so it never matched `/users/7` and a
   guard placed there was silently skipped. Applies to pipeline middleware and the
   API-scoped middleware in `createApiHandler`.
+- The Node adapter streams response bodies, so server-sent events and large downloads
+  reach the client as they are produced. It used to buffer the whole body first. Writes
+  wait for `drain` under backpressure, and a client disconnect cancels the body. A
+  body that fails after the headers are sent now aborts the connection instead of
+  appending a JSON error to the partial response.
 
 ## [0.33.0] - 2026-10-30
 
