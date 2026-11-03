@@ -33,10 +33,24 @@ export function createForm(options = {}) {
   const inst = getCurrentInstance();
   if (!inst) return _createForm(options);
 
-  let forms = INST_FORMS_REGISTRY.get(inst);
-  if (!forms) INST_FORMS_REGISTRY.set(inst, (forms = new Map()));
+  let entry = INST_FORMS_REGISTRY.get(inst);
+  if (!entry) INST_FORMS_REGISTRY.set(inst, (entry = { forms: new Map(), calls: 0, counting: false }));
+  const { forms } = entry;
 
-  const key = options.key || JSON.stringify({ initialValues: options.initialValues });
+  // Without a `key`, a form is identified by its call position in the component
+  // body: the first `createForm` is `#0`, the next `#1`, … The count restarts once
+  // the body finishes (a microtask later), so a remount of the same host gets the
+  // same forms back, while two forms in one body never share state — even with
+  // identical (or no) initial values.
+  if (!entry.counting) {
+    entry.counting = true;
+    queueMicrotask(() => {
+      entry.calls = 0;
+      entry.counting = false;
+    });
+  }
+  const position = entry.calls++;
+  const key = options.key != null ? `key:${options.key}` : `#${position}`;
   if (forms.has(key)) {
     const form = forms.get(key);
     form._updateConfig?.(options.mode, options.reValidateMode);

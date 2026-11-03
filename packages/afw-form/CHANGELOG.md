@@ -7,6 +7,12 @@
 - `handleSubmit` resets `isSubmitting` when the validator throws or rejects (a failed
   network check, a broken schema). The form used to stay in the submitting state, so a
   submit button disabled on `isSubmitting` never came back.
+- Two `createForm` calls in one component no longer return the same form. Without a
+  `key`, forms were cached by their `initialValues`, so a second form with equal (or no)
+  initial values got the first one back and its own validator was ignored. Unkeyed forms
+  are now identified by call order in the component body, and a remounted component
+  still gets its forms back. Needs `@opentf/afw-compiler` with the host-stack fix, which
+  makes `getCurrentInstance()` name every component.
 
 ## [1.28.0] - 2026-10-30
 

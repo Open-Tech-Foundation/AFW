@@ -123,15 +123,16 @@ const form = createForm({ initialValues: { username: "", email: "" }, validator:
 
 ## API
 
-`createForm(options)` returns a stable form object; called again from the same
-component, it returns the same instance.
+`createForm(options)` returns a stable form object. When the same component instance
+remounts, each `createForm` call gets its form back, matched by `key` or else by call
+order in the component body. Several forms in one component stay independent.
 
 | Option | Purpose |
 | --- | --- |
 | `initialValues` | Starting values; also the baseline for `isChanged` |
 | `validate` / `validator` | Validation function, as above |
 | `mode` / `reValidateMode` | Validation timing, as above |
-| `key` | Distinguishes several forms created in one component |
+| `key` | Names the form within its component, instead of its call order |
 
 | Member | Purpose |
 | --- | --- |
