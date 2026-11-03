@@ -13,6 +13,8 @@
   are now identified by call order in the component body, and a remounted component
   still gets its forms back. Needs `@opentf/afw-compiler` with the host-stack fix, which
   makes `getCurrentInstance()` name every component.
+- A registered field with no initial value starts empty. `register(path)` passed
+  `value: undefined`, which an input displays as the text "undefined".
 
 ## [1.28.0] - 2026-10-30
 

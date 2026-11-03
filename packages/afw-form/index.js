@@ -207,8 +207,9 @@ function _createForm(options = {}) {
 
   const register = (path) => ({
     name: path,
-    value: readPath(valuesStore, path),
-    checked: readPath(valuesStore, path),
+    // A field with no initial value renders empty, not the text "undefined".
+    value: readPath(valuesStore, path) ?? "",
+    checked: readPath(valuesStore, path) ?? false,
     error: computed(() => readPath(errorsStore, path)),
     isTouched: computed(() => readPath(touchedStore, path) ?? false),
     oninput: (e) => {

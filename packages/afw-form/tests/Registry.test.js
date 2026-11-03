@@ -1,6 +1,7 @@
 import { describe, expect, test } from "runtime:test";
 import { mount, type } from "./dom.js";
 import TwoForms from "./TwoForms.jsx";
+import NoInitialValues from "./NoInitialValues.jsx";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -26,5 +27,16 @@ describe("createForm per-component registry", () => {
     expect(getByTestId("login-user").value).toBe("ada");
     expect(getByTestId("login-error").textContent).toBe("");
     expect(getByTestId("signup-error").textContent).toBe("Signup: email required");
+  });
+});
+
+describe("register without initial values", () => {
+  test("fields start empty, not with the text \"undefined\"", async () => {
+    const { getByTestId } = mount(NoInitialValues);
+    expect(getByTestId("name").value).toBe("");
+    expect(getByTestId("agree").checked).toBe(false);
+    await type(getByTestId("name"), "ada");
+    expect(getByTestId("name").value).toBe("ada");
+    expect(getByTestId("echo").textContent).toBe("ada");
   });
 });
