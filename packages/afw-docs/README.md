@@ -89,6 +89,28 @@ to an existing project, import its stylesheet and register the build plugins:
 
 `appDir` is resolved from the directory esdev runs in.
 
+### With Vite
+
+In the Vite + Node workflow, add `@opentf/afw-docs/vite` next to the AFW Vite plugin.
+It reads the same `afw.config.js`, serves the generated navigation, post list and
+last-updated map, and after the prerender writes the search index, the blog's RSS and
+Atom feeds, and `llms.txt`:
+
+```sh
+pnpm add @opentf/afw-docs @opentf/afw
+pnpm add -D vite @opentf/vite-plugin-afw
+```
+
+```js
+// vite.config.js
+import afw from "@opentf/vite-plugin-afw";
+import afwDocs from "@opentf/afw-docs/vite";
+
+export default { plugins: [afw({ mode: "ssg" }), afwDocs()] };
+```
+
+`vite build` writes the static site to `dist/`; `vite preview` serves it.
+
 ## Configure
 
 ```js
@@ -126,7 +148,8 @@ export default defineDocsConfig({
 | `@opentf/afw-docs` | Every component above, plus `createSearch` |
 | `@opentf/afw-docs/theme` | The default light/dark stylesheet |
 | `@opentf/afw-docs/config` | `defineDocsConfig` and the config types |
-| `@opentf/afw-docs/build` | `docsNavPlugin`, `blogPostsPlugin`, `lastUpdatedPlugin`, feed and `llms.txt` renderers |
+| `@opentf/afw-docs/build` | `docsNavPlugin`, `blogPostsPlugin`, `lastUpdatedPlugin`, feed and `llms.txt` renderers (esdev) |
+| `@opentf/afw-docs/vite` | `afwDocs()`: the same generators as one Vite plugin |
 | `@opentf/afw-docs/nav`, `/posts`, `/updated` | Generated navigation, post list and last-updated map |
 | `@opentf/afw-docs/search` | Browser search: `createSearch`, `tokenize`, `excerptParts` |
 

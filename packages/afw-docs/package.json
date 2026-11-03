@@ -29,6 +29,10 @@
       "default": "./updated-virtual.js"
     },
     "./build": "./build/index.js",
+    "./vite": {
+      "types": "./types/vite.d.ts",
+      "default": "./build/vite.js"
+    },
     "./search": {
       "types": "./types/search.d.ts",
       "default": "./search.js"
@@ -75,7 +79,9 @@
   },
   "devDependencies": {
     "@opentf/afw": "workspace:*",
-    "@opentf/afw-test": "workspace:*"
+    "@opentf/afw-test": "workspace:*",
+    "@opentf/vite-plugin-afw": "workspace:*",
+    "vite": "8.3.5"
   },
   "types": "./types/index.d.ts"
 }

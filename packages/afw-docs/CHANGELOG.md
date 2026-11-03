@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- `@opentf/afw-docs/vite`: the docs and blog generators for the Vite + Node workflow.
+  Beside `@opentf/vite-plugin-afw` it reads the same afw.config, serves
+  `@opentf/afw-docs/nav`, `/posts` and `/updated` (rebuilt when pages are added or
+  removed; drafts shown in dev), feeds last-updated times and the site URL into the
+  prerender, and afterwards writes the search index, RSS and Atom feeds and
+  `llms.txt`.
+- `finishSite` and its steps (`runDocsSearchIndex`, `runBlogFeed`, `runLlmsFiles`),
+  shared by both workflows.
+
 ### Changed
 
 - The build modules (navigation, posts, last-updated, `llms.txt`, feeds, search

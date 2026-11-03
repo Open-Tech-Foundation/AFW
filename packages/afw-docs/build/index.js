@@ -20,3 +20,4 @@ export { indexWithAfwSearch } from "./search.js";
 export { blogPostsModule } from "./blog-posts-plugin.js";
 export { docsNavModule } from "./docs-nav-plugin.js";
 export { lastUpdatedModule } from "./last-updated-plugin.js";
+export { finishSite, publishedPages, runBlogFeed, runDocsSearchIndex, runLlmsFiles, searchProviderWarning, wantsLastUpdated } from "./finish.js";
