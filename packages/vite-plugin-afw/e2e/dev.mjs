@@ -68,6 +68,7 @@ try {
   await send("Runtime.enable");
   await send("Page.navigate", { url: `${origin}/` });
   check(await until("document.getElementById('title')?.textContent === 'Home on Vite'"), "the home page renders");
+  check((await text("#badge")) === "FROM TSX", "a TypeScript component renders");
   await evaluate("window.__marker = 'kept'; document.getElementById('counter').click()");
   check(await until("document.getElementById('counter').textContent === 'Count 2'"), "a component handles events");
 

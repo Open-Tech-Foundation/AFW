@@ -44,6 +44,8 @@ const pass = () => new Response(null, { status: 404, headers: { [PASS_HEADER]: "
 const OWN_PACKAGES = ["@opentf/afw", "@opentf/afw-docs", "@opentf/afw-form", "@opentf/afw-i18n", "@opentf/afw-test"];
 
 const cleanId = (id) => id.replace(/[?#].*$/, "");
+// Sources whose compiled output is plain JavaScript (`.tsx` compiles to TypeScript).
+const JS_SOURCE_FILTER = /\.(mdx|md|jsx)$/;
 
 // The compiler's hot output accepts updates through the runtime (`registerHotRoute`,
 // `registerHotModule` call `import.meta.hot.accept()`). Vite decides which modules
@@ -119,11 +121,12 @@ export default function afw({
     enforce: "pre",
 
     async config(userConfig, env) {
-      // The compiler owns these extensions; Vite's own JSX/TS transform must not
-      // re-read the compiled output as JSX. Vite 8 transforms with Oxc, Vite 7 with esbuild.
+      // The compiler lowers JSX; Vite's own transform must not re-read its output as
+      // JSX. Compiled `.tsx` still carries its TypeScript types, so Vite's transform
+      // keeps running there to strip them. Vite 8 transforms with Oxc, Vite 7 with esbuild.
       const rolldown = !!this?.meta?.rolldownVersion;
       const config = {
-        [rolldown ? "oxc" : "esbuild"]: { exclude: [SOURCE_FILTER] },
+        [rolldown ? "oxc" : "esbuild"]: { exclude: [JS_SOURCE_FILTER] },
         optimizeDeps: { exclude: [...OWN_PACKAGES] },
         // AFW's own server code is bundled into dist/server; the app's npm
         // dependencies stay external and load from node_modules at run time.
@@ -268,7 +271,7 @@ export default function afw({
           hot: command === "serve" && !serverBuild,
           failOnError: true,
         });
-        return { code: viteHot(out.code), map: out.map, moduleType: "js", moduleSideEffects: true };
+        return { code: viteHot(out.code), map: out.map, moduleType: file.endsWith(".tsx") ? "ts" : "js", moduleSideEffects: true };
       } catch (e) {
         // Report through Vite, so the dev overlay and build output show the
         // compiler's position and code frame.

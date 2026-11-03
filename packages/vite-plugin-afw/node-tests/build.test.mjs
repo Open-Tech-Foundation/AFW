@@ -20,6 +20,8 @@ test("an SPA builds: compiled components, code-split routes, Markdown pages", as
     assert.ok(assets.filter((f) => f.startsWith("page-")).length >= 2, `route chunks: ${assets}`);
     assert.match(all, /customElements\.define/);
     assert.match(all, /Rendered from/);
+    assert.match(all, /toUpperCase/, "the .tsx component is compiled and its types stripped");
+    assert.doesNotMatch(all, /interface BadgeProps|: string/);
     assert.doesNotMatch(all, /<button/);
     assert.doesNotMatch(all, /registerHot|import\.meta\.hot/, "release builds carry no refresh code");
     assert.match(await readFile(join(dir, "dist", "index.html"), "utf8"), /<script type="module"/);

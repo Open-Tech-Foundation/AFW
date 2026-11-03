@@ -48,6 +48,7 @@ describe("mode: ssr", () => {
     assert.match(page, /<div id="app" data-afw-hydrate="\/">/);
     assert.match(page, /<h1 id="title">Home on Vite<\/h1>/);
     assert.match(page, /<button id="counter"[^>]*>/);
+    assert.match(page, /<span id="badge">(?:<!--\$-->)?FROM TSX/);
   });
 
   test("runs the loader with the request and middleware locals, and inlines its data", async () => {

@@ -40,6 +40,9 @@
     "**/dist",
     "**/.dev",
     "target",
-    "benchmarks/**/dist"
+    "benchmarks/**/dist",
+    // Fixture apps for the Vite workflow: compiled by afwc inside their own Vite or
+    // Vitest project, not part of the repository's own sources.
+    "**/node-tests/fixtures"
   ]
 }
