@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -35,6 +35,20 @@ test("@opentf/afw-test runs AFW component and page tests under Vitest", async ()
       "each test starts from a clean document",
       "increments on click and derives a value",
     ]);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("the same tests pass under the jsdom environment", async () => {
+  const { dir, cleanup } = await copyFixture("vitest");
+  try {
+    const config = join(dir, "vite.config.js");
+    await writeFile(config, (await readFile(config, "utf8")).replace('environment: "happy-dom"', 'environment: "jsdom"'));
+    const result = await runVitest(dir);
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.failed, []);
+    assert.equal(result.passed.length, 3);
   } finally {
     await cleanup();
   }
