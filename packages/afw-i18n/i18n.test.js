@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from "runtime:test";
 import { configureI18n, setRouteState } from "@opentf/afw";
 
 import { fmt } from "./format.js";
-import { createI18n, getLocale, t } from "./i18n.js";
+import { createI18n, getLocale, loadLocale, setCatalog, t } from "./i18n.js";
 
 const messages = {
   en: {
@@ -57,6 +57,37 @@ describe("afw-i18n t()", () => {
     setLocale("fr"); // fr has no nested.hi → falls back to en
     expect(t("nested.hi")).toBe("Hi");
     expect(t("totally.missing")).toBe("totally.missing");
+  });
+
+  test("replacing a catalog drops its compiled messages", () => {
+    setLocale("en");
+    expect(t("greeting", { name: "Ada" })).toBe("Hello, Ada");
+    setCatalog("en", { greeting: "Hi there, {name}" });
+    expect(t("greeting", { name: "Ada" })).toBe("Hi there, Ada");
+  });
+
+  test("replacing the default catalog updates fallbacks cached by other locales", () => {
+    setLocale("fr");
+    setCatalog("en", { ...messages.en, wave: "Wave {n}" });
+    expect(t("wave", { n: 1 })).toBe("Wave 1"); // fr falls back to en
+    setCatalog("en", { ...messages.en, wave: "Waves {n}" });
+    expect(t("wave", { n: 1 })).toBe("Waves 1");
+  });
+});
+
+describe("afw-i18n lazy catalogs", () => {
+  test("a loaded catalog replaces messages compiled from the fallback", async () => {
+    configureI18n({ locales: ["en", "de"], defaultLocale: "en" });
+    createI18n({
+      locales: ["en", "de"],
+      defaultLocale: "en",
+      messages: { en: { greeting: "Hello, {name}" } },
+      load: async (locale) => ({ default: { greeting: `Hallo, {name} (${locale})` } }),
+    });
+    setLocale("de");
+    expect(t("greeting", { name: "Ada" })).toBe("Hello, Ada"); // de not loaded yet
+    await loadLocale("de");
+    expect(t("greeting", { name: "Ada" })).toBe("Hallo, Ada (de)");
   });
 });
 

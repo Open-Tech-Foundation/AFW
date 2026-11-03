@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `t()` picks up catalog changes. `setCatalog()` and `loadLocale()` replaced a catalog
+  but kept the messages already compiled from it, so a lazily loaded locale kept showing
+  the default-locale fallback it had compiled before loading, and an updated catalog
+  kept its old text.
+
 ## [1.28.0] - 2026-10-30
 
 
