@@ -27,5 +27,8 @@
   environment: client rendering, no refresh code, framework imports unchanged, and
   AFW packages inlined so the JSX they ship is compiled. Pair it with
   `@opentf/afw-test/vitest`.
+- The generated server modules resolve the plugin's own dependencies
+  (`@opentf/afw-build`) from the plugin. Under a strict layout such as pnpm's, an app
+  could not resolve them and SSG and SSR builds failed.
 - `.tsx` modules have their TypeScript types stripped after compiling. They were
   left in the output, so a typed `.tsx` component failed to parse.

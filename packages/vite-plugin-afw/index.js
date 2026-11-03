@@ -44,6 +44,11 @@ const pass = () => new Response(null, { status: 404, headers: { [PASS_HEADER]: "
 const OWN_PACKAGES = ["@opentf/afw", "@opentf/afw-docs", "@opentf/afw-form", "@opentf/afw-i18n", "@opentf/afw-test"];
 
 const cleanId = (id) => id.replace(/[?#].*$/, "");
+// Imports the generated server modules make on the plugin's behalf. They are the
+// plugin's dependencies, not the app's, so they resolve from here: under a strict
+// layout (pnpm) the app cannot see them.
+const PLUGIN_IMPORT = /^@opentf\/(?:afw-build|vite-plugin-afw)(?:\/|$)/;
+const PLUGIN_FILE = fileURLToPath(import.meta.url);
 // Sources whose compiled output is plain JavaScript (`.tsx` compiles to TypeScript).
 const JS_SOURCE_FILTER = /\.(mdx|md|jsx)$/;
 
@@ -231,6 +236,9 @@ export default function afw({
     },
 
     async resolveId(source, importer, options) {
+      if (PLUGIN_IMPORT.test(source) && importer?.startsWith("\0")) {
+        return this.resolve(source, PLUGIN_FILE, { skipSelf: true });
+      }
       if (source === SERVER_ID) return SERVER_PREFIX + (await serverRoot()) + (serverPages() ? "?pages" : "");
       if (source === NODE_SERVER_ID) return `\0${NODE_SERVER_ID}`;
       if (routes && source === ROUTES_ID) {
