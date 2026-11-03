@@ -79,6 +79,7 @@ export function startCompilerServer(afwc, { sourceMap = false, spawn } = {}) {
   const die = (err) => {
     dead = true;
     while (queue.length) queue.shift().reject(err);
+    idle();
   };
 
   // Spawning is async here, so the child is started on the first compile rather than
@@ -86,10 +87,16 @@ export function startCompilerServer(afwc, { sourceMap = false, spawn } = {}) {
   // for it. Nothing awaits the child's exit, so it holds nothing open; when this
   // process goes, the child sees EOF on its stdin and stops.
   let reading = null; // the stdout reader, so `close` can release it
+  // The child holds its parent process open only while a compile is in flight
+  // (hosts that can — Node — expose `ref`/`unref`). An idle compiler must not keep a
+  // build or test process alive when the toolchain never calls `close`.
+  let child = null;
+  const idle = () => child?.unref?.();
 
   function start() {
     started ??= Promise.resolve(spawn(afwc, sourceMap ? ["serve", "--sourcemap"] : ["serve"])).then((proc) => {
       reading = proc.stdout.getReader();
+      child = proc;
       return { proc, writer: proc.stdin.getWriter(), reader: reading };
     });
     return started;
@@ -124,6 +131,7 @@ export function startCompilerServer(afwc, { sourceMap = false, spawn } = {}) {
         // Keep them usable; they cannot provide mappings until upgraded.
         else if (status === "OK") job.resolve(sourceMap ? { code: payload, map: null } : payload);
         else job.reject(compileError(payload));
+        if (!queue.length) idle();
       }
     } finally {
       pumping = false;
@@ -142,7 +150,8 @@ export function startCompilerServer(afwc, { sourceMap = false, spawn } = {}) {
       queue.push({ resolve, reject });
       writes = writes
         .then(async () => {
-          const { writer, reader } = await start();
+          const { proc, writer, reader } = await start();
+          proc.ref?.();
           const idB = enc.encode(id);
           const srcB = enc.encode(source);
           await writer.write(enc.encode(`${idB.length} ${srcB.length} ${component ? 1 : 0} ${target}\n`));

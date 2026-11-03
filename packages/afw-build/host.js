@@ -18,6 +18,8 @@
  * @property {WritableStream<Uint8Array>} stdin
  * @property {ReadableStream<Uint8Array>} stdout
  * @property {() => void} kill
+ * @property {() => void} [ref]  Keep the parent process alive (a compile is in flight).
+ * @property {() => void} [unref]  Let the parent exit while the child idles.
  */
 
 /**
