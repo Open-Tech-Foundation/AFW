@@ -23,5 +23,9 @@
   server when the app has server routes. A failed page fails the build. `baseUrl`
   feeds canonical links and `sitemap.xml`. The dev server renders pages on the client
   in every mode, as esdev's does.
+- Vitest support. In Vitest (mode `test`), modules compile for the test's DOM
+  environment: client rendering, no refresh code, framework imports unchanged, and
+  AFW packages inlined so the JSX they ship is compiled. Pair it with
+  `@opentf/afw-test/vitest`.
 - `.tsx` modules have their TypeScript types stripped after compiling. They were
   left in the output, so a typed `.tsx` component failed to parse.

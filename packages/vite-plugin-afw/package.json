@@ -28,7 +28,10 @@
   },
   "devDependencies": {
     "@opentf/afw": "workspace:*",
-    "vite": "8.3.5"
+    "@opentf/afw-test": "workspace:*",
+    "happy-dom": "21.0.4",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
   },
   "keywords": [
     "afw",

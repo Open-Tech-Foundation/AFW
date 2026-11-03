@@ -76,6 +76,9 @@ export default function afw({
   if (![true, false, "auto"].includes(serverBuild)) throw new Error(`AFW server option must be true, false or "auto"`);
 
   let command = "serve";
+  // Under Vitest (mode "test"), modules compile for the test's DOM environment:
+  // client rendering, no refresh code, framework imports left as they are.
+  let testing = false;
   let projectRoot = nodeHost.cwd();
   let server = null; // the afwc client, started on the first compiled module
   let serverPromise = null;
@@ -96,7 +99,7 @@ export default function afw({
     await s?.close();
   }
 
-  const isServer = (ctx, options) => ctx.environment?.config?.consumer === "server" || !!options?.ssr;
+  const isServer = (ctx, options) => !testing && (ctx.environment?.config?.consumer === "server" || !!options?.ssr);
   // Release server bundles render pages unless the app is an SPA; the dev server
   // renders pages on the client, so its `@afw/server` carries server routes only.
   const serverPages = () => command === "build" && mode !== "spa";
@@ -132,6 +135,11 @@ export default function afw({
         // dependencies stay external and load from node_modules at run time.
         ssr: { noExternal: [/^@opentf\/afw/, /^@opentf\/vite-plugin-afw/] },
       };
+      if (env.mode === "test") {
+        // AFW packages ship JSX sources (afw-docs components); Vitest must run them
+        // through the compiler rather than load them from node_modules as they are.
+        return { ...config, test: { server: { deps: { inline: [/^@opentf\//] } } } };
+      }
       if (env.command !== "build") return config;
       projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());
       // Whether to ship a Node server: always for server-rendered pages; otherwise
@@ -166,6 +174,7 @@ export default function afw({
 
     configResolved(config) {
       command = config.command;
+      testing = config.mode === "test";
       projectRoot = slash(config.root);
     },
 
@@ -263,12 +272,12 @@ export default function afw({
       const file = cleanId(id);
       if (!SOURCE_FILTER.test(file) || file.startsWith("\0")) return null;
       const serverBuild = isServer(this, options);
-      const moduleTarget = chooseTarget({ mode, target, server: serverBuild, dev: command === "serve" && !serverBuild });
+      const moduleTarget = chooseTarget({ mode, target, server: serverBuild, dev: testing || (command === "serve" && !serverBuild) });
       const client = await compiler();
       try {
         const out = await compileModule(client, code, file, {
           target: moduleTarget,
-          hot: command === "serve" && !serverBuild,
+          hot: command === "serve" && !serverBuild && !testing,
           failOnError: true,
         });
         return { code: viteHot(out.code), map: out.map, moduleType: file.endsWith(".tsx") ? "ts" : "js", moduleSideEffects: true };

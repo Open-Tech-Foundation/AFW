@@ -98,6 +98,21 @@ export async function POST(request) {
   position and code frame. Draft and scheduled Markdown pages are served.
 - Production: release builds carry no refresh code and leave drafts out.
 
+## Testing with Vitest
+
+Vitest picks up the plugin from `vite.config.js`. Add a DOM environment and the
+`@opentf/afw-test` setup file:
+
+```js
+export default {
+  plugins: [afw()],
+  test: { environment: "happy-dom", setupFiles: ["@opentf/afw-test/vitest"] },
+};
+```
+
+Under Vitest, modules compile for the client DOM with no refresh code. See
+`@opentf/afw-test` for `render`, queries and `userEvent`.
+
 ## Compiler binary
 
 The prebuilt `afwc` binary comes from `@opentf/afw-compiler`. Set `AFWC_BIN` to use
