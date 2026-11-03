@@ -187,7 +187,9 @@ describe("sendWebResponse — streaming", () => {
   test("a client disconnect cancels the body", async () => {
     let cancelled = false;
     const stream = new ReadableStream({
-      pull: (c) => new Promise((r) => setTimeout(() => (c.enqueue(new TextEncoder().encode("tick")), r()), 1)),
+      // Enqueue only while the stream is live: after the disconnect cancels it, a
+      // pending timer must not enqueue (that throws, outside the test's reach).
+      pull: (c) => new Promise((r) => setTimeout(() => { if (!cancelled) c.enqueue(new TextEncoder().encode("tick")); r(); }, 1)),
       cancel: () => { cancelled = true; },
     });
     const res = fakeRes();

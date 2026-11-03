@@ -14,6 +14,7 @@ import { Command } from "runtime:system";
 
 import { describe, expect, test } from "runtime:test";
 
+import { enterHost, exitHost } from "../core/context.js";
 import { signal } from "../core/signals.js";
 import {
   attr,
@@ -103,7 +104,8 @@ function loadComponent(code, name, bindings) {
     .replace(/export function /g, "function ")
     .replace(/^export default \w+;$/gm, "");
   // Helpers every hydrate build may reference, supplied unless a test overrides them.
-  bindings = { hydratableNode, adoptedChildren, ...bindings };
+  // Every component brackets its connect with the host stack (`enterHost`/`exitHost`).
+  bindings = { hydratableNode, adoptedChildren, enterHost, exitHost, ...bindings };
   const names = Object.keys(bindings);
   return new Function(...names, `${body}\n; return ${name};`)(...names.map((n) => bindings[n]));
 }
