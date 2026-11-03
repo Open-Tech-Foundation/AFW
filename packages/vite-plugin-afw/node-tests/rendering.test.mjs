@@ -4,7 +4,7 @@ import { access, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 
-import { createBuilder } from "vite";
+import { createBuilder, preview } from "vite";
 
 import afw from "@opentf/vite-plugin-afw";
 import { copyFixture } from "./helpers.mjs";
@@ -97,6 +97,27 @@ describe("mode: ssg", () => {
       assert.ok(!(await exists(join(dir, "dist", "server"))));
       assert.ok(!(await exists(join(dir, "node_modules", ".afw-ssg"))), "the render bundle is removed");
     } finally {
+      await cleanup();
+    }
+  });
+
+  test("vite preview serves prerendered pages at their clean URLs, and 404 for unknown ones", async () => {
+    const { dir, cleanup } = await copyFixture("spa");
+    let server;
+    try {
+      await buildApp(dir, { mode: "ssg" });
+      server = await preview({ root: dir, logLevel: "silent", configFile: false, plugins: [afw({ mode: "ssg" })], preview: { port: 0, host: "127.0.0.1" } });
+      const origin = server.resolvedUrls.local[0].replace(/\/$/, "");
+      for (const url of ["/about", "/about/"]) {
+        const res = await fetch(`${origin}${url}`, { headers: html });
+        assert.equal(res.status, 200, url);
+        assert.match(await res.text(), /data-afw-hydrate="\/about"/, url);
+      }
+      assert.match(await (await fetch(`${origin}/`, { headers: html })).text(), /data-afw-hydrate="\/"/);
+      assert.equal((await fetch(`${origin}/nope`, { headers: html })).status, 404);
+      assert.equal((await fetch(`${origin}/robots.txt`)).status, 200);
+    } finally {
+      await server?.close();
       await cleanup();
     }
   });

@@ -23,6 +23,10 @@
   server when the app has server routes. A failed page fails the build. `baseUrl`
   feeds canonical links and `sitemap.xml`. The dev server renders pages on the client
   in every mode, as esdev's does.
+- `vite preview` of an `ssg` build serves each prerendered page at its clean URL
+  (`/docs/intro`, not only `/docs/intro/`) and `404.html` with status 404 for unknown
+  pages. Vite's preview served the home page's HTML for both, which the client then
+  rebuilt over.
 - Vitest support. In Vitest (mode `test`), modules compile for the test's DOM
   environment: client rendering, no refresh code, framework imports unchanged, and
   AFW packages inlined so the JSX they ship is compiled. Pair it with

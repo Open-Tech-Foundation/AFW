@@ -15,7 +15,7 @@
 // and in the built `dist/server/index.js`, so it can use any npm package, native
 // addons included.
 
-import { readFile, rm } from "node:fs/promises";
+import { readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -229,6 +229,35 @@ export default function afw({
           }
         });
       };
+    },
+
+    // `vite preview` of a prerendered site: Vite's preview only finds a page's
+    // `index.html` with a trailing slash and answers everything else with the home
+    // page. Serve `<path>/index.html` when it was prerendered, else `404.html` with 404.
+    configurePreviewServer(previewServer) {
+      if (mode !== "ssg") return;
+      const outDir = nodeHost.path.resolve(previewServer.config.root, previewServer.config.build.outDir);
+      const isFile = (file) => stat(file).then((s) => s.isFile(), () => false);
+      previewServer.middlewares.use(async (req, res, next) => {
+        try {
+          if (!["GET", "HEAD"].includes(req.method) || !(req.headers.accept ?? "").includes("text/html")) return next();
+          const url = new URL(req.url, "http://preview");
+          const pathname = decodeURIComponent(url.pathname);
+          const page = nodeHost.path.join(outDir, pathname, "index.html");
+          if (!page.startsWith(`${outDir}/`) && page !== `${outDir}/index.html`) return next();
+          if (await isFile(page)) {
+            req.url = `${pathname.replace(/\/+$/, "")}/index.html${url.search}`;
+            return next();
+          }
+          if (await isFile(nodeHost.path.join(outDir, pathname))) return next();
+          const notFound = nodeHost.path.join(outDir, "404.html");
+          res.statusCode = 404;
+          res.setHeader("content-type", "text/html; charset=utf-8");
+          res.end(req.method === "HEAD" ? undefined : (await isFile(notFound)) ? await readFile(notFound) : "Not Found");
+        } catch (error) {
+          next(error);
+        }
+      });
     },
 
     async closeBundle() {
