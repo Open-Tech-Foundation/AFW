@@ -26,6 +26,16 @@ github_release_notes = "auto-generate"
     "**/test/**",
     "**/tests/**",
 ]
+"@opentf/vite-plugin-afw" = [
+    "**/*.md",
+    "**/__tests__/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/test/**",
+    "**/tests/**",
+    "**/node-tests/**",
+    "**/e2e/**",
+]
 "@opentf/esdev-plugin-afw" = [
     "**/*.md",
     "**/__tests__/**",
@@ -83,6 +93,15 @@ matrix = false
 command = "npm run build"
 artifacts = ""
 manifest = "packages/afw-build/package.json"
+
+[[package]]
+name = "@opentf/vite-plugin-afw"
+adapter = "npm"
+mode = "publish"
+matrix = false
+command = "npm run build"
+artifacts = ""
+manifest = "packages/vite-plugin-afw/package.json"
 
 [[package]]
 name = "@opentf/esdev-plugin-afw"

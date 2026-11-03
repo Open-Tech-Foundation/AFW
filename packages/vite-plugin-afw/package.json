@@ -1,0 +1,50 @@
+{
+  "name": "@opentf/vite-plugin-afw",
+  "version": "0.0.0",
+  "description": "Compile AFW components and serve file-based routes in Vite.",
+  "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "host.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@opentf/afw-build": "workspace:*",
+    "@opentf/afw-compiler": "workspace:*"
+  },
+  "peerDependencies": {
+    "@opentf/afw": "workspace:*",
+    "vite": ">=7"
+  },
+  "devDependencies": {
+    "@opentf/afw": "workspace:*",
+    "vite": "8.3.5"
+  },
+  "keywords": [
+    "afw",
+    "opentf",
+    "vite",
+    "vite-plugin",
+    "jsx",
+    "web-components"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Open-Tech-Foundation/afw.git",
+    "directory": "packages/vite-plugin-afw"
+  },
+  "homepage": "https://afw.opentechf.org/docs",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
