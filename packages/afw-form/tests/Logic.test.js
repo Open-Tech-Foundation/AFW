@@ -94,30 +94,58 @@ describe("AFW Forms Library - Pure Logic", () => {
   });
 
   test("handles async validation", async () => {
+    // Each validation stays pending until the test settles it, so the assertions
+    // never race a timer (a fixed sleep flaked on loaded CI runners).
+    const pending = [];
     const form = createForm({
       mode: "onChange",
       initialValues: { username: "abc" },
-      validate: async (v) => {
-        await new Promise((r) => setTimeout(r, 10));
-        return v.username.length < 3 ? { username: "Too short" } : {};
-      },
+      validate: (v) =>
+        new Promise((resolve) => pending.push(() => resolve(v.username.length < 3 ? { username: "Too short" } : {}))),
     });
+    // Resolve the latest validation, then let the form's handlers run.
+    const settle = async () => {
+      pending.pop()();
+      pending.length = 0;
+      await new Promise((r) => setTimeout(r, 0));
+    };
 
     expect(form.isValidating).toBe(true); // Immediate validation in onChange mode
-    await new Promise((r) => setTimeout(r, 20));
+    await settle();
     expect(form.isValidating).toBe(false);
     expect(form.errors.username).toBeUndefined();
 
     form.values.username = "al";
     expect(form.isValidating).toBe(true);
-    await new Promise((r) => setTimeout(r, 20));
+    await settle();
     expect(form.isValidating).toBe(false);
     expect(form.errors.username).toBe("Too short");
 
     form.values.username = "alice";
-    await new Promise((r) => setTimeout(r, 20));
+    await settle();
     expect(form.errors.username).toBeUndefined();
     expect(form.isValid).toBe(true);
+  });
+
+  test("a slower, superseded validation never overwrites a newer result", async () => {
+    const pending = [];
+    const form = createForm({
+      mode: "onChange",
+      initialValues: { username: "abc" },
+      validate: (v) =>
+        new Promise((resolve) => pending.push(() => resolve(v.username.length < 3 ? { username: "Too short" } : {}))),
+    });
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+
+    form.values.username = "al"; // validation for "al" starts
+    form.values.username = "alice"; // a newer one for "alice" supersedes it
+    pending.at(-1)(); // the newer finishes first
+    await flush();
+    expect(form.errors.username).toBeUndefined();
+    for (const resolve of pending.slice(0, -1)) resolve(); // the stale ones finish late
+    await flush();
+    expect(form.errors.username).toBeUndefined();
+    expect(form.isValidating).toBe(false);
   });
 
   test("reactive array mutations (push/splice)", () => {
