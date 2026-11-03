@@ -1,3 +1,4 @@
+/// <reference path="./macros.d.ts" />
 export * from "./core/signals.js";
 export * from "./core/reactive.js";
 export * from "./core/errors.js";

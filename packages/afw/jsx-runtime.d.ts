@@ -1,3 +1,4 @@
+/// <reference path="./macros.d.ts" />
 /** Type-only JSX entry for the AFW compiler (`jsx: "preserve"`). */
 export namespace JSX {
   type Element = Node;
@@ -15,7 +16,8 @@ export namespace JSX {
     class?: string | Record<string, unknown> | unknown[];
     className?: string;
     style?: string | Record<string, string | number | undefined>;
-    ref?: { value: E | null | undefined };
+    /** A signal holding the element, or a `$ref()` variable (typed as the element itself). */
+    ref?: { value: E | null | undefined } | E;
     tabindex?: number;
     autofocus?: boolean;
     readonly?: boolean;

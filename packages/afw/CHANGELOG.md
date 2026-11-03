@@ -25,8 +25,17 @@
   body that fails after the headers are sent now aborts the connection instead of
   appending a JSON error to the partial response.
 
+### Added
+
+- Types for the compiler macros: `$state`, `$derived`, `$effect`, `$ref`, `$context`
+  and `$expose` are declared as globals in `macros.d.ts`, referenced from the
+  package's types and its JSX types, so TypeScript projects use them without local
+  declarations. `$state` keeps its initial value's type and `$context` its context's.
+
 ### Changed
 
+- The JSX `ref` attribute also accepts a `$ref()` variable, which source code uses as
+  the element itself.
 - Documented how `query` handles a repeated name (API context, loader context and
   `router.query`): one value per name, and the last value wins. `?tag=a&tag=b` gives
   `{ tag: "b" }`; read every value with `searchParams.getAll(name)` from the request

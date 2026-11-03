@@ -34,7 +34,6 @@ test("published framework types support strict TS starters and reject invalid JS
     await write(join(scratch, "pages.tsx"), `
       import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext } from "@opentf/afw";
       import { registerRoutes } from "@opentf/afw/server";
-      declare function $state<T>(value: T): T;
       export function Counter({ initial = 0 }: { initial?: number }) {
         let count = $state(initial);
         return <button onclick={event => { event.currentTarget.disabled = true; count++; }}>{count}</button>;
@@ -65,6 +64,23 @@ test("published framework types support strict TS starters and reject invalid JS
       const badProp = <Counter initial="one"/>;
       // @ts-expect-error signal writes retain their value type
       value.value = "one";
+      // Compiler macros are typed globals: no import, no local declarations.
+      const Theme = createContext("light");
+      export function Macros() {
+        let name = $state("Ada");
+        let unset = $state<number>();
+        const greeting: string = $derived(\`Hi \${name}\`);
+        $effect(() => { console.log(greeting); return () => {}; });
+        const box = $ref<HTMLDivElement>();
+        const theme: string = $context(Theme);
+        $expose({ reset() { name = ""; } });
+        const maybe: number | undefined = unset;
+        // @ts-expect-error $state keeps the initial value's type
+        name = 1;
+        // @ts-expect-error $context reads the context's value type
+        const wrong: number = $context(Theme);
+        return <div ref={box}>{greeting}{theme}{maybe}</div>;
+      }
     `);
     const checked = await new Command("pnpm", {
       args: ["exec", "tsc", "-p", join(scratch, "tsconfig.json")], inheritEnv: true,

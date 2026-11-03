@@ -36,6 +36,7 @@
     "index.js",
     "index.d.ts",
     "jsx-runtime.d.ts",
+    "macros.d.ts",
     "core",
     "runtime",
     "components",
