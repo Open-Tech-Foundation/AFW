@@ -7,13 +7,25 @@
     "build": "cp ../../LICENSE LICENSE"
   },
   "exports": {
-    ".": "./index.js",
-    "./server": "./server.js"
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./server": {
+      "types": "./server.d.ts",
+      "default": "./server.js"
+    },
+    "./client": {
+      "types": "./client.d.ts"
+    }
   },
   "files": [
     "index.js",
+    "index.d.ts",
     "host.js",
-    "server.js"
+    "server.js",
+    "server.d.ts",
+    "client.d.ts"
   ],
   "engines": {
     "node": ">=22"

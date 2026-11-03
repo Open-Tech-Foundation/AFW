@@ -27,6 +27,9 @@
   environment: client rendering, no refresh code, framework imports unchanged, and
   AFW packages inlined so the JSX they ship is compiled. Pair it with
   `@opentf/afw-test/vitest`.
+- Type declarations: the plugin's options (`index.d.ts`), the Node server runtime
+  (`server.d.ts`), and `@opentf/vite-plugin-afw/client` for app code, which types the
+  `@afw/routes` module and Markdown page imports (add it to `compilerOptions.types`).
 - The generated server modules resolve the plugin's own dependencies
   (`@opentf/afw-build`) from the plugin. Under a strict layout such as pnpm's, an app
   could not resolve them and SSG and SSR builds failed.
