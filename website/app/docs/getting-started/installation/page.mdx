@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install esdev and create an AFW project.
+description: Create an AFW project on esdev and ES-Runtime, or on Vite and Node.
 ---
 
 import { Callout, Tabs, CodeBlock } from "@opentf/afw-docs";
@@ -22,6 +22,13 @@ export const installTabs = [
 ];
 
 # Installation
+
+AFW has two official workflows. Both compile the same components and `app/` routes.
+
+| Workflow | Choose it when |
+| --- | --- |
+| **esdev + ES-Runtime** | You want the single-binary, capability-secured ES-Runtime toolchain. |
+| **Vite + Node** | Your server code needs the Node ecosystem: ORMs, database drivers, native addons such as `sharp`, or Node hosting. |
 
 ## Install esdev
 
@@ -68,3 +75,29 @@ Available templates:
 
 Template files are embedded in esdev; package versions are resolved while scaffolding.
 Each template writes its `esdev.json`, entry files and `dev`/`build`/`test` scripts.
+
+## Vite and Node
+
+Create a project with npm (or `pnpm create`, `yarn create`, `bun create`):
+
+```bash
+npm create @opentf/afw my-app
+```
+
+Follow the prompts, or pass the choices as flags:
+
+```bash
+npm create @opentf/afw my-app -- --template=fullstack --language=ts
+```
+
+| Template | Purpose |
+| --- | --- |
+| `spa` | A browser app with file-based routing and client rendering. |
+| `fullstack` | An SPA plus API routes, middleware and loaders on a Node server. |
+| `ssr` | Pages rendered on a Node server per request and hydrated in the browser. |
+| `ssg` | Every page prerendered to static HTML at build time. |
+
+Each project has `dev`, `build`, `test` (Vitest) and either `start` (the built Node
+server) or `preview` scripts. TypeScript projects add `typecheck`. Server code runs
+on Node in development and production, so any npm package works there.
+

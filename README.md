@@ -86,13 +86,24 @@ Reproduce with `tsr bench`.
 
 ## Get started
 
-AFW runs on [ES-Runtime](https://esrun.opentechf.org)'s `esdev` toolchain
-(0.17 or newer). Generate a project:
+AFW has two official workflows over the same components and `app/` routes.
+
+**esdev + ES-Runtime.** [ES-Runtime](https://esrun.opentechf.org)'s `esdev` toolchain
+(0.17 or newer):
 
 ```sh
 esdev create my-app --template=spa     # also: fullstack, docs, library
 cd my-app
 esdev start
+```
+
+**Vite + Node.** For server code that needs the Node ecosystem (ORMs, native addons,
+Node hosting):
+
+```sh
+npm create @opentf/afw my-app          # templates: spa, fullstack, ssr, ssg
+cd my-app
+npm install && npm run dev
 ```
 
 Or add AFW to an existing esdev project:
