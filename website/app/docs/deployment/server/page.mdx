@@ -1,66 +1,79 @@
 ---
 title: Server Setup
-description: Supply a native Request/Response server entry for API routes, middleware and SSR.
+description: Serve API routes, middleware, loaders, server functions and SSR pages from the generated @afw/server handler.
 ---
-
-import { Callout } from "@opentf/afw-docs";
 
 # Server Setup
 
-API routes, middleware and loaders are standard server modules. A fullstack app
-provides a **server entry** that composes them and hosts the request pipeline.
-The retired CLI no longer supplies that server automatically.
+API routes, middleware, loaders and server functions are standard server modules. The
+AFW plugin composes them into one Fetch handler, `@afw/server`; a server entry hosts it.
 
-## Native API server
+## The generated server module
 
-This minimal entry mounts one API module on ES-Runtime:
+The AFW plugin generates `@afw/server` from `app/`, in both workflows:
 
-```js server.js
+- `createHandler({ files, renderPage, fallback })` — one Fetch handler. Inside the
+  app's middleware it answers API routes, [server functions](/docs/server-functions)
+  and loader data (`<path>/__data.json`), then `files(request)`, then
+  `renderPage(request)`; each may return `null` to pass. `fallback` answers the rest.
+- `createPageRenderer({ shell })` — with `mode: "ssr"`: renders pages per request into
+  `shell` (the client's `index.html`), with loader data, metadata and hydration.
+- Also exported: `apiRoutes`, `middleware`, `loaders`, `serverFunctions`, and `render`
+  (with pages) for custom pipelines.
+
+**Vite + Node** — nothing to write: `vite build` emits `dist/server/index.js`, which
+serves the client, answers the app's server code and renders pages. For your own
+server, import `createHandler` from `dist/server/app.js`.
+
+**esdev + ES-Runtime** — the app owns its server entry, a server target:
+
+```js
+// server.js — the server target's entry
 import { serve } from "runtime:http";
+import { file } from "runtime:fs";
 import { env } from "runtime:process";
-import { createApiHandler } from "@opentf/afw/server";
-import * as hello from "./app/api/hello/route.js";
+import { createHandler, createPageRenderer } from "@afw/server";
 
-const api = createApiHandler({ "/app/api/hello/route.js": hello });
-serve({ hostname: "127.0.0.1", port: Number(env.PORT || 8080) }, async (request) =>
-  await api(request) || new Response("Not found", { status: 404 })
-);
+// Beside this bundle: dist/ in production, .dev/dist/ under `esdev start`.
+const outDir = new URL("./", import.meta.url);
+
+async function files(request) {
+  const { pathname } = new URL(request.url);
+  if (pathname === "/" || pathname.endsWith(".html")) return null; // pages render below
+  const asset = file(new URL(`.${pathname}`, outDir));
+  if (!(await asset.exists())) return null;
+  const type = { js: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8" }[pathname.split(".").pop()];
+  return new Response(asset.stream(), { headers: { "content-type": type ?? "application/octet-stream" } });
+}
+
+const shell = await file(new URL("./index.html", outDir)).text();
+const handle = createHandler({
+  files,
+  renderPage: createPageRenderer({ shell }), // with mode: "ssr"; leave out for an SPA
+  fallback: () => new Response("Not Found", { status: 404 }),
+});
+serve({ port: Number(env.PORT ?? "3000") }, handle);
 ```
 
-Add a server target alongside the browser target in `esdev.json`:
-
-```json
-"server": { "entry": "server.js", "out": "dist/server.js", "platform": "server" }
+```json esdev.json
+{
+  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssr" } }],
+  "build": { "targets": {
+    "web": { "entry": "index.html", "outdir": "dist" },
+    "server": { "entry": "server.js", "out": "dist/server.js" }
+  } },
+  "dev": { "run": "server", "app": { "port": 3000 } }
+}
 ```
 
-Use the default AFW plugin with `mode: "ssr"` when the server imports renderable
-components. Server modules compile to string renderers, while browser release
-modules compile for hydration.
+- `esdev start` runs the `dev.run` target and restarts it when server code changes.
+- `esdev build`, then `esdev dist/server.js`, for production.
+- Server builds resolve page imports through the DOM-free `@opentf/afw/server` entry,
+  so no `HTMLElement` stub is needed.
 
-```bash
-esdev build --minify
-esdev dist/server.js
-```
+## Register pages by hand
 
-This example hosts APIs only. Static assets, SSR and additional routes belong in
-the app's server entry. The [Server API](/docs/server) reference describes the
-helpers for composing that pipeline.
-
-## Compose a full pipeline
-
-Use `createMiddleware` around the request pipeline, then try API dispatch, loader
-data endpoints, static assets and page rendering. `createLoaderRegistry` supplies
-`match`, `load` and `handle`; `renderRoute` composes registered pages/layouts.
-
-Thread the live request, query and middleware locals into loaders. Include serialized
-route data and island props in server HTML so client navigation and hydration resume
-with the same data. Each `renderRoute()` call isolates route values and island props
-across async work, so concurrent renders keep their own parameters and loader data.
-
-## Register pages for SSR
-
-Import route registration from the server entry. It loads without a DOM or
-`HTMLElement` shim and shares the route table used by `renderRoute()`:
+For a pipeline the generated module does not cover, the pieces are public:
 
 ```js
 import { registerRoutes, renderRoute } from "@opentf/afw/server";
@@ -74,23 +87,13 @@ export async function renderPage(request, data) {
 }
 ```
 
-The AFW plugin supplies `@afw/routes` and compiles server pages with
-`mode: "ssr"`. The renderer returns HTML, metadata, hydration props and status;
-compose these into your HTML response. See [Metadata & SEO](/docs/routing/metadata)
-for head rendering.
-
-Server modules can also import `router`, `configureI18n`, `matchRoute`,
-`resolveLocale`, `localizePath` and `i18nLocales` from `@opentf/afw/server`.
-During rendering, `router.params`, `router.query`, `router.locale` and `router.data`
-refer to the current request. Browser components continue importing from
-`@opentf/afw`.
-
-<Callout type="info" title="Fullstack starter">
-  `esdev create <dir> --template=fullstack` generates this wiring: a `server.js`
-  request pipeline, browser and server targets, and `esdev start` running the server.
-  Server builds resolve page imports through the DOM-free `@opentf/afw/server` entry,
-  so `server.js` is the server target directly; no `HTMLElement` stub is needed.
-</Callout>
+- `renderRoute` returns HTML, metadata, hydration props and status; each call isolates
+  route values and island props across async work.
+- During rendering, `router.params`, `router.query`, `router.locale` and `router.data`
+  refer to the current request.
+- See [Metadata & SEO](/docs/routing/metadata) for head rendering and the
+  [Server API](/docs/server) for `createApiHandler`, `createLoaderRegistry` and
+  `createMiddleware`.
 
 ## Other runtimes
 

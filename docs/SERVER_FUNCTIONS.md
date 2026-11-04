@@ -198,11 +198,13 @@ What phase 1 runs:
 | **3** | `invalidate(query)` and single-flight updates (an action returns the queries it changed); optional query caching headers |
 | **4** | Compiler co-location: server functions declared inside a page or component, split by the Server IR (ARCHITECTURE §4.4); revisit `"use server"` only if demand appears |
 
-## 7. Known gaps in phase 1
+## 7. Phase 1 coverage
 
-- esdev: `@afw/server` composes API routes, middleware, loader data and server
-  functions, but not server-rendered pages; an esdev SSR app wires page rendering
-  itself. The esdev path is tested at the build level, not in a browser.
+- Both toolchains generate the same `@afw/server`; with `mode: "ssr"` it also renders
+  pages (`createPageRenderer`), on esdev as on Vite.
+- Browser e2e in both: `packages/vite-plugin-afw/e2e/dev.mjs` (Vite dev server) and
+  `scripts/verify-server-functions.mjs` (`esdev start` with a server target, then a
+  production `esdev build`).
 
 ## 8. Not in this plan
 

@@ -92,6 +92,26 @@ HTML without browser Custom Elements, so a server target can point straight at
 | `routes` | `true` | `false` turns off `@afw/routes`, for libraries |
 | `failOnError` | `true` | `false` replaces a broken module with a diagnostic stub instead of failing the build |
 
+## Server
+
+The plugin generates `@afw/server` for a server target: one Fetch handler that runs the
+app's middleware around API routes, [server functions](https://afw.opentechf.org/docs/server-functions)
+(`*.server.js`) and loader data, then your `files` and `renderPage` steps.
+
+```js
+// server.js — a server target, run by `esdev start` with "dev": { "run": "server" }
+import { serve } from "runtime:http";
+import { createHandler, createPageRenderer } from "@afw/server";
+
+const handle = createHandler({ files: serveStatic, renderPage: createPageRenderer({ shell }), fallback });
+serve({ port: 3000 }, handle);
+```
+
+- `createPageRenderer({ shell })` exists with `mode: "ssr"`: pages render per request.
+- Browser builds get fetch stubs for `*.server.js` modules; server builds keep them.
+- See [Server Setup](https://afw.opentechf.org/docs/deployment/server) for a complete
+  entry with static files.
+
 ## Development refresh
 
 In `esdev start`, an edited component or page refreshes in place: the host, props
@@ -117,7 +137,8 @@ positions. Markdown maps to its generated JSX for now.
 
 | Export | Purpose |
 | --- | --- |
-| `default` / `createAfwAppPlugin(options)` | Compiler plus `@afw/routes`: the factory `esdev.json` uses |
+| `default` / `createAfwAppPlugin(options)` | Compiler plus `@afw/routes` and `@afw/server`: the factory `esdev.json` uses |
+| `createAfwServer({ appDir, exclude, getCompiler, pages })` | `@afw/server` and the `.server` stubs, for custom pipelines |
 | `createAfwPlugin({ target, mode, failOnError })` | Compiler only, for custom pipelines and test configs |
 | `createAfwRoutes({ appDir, exclude })` | Route map only |
 | `afwPlugin(afwc, { target, failOnError })` | Compiler plugin for a `runtime:build` script |

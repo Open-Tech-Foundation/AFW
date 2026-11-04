@@ -198,14 +198,49 @@ generated `@afw/server` module:
 ```js
 // server.js — the server target's entry
 import { serve } from "runtime:http";
-import { createHandler } from "@afw/server";
+import { file } from "runtime:fs";
+import { env } from "runtime:process";
+import { createHandler, createPageRenderer } from "@afw/server";
 
-const handle = createHandler({ fallback: () => new Response("Not Found", { status: 404 }) });
-serve({ port: 3000 }, handle);
+// Beside this bundle: dist/ in production, .dev/dist/ under `esdev start`.
+const outDir = new URL("./", import.meta.url);
+
+async function files(request) {
+  const { pathname } = new URL(request.url);
+  if (pathname === "/" || pathname.endsWith(".html")) return null; // pages render below
+  const asset = file(new URL(`.${pathname}`, outDir));
+  if (!(await asset.exists())) return null;
+  const type = { js: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8" }[pathname.split(".").pop()];
+  return new Response(asset.stream(), { headers: { "content-type": type ?? "application/octet-stream" } });
+}
+
+const shell = await file(new URL("./index.html", outDir)).text();
+const handle = createHandler({
+  files,
+  renderPage: createPageRenderer({ shell }), // with mode: "ssr"; leave out for an SPA
+  fallback: () => new Response("Not Found", { status: 404 }),
+});
+serve({ port: Number(env.PORT ?? "3000") }, handle);
 ```
 
-- `createHandler` runs the app's middleware around API routes, server functions and
-  loader data.
+```json esdev.json
+{
+  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssr" } }],
+  "build": { "targets": {
+    "web": { "entry": "index.html", "outdir": "dist" },
+    "server": { "entry": "server.js", "out": "dist/server.js" }
+  } },
+  "dev": { "run": "server", "app": { "port": 3000 } }
+}
+```
+
+- `createHandler` runs the app's middleware around API routes, server functions, loader
+  data, `files` and `renderPage`, in that order.
+- `createPageRenderer` exists with `mode: "ssr"`: it registers every page and renders
+  them per request into the shell, with loader data.
+- `esdev start` runs the server target (`dev.run`) and restarts it when server code
+  changes; an edited `.server` file applies without a page reload.
+- `esdev build`, then `esdev dist/server.js`, runs it in production.
 - Browser targets get the stubs automatically.
 
 <Callout type="warning" title="A static site cannot call server functions">
