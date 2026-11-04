@@ -386,10 +386,13 @@ Each backend is a **pure function of the IRs / Project Graph**. Adding a target
   `_middleware`), discovered and bundled by the JS toolchain rather than DOM-compiled
   by the Rust front end; the app's server entry dispatches them through
   `createApiHandler`, or a prerender step emits a self-contained `dist/server/api.js`
-  for deploy adapters (Node/CF Workers). Phase B — typed
-  **server functions / loaders** callable from components, splitting the client/server
-  boundary through the Metadata + Server IR (§4.4) — is the compiler-backed follow-up
-  that turns the Server IR placeholder into real lowering.
+  for deploy adapters (Node/CF Workers). Typed **server functions** callable from
+  components ship as a file convention (`*.server.{js,ts}` exporting `query()` /
+  `action()`, [`docs/SERVER_FUNCTIONS.md`](docs/SERVER_FUNCTIONS.md)): the compiler only
+  lists a module's exports, and the toolchains swap the module for fetch stubs in
+  browser code. Co-locating them inside components, split through the Metadata +
+  Server IR (§4.4), is the compiler-backed follow-up that turns the Server IR
+  placeholder into real lowering.
 
 ### Cross-cutting: Internationalization _(Phase 1 implemented — designed in [`docs/I18N.md`](docs/I18N.md))_
 
@@ -411,7 +414,9 @@ Tracked here as the discussion progresses:
 - Reactive binding classification rules and dependency-set computation (§2.2).
 - Props/data channel across the component boundary (typed properties vs
   attributes).
-- Client/server boundary semantics (server functions, serialization contract).
+- Client/server boundary semantics for co-located server code (the file-convention
+  server functions and their `@opentf/serialize` wire format are settled; see
+  [`docs/SERVER_FUNCTIONS.md`](docs/SERVER_FUNCTIONS.md)).
 - Hydration mismatch detection and recovery policy.
 - Artifact on-disk format and cache key composition.
 

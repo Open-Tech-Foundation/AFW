@@ -83,7 +83,7 @@ gives you out of the box, and it is explicit about where AFW is behind.
 | | AFW | Next.js | TanStack Start | React Router | Nuxt | SvelteKit | Astro | SolidStart |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Route data loaders | 🟡 ⁷ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Mutations / server functions | ❌ | ✅ | ✅ | ✅ | 🟡 | 🟡 ⁸ | ✅ | ✅ |
+| Mutations / server functions | 🟡 ¹¹ | ✅ | ✅ | ✅ | 🟡 | 🟡 ⁸ | ✅ | ✅ |
 | API routes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Cookie helpers | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Server code on Node with any npm package | ✅ ⁹ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -97,6 +97,8 @@ gives you out of the box, and it is explicit about where AFW is behind.
    development and production, native addons such as `sharp` included.
 10. In the esdev workflow, the server runs on ES-Runtime, which grants file, network
     and process access only as declared. It does not run Node APIs.
+11. Typed `query()` / `action()` server functions with schema validation, under folder
+    middleware. No progressive-enhancement forms or cross-call invalidation yet.
 
 ## Pages, content and SEO
 
@@ -150,8 +152,9 @@ gives you out of the box, and it is explicit about where AFW is behind.
 
 AFW is alpha. Compared with the frameworks above it does not yet have:
 
-- **Server functions and actions** — the typed RPC that Next.js, TanStack Start,
-  React Router, Astro and SolidStart provide. Mutations go through API routes today.
+- **Complete server functions** — AFW has typed `query()` / `action()` calls, but not
+  yet forms that submit without JavaScript or refetching every use after an action,
+  which Next.js, React Router, SvelteKit and SolidStart provide.
 - **Streaming server rendering** — pages render to one complete HTML string, and
   loaders finish before rendering starts.
 - **Richer loaders** — layout loaders and redirects from a loader.
@@ -174,10 +177,11 @@ components and no data cache.
 
 **TanStack Start** — you want React (or Solid) with end-to-end type safety: typed
 routes, search params and server functions. AFW's routes and params are not type-checked
-across the app, and it has no server functions yet.
+across the app, though its server functions are typed against their real signatures.
 
 **React Router** — you want the Remix model in React: loaders, actions and progressive
-enhancement, with a gradual path from a client router. AFW has loaders but no actions.
+enhancement, with a gradual path from a client router. AFW has loaders and actions,
+but its actions need JavaScript.
 
 **Nuxt** — you want Vue, a large module ecosystem, and Nitro's deployment presets.
 

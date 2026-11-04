@@ -1,8 +1,13 @@
-# Server functions — plan
+# Server functions
 
-Status: **agreed** (November 2026); see §8 for what each decision settled. Closes the "client/server boundary" open question
-(ARCHITECTURE §7) for the first version, and fills the `Query` / `Action` placeholders of
-the Server IR (ARCHITECTURE §4.4, `crates/afw_ir/src/server.rs`).
+Status: **phase 1 implemented** (November 2026) in both toolchains; phases 2–4 (§6) are
+planned. §9 lists what each decision settled. User guide: the website's
+[Server Functions](../website/app/docs/server-functions/page.mdx) page.
+
+- Closes the "client/server boundary" open question (ARCHITECTURE §7) for file-convention
+  server functions.
+- Phase 4 fills the `Query` / `Action` placeholders of the Server IR (ARCHITECTURE §4.4,
+  `crates/afw_ir/src/server.rs`); phases 1–3 do not need them.
 
 ## 1. Goal
 
@@ -36,7 +41,7 @@ const db = connect(process.env.DATABASE_URL); // not exported: never reachable f
 ```jsx
 // app/todos/page.jsx — runs in the browser
 import { resource } from "@opentf/afw";
-import { addTodo, listTodos } from "./todos.server.js";
+import { addTodo, listTodos } from "./todos.server.js"; // fetch stubs in the browser
 
 export default function Todos() {
   let title = $state("");
@@ -84,31 +89,26 @@ export default function Todos() {
   does not reveal file paths and stays the same across builds of unchanged code.
 - `query`: `GET` with the encoded arguments in `?a=`, or `POST` when they are too large.
   `action`: `POST`.
-- Body and result encoding: [`@opentf/obj-diff`](https://obj-diff.opentechf.org/docs/serialization)
-  `stringify` / `parse`. Values stay readable JSON in the network panel; special types
-  become `@n` tokens with their type in a `$refs` table. Round-trips `Date`, `Map`, `Set`,
-  `BigInt`, `URL`, `RegExp`, `Error`, typed arrays, `undefined`, `NaN`/`±Infinity`/`-0`,
-  `Temporal` and cyclic references. Functions, symbols and class instances throw, which
-  is the right answer for a wire format.
-  - **Blocker before phase 1 (in `obj-diff`):** `parse` turns a `__proto__` key in the
-    input into the parsed object's prototype
-    (`parse('{"v":{"__proto__":{"isAdmin":true}}}').isAdmin === true`), where
-    `JSON.parse` keeps it as an own key. Server functions decode untrusted bodies, so
-    `parse` must define such keys as own properties, or reject them. No global pollution
-    was found; unknown type tags and missing `$ref`s are already rejected.
-  - AFW's side: decode inside a size limit, turn a parse failure (including a stack
-    overflow from deep nesting) into `400`, and require the `{ v, $refs }` envelope,
-    since a body without it currently parses to `undefined` instead of failing.
+- Body and result encoding: [`@opentf/serialize`](https://github.com/Open-Tech-Foundation/js-serialize)
+  `stringify` / `parse`, behind one module (`packages/afw/core/fn-codec.js`).
+  - The `{"v": …, "$refs"?: …}` envelope: plain data stays readable JSON; special types
+    become `@n` tokens with their type in `$refs`.
+  - Round-trips `Date`, `Map`, `Set`, `BigInt`, `URL`, `RegExp`, `Error`, typed arrays,
+    `undefined`, `NaN`/`±Infinity`/`-0`, `Temporal` and cyclic references. Functions,
+    symbols and class instances throw: a result like that is a `500`.
+  - Untrusted input is decoded with `maxLength` (the body limit, default 1 MiB → `413`)
+    and `maxDepth` (default 64 → `400`). A malformed body, or one without the envelope,
+    is `400`. A `__proto__` key stays an own property.
 - Responses: `200` with the encoded result; `400` with validation issues; `404` for
   `notFound()`; a thrown `Response` (redirect, custom status) passes through; any other
   error is `500` with a generic message and the error logged server-side.
 
 ### 3.3 Context
 
-Functions receive `(input, context)`, the same context API routes get:
+Functions receive `(input, context)`:
 
-- `request`, `url`, `locals` (from middleware), `env` and `ctx` (Workers bindings), and the
-  cookie helpers.
+- `request`, `url`, `locals` (from middleware), `env` and `ctx` (Workers bindings).
+  Cookies are read with the module's cookie helpers on `context.request`.
 - No `params` or `query`: a function is called with its own arguments, not a page URL.
 
 ### 3.4 Validation
@@ -117,7 +117,8 @@ Functions receive `(input, context)`, the same context API routes get:
   [Standard Schema](https://standardschema.dev) validator (zod, valibot, arktype…), so AFW
   depends on no validation library.
 - Input is validated on the server before `fn` runs; failures answer `400` with the
-  schema's issues, and the client stub rejects with a `ValidationError`.
+  schema's issues, and the client stub rejects with a `ServerFunctionError` whose
+  `issues` holds them. A direct server call throws a `ValidationError`.
 - Without a schema, the function receives the decoded arguments as they are.
 
 ### 3.5 Security
@@ -126,41 +127,56 @@ Functions receive `(input, context)`, the same context API routes get:
 - Cross-site calls are refused: `POST` requires a same-origin `Origin` (or `Sec-Fetch-Site:
   same-origin`) and a non-form content type; `GET` queries must not have side effects,
   which the `query`/`action` split states.
-- Responses are `Cache-Control: no-store` unless a query opts into caching.
+- Responses are `Cache-Control: no-store` (opt-in query caching is phase 3).
 - Errors never leak server details to the client in production.
 
-### 3.6 Calling from the server
+### 3.6 Authentication and authorization
+
+- Middleware authenticates and gates sections: it sets `locals.user`, and a guard on
+  `app/admin` refuses every function under `/admin/__fn/*`.
+- Each function authorizes its own data access from `locals` (which rows this user may
+  read or change). Middleware cannot know that.
+- No per-function guard API: the folder middleware plus the function's own check cover
+  it, the same split as pages and API routes.
+
+### 3.7 Calling from the server
 
 - In server builds, the `.server` module is the real module: SSR, loaders, API routes and
   other server functions call it directly, with no HTTP round trip.
-- The context comes from the current request (async-local, as `renderRoute` already
-  isolates requests); calling outside a request (prerender) gets a context without a
-  `request`, like loaders today.
+- The caller passes the context: `listTodos(input, { locals })`. Input is still
+  validated.
+- No middleware runs for a direct call: the caller is already server code inside a
+  request that middleware handled. Running every folder's middleware per call would be
+  costly and is not done.
 
-### 3.7 Client integration
+### 3.8 Client integration
 
 - A stub is an async function with the same signature and types (TypeScript sees the real
-  module, since the import path is unchanged).
+  module, since the import path is unchanged). It takes `{ signal }` to abort.
+- Failures reject with a `ServerFunctionError` (`status`, `issues`); a redirect from the
+  server is reported (`redirected: true`) rather than followed.
 - Works with `resource()` as-is: `resource(() => listTodos(args))` refetches when `args`
   change and aborts superseded calls.
 - `afw-form`: `handleSubmit(addTodo)` works with no adapter.
-- Later (§7): `invalidate(listTodos)` to refetch every live use, and single-flight
+- Later (§6): `invalidate(listTodos)` to refetch every live use, and single-flight
   mutations that return fresh query data with the action's response.
 
 ## 4. Toolchain work
 
 | Piece | Where | Work |
 | --- | --- | --- |
-| `query`, `action`, `createServerFunctions(modules)` registry, encoding | `@opentf/afw/server` | Registry with `handle(request, { locals })` like `createLoaderRegistry`; runs validation; maps errors |
-| Client stub runtime (`callServerFunction`) | `@opentf/afw` runtime | `fetch` with abort signal, encoding, error types |
+| `query`, `action`, `createServerFunctions(endpoints)` registry, encoding | `@opentf/afw/server` | Registry with `handle(request, { locals, env, ctx })` like `createLoaderRegistry`; runs validation; maps errors |
+| Client stub runtime (`serverFunction(endpoint, kind)`) | `@opentf/afw` runtime | `fetch` with abort signal, encoding, `ServerFunctionError` |
 | Discovery of `*.server.{js,ts}`, ids, stub module source | `@opentf/afw-build` | Neutral, against the host; export names from the compiler (below) |
 | Export listing | `afwc` (oxc) | A `serve` request returning a module's export names and which are `query`/`action` calls; rejects dynamic shapes (`export *` from a `.server` module) |
 | `@afw/server` handler | `@opentf/afw-build` `serverModule` | Registers function modules; `createHandler` answers `__fn` inside the middleware, before loader data |
 | Vite | `@opentf/vite-plugin-afw` | Client environment: load `.server` modules as stubs. Server environment: real modules. Dev server answers `__fn` through the existing middleware path |
-| esdev | `@opentf/esdev-plugin-afw` | Same client stubbing in the `load` hook; the server entry gets the registry from a virtual module, as with `@afw/routes` |
-| Static generation | both | A prerendered site without a server cannot answer calls: building `mode: "ssg"` with no server target and a client import of a `.server` module is an error naming the import |
+| esdev | `@opentf/esdev-plugin-afw` | Same client stubbing in the `load` hook (`ctx.platform === "browser"`); server targets import `createHandler` from the virtual `@afw/server`, as with `@afw/routes` |
+| No server | Vite | A build with `server: false` that imports a `.server` module is an error naming the file |
 
 ## 5. Testing
+
+What phase 1 runs:
 
 - Core (`afw-build`, in-memory host): discovery, ids, stub source, build errors for
   non-wrapped imports.
@@ -177,27 +193,35 @@ Functions receive `(input, context)`, the same context API routes get:
 
 | Phase | Scope |
 | --- | --- |
-| **1** | `query`/`action` in `.server` files; protocol, encoding, validation, security, middleware scoping; both toolchains in dev and production; SSR direct calls; docs |
+| **1** ✅ | `query`/`action` in `.server` files; protocol, encoding, validation, security, middleware scoping; both toolchains in dev and production; direct server calls; docs |
 | **2** | Forms: `<form action={addTodo}>` that works without JavaScript under SSR (POST → redirect back), with `afw-form` integration; redirects from actions |
 | **3** | `invalidate(query)` and single-flight updates (an action returns the queries it changed); optional query caching headers |
 | **4** | Compiler co-location: server functions declared inside a page or component, split by the Server IR (ARCHITECTURE §4.4); revisit `"use server"` only if demand appears |
 
-## 7. Not in this plan
+## 7. Known gaps in phase 1
+
+- esdev: `@afw/server` composes API routes, middleware, loader data and server
+  functions, but not server-rendered pages; an esdev SSR app wires page rendering
+  itself. The esdev path is tested at the build level, not in a browser.
+
+## 8. Not in this plan
 
 - Streaming results (depends on streamed SSR).
 - Server functions on a prerendered-only site (no server to call).
 - Automatic optimistic updates.
 
-## 8. Decisions (settled November 2026)
+## 9. Decisions (settled November 2026)
 
 1. **Authoring** — `*.server.{js,ts}` modules exporting `query()` / `action()`.
-2. **Encoding** — `@opentf/obj-diff` `stringify` / `parse`, once the `__proto__` handling in
-   §3.2 is fixed.
+2. **Encoding** — `@opentf/serialize` (split out of `@opentf/obj-diff`, with `__proto__`
+   kept as an own key and opt-in input limits).
 3. **Endpoints** — per folder, `<folder>/__fn/<id>`, under that folder's middleware.
 4. **Location** — `.server` modules anywhere under `app/`; they may import shared code
    from outside it.
+5. **Auth** — middleware authenticates and gates sections; each function authorizes its
+   data; direct server calls run no extra middleware.
 
-## 9. Prior art: the query side
+## 10. Prior art: the query side
 
 | Framework | Declare | Call | Refetch |
 | --- | --- | --- | --- |

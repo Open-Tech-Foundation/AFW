@@ -1,6 +1,6 @@
 ---
 title: Server API
-description: The @opentf/afw/server surface — middleware, cookies, API routes, createFetchHandler, and runtime adapters.
+description: The @opentf/afw/server surface — middleware, cookies, API routes, server functions, createFetchHandler, and runtime adapters.
 ---
 
 import { Callout } from "@opentf/afw-docs";
@@ -91,6 +91,41 @@ See [Fetch handler](/docs/deployment/fetch-handler) for a full edge deployment w
 ### `middlewareScopeFromPath(filePath, appDir?)`
 
 Derives the folder route a `_middleware` file governs (`app/admin/_middleware.js` → `/admin`).
+
+## Server functions
+
+See [Server Functions](/docs/server-functions) for the guide.
+
+### `query(fn)` / `query(schema, fn)`
+
+- A read, exported from a `*.server.{js,ts}` file. Answers `GET` and `POST`.
+- `fn(input, context)` — `context` is `{ request, url, locals, env, ctx }`.
+- `schema` — any [Standard Schema](https://standardschema.dev); input is validated
+  before `fn` runs.
+- The result is callable directly on the server: `await listTodos(input, { locals })`.
+
+### `action(fn)` / `action(schema, fn)`
+
+- A write. Answers `POST` only. Otherwise the same as `query`.
+
+### `ValidationError`
+
+- Thrown by a direct call whose input fails the schema; `issues` holds the schema's
+  issues. Over HTTP it becomes a `400` with the issues.
+
+### `createServerFunctions(endpoints, options?)`
+
+- The registry the build generates into `@afw/server`; apps rarely call it.
+- `endpoints` — `{ "/todos/__fn/<id>": listTodos }`.
+- `options.maxBodyBytes` — the largest request input (default 1 MiB; `413` beyond it).
+- `options.maxDepth` — the deepest input nesting (default 64; `400` beyond it).
+- Returns `{ size, handle(request, { locals, env, ctx }) }`; `handle` answers one of the
+  endpoints or returns `null`.
+
+### `ServerFunctionError` (from `@opentf/afw`)
+
+- What a browser call rejects with: `status`, `issues` (invalid input), and
+  `redirected` (the server answered with a redirect, which is not followed).
 
 ## Cookies
 

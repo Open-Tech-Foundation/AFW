@@ -22,7 +22,10 @@
 
 ## API Routes — see [docs/API.md](API.md)
 * [x] Phase A: file-based `app/api/**` `Request→Response` handlers, method exports, `[param]`/`[...rest]`, nested `_middleware`, runtime handlers and API-bundle emission (`dist/server/api.js`); native esdev fullstack orchestration remains to be verified, Node/Fetch adapters.
-* [ ] Phase B: typed server functions (`query`/`action`) — planned in [docs/SERVER_FUNCTIONS.md](SERVER_FUNCTIONS.md); compiler co-location via the Server IR is its phase 4.
+* [x] Phase B.1: typed server functions (`query`/`action` in `*.server.{js,ts}`), validated with Standard Schema, under folder middleware, encoded with `@opentf/serialize`; both toolchains, dev and production — see [docs/SERVER_FUNCTIONS.md](SERVER_FUNCTIONS.md).
+* [ ] Phase B.2: forms that submit to an action without JavaScript; redirects from actions.
+* [ ] Phase B.3: `invalidate(query)` and single-flight updates; opt-in query caching.
+* [ ] Phase B.4: compiler co-location of server functions via the Server IR.
 
 ## Data Fetching — see [docs/DATA.md](DATA.md)
 * [x] Phase A.5 (runtime/toolchain): route loaders (`loader.{js,ts}` → `router.data`; inline payload + `<path>/__data.json` across dev/serve/SSG/SPA-nav) and the client-side `resource()` primitive.

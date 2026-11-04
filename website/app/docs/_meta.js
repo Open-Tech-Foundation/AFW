@@ -7,6 +7,7 @@ export default {
   "core-concepts": "Core Concepts",
   routing: "Routing",
   "data-fetching": "Data Fetching",
+  "server-functions": "Server Functions",
   configuration: "Project Configuration",
   benchmarks: "Benchmarks",
   comparison: "Comparison",

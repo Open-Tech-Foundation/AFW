@@ -1,0 +1,221 @@
+---
+title: Server Functions
+description: Call server code from components as typed async functions — query() and action() in *.server.js files, validated, guarded by middleware.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Server Functions
+
+Server functions let a component call server code like an ordinary async function:
+
+- No hand-written API route, no `fetch`, no URL.
+- Declared in a `*.server.{js,ts}` file anywhere under `app/`.
+- `query()` for reads, `action()` for writes, both from `@opentf/afw/server`.
+- The browser gets a small fetch stub; the server code, its imports and its secrets
+  never reach the bundle.
+- Each function answers under its folder, so that folder's
+  [middleware](/docs/routing/middleware) runs first.
+
+## Define
+
+```js
+// app/todos/todos.server.js — runs only on the server
+import { action, query } from "@opentf/afw/server";
+import { z } from "zod"; // any Standard Schema library: zod, valibot, arktype…
+import { db } from "../../lib/db.js";
+
+export const listTodos = query(async ({ done }, { locals }) => {
+  return db.todos.list({ owner: locals.user.id, done });
+});
+
+export const addTodo = action(z.object({ title: z.string().min(1) }), async ({ title }, { locals }) => {
+  return db.todos.insert({ owner: locals.user.id, title });
+});
+```
+
+- `query(fn)` / `query(schema, fn)` — a read. Called with `GET` (or `POST` for large
+  arguments); must have no side effects.
+- `action(fn)` / `action(schema, fn)` — a write. `POST` only.
+- `fn(input, context)` — `input` is the caller's argument, validated when a schema is
+  given; `context` is `{ request, url, locals, env, ctx }`.
+- Only exports wrapped in `query()` / `action()` are callable. Other exports are
+  server-only helpers: importing one from browser code fails the build.
+- Not allowed in a `.server` file: `export * from`, re-exports and destructured
+  exports. The build must see every server function to expose it.
+
+## Call from a component
+
+```jsx
+// app/todos/page.jsx — runs in the browser
+import { resource } from "@opentf/afw";
+import { addTodo, listTodos } from "./todos.server.js";
+
+export default function Todos() {
+  let title = $state("");
+  const todos = resource(() => listTodos({ done: false }));
+
+  async function save() {
+    await addTodo({ title });
+    title = "";
+    todos.refetch();
+  }
+
+  return (
+    <section>
+      <ul>{(todos.data ?? []).map((t) => <li>{t.title}</li>)}</ul>
+      <input value={title} oninput={(e) => (title = e.target.value)} />
+      <button onclick={save}>Add</button>
+    </section>
+  );
+}
+```
+
+- The import path is the real module, so TypeScript checks each call against the real
+  signature (the schema's input type, the function's return type).
+- `listTodos(input, { signal })` — pass an `AbortSignal` to cancel a call.
+- Works with [`resource()`](/docs/data-fetching) as-is: it refetches when its
+  arguments change and drops superseded responses.
+
+## Errors
+
+A failed call rejects with a `ServerFunctionError` (from `@opentf/afw`):
+
+| Server side | Status | On the error |
+| --- | --- | --- |
+| Input fails the schema | `400` | `issues` — the schema's issues (`message`, `path`) |
+| `throw new Response(null, { status: 401 })` | that status | `status` |
+| `notFound()` | `404` | `status` |
+| A redirect (`302`, …) from the function or middleware | that status | `redirected: true` — not followed |
+| Any other thrown error | `500` | a generic message; details are logged on the server only |
+
+```js
+import { ServerFunctionError } from "@opentf/afw";
+
+try {
+  await addTodo({ title: "" });
+} catch (error) {
+  if (error instanceof ServerFunctionError && error.status === 400) showIssues(error.issues);
+  else throw error;
+}
+```
+
+## Authentication and authorization
+
+Split the work the same way as for pages and API routes:
+
+- **Middleware authenticates** — reads the session, sets `context.locals.user`, and
+  gates whole sections. A guard in `app/admin/_middleware.js` also guards every server
+  function in `app/admin/`.
+- **Each function authorizes its data** — it decides what *this* user may read or
+  change, from `locals`:
+
+```js
+// app/_middleware.js
+export default async function middleware(request, context, next) {
+  context.locals.user = await sessionUser(request); // null when signed out
+  return next();
+}
+```
+
+```js
+// app/todos/todos.server.js
+import { action, notFound } from "@opentf/afw/server";
+
+export const deleteTodo = action(async ({ id }, { locals }) => {
+  if (!locals.user) throw new Response(null, { status: 401 });
+  const todo = await db.todos.get(id);
+  if (todo?.owner !== locals.user.id) notFound(); // never reveal other users' rows
+  await db.todos.delete(id);
+});
+```
+
+- Endpoints are `<folder>/__fn/<id>`: `app/admin/users.server.js` answers under
+  `/admin/__fn/…`. The id is a hash of the file path and export name; it reveals neither.
+- Server functions in the app root answer under `/__fn/…`, governed by root middleware
+  only.
+
+## Call from server code
+
+A server function is also a plain async function on the server: loaders, API routes,
+server-rendered pages and other server functions call it directly, with no HTTP round
+trip.
+
+```js
+// app/todos/loader.js
+import { listTodos } from "./todos.server.js";
+
+export default async function loader({ locals }) {
+  return { todos: await listTodos({ done: false }, { locals }) };
+}
+```
+
+- Input is still validated against the schema.
+- No middleware runs for a direct call: pass the `locals` the caller already has.
+
+## Validation
+
+- Any [Standard Schema](https://standardschema.dev) validator works: zod, valibot,
+  arktype, or a hand-written object with a `~standard.validate` method.
+- Validation runs on the server before the function; an invalid call never reaches it.
+- Without a schema, the function receives the decoded input as it is — validate it
+  yourself before trusting it.
+
+## What can be sent
+
+Arguments and results use [`@opentf/serialize`](https://github.com/Open-Tech-Foundation/js-serialize):
+
+- Plain JSON data, plus `Date`, `Map`, `Set`, `BigInt`, `URL`, `RegExp`, `Error`, typed
+  arrays, `undefined`, `NaN` / `±Infinity` / `-0`, `Temporal` values, and shared or cyclic
+  references.
+- Plain data stays readable in the network panel: `{"v": {"title": "x"}}`.
+- Not supported: functions, symbols and class instances. Returning one is a `500`.
+
+## Security defaults
+
+- Only `query()` / `action()` exports are reachable.
+- Cross-site calls are refused (`403`): a request must be same-origin by its `Origin`
+  or `Sec-Fetch-Site` header. Non-browser clients without either header are allowed.
+- `POST` bodies must be `application/json` (`415` otherwise), so a plain HTML form on
+  another site cannot submit one.
+- Request input is decoded within limits: 1 MiB (`413` beyond it) and 64 levels of
+  nesting (`400`). A `__proto__` key stays an ordinary property.
+- Responses are `Cache-Control: no-store`.
+- Errors never send server details to the browser.
+
+## Setup
+
+**Vite + Node** — nothing to configure:
+
+- `vite dev` answers server functions inside the dev server; editing a `.server` file
+  applies without a restart.
+- `vite build` ships a Node server (`dist/server/index.js`) whenever the app has
+  server functions.
+
+**esdev + ES-Runtime** — the server target imports the composed handler from the
+generated `@afw/server` module:
+
+```js
+// server.js — the server target's entry
+import { serve } from "runtime:http";
+import { createHandler } from "@afw/server";
+
+const handle = createHandler({ fallback: () => new Response("Not Found", { status: 404 }) });
+serve({ port: 3000 }, handle);
+```
+
+- `createHandler` runs the app's middleware around API routes, server functions and
+  loader data.
+- Browser targets get the stubs automatically.
+
+<Callout type="warning" title="A static site cannot call server functions">
+  A build with no server (`server: false`, or a static host) has nothing to answer the
+  call, so importing a server function there fails the build.
+</Callout>
+
+## Not yet
+
+- Forms that submit to an action without JavaScript.
+- `invalidate(listTodos)` to refetch every live use after an action.
+- Server functions declared inside a component file.
+- Streaming results.
