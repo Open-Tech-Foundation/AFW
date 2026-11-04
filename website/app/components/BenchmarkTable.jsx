@@ -10,9 +10,11 @@
 const HEAD_CLS = "px-4 py-3 text-xs font-bold uppercase tracking-widest text-right";
 const CELL_CLS = "px-4 py-3 text-right font-mono";
 
-// "243.35 → 243.4", "278.7 → 278.7", missing → em dash.
-function formatMs(value) {
-  return typeof value === "number" ? value.toFixed(1).replace(/\.0$/, "") : "—";
+// One decimal by default ("243.35 → 243.4", "278.7 → 278.7"), or the row's own
+// `digits`; missing → em dash.
+function formatMs(value, digits) {
+  if (typeof value !== "number") return "—";
+  return digits === undefined ? value.toFixed(1).replace(/\.0$/, "") : value.toFixed(digits);
 }
 
 export default function BenchmarkTable(props) {
@@ -36,7 +38,7 @@ export default function BenchmarkTable(props) {
     label: row.label,
     cells: report.engines.map((engine) => ({
       engine,
-      text: formatMs(row.values[engine]),
+      text: formatMs(row.values[engine], row.digits),
       cls:
         `${CELL_CLS} ` +
         (row.best === engine

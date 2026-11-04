@@ -20,6 +20,15 @@ export const benchmark = benchmarkReport;
 // benchmarks/ssg-build/README.md.
 export const ssgBenchmark = ssgBenchmarkReport;
 
+// --- Full-stack app benchmark (generated) -------------------------------------
+// benchmarks/fullstack: the same app in each framework — dev start, edit-to-browser,
+// build time and memory, at K = 10, 100 and 1,000 pages. `report.mjs` writes this file.
+import fullstackReport from "./fullstack-benchmark.json";
+
+export const fullstack = fullstackReport;
+/** The report as a BenchmarkTable report for one app size. */
+export const fullstackTable = (k) => ({ ...fullstackReport, rows: fullstackReport.tables.find((t) => t.k === k).rows });
+
 // --- Capabilities & roadmap (grouped; statuses verified against the codebase) -
 //     status: "supported" | "partial" | "beta" | "planned"
 export const capabilities = [

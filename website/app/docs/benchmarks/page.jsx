@@ -2,7 +2,7 @@
 // framing each; everything a reader needs to judge those numbers — what is and is not
 // being compared, the methodology, and the caveats that qualify each figure — lives
 // here, so the landing page stays scannable without the claims losing their context.
-import { benchmark, ssgBenchmark } from "../../home-data.js";
+import { benchmark, fullstack, fullstackTable, ssgBenchmark } from "../../home-data.js";
 import BenchmarkTable from "../../components/BenchmarkTable.jsx";
 
 export const metadata = {
@@ -31,6 +31,8 @@ export default function Benchmarks() {
   };
   const wins = benchmark.rows.filter((r) => r.best).map((r) => ({ label: r.label, engine: r.best }));
   const name = (engine) => (engine === "afw" ? "AFW" : engine[0].toUpperCase() + engine.slice(1));
+  // Full-stack figures for the commentary, from the data.
+  const fs = (k, label, engine) => fullstack.tables.find((t) => t.k === k)?.rows.find((r) => r.label.startsWith(label))?.values[engine];
   const winsText = wins.length
     ? `${wins.map((w) => `${name(w.engine)} takes ${w.label}`).join("; ")}; the other ${benchmark.rows.length - wins.length} rows are ties.`
     : "Every row is a tie.";
@@ -124,7 +126,60 @@ export default function Benchmarks() {
       </div>
 
       {/* ── Build ───────────────────────────────────────────────────────────── */}
-      <h2 className={H2}>Build cost — a framework-level comparison</h2>
+      {/* ── Full-stack app ───────────────────────────────────────────────────── */}
+      <h2 className={H2}>A full-stack app — dev speed, build speed and memory</h2>
+      <p className={P}>
+        The same app in each framework, written the way that framework writes it: a layout with a
+        cart badge, a home page with a counter and loader data, server-rendered product pages from a
+        data file, two API routes, middleware guarding a page, ten MDX docs pages, Tailwind, and K
+        generated route pages with their own interactive components. Measured at K = 10, 100 and
+        1,000 pages.
+      </p>
+      <div className={CARD}>
+        <BenchmarkTable report={fullstackTable(1000)} rowHeader="1,000 pages" />
+      </div>
+      <div className={CARD}>
+        <BenchmarkTable report={fullstackTable(100)} rowHeader="100 pages" />
+      </div>
+      <div className={CARD}>
+        <BenchmarkTable report={fullstackTable(10)} rowHeader="10 pages" />
+      </div>
+      <h3 className={H3}>What the numbers say</h3>
+      <ul className="max-w-3xl list-disc pl-6 mb-4 space-y-2 text-[var(--text-muted)] leading-relaxed">
+        <li>
+          <strong>Builds:</strong> AFW on esdev builds fastest and with the least memory at every size —{" "}
+          {fs(1000, "Build memory", "afw-esdev")}&nbsp;MB in {fs(1000, "Build time", "afw-esdev")}&nbsp;s at 1,000 pages, against
+          Next.js&rsquo;s {fs(1000, "Build memory", "next")?.toLocaleString("en")}&nbsp;MB in {fs(1000, "Build time", "next")}&nbsp;s.
+        </li>
+        <li>
+          <strong>Dev:</strong> AFW on Vite starts its dev server fastest at 1,000 pages and shows an edit
+          fastest ({fs(1000, "Edit", "afw-vite")}&nbsp;s).
+        </li>
+        <li>
+          <strong>Where AFW is behind:</strong> on esdev, an edit takes {fs(10, "Edit", "afw-esdev")}&nbsp;s to reach the
+          browser at 10 pages — the slowest of the five — and {fs(1000, "Edit", "afw-esdev")}&nbsp;s at 1,000, growing with
+          the app where the others stay under a tenth of a second (except TanStack Start).
+        </li>
+        <li>
+          <strong>Others:</strong> TanStack Start&rsquo;s dev server slows sharply at 1,000 pages
+          ({fs(1000, "Dev start", "tanstack")}&nbsp;s to start, {fs(1000, "Edit", "tanstack")}&nbsp;s per edit); Next.js uses the most build
+          memory at every size, partly because it prerenders the static routes at build time.
+        </li>
+      </ul>
+      <h3 className={H3}>Method</h3>
+      <ul className="max-w-3xl list-disc pl-6 mb-4 space-y-2 text-[var(--text-muted)] leading-relaxed">
+        <li>Before any number counts, each app&rsquo;s production server must serve the same content on every route — pages, API, the middleware redirect, docs, styles.</li>
+        <li>Build: framework caches cleared, peak memory summed over the process tree, median of {fullstack.runs} runs after a discarded warm-up.</li>
+        <li>Dev start: launch to the home page rendered in Chrome, caches cleared. Edit to browser: a component&rsquo;s label changed, until Chrome shows it; no tool reloaded the page.</li>
+        <li>Measured {fullstack.measuredAt} on a solid-state disk ({fullstack.env}).</li>
+        <li>
+          Each framework builds the app its own way, which is what is compared: Next.js prerenders
+          static routes, Astro hydrates only its islands. The code, spec and harness are in{" "}
+          <a href="https://github.com/Open-Tech-Foundation/afw/tree/main/benchmarks/fullstack" className={A}>benchmarks/fullstack</a>.
+        </li>
+      </ul>
+
+      <h2 className={H2}>Build cost of one large content page</h2>
       <p className={P}>
         This one compares frameworks: Astro, Next.js and TanStack Start are full
         frameworks, and Vite and Bun are build tools included as floors — each compiling the

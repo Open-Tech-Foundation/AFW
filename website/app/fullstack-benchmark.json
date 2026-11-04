@@ -1,0 +1,184 @@
+{
+  "measuredAt": "2026-11-04",
+  "runs": 3,
+  "engines": [
+    "afw-esdev",
+    "afw-vite",
+    "next",
+    "tanstack",
+    "astro"
+  ],
+  "labels": {
+    "afw-esdev": "AFW esdev",
+    "afw-vite": "AFW Vite",
+    "next": "Next",
+    "tanstack": "TanStack",
+    "astro": "Astro"
+  },
+  "highlightEngines": [
+    "afw-esdev",
+    "afw-vite"
+  ],
+  "env": "Intel i7-8700K (12 threads), 16 GB RAM, Linux 6.12, Node 26.13, on a solid-state disk",
+  "tables": [
+    {
+      "k": 10,
+      "rows": [
+        {
+          "label": "Build memory (MB)",
+          "digits": 0,
+          "values": {
+            "afw-esdev": 109,
+            "afw-vite": 359,
+            "next": 2460,
+            "tanstack": 809,
+            "astro": 776
+          },
+          "best": "afw-esdev"
+        },
+        {
+          "label": "Build time (s)",
+          "digits": 2,
+          "values": {
+            "afw-esdev": 0.21,
+            "afw-vite": 0.48,
+            "next": 4.14,
+            "tanstack": 1.64,
+            "astro": 1.43
+          },
+          "best": "afw-esdev"
+        },
+        {
+          "label": "Dev start (s)",
+          "digits": 2,
+          "values": {
+            "afw-esdev": 0.27,
+            "afw-vite": 0.47,
+            "next": 1.89,
+            "tanstack": 1.41,
+            "astro": 2.04
+          },
+          "best": "afw-esdev"
+        },
+        {
+          "label": "Edit to browser (s)",
+          "digits": 3,
+          "values": {
+            "afw-esdev": 0.188,
+            "afw-vite": 0.033,
+            "next": 0.034,
+            "tanstack": 0.045,
+            "astro": 0.034
+          },
+          "best": "afw-vite"
+        }
+      ]
+    },
+    {
+      "k": 100,
+      "rows": [
+        {
+          "label": "Build memory (MB)",
+          "digits": 0,
+          "values": {
+            "afw-esdev": 133,
+            "afw-vite": 408,
+            "next": 2887,
+            "tanstack": 908,
+            "astro": 863
+          },
+          "best": "afw-esdev"
+        },
+        {
+          "label": "Build time (s)",
+          "digits": 2,
+          "values": {
+            "afw-esdev": 0.32,
+            "afw-vite": 0.64,
+            "next": 5.2,
+            "tanstack": 2.63,
+            "astro": 1.69
+          },
+          "best": "afw-esdev"
+        },
+        {
+          "label": "Dev start (s)",
+          "digits": 2,
+          "values": {
+            "afw-esdev": 0.38,
+            "afw-vite": 0.53,
+            "next": 2.05,
+            "tanstack": 2.07,
+            "astro": 2.18
+          },
+          "best": "afw-esdev"
+        },
+        {
+          "label": "Edit to browser (s)",
+          "digits": 3,
+          "values": {
+            "afw-esdev": 0.273,
+            "afw-vite": 0.034,
+            "next": 0.034,
+            "tanstack": 0.045,
+            "astro": 0.034
+          },
+          "best": "afw-vite"
+        }
+      ]
+    },
+    {
+      "k": 1000,
+      "rows": [
+        {
+          "label": "Build memory (MB)",
+          "digits": 0,
+          "values": {
+            "afw-esdev": 352,
+            "afw-vite": 766,
+            "next": 5849,
+            "tanstack": 1287,
+            "astro": 1225
+          },
+          "best": "afw-esdev"
+        },
+        {
+          "label": "Build time (s)",
+          "digits": 2,
+          "values": {
+            "afw-esdev": 1.19,
+            "afw-vite": 1.86,
+            "next": 16.56,
+            "tanstack": 10.31,
+            "astro": 4.6
+          },
+          "best": "afw-esdev"
+        },
+        {
+          "label": "Dev start (s)",
+          "digits": 2,
+          "values": {
+            "afw-esdev": 1.15,
+            "afw-vite": 1.05,
+            "next": 2.7,
+            "tanstack": 7.34,
+            "astro": 3.14
+          },
+          "best": "afw-vite"
+        },
+        {
+          "label": "Edit to browser (s)",
+          "digits": 3,
+          "values": {
+            "afw-esdev": 1.024,
+            "afw-vite": 0.056,
+            "next": 0.079,
+            "tanstack": 7.933,
+            "astro": 0.057
+          },
+          "best": "afw-vite"
+        }
+      ]
+    }
+  ]
+}

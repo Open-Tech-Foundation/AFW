@@ -3,7 +3,7 @@ import BenchmarkTable from "./components/BenchmarkTable.jsx";
 import CodeShowcase from "./components/CodeShowcase.jsx";
 import InstallCommand from "./components/InstallCommand.jsx";
 import RenderPipeline from "./components/RenderPipeline.jsx";
-import { benchmark, capabilities, codeSamples, reasons, ssgBenchmark, workflows } from "./home-data.js";
+import { benchmark, capabilities, codeSamples, fullstack, fullstackTable, reasons, workflows } from "./home-data.js";
 
 export const metadata = {
   // Absolute: the homepage keeps its full title instead of the "%s — AFW" template.
@@ -158,18 +158,17 @@ export default function HomePage() {
             Recorded {benchmark.generatedAt.slice(0, 10)}. Bold beats the ~{resolutionMs}&nbsp;ms timing
             resolution; the rest are ties. <Link href="/docs/benchmarks" class={METHOD_LINK}>Method &amp; caveats →</Link>
           </p>
-          <h3 class="bench-subtitle">Build cost</h3>
+          <h3 class="bench-subtitle">A full-stack app: dev speed, build speed and memory</h3>
           <p class="bench-lede">
-            Building the same static MDX page with both AFW workflows — esdev, and Vite + Node — and with
-            Astro, Next.js, TanStack Start, Vite and Bun: peak memory and wall time, lower is better.
+            The same app — server-rendered pages, loaders, API routes, middleware, MDX docs and Tailwind —
+            in both AFW workflows, Next.js, TanStack Start and Astro, at 1,000 pages. Lower is better.
           </p>
           <div class="bench-card">
-            <BenchmarkTable report={ssgBenchmark} rowHeader="Metric" />
+            <BenchmarkTable report={fullstackTable(1000)} rowHeader="Metric" />
           </div>
           <p class="bench-note">
-            Measured {ssgBenchmark.measuredAt}. Astro, Vite and Bun ship no client JavaScript, so the columns
-            do not represent equal work.{" "}
-            <Link href="/docs/benchmarks" class={METHOD_LINK}>Method &amp; caveats →</Link>
+            Measured {fullstack.measuredAt}, median of {fullstack.runs} runs; every app passed the same output
+            checks first. <Link href="/docs/benchmarks" class={METHOD_LINK}>All sizes, method &amp; caveats →</Link>
           </p>
         </div>
       </section>
