@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-04
+
 ### Added
 
 - Server functions at build time: `discoverServerModules` finds `*.server.{js,ts}`

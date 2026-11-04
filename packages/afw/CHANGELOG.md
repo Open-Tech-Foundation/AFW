@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-11-04
+
 ### Added
 
 - Server functions, server side (docs/SERVER_FUNCTIONS.md): `query(fn)` /

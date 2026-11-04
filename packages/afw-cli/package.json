@@ -1,6 +1,6 @@
 {
   "name": "@opentf/afw-cli",
-  "version": "1.33.0",
+  "version": "1.34.0",
   "description": "Static generation for AFW apps, run as an esdev build step.",
   "type": "module",
   "scripts": {
