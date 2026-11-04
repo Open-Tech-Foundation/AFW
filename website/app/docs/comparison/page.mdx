@@ -90,8 +90,8 @@ gives you out of the box, and it is explicit about where AFW is behind.
 | Deploy as a standard Fetch handler | ✅ | 🟡 | ✅ | ✅ | ✅ | 🟡 | 🟡 | ✅ |
 | Capability-secured server runtime | ✅ ¹⁰ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-7. Page loaders only; no layout loaders, and no redirect from a loader (middleware can
-   redirect).
+7. Page loaders only; no layout loaders yet. A loader can redirect or refuse by throwing
+   a `Response`.
 8. SvelteKit has stable form actions; its remote functions are still experimental.
 9. In the Vite + Node workflow, API routes, middleware and loaders run on Node in
    development and production, native addons such as `sharp` included.
@@ -158,7 +158,7 @@ AFW is alpha. Compared with the frameworks above it does not yet have:
   updates, which Next.js, React Router, SvelteKit and SolidStart provide.
 - **Streaming server rendering** — pages render to one complete HTML string, and
   loaders finish before rendering starts.
-- **Richer loaders** — layout loaders and redirects from a loader.
+- **Richer loaders** — layout loaders.
 - **Routing conventions** — route groups, optional segments, per-route error and
   loading files, and fully type-checked routes in the style of TanStack Router.
 - **Navigation polish** — view transitions.

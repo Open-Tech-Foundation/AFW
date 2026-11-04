@@ -68,10 +68,10 @@ export default function Todos() {
   HTML **and** written as a static `<path>/__data.json` file next to each page,
   so client-side navigation works on a purely static host — no server needed.
 
-- **Request servers** — an app's server entry can run loaders per request before rendering
-  and serve the same data endpoint for client navigation. The compiler plugin does not
-  create this server automatically. The retired `afw serve` command is unavailable;
-  native fullstack starter integration is still pending.
+- **Request servers** — the generated [`@afw/server`](/docs/deployment/server) handler
+  runs loaders per request before rendering and serves the same data endpoint for client
+  navigation. With Vite, `vite build` ships it in `dist/server`; with esdev, the app's
+  server target imports it.
 
 On first paint the data arrives inline with the server HTML (no extra request);
 on SPA navigation the router fetches `<path>/__data.json` **before** committing
@@ -90,6 +90,32 @@ export default function loader({ params }) {
 }
 ```
 
+### Redirects and refusals
+
+A loader can throw a `Response`, as API routes and server functions can:
+
+```js
+export default async function loader({ params, locals }) {
+  const post = await db.posts.find(params.id);
+  if (post && post.slug !== params.slug) {
+    throw new Response(null, { status: 301, headers: { location: `/posts/${post.id}/${post.slug}` } });
+  }
+  if (post?.private && post.owner !== locals.user?.id) throw new Response(null, { status: 403 });
+  return post;
+}
+```
+
+- On a server render, the thrown `Response` is the page's response.
+- On a client navigation, a redirect navigates to its target, replacing the history
+  entry; another status is reported as a failed data fetch.
+- Use it for decisions that need the loader's data: a canonical URL, a moved record,
+  access to this one item. Sign-in checks for a whole section belong in
+  [middleware](/docs/routing/middleware), once.
+- When middleware redirects a data request (an auth guard), the router loads the page
+  in full, so the server's redirect applies.
+
+### Other errors
+
 Any other thrown error is a 500. On the client, a failed data fetch is reported
 (`phase: "data"`) and the navigation still commits with `router.data`
 undefined — pages should treat "no data" as a valid state.
@@ -97,32 +123,26 @@ undefined — pages should treat "no data" as a valid state.
 ### Register loaders in the browser entry
 
 Pass the patterns of pages with loaders to `mountApp` so the router knows which
-data endpoints to fetch. The native `@afw/routes` module exports `pages` and
-`guard`; it does not currently discover loader patterns for the client:
+data endpoints to fetch. `@afw/routes` discovers them from the `loader.*` files:
 
 ```js entry.js
 import { mountApp } from "@opentf/afw";
-import { pages, guard } from "@afw/routes";
+import { guard, loaderRoutes, pages } from "@afw/routes";
 
-mountApp({
-  pages,
-  guard,
-  loaders: ["/todos", "/items/[id]"],
-  target: document.getElementById("app"),
-});
+mountApp({ pages, guard, loaders: loaderRoutes, target: document.getElementById("app") });
 ```
 
-Keep this list in sync with your loader files. The prerender script must also
-discover and run the loaders; a request server must serve their `__data.json`
-endpoints. Registering the client patterns alone does neither.
+- `loaderRoutes` lists route patterns only (`"/todos"`, `"/items/[id]"`); the loader
+  modules never reach the browser.
 
 ### Current limits
 
 - Loaders are **page-level** (no layout loaders yet).
 - A query-dependent loader needs a request server — static `__data.json` files are
   rendered with an empty query.
-- Redirects from loaders, streaming, and actions are future work (see the
+- Streaming is future work (see the
   [roadmap](https://github.com/Open-Tech-Foundation/afw/blob/main/docs/roadmap.md)).
+  For writes, use [server functions](/docs/server-functions).
 - A `loader.*` without a sibling `page.*` is a build error.
 - Dynamic routes still need `getStaticPaths` on the page to prerender.
 
