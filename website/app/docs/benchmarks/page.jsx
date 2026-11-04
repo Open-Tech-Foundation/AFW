@@ -36,9 +36,9 @@ export default function Benchmarks() {
       </p>
 
       <p className={NOTE}>
-        These tables retain July–August 2026 measurements from the earlier toolchain.
-        They have not been re-measured after the esdev migration; a fresh comparison
-        will replace them once all four engines are re-run under the same conditions.
+        The runtime table was re-measured on {benchmark.generatedAt.slice(0, 10)} with the current
+        toolchain, all four engines under the same conditions. The build-cost table keeps its
+        July–August 2026 measurements from the earlier toolchain.
       </p>
 
       {/* ── Runtime ─────────────────────────────────────────────────────────── */}

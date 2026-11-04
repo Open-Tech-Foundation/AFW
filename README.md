@@ -65,22 +65,22 @@ no re-render, no diff and no memoization to manage.
 
 [js-framework-benchmark](https://github.com/krausest/js-framework-benchmark)-style
 operations, median of 3 pooled runs on one machine, CPU throttled 4×, in
-milliseconds; lower is better. Recorded on 2026-08-01:
+milliseconds; lower is better. Recorded on 2026-11-04:
 
 | Operation | **AFW** | React | Solid | Svelte 5 |
 | --- | --- | --- | --- | --- |
-| create 1,000 rows | 261.2 | 274.1 | 244.3 | 257.6 |
-| create 10,000 rows | 2627.8 | 3338.6 | 2542.2 | 2548.8 |
-| append 1,000 to 1,000 | 295.8 | 286.2 | 270.1 | 267.5 |
-| update every 10th (1k) | 91.9 | 93.9 | 108.9 | 92.5 |
-| swap 2 rows (1k) | 33.0 | 246.5 | 31.2 | 31.3 |
-| select row (1k) | 26.2 | 27.3 | 30.0 | 29.0 |
-| remove row (1k) | 40.4 | 39.9 | 37.6 | 36.2 |
-| clear 10,000 rows | 178.6 | 260.9 | 164.0 | 165.3 |
+| create 1,000 rows | 242.2 | 250.35 | 240.4 | 242.4 |
+| create 10,000 rows | 2364.9 | 2966.4 | 2359.9 | 2321.8 |
+| append 1,000 to 1,000 | 249.4 | 303.1 | 289.6 | 248.4 |
+| update every 10th (1k) | 88.1 | 89.15 | 102.3 | 92.85 |
+| swap 2 rows (1k) | 39.1 | 224.3 | 27.3 | 26.75 |
+| select row (1k) | 22.7 | 25.05 | 27.1 | 26.9 |
+| remove row (1k) | 39.55 | 36.05 | 41.95 | 42.1 |
+| clear 10,000 rows | 171.5 | 227.2 | 143.9 | 147.2 |
 
-AFW is in the same range as Solid and Svelte and ahead of React on large
-creates, swaps and clears; no framework wins every row, and differences under
-the ~8 ms timing resolution are ties. Method, caveats and the build-cost
+AFW is in the same range as Solid and Svelte, and ahead of React on large creates,
+swaps and clears; no framework wins every row, and differences under the ~8 ms
+timing resolution are ties. Method, caveats and the build-cost
 comparison are on the [benchmarks page](https://afw.opentechf.org/docs/benchmarks).
 Reproduce with `tsr bench`.
 
