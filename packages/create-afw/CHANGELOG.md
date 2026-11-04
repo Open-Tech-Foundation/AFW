@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Interactive prompts like `create-vite`'s: arrow-key selection with descriptions, a
+  project-name prompt, a package-name prompt when the folder name cannot be one, a
+  choice for a non-empty target (cancel, remove its files, or ignore them), and an
+  offer to install dependencies and start the dev server. Ctrl+C cancels cleanly.
+- Flags: `--template fullstack-ts` style names, `--overwrite`, `--immediate` and
+  `--no-interactive`; `-t` and `-l` short forms. Runs without prompts when there is
+  no terminal.
+
 ### Fixed
 
 - Scaffolding no longer fails when installed from npm. 0.1.0 looked for the sibling

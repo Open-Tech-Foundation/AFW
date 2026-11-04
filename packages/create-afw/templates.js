@@ -1,6 +1,8 @@
 // The Vite + Node project templates. Each template is generated from one source for
 // both JavaScript and TypeScript, so the two never drift apart.
 
+import { escapeHTML } from "@opentf/std";
+
 export const TEMPLATES = {
   spa: "Single-page app, rendered in the browser",
   fullstack: "SPA plus API routes, middleware and loaders on a Node server",
@@ -89,7 +91,7 @@ ${ts ? "export default defineConfig(" : "export default "}{
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(name)}</title>
+    <title>${escapeHTML(name)}</title>
     <link rel="stylesheet" href="/app/global.css" />
   </head>
   <body>
@@ -145,7 +147,7 @@ export const metadata = { title: "${escapeJs(name)}" };
 export default function Home() {
   return (
     <section>
-      <h1>${escapeHtml(name)}</h1>
+      <h1>${escapeHTML(name)}</h1>
       <p>Edit <code>app/page.${jsx}</code> and save: the page updates in place.</p>
       <Counter start={0} />
     </section>
@@ -245,10 +247,6 @@ Pages live in \`app/\`: \`app/about/page.md\` is served at \`/about\`.${server ?
 
 function json(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
-}
-
-function escapeHtml(text) {
-  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 }
 
 function escapeJs(text) {

@@ -49,6 +49,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@clack/prompts": "1.8.1",
     "@opentf/std": "0.20.0"
   }
 }

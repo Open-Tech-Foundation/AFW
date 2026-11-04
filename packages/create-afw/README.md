@@ -3,20 +3,25 @@
 Create an [AFW](https://afw.opentechf.org) app on **Vite and Node**:
 
 ```sh
-npm create @opentf/afw my-app
+npm create @opentf/afw@latest
 ```
 
-Answer the prompts, or pass the choices:
+The prompts ask for a project name, a template and a language (arrow keys and Enter),
+and offer to install dependencies and start the dev server.
+
+Or pass the choices:
 
 ```sh
-npm create @opentf/afw my-app -- --template=fullstack --language=ts
+npm create @opentf/afw@latest my-app -- --template fullstack-ts
 ```
 
 | Option | Values |
 | --- | --- |
-| `--template` | `spa` (default), `fullstack`, `ssr`, `ssg` |
-| `--language` | `ts` (default), `js` (`--ts` / `--js` also work) |
-| `--yes`, `-y` | Use the defaults instead of asking |
+| `-t`, `--template` | `spa`, `fullstack`, `ssr`, `ssg`; add `-ts` or `-js` for the language (`fullstack-js`) |
+| `-l`, `--language` | `ts` (default) or `js` |
+| `--overwrite` | Remove the files in a non-empty target directory first |
+| `-i`, `--immediate` | Install dependencies and start the dev server |
+| `--no-interactive` | Never ask; use defaults for anything not given (also the default without a terminal) |
 
 | Template | What you get |
 | --- | --- |
@@ -25,8 +30,11 @@ npm create @opentf/afw my-app -- --template=fullstack --language=ts
 | `ssr` | Server-rendered pages on a Node server, hydrated in the browser |
 | `ssg` | Every page prerendered to static HTML at build time |
 
-Every project comes with `dev`, `build` and `test` (Vitest) scripts, and either
-`start` (the built Node server) or `preview`. TypeScript projects add `typecheck`.
+- A non-empty target directory: choose to cancel, remove its files, or ignore them.
+- A folder name that is not a valid package name: you are asked for one (`My App` → `my-app`).
+- Every project has `dev`, `build` and `test` (Vitest) scripts, and either `start` (the
+  built Node server) or `preview`. TypeScript projects add `typecheck`.
+- New projects depend on the current AFW release from the npm registry.
 
 For the esdev + ES-Runtime workflow, use `esdev create` instead.
 

@@ -2,15 +2,17 @@
 // test, typecheck, and run the result.
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { startVitest } from "vitest/node";
 
-import { create, packageManager, parseArgs } from "@opentf/create-afw";
+import { create, nextSteps, packageManager, parseArgs, toValidPackageName } from "@opentf/create-afw";
 
 const pkg = dirname(dirname(fileURLToPath(import.meta.url)));
 const repo = dirname(dirname(pkg));
@@ -104,37 +106,142 @@ for (const language of ["ts", "js"]) {
 }
 
 describe("command line", () => {
-  test("parses options and rejects bad ones", () => {
-    assert.deepEqual(parseArgs(["my-app", "--template=ssr", "--language=js", "-y"]), {
-      directory: "my-app", template: "ssr", language: "js", yes: true, help: false,
+  test("parses options, including template-language names, and rejects bad ones", () => {
+    assert.deepEqual(parseArgs(["my-app", "--template", "ssr-js", "--overwrite", "-i", "--no-interactive"]), {
+      directory: "my-app", template: "ssr", language: "js", overwrite: true, immediate: true, interactive: false, help: false,
     });
-    assert.equal(parseArgs(["--ts"]).language, "ts");
+    assert.equal(parseArgs(["-t", "fullstack"]).template, "fullstack");
+    assert.equal(parseArgs(["--template=spa-ts"]).language, "ts");
+    assert.equal(parseArgs(["--js"]).language, "js");
     assert.throws(() => parseArgs(["--template=nope"]), /Unknown template "nope"/);
+    assert.throws(() => parseArgs(["--template=ssr-ts", "--language=js"]), /conflicts/);
     assert.throws(() => parseArgs(["--language=go"]), /Unknown language/);
+    assert.throws(() => parseArgs(["--template"]), /needs a value/);
     assert.throws(() => parseArgs(["--bogus"]), /Unknown option/);
   });
 
-  test("refuses a non-empty directory and an invalid name", async () => {
+  test("a non-empty directory is refused, removed, or written beside", async () => {
     const dir = join(scratch, "taken");
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, "keep.txt"), "x");
     await assert.rejects(create({ directory: dir }), /is not empty/);
+    await create({ directory: dir, existing: "ignore" });
+    assert.ok(await exists(join(dir, "keep.txt")) && await exists(join(dir, "package.json")));
+    await create({ directory: dir, existing: "remove" });
+    assert.ok(!(await exists(join(dir, "keep.txt"))));
     await assert.rejects(create({ directory: join(scratch, "Bad Name") }), /not a valid package name/);
+    assert.equal(toValidPackageName("My Cool App!"), "my-cool-app");
   });
 
   test("detects the package manager that ran it", () => {
     assert.equal(packageManager("pnpm/11.21.0 npm/? node/v26"), "pnpm");
     assert.equal(packageManager("npm/11.0.0 node/v26"), "npm");
     assert.equal(packageManager(""), "npm");
+    assert.deepEqual(nextSteps({ directory: "my-app", pm: "pnpm" }), ["cd my-app", "pnpm install", "pnpm dev"]);
+    assert.deepEqual(nextSteps({ directory: ".", pm: "npm" }), ["npm install", "npm run dev"]);
   });
 
-  test("runs end to end as a CLI", async () => {
+  test("runs non-interactively with flags", async () => {
     const dir = join(scratch, "from-cli");
-    const { stdout } = await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--template=fullstack", "--js", "--yes"], {
+    const { stdout } = await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--template", "fullstack-js", "--no-interactive"], {
       env: { ...process.env, npm_config_user_agent: "pnpm/11" },
     });
-    assert.match(stdout, /Created fullstack app/);
-    assert.match(stdout, /pnpm install\n  pnpm dev/);
+    assert.match(stdout, /Scaffolding fullstack \(JavaScript\)/);
+    assert.match(stdout, /pnpm install\s+pnpm dev/);
     assert.ok(await exists(join(dir, "app", "api", "hello", "route.js")));
+  });
+
+  test("without --overwrite, a non-interactive run refuses a non-empty directory", async () => {
+    const dir = join(scratch, "occupied");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "keep.txt"), "x");
+    await assert.rejects(promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--no-interactive"]), (error) => {
+      assert.equal(error.code, 1);
+      assert.match(`${error.stdout}${error.stderr}`, /is not empty\. Use --overwrite/);
+      return true;
+    });
+    await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--no-interactive", "--overwrite"]);
+    assert.ok(!(await exists(join(dir, "keep.txt"))) && await exists(join(dir, "package.json")));
+  });
+});
+
+// The interactive prompts, driven through a real pseudo-terminal (`script`, util-linux).
+const KEY = { enter: "\r", down: "\x1b[B", ctrlC: "\x03" };
+// Synchronous on purpose: a top-level await here would register these tests after the
+// file's root suite finished, and its \`after\` cleanup would delete their folders.
+const hasScript = process.platform === "linux" && existsSync("/usr/bin/script");
+
+function terminal(cwd) {
+  const child = spawn("script", ["-qec", `stty cols 120 rows 40; ${JSON.stringify(process.execPath)} ${JSON.stringify(join(pkg, "index.js"))}`, "/dev/null"], {
+    cwd, env: { ...process.env, TERM: "xterm-256color", npm_config_user_agent: "npm/11", CI: "" },
+  });
+  let screen = "";
+  child.stdout.on("data", (d) => { screen += d; });
+  const plain = () => screen.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").replace(/\s+/g, "");
+  return {
+    async until(text, ms = 10000) {
+      const want = text.replace(/\s+/g, "");
+      const end = Date.now() + ms;
+      while (Date.now() < end) {
+        if (plain().includes(want)) return;
+        await delay(40);
+      }
+      throw new Error(`timed out waiting for "${text}"; screen: ${plain().slice(-300)}`);
+    },
+    type: (keys) => child.stdin.write(keys),
+    // \`exit\`, not \`close\`: the input pipe stays open for typing, so \`close\` never comes.
+    exited: () => new Promise((done) => {
+      const finish = () => { child.stdin.end(); done(); };
+      if (child.exitCode !== null) finish();
+      else child.once("exit", finish);
+    }),
+    plain,
+  };
+}
+
+describe("interactive prompts", { skip: !hasScript && "needs util-linux script" }, () => {
+  test("name, arrow-key template and language, then next steps", async () => {
+    const cwd = join(scratch, "tty-flow");
+    await mkdir(cwd, { recursive: true });
+    const tty = terminal(cwd);
+    await tty.until("Project name:"); tty.type(`my-app${KEY.enter}`);
+    await tty.until("Select a template:"); tty.type(`${KEY.down}${KEY.down}${KEY.enter}`);
+    await tty.until("Select a language:"); tty.type(`${KEY.down}${KEY.enter}`);
+    await tty.until("Install with npm and start now?"); tty.type(KEY.enter);
+    await tty.until("Done. Now run:");
+    await tty.exited();
+    assert.match(tty.plain(), /cdmy-appnpminstallnpmrundev/);
+    const manifest = JSON.parse(await readFile(join(cwd, "my-app", "package.json"), "utf8"));
+    assert.equal(manifest.name, "my-app");
+    assert.ok(await exists(join(cwd, "my-app", "app", "api", "hello", "route.js")), "the third template, ssr");
+    assert.ok(!(await exists(join(cwd, "my-app", "tsconfig.json"))), "JavaScript");
+  });
+
+  test("asks how to handle a non-empty directory, and for a valid package name", async () => {
+    const cwd = join(scratch, "tty-existing");
+    await mkdir(join(cwd, "My App"), { recursive: true });
+    await writeFile(join(cwd, "My App", "old.txt"), "x");
+    const tty = terminal(cwd);
+    await tty.until("Project name:"); tty.type(`My App${KEY.enter}`);
+    await tty.until("is not empty. How do you want to continue?"); tty.type(`${KEY.down}${KEY.enter}`); // Remove
+    await tty.until("Package name:"); tty.type(KEY.enter); // accept the suggested my-app
+    await tty.until("Select a template:"); tty.type(KEY.enter);
+    await tty.until("Select a language:"); tty.type(KEY.enter);
+    await tty.until("Install with npm and start now?"); tty.type(KEY.enter);
+    await tty.until("Done. Now run:");
+    await tty.exited();
+    assert.ok(!(await exists(join(cwd, "My App", "old.txt"))));
+    assert.equal(JSON.parse(await readFile(join(cwd, "My App", "package.json"), "utf8")).name, "my-app");
+    assert.ok(await exists(join(cwd, "My App", "tsconfig.json")), "TypeScript by default");
+  });
+
+  test("Ctrl+C cancels without writing anything", async () => {
+    const cwd = join(scratch, "tty-cancel");
+    await mkdir(cwd, { recursive: true });
+    const tty = terminal(cwd);
+    await tty.until("Project name:"); tty.type(`half${KEY.ctrlC}`);
+    await tty.until("Operation cancelled.");
+    await tty.exited();
+    assert.deepEqual(await readdir(cwd), []);
   });
 });
