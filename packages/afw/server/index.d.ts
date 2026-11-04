@@ -157,3 +157,50 @@ export function attr(name: string, value: unknown): string;
 export function ssgText(v: unknown): string;
 export function ssgList<T>(arr: T[], fn: (item: T, index: number) => string): string;
 export function ssgComponent(tag: string, props?: Record<string, unknown>, children?: unknown): string;
+
+// ── Server functions (server-functions.js, docs/SERVER_FUNCTIONS.md) ───────────
+/** A Standard Schema (https://standardschema.dev): zod, valibot, arktype… */
+export interface StandardSchemaV1<Input = unknown, Output = Input> {
+  readonly "~standard": {
+    readonly version: 1;
+    readonly vendor: string;
+    readonly validate: (value: unknown) =>
+      | { value: Output; issues?: undefined }
+      | { issues: ReadonlyArray<{ message: string; path?: ReadonlyArray<PropertyKey | { key: PropertyKey }> }> }
+      | Promise<{ value: Output; issues?: undefined } | { issues: ReadonlyArray<{ message: string; path?: ReadonlyArray<PropertyKey | { key: PropertyKey }> }> }>;
+    readonly types?: { readonly input: Input; readonly output: Output };
+  };
+}
+type SchemaInput<S> = S extends StandardSchemaV1<infer I, any> ? I : never;
+type SchemaOutput<S> = S extends StandardSchemaV1<any, infer O> ? O : never;
+
+/** What a server function receives besides its input. */
+export interface ServerFunctionContext {
+  request?: Request;
+  url?: URL;
+  /** What middleware stored, e.g. the authenticated user. */
+  locals: Record<string, unknown>;
+  env?: unknown;
+  ctx?: unknown;
+}
+
+/** A server function: called with its input (and, from server code, a context). */
+export type ServerFunction<Input, Output> = (input: Input, context?: Partial<ServerFunctionContext>) => Promise<Awaited<Output>>;
+
+/** A read: idempotent, callable with GET or POST. */
+export function query<Output, Input = void>(fn: (input: Input, context: ServerFunctionContext) => Output): ServerFunction<Input, Output>;
+export function query<S extends StandardSchemaV1, Output>(schema: S, fn: (input: SchemaOutput<S>, context: ServerFunctionContext) => Output): ServerFunction<SchemaInput<S>, Output>;
+/** A write: POST only. */
+export function action<Output, Input = void>(fn: (input: Input, context: ServerFunctionContext) => Output): ServerFunction<Input, Output>;
+export function action<S extends StandardSchemaV1, Output>(schema: S, fn: (input: SchemaOutput<S>, context: ServerFunctionContext) => Output): ServerFunction<SchemaInput<S>, Output>;
+/** `"query"`, `"action"`, or null for anything else. */
+export function serverFunctionKind(value: unknown): "query" | "action" | null;
+/** The input did not match the function's schema. */
+export class ValidationError extends Error {
+  issues: Array<{ message: string; path?: PropertyKey[] }>;
+}
+/** The handler for server function requests, from the build's `{ endpoint: fn }` map. */
+export function createServerFunctions(
+  endpoints: Record<string, ServerFunction<any, any>>,
+  options?: { maxBodyBytes?: number },
+): { size: number; handle(request: Request, context?: { locals?: Record<string, unknown>; env?: unknown; ctx?: unknown }): Promise<Response | null> };

@@ -33,7 +33,7 @@ test("published framework types support strict TS starters and reject invalid JS
     }));
     await write(join(scratch, "pages.tsx"), `
       import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext } from "@opentf/afw";
-      import { registerRoutes } from "@opentf/afw/server";
+      import { registerRoutes, query, action, type StandardSchemaV1 } from "@opentf/afw/server";
       export function Counter({ initial = 0 }: { initial?: number }) {
         let count = $state(initial);
         return <button onclick={event => { event.currentTarget.disabled = true; count++; }}>{count}</button>;
@@ -64,6 +64,19 @@ test("published framework types support strict TS starters and reject invalid JS
       const badProp = <Counter initial="one"/>;
       // @ts-expect-error signal writes retain their value type
       value.value = "one";
+      // Server functions keep their signatures: input from the schema, output from the function.
+      const titleSchema = {} as StandardSchemaV1<{ title: string }>;
+      const addTodo = action(titleSchema, async ({ title }, { locals }) => ({ id: 1, title, by: locals.user }));
+      const listTodos = query(async (done: boolean) => [{ done }]);
+      async function useServerFunctions() {
+        const added: { id: number; title: string } = await addTodo({ title: "x" });
+        const listed: { done: boolean }[] = await listTodos(true);
+        // @ts-expect-error the schema's input type is checked
+        await addTodo({ title: 1 });
+        // @ts-expect-error query input types are checked too
+        await listTodos("yes");
+        return { added, listed };
+      }
       // Compiler macros are typed globals: no import, no local declarations.
       const Theme = createContext("light");
       export function Macros() {

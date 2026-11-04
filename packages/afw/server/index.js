@@ -28,4 +28,5 @@ export * from "./api.js";
 export { createMiddleware } from "./middleware.js";
 export * from "./cookies.js";
 export * from "./loader.js";
+export { ValidationError, action, createServerFunctions, query, serverFunctionKind } from "./server-functions.js";
 import "./builtins.js";

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- Server functions, server side (docs/SERVER_FUNCTIONS.md): `query(fn)` /
+  `query(schema, fn)` for reads and `action(...)` for writes, from
+  `@opentf/afw/server`. Input is validated with any Standard Schema library (Zod,
+  Valibot, ArkType…) before the function runs; a function can also be called directly
+  from server code. `createServerFunctions({ endpoint: fn })` answers their requests:
+  queries by GET or POST, actions by POST, cross-site requests refused, `no-store`
+  responses, invalid input as 400 with the issues, `notFound()` as 404, a thrown
+  `Response` passed through, other errors as a generic 500. Types keep each
+  function's input and output.
+
 ### Fixed
 
 - Editing a page, layout or component in development no longer resets the state of
