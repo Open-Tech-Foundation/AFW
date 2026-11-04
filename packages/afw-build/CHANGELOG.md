@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- `createPageRenderer` returns a `Response` a page's loader throws (a redirect, a 403)
+  as the page's response.
+
 ## [0.2.0] - 2026-11-04
 
 ### Added
