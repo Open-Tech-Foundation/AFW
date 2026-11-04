@@ -7,7 +7,8 @@ npm create @opentf/afw@latest
 ```
 
 The prompts ask for a project name, a template and a language (arrow keys and Enter),
-and offer to install dependencies and start the dev server.
+then install the dependencies and show the command to start the dev server. Nothing
+is started for you.
 
 Or pass the choices:
 
@@ -20,7 +21,7 @@ npm create @opentf/afw@latest my-app -- --template fullstack-ts
 | `-t`, `--template` | `spa`, `fullstack`, `ssr`, `ssg`; add `-ts` or `-js` for the language (`fullstack-js`) |
 | `-l`, `--language` | `ts` (default) or `js` |
 | `--overwrite` | Remove the files in a non-empty target directory first |
-| `-i`, `--immediate` | Install dependencies and start the dev server |
+| `--no-install` | Skip installing dependencies |
 | `--no-interactive` | Never ask; use defaults for anything not given (also the default without a terminal) |
 
 | Template | What you get |

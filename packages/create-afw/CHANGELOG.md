@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The scaffolder never starts the dev server. The "Install with … and start now?"
+  prompt and `--immediate` are gone: it installs the dependencies with the package
+  manager that ran it, then shows the command to start the dev server and exits.
+  `--no-install` skips the install; a failed install warns and lists the install step.
+
 ## [0.2.0] - 2026-11-04
 
 ### Changed

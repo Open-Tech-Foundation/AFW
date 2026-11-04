@@ -105,11 +105,21 @@ for (const language of ["ts", "js"]) {
   }
 }
 
+// A fake \`npm\` first on PATH: records each call, and exits with \`code\`.
+async function fakeNpm(code = 0) {
+  const bin = await mkdtemp(join(scratch, "fake-npm-"));
+  const log = join(bin, "calls.log");
+  await writeFile(join(bin, "npm"), `#!/bin/sh\necho "$@" >> "${log}"\nexit ${code}\n`, { mode: 0o755 });
+  return { env: { PATH: `${bin}:${process.env.PATH}`, npm_config_user_agent: "npm/11" }, calls: async () => (await exists(log) ? (await readFile(log, "utf8")).trim().split("\n") : []) };
+}
+
 describe("command line", () => {
   test("parses options, including template-language names, and rejects bad ones", () => {
-    assert.deepEqual(parseArgs(["my-app", "--template", "ssr-js", "--overwrite", "-i", "--no-interactive"]), {
-      directory: "my-app", template: "ssr", language: "js", overwrite: true, immediate: true, interactive: false, help: false,
+    assert.deepEqual(parseArgs(["my-app", "--template", "ssr-js", "--overwrite", "--no-interactive"]), {
+      directory: "my-app", template: "ssr", language: "js", overwrite: true, install: true, interactive: false, help: false,
     });
+    assert.equal(parseArgs(["--no-install"]).install, false);
+    assert.throws(() => parseArgs(["--immediate"]), /Unknown option/);
     assert.equal(parseArgs(["-t", "fullstack"]).template, "fullstack");
     assert.equal(parseArgs(["--template=spa-ts"]).language, "ts");
     assert.equal(parseArgs(["--js"]).language, "js");
@@ -139,11 +149,12 @@ describe("command line", () => {
     assert.equal(packageManager(""), "npm");
     assert.deepEqual(nextSteps({ directory: "my-app", pm: "pnpm" }), ["cd my-app", "pnpm install", "pnpm dev"]);
     assert.deepEqual(nextSteps({ directory: ".", pm: "npm" }), ["npm install", "npm run dev"]);
+    assert.deepEqual(nextSteps({ directory: "my-app", pm: "npm", installed: true }), ["cd my-app", "npm run dev"]);
   });
 
   test("runs non-interactively with flags", async () => {
     const dir = join(scratch, "from-cli");
-    const { stdout } = await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--template", "fullstack-js", "--no-interactive"], {
+    const { stdout } = await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--template", "fullstack-js", "--no-interactive", "--no-install"], {
       env: { ...process.env, npm_config_user_agent: "pnpm/11" },
     });
     assert.match(stdout, /Scaffolding fullstack \(JavaScript\)/);
@@ -155,13 +166,41 @@ describe("command line", () => {
     const dir = join(scratch, "occupied");
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, "keep.txt"), "x");
-    await assert.rejects(promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--no-interactive"]), (error) => {
+    await assert.rejects(promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--no-interactive", "--no-install"]), (error) => {
       assert.equal(error.code, 1);
       assert.match(`${error.stdout}${error.stderr}`, /is not empty\. Use --overwrite/);
       return true;
     });
-    await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--no-interactive", "--overwrite"]);
+    await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--no-interactive", "--overwrite", "--no-install"]);
     assert.ok(!(await exists(join(dir, "keep.txt"))) && await exists(join(dir, "package.json")));
+  });
+});
+
+describe("installing dependencies", { skip: process.platform === "win32" && "the fake npm is a shell script" }, () => {
+  test("installs with the package manager that ran it, and never starts the dev server", async () => {
+    const npm = await fakeNpm(0);
+    const dir = join(scratch, "installs");
+    const { stdout } = await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--no-interactive"], { env: { ...process.env, ...npm.env } });
+    assert.deepEqual(await npm.calls(), ["install"], "only `npm install` ran");
+    assert.match(stdout, /Installing dependencies with npm/);
+    assert.match(stdout, /Done\. Now run:\s+cd \S+installs\s+npm run dev/);
+    assert.doesNotMatch(stdout, /npm install\s+npm run dev/, "install is not repeated in the next steps");
+  });
+
+  test("a failed install warns and leaves the install step in the next steps", async () => {
+    const npm = await fakeNpm(1);
+    const dir = join(scratch, "install-fails");
+    const { stdout } = await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--no-interactive"], { env: { ...process.env, ...npm.env } });
+    assert.deepEqual(await npm.calls(), ["install"]);
+    assert.match(stdout, /npm install failed; run it yourself/);
+    assert.match(stdout, /npm install\s+npm run dev/);
+    assert.ok(await exists(join(dir, "package.json")), "the project is still scaffolded");
+  });
+
+  test("--no-install skips it", async () => {
+    const npm = await fakeNpm(0);
+    await promisify(execFile)(process.execPath, [join(pkg, "index.js"), join(scratch, "no-install"), "--no-interactive", "--no-install"], { env: { ...process.env, ...npm.env } });
+    assert.deepEqual(await npm.calls(), []);
   });
 });
 
@@ -171,9 +210,9 @@ const KEY = { enter: "\r", down: "\x1b[B", ctrlC: "\x03" };
 // file's root suite finished, and its \`after\` cleanup would delete their folders.
 const hasScript = process.platform === "linux" && existsSync("/usr/bin/script");
 
-function terminal(cwd) {
+function terminal(cwd, extraEnv = {}) {
   const child = spawn("script", ["-qec", `stty cols 120 rows 40; ${JSON.stringify(process.execPath)} ${JSON.stringify(join(pkg, "index.js"))}`, "/dev/null"], {
-    cwd, env: { ...process.env, TERM: "xterm-256color", npm_config_user_agent: "npm/11", CI: "" },
+    cwd, env: { ...process.env, TERM: "xterm-256color", npm_config_user_agent: "npm/11", CI: "", ...extraEnv },
   });
   let screen = "";
   child.stdout.on("data", (d) => { screen += d; });
@@ -203,14 +242,16 @@ describe("interactive prompts", { skip: !hasScript && "needs util-linux script" 
   test("name, arrow-key template and language, then next steps", async () => {
     const cwd = join(scratch, "tty-flow");
     await mkdir(cwd, { recursive: true });
-    const tty = terminal(cwd);
+    const npm = await fakeNpm(0);
+    const tty = terminal(cwd, npm.env);
     await tty.until("Project name:"); tty.type(`my-app${KEY.enter}`);
     await tty.until("Select a template:"); tty.type(`${KEY.down}${KEY.down}${KEY.enter}`);
     await tty.until("Select a language:"); tty.type(`${KEY.down}${KEY.enter}`);
-    await tty.until("Install with npm and start now?"); tty.type(KEY.enter);
     await tty.until("Done. Now run:");
     await tty.exited();
-    assert.match(tty.plain(), /cdmy-appnpminstallnpmrundev/);
+    assert.match(tty.plain(), /Installingdependencieswithnpm/);
+    assert.deepEqual(await npm.calls(), ["install"], "installed, and the dev server was not started");
+    assert.match(tty.plain(), /Nowrun:cdmy-appnpmrundev/);
     const manifest = JSON.parse(await readFile(join(cwd, "my-app", "package.json"), "utf8"));
     assert.equal(manifest.name, "my-app");
     assert.ok(await exists(join(cwd, "my-app", "app", "api", "hello", "route.js")), "the third template, ssr");
@@ -221,13 +262,12 @@ describe("interactive prompts", { skip: !hasScript && "needs util-linux script" 
     const cwd = join(scratch, "tty-existing");
     await mkdir(join(cwd, "My App"), { recursive: true });
     await writeFile(join(cwd, "My App", "old.txt"), "x");
-    const tty = terminal(cwd);
+    const tty = terminal(cwd, (await fakeNpm(0)).env);
     await tty.until("Project name:"); tty.type(`My App${KEY.enter}`);
     await tty.until("is not empty. How do you want to continue?"); tty.type(`${KEY.down}${KEY.enter}`); // Remove
     await tty.until("Package name:"); tty.type(KEY.enter); // accept the suggested my-app
     await tty.until("Select a template:"); tty.type(KEY.enter);
     await tty.until("Select a language:"); tty.type(KEY.enter);
-    await tty.until("Install with npm and start now?"); tty.type(KEY.enter);
     await tty.until("Done. Now run:");
     await tty.exited();
     assert.ok(!(await exists(join(cwd, "My App", "old.txt"))));

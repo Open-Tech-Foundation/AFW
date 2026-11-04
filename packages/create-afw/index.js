@@ -33,7 +33,7 @@ Options:
                           (e.g. fullstack-ts). TypeScript is the default.
   -l, --language <lang>   ts or js
       --overwrite         Remove the files in a non-empty target directory first
-  -i, --immediate         Install dependencies and start the dev server
+      --no-install        Skip installing dependencies
       --no-interactive    Never ask; use the defaults for anything not given
   -h, --help              Show this help
 
@@ -44,7 +44,7 @@ For the esdev + ES-Runtime workflow, use \`esdev create\`.`;
 
 /** Parse the command line. Throws on an unknown option or value. */
 export function parseArgs(args) {
-  const options = { directory: undefined, template: undefined, language: undefined, overwrite: false, immediate: false, interactive: undefined, help: false };
+  const options = { directory: undefined, template: undefined, language: undefined, overwrite: false, install: true, interactive: undefined, help: false };
   const value = (i, flag) => {
     const next = args[i + 1];
     if (next === undefined || next.startsWith("-")) throw new Error(`${flag} needs a value`);
@@ -59,7 +59,7 @@ export function parseArgs(args) {
     else if (flag === "--ts" || flag === "--typescript") options.language = "ts";
     else if (flag === "--js") options.language = "js";
     else if (flag === "--overwrite") options.overwrite = true;
-    else if (flag === "-i" || flag === "--immediate") options.immediate = true;
+    else if (flag === "--no-install") options.install = false;
     else if (flag === "--no-interactive" || flag === "-y" || flag === "--yes") options.interactive = false;
     else if (flag === "--interactive") options.interactive = true;
     else if (flag.startsWith("-")) throw new Error(`Unknown option: ${arg}`);
@@ -133,9 +133,22 @@ export async function create({
 }
 
 /** The commands to run next, for the package manager in use. */
-export function nextSteps({ directory, pm }) {
+export function nextSteps({ directory, pm, installed = false }) {
   const run = (script) => (pm === "npm" || pm === "bun" ? `${pm} run ${script}` : `${pm} ${script}`);
-  return [...(directory === "." ? [] : [`cd ${/\s/.test(directory) ? JSON.stringify(directory) : directory}`]), `${pm} install`, run("dev")];
+  return [
+    ...(directory === "." ? [] : [`cd ${/\s/.test(directory) ? JSON.stringify(directory) : directory}`]),
+    ...(installed ? [] : [`${pm} install`]),
+    run("dev"),
+  ];
+}
+
+/** Run `pm install` in `dir`, its output shown. Resolves whether it succeeded. */
+export function installDependencies(pm, dir) {
+  return new Promise((done) => {
+    const child = spawn(pm, ["install"], { cwd: dir, stdio: "inherit", shell: process.platform === "win32" });
+    child.once("error", () => done(false));
+    child.once("close", (code) => done(code === 0));
+  });
 }
 
 // Exit on Ctrl+C or Escape, as create-vite does.
@@ -149,14 +162,6 @@ const ask = async (prompt) => {
   if (prompts.isCancel(answer)) cancelled();
   return answer;
 };
-
-function run(command, args, options) {
-  return new Promise((done, fail) => {
-    const child = spawn(command, args, { stdio: "inherit", shell: process.platform === "win32", ...options });
-    child.once("error", fail);
-    child.once("close", (code) => (code === 0 ? done() : fail(new Error(`${command} ${args.join(" ")} exited with ${code}`))));
-  });
-}
 
 export async function main(args = argv.slice(2)) {
   let options;
@@ -233,9 +238,6 @@ export async function main(args = argv.slice(2)) {
     }))
     : "ts");
 
-  const immediate = options.immediate ||
-    (interactive && await ask(prompts.confirm({ message: `Install with ${pm} and start now?`, initialValue: false })));
-
   const where = relative(cwd(), target) || ".";
   prompts.log.step(`Scaffolding ${template} (${LANGUAGES[language]}) in ${styleText("cyan", target)}`);
   try {
@@ -245,20 +247,15 @@ export async function main(args = argv.slice(2)) {
     exit(1);
   }
 
-  if (!immediate) {
-    const steps = nextSteps({ directory: where, pm }).map((s) => `  ${styleText("cyan", s)}`).join("\n");
-    prompts.outro(`Done. Now run:\n\n${steps}\n`);
-    return;
+  // Install the dependencies; never start anything — the user runs the dev server.
+  let installed = false;
+  if (options.install) {
+    prompts.log.step(`Installing dependencies with ${pm}…`);
+    installed = await installDependencies(pm, target);
+    if (!installed) prompts.log.warn(`${pm} install failed; run it yourself in ${where}.`);
   }
-  prompts.log.step(`Installing dependencies with ${pm}…`);
-  try {
-    await run(pm, ["install"], { cwd: target });
-  } catch (error) {
-    prompts.cancel(`${error.message}. Run "${pm} install" in ${where} to retry.`);
-    exit(1);
-  }
-  prompts.outro("Starting the dev server…");
-  await run(pm, pm === "npm" || pm === "bun" ? ["run", "dev"] : ["dev"], { cwd: target });
+  const steps = nextSteps({ directory: where, pm, installed }).map((s) => `  ${styleText("cyan", s)}`).join("\n");
+  prompts.outro(`Done. Now run:\n\n${steps}\n`);
 }
 
 // Run as a CLI, not when imported (tests). The bin is a symlink under npm, so both
