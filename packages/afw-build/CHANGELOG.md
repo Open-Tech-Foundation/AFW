@@ -12,6 +12,11 @@
   exports are server functions. `serverModule({ listExports })` registers them in
   `@afw/server`, answered inside the middleware before loader data.
 
+### Changed
+
+- `createPageRenderer({ shell })` in a generated `@afw/server` stamps the hydrate marker
+  on the shell itself, so a server can pass the client's `index.html` as it is.
+
 ## [0.1.0] - 2026-11-03
 
 ### Added

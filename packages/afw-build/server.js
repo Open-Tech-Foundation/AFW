@@ -141,13 +141,14 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
   const p = group(pageFiles, "p");
   const renderPart = pages
     ? `import { collectRoutePaths, configureI18n, registerRoutes, renderHead, renderRoute, resolveMetadata } from "@opentf/afw/server";\n` +
-      `import { renderDocument } from "@opentf/afw-build/document";\n` +
+      `import { renderDocument, stampHydrateSentinel } from "@opentf/afw-build/document";\n` +
       (p.imports ? `${p.imports}\n` : "") +
       (options.i18n ? `configureI18n(options.i18n);\n` : "") +
       `registerRoutes({\n${pageFiles.map((f, i) => `  [${JSON.stringify(routeKey(f, root))}]: p${i},`).join("\n")}\n});\n` +
       `export const render = { renderRoute, renderHead, collectRoutePaths, resolveMetadata };\n` +
-      `/** A \`renderPage\` step: server-render page requests (\`GET\`/\`HEAD\`) into \`shell\`. */\n` +
-      `export function createPageRenderer({ shell, baseUrl = "" }) {\n` +
+      `/** A \`renderPage\` step: server-render page requests (\`GET\`/\`HEAD\`) into \`shell\`, the client's index.html. */\n` +
+      `export function createPageRenderer({ shell: html, baseUrl = "" }) {\n` +
+      `  const shell = stampHydrateSentinel(html);\n` +
       `  return async (request, { locals = {} } = {}) => {\n` +
       `    const method = request.method.toUpperCase();\n` +
       `    if (method !== "GET" && method !== "HEAD") return null;\n` +

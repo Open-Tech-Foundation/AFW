@@ -60,8 +60,9 @@ describe("serverModule", () => {
     expect(code).toContain('["/app/layout.jsx"]: p1,');
     expect(code).not.toContain("blog/page.md");
     expect(code).toContain("configureI18n(options.i18n);");
-    expect(code).toContain("export function createPageRenderer({ shell, baseUrl = \"\" })");
-    expect(code).toContain('import { renderDocument } from "@opentf/afw-build/document";');
+    expect(code).toContain("export function createPageRenderer({ shell: html, baseUrl = \"\" })");
+    expect(code).toContain("const shell = stampHydrateSentinel(html);");
+    expect(code).toContain('import { renderDocument, stampHydrateSentinel } from "@opentf/afw-build/document";');
     expect(files).toContain("/site/app/page.jsx");
     const plain = await serverModule(host, "/site/app");
     expect(plain.code).not.toContain("createPageRenderer");
