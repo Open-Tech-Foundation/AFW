@@ -22,6 +22,7 @@
 // hydration adoption aligned.
 
 import { batch, effect, signal, untracked } from "../core/signals.js";
+import { endpointOf, registerResource, unregisterResource, withTracking } from "./invalidate.js";
 
 // Test override: the DOM suites run in esdev's `--dom` realm (a `document`
 // always exists), so server behavior is opted into explicitly.
@@ -44,8 +45,10 @@ const isServer = () => serverOverride ?? typeof document === "undefined";
  * @param {Function} source  reactive source read inside the tracking effect; its
  *        value is passed to the fetcher.
  * @param {Function} fetcher  `(sourceValue, { signal }) => data | Promise<data>`.
- * @param {{ initial?: unknown }} [options]  `initial` seeds `data` before the
- *        first resolution.
+ * @param {{ initial?: unknown, invalidatedBy?: Function[] }} [options]  `initial`
+ *        seeds `data` before the first resolution. `invalidatedBy` names server
+ *        functions whose `invalidate()` refetches this resource, beyond those its
+ *        fetcher calls as it starts (which are recorded automatically).
  * @returns {{ data: unknown, loading: boolean, error: unknown,
  *             refetch: () => Promise<unknown> | undefined }}  reactive getters —
  *        read them inside bindings/effects to subscribe.
@@ -62,6 +65,9 @@ export function resource(source, fetcher, options = {}) {
   const loading = signal(true); // a fetch is intended; the server leaves it true
   let token = 0;
   let controller = null;
+  // This resource in the `invalidate()` registry (runtime/invalidate.js).
+  const entry = { refetch: () => refetch() };
+  const named = (options.invalidatedBy ?? []).map(endpointOf).filter(Boolean);
 
   function run(value) {
     controller?.abort();
@@ -75,7 +81,11 @@ export function resource(source, fetcher, options = {}) {
     });
     // The async IIFE starts the fetcher *synchronously* (no wasted microtask)
     // while converting a synchronous throw into a rejection.
-    return (async () => fetcher(value, { signal: c?.signal }))()
+    // Started under tracking: the server functions the fetcher calls register it.
+    const { result, endpoints } = withTracking(() => (async () => fetcher(value, { signal: c?.signal }))());
+    for (const endpoint of named) endpoints.add(endpoint);
+    registerResource(entry, endpoints);
+    return result
       .then(
         (v) => {
           if (t !== token) return; // superseded — a newer run owns the signals
@@ -107,6 +117,7 @@ export function resource(source, fetcher, options = {}) {
           controller = null;
           loading.value = false;
         });
+        unregisterResource(entry);
         return;
       }
       untracked(() => run(value));
@@ -115,8 +126,15 @@ export function resource(source, fetcher, options = {}) {
       return () => {
         token++;
         controller?.abort();
+        unregisterResource(entry);
       };
     });
+  }
+
+  function refetch() {
+    const value = untracked(src);
+    if (value == null || value === false) return undefined;
+    return run(value);
   }
 
   return {
@@ -130,10 +148,6 @@ export function resource(source, fetcher, options = {}) {
       return error.value;
     },
     /** Re-run the fetcher with the current source value (no-op while paused). */
-    refetch() {
-      const value = untracked(src);
-      if (value == null || value === false) return undefined;
-      return run(value);
-    },
+    refetch,
   };
 }

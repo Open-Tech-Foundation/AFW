@@ -105,6 +105,10 @@ export function matchRoute(pathname: any): {
  * updates window.history.
  */
 export function navigate(path: any, replace?: boolean, isPop?: boolean, hydrate?: boolean): Promise<void>;
+/** Warm a route: load its page and layout chunks and its loader data, reused by the navigation. */
+export function prefetch(path: string): void;
+/** Reload the current page's loader data into `router.data`. */
+export function refreshRouteData(): Promise<void>;
 export function refreshHotRoute(factory: any): Promise<void>;
 /**
  * Bootstrap the application: register routes, wire history, and render the page

@@ -9,7 +9,13 @@
 // `class` is a declared prop, so it lands on the rendered <a> (the link), not on
 // the <afw-link> host — no duplicated styling.
 
-import { localizePath, navigate, shouldInterceptNav } from "../runtime/router.js";
+import { onMount } from "../runtime/lifecycle.js";
+import { localizePath, navigate, prefetch, shouldInterceptNav } from "../runtime/router.js";
+
+// `prefetch`: "intent" (default) warms the route on hover, focus or touch; "viewport"
+// when the link scrolls into view; `false` / "none" never.
+const prefetchMode = (value) =>
+  value === false || value === "false" || value === "none" ? "none" : value === "viewport" ? "viewport" : "intent";
 
 export default function Link(props) {
   const href = props.href;
@@ -25,6 +31,23 @@ export default function Link(props) {
   const forceReload = reload != null && reload !== false;
   const ariaLabel = props["aria-label"] || props.ariaLabel;
   const ariaCurrent = props["aria-current"] || props.ariaCurrent;
+  const mode = prefetchMode(props.prefetch);
+  const canPrefetch = () => mode !== "none" && !forceReload && shouldInterceptNav();
+  const warm = () => {
+    if (canPrefetch()) prefetch(target);
+  };
+  let anchor = $ref();
+  onMount(() => {
+    if (mode !== "viewport" || typeof IntersectionObserver === "undefined" || !anchor) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        warm();
+      }
+    });
+    observer.observe(anchor);
+    return () => observer.disconnect();
+  });
 
   const onclick = (e) => {
     // Let the browser handle modified clicks (new tab, etc.) and non-primary buttons.
@@ -47,6 +70,10 @@ export default function Link(props) {
       aria-label={ariaLabel}
       aria-current={ariaCurrent}
       onclick={onclick}
+      onpointerenter={mode === "intent" ? warm : undefined}
+      onfocus={mode === "intent" ? warm : undefined}
+      ontouchstart={mode === "intent" ? warm : undefined}
+      ref={anchor}
     >
       {props.children}
     </a>

@@ -9,6 +9,7 @@ export * from "../core/errors.js";
 export * from "../core/context.js";
 export * from "../runtime/lifecycle.js";
 export { resource } from "../runtime/resource.js";
+export { invalidate } from "../runtime/invalidate.js";
 export { ServerFunctionError, serverFunction } from "../runtime/server-function.js";
 export { copyText, copyWithFeedback } from "../runtime/clipboard.js";
 export { Link, ContextProvider, Portal, ErrorBoundary, RawHtml, CodeFence } from "./builtins.js";
@@ -21,7 +22,7 @@ export * from "./render.js";
 export {
   registerRoutes, router, matchRoute, configureI18n, i18nLocales,
   resolveLocale, localizePath, shouldInterceptNav,
-  setLocale, setRouteState, setRouteToc, navigate,
+  setLocale, setRouteState, setRouteToc, navigate, prefetch,
 } from "../runtime/router.js";
 export { isHydrating } from "../runtime/hydrate.js";
 export { emit } from "../runtime/events.js";

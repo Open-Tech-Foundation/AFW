@@ -3,6 +3,7 @@
 // is an async function with the server function's signature that calls its endpoint.
 
 import { CONTENT_TYPE, decode, encode } from "../core/fn-codec.js";
+import { trackServerCall } from "./invalidate.js";
 
 // Queries go by GET while the encoded arguments fit comfortably in a URL.
 const MAX_GET_ARGS = 2000;
@@ -24,7 +25,8 @@ export class ServerFunctionError extends Error {
  * `{ signal }` to abort the call.
  */
 export function serverFunction(endpoint, kind) {
-  return async function call(input, { signal } = {}) {
+  async function call(input, { signal } = {}) {
+    trackServerCall(endpoint); // a resource starting this call depends on it (invalidate)
     const args = encode(input);
     const init = { signal, credentials: "same-origin", redirect: "manual", headers: { accept: CONTENT_TYPE } };
     const response = kind === "query" && args.length <= MAX_GET_ARGS
@@ -44,5 +46,8 @@ export function serverFunction(endpoint, kind) {
     throw new ServerFunctionError(body?.error?.message ?? `Server function failed (${response.status})`, {
       status: response.status, issues: body?.error?.issues,
     });
-  };
+  }
+  // `invalidate(listTodos)` finds the resources that called this endpoint.
+  Object.defineProperty(call, "endpoint", { value: endpoint });
+  return call;
 }

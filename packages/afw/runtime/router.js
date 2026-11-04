@@ -23,6 +23,7 @@ import { beginHydration, cursor, endHydration, renderedForPath } from "./hydrate
 import { collectHotState, withHotCarry } from "./hot-carry.js";
 import { buildScopedView, runCleanup, runMount } from "./mount.js";
 import { fetchRouteData, readInlineRouteData } from "./route-data.js";
+import { setRouteDataRefresher } from "./invalidate.js";
 import { compareRoutes, compileRoute, decodeParams } from "./route-match.js";
 
 const isBrowser = typeof window !== "undefined";
@@ -418,6 +419,73 @@ function rankedPages() {
 // win over a later click).
 let navSeq = 0;
 
+// Prefetched loader data (`prefetch`): `pathname + search` → { data: Promise, at }. A
+// navigation takes an entry once, while fresh; `invalidate()` clears them all.
+const prefetched = new Map();
+const PREFETCH_TTL_MS = 30_000;
+// Route entries whose chunk prefetch started; a failed one may be retried.
+const warmedEntries = new WeakSet();
+
+function takePrefetched(key) {
+  const hit = prefetched.get(key);
+  prefetched.delete(key);
+  return hit && Date.now() - hit.at < PREFETCH_TTL_MS ? hit.data : null;
+}
+
+/**
+ * Warm a route before it is visited: start loading its page and layout chunks and, when
+ * it has a loader, its data, which the navigation then reuses (once, within 30 s).
+ * `<Link>` calls this on hover, focus or touch. A no-op on the server, before
+ * `mountApp`, for another origin, for an unknown route, and when the browser asks to
+ * save data.
+ */
+export function prefetch(path) {
+  if (!isBrowser || !rootEl || !path) return;
+  if (typeof navigator !== "undefined" && navigator.connection?.saveData) return;
+  let url;
+  try {
+    url = new URL(path, window.location.origin);
+  } catch {
+    return;
+  }
+  if (url.origin !== window.location.origin) return;
+  const match = matchRoute(url.pathname);
+  if (!match) return;
+  for (const entry of [match.entry, ...layoutChain(match.route)]) {
+    if (typeof entry !== "function" || warmedEntries.has(entry)) continue; // eager, or already started
+    warmedEntries.add(entry);
+    // A failure is the navigation's to report; it may be retried.
+    Promise.resolve().then(() => resolveModule(entry)).catch(() => warmedEntries.delete(entry));
+  }
+  if (match.route && routes.loaderRoutes.has(match.route)) {
+    const key = url.pathname + url.search;
+    const hit = prefetched.get(key);
+    if (hit && Date.now() - hit.at < PREFETCH_TTL_MS) return;
+    const data = fetchRouteData(url.pathname, url.search);
+    data.catch(() => prefetched.delete(key));
+    prefetched.set(key, { data, at: Date.now() });
+  }
+}
+
+/**
+ * Reload the current page's loader data into `router.data` (`invalidate()`), and drop
+ * prefetched data, which may be stale too.
+ */
+export async function refreshRouteData() {
+  prefetched.clear();
+  if (!isBrowser || !rootEl) return;
+  const pathname = state.pathname.value;
+  const match = matchRoute(pathname);
+  if (!match?.route || !routes.loaderRoutes.has(match.route)) return;
+  const seq = navSeq;
+  try {
+    const data = await fetchRouteData(pathname, window.location.search);
+    if (seq === navSeq) state.data.value = data; // a navigation since owns the data
+  } catch (e) {
+    reportError(e, { phase: "data", path: pathname });
+  }
+}
+
 // --- Stale-chunk recovery ---------------------------------------------------
 // Pages/layouts are code-split, so a route is loaded by a lazy `() => import(...)`
 // at navigation time. Asset filenames are content-hashed (`layout-DmM9YRKj.js`),
@@ -554,7 +622,8 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
       data = readInlineRouteData();
     } else {
       try {
-        data = await fetchRouteData(url.pathname, url.search);
+        const warmed = takePrefetched(url.pathname + url.search);
+        data = warmed ? await warmed.catch(() => fetchRouteData(url.pathname, url.search)) : await fetchRouteData(url.pathname, url.search);
       } catch (e) {
         reportError(e, { phase: "data", path: url.pathname });
       }
@@ -773,6 +842,8 @@ export function mountApp({ pages, target, guard: g, i18n, nav, loaders } = {}) {
   if (pages) registerRoutes(pages);
   if (loaders) registerLoaderRoutes(loaders);
   guard = g || null;
+  setRouteDataRefresher(refreshRouteData);
+  prefetched.clear(); // a fresh app starts with nothing warmed
   // In MPA mode the browser owns navigation (full loads push real history entries),
   // so there is no client-side history to react to — only wire popstate for SPA.
   if (isBrowser && navMode === "spa") {

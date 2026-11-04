@@ -25,6 +25,17 @@
   an optional `{ signal }` aborts the call. Failures reject with a
   `ServerFunctionError` carrying `status` (and `issues` for invalid input); a redirect
   from the server is reported with `redirected: true` instead of being followed.
+- `invalidate(...serverFunctions)`: refetch every live `resource()` whose fetcher
+  called one of them, for example after an action changed the data.
+  `invalidate()` with no arguments refetches every live resource and reloads the
+  current page's loader data into `router.data`. Resources record the server
+  functions they call as they start; `resource(fn, { invalidatedBy: [listTodos] })`
+  names one called after an `await`.
+- Link prefetching: `<Link>` warms its route on hover, focus or touch, loading the
+  page and layout chunks and its loader data, which the navigation then reuses (once,
+  within 30 s). `prefetch="viewport"` warms when the link scrolls into view and
+  `prefetch="none"` never. Skipped when the browser asks to save data. `prefetch(path)`
+  and `refreshRouteData()` are exported from `@opentf/afw`.
 
 ### Fixed
 

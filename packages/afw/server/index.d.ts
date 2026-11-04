@@ -10,6 +10,7 @@ export * from "../core/errors.js";
 export * from "../core/context.js";
 export * from "../runtime/lifecycle.js";
 export { resource } from "../runtime/resource.js";
+export { invalidate } from "../runtime/invalidate.js";
 export { copyText, copyWithFeedback } from "../runtime/clipboard.js";
 
 /** DOM-free built-in renderers used by the server compiler. */
@@ -61,6 +62,8 @@ export function setRouteState(state?: {
 }): void;
 /** No-op on the server: there is no mounted app to navigate. */
 export function navigate(path: string, replace?: boolean): Promise<void>;
+/** No-op on the server. */
+export function prefetch(path: string): void;
 /** Always `false` during server rendering. */
 export function isHydrating(): boolean;
 export { emit } from "../runtime/events.js";
