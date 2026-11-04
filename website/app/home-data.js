@@ -69,13 +69,6 @@ export const capabilities = [
     ],
   },
   {
-    category: "Styling",
-    items: [
-      { name: "Tailwind CSS", status: "supported", desc: "Tailwind 4 in both toolchains: esdev compiles it natively, Vite through @tailwindcss/vite." },
-      { name: "Scoped CSS Modules", status: "supported", desc: "Component-scoped class names." },
-    ],
-  },
-  {
     category: "Full-stack",
     items: [
       { name: "Middleware", status: "supported", desc: "Server middleware for pages, APIs and loader data when included in the request pipeline." },
@@ -87,6 +80,13 @@ export const capabilities = [
       { name: "Progressive forms", status: "planned", desc: "<form action={addTodo}> that works without JavaScript under SSR." },
       { name: "Internationalization", status: "beta", desc: "@opentf/afw-i18n — URL-prefix locale routing, ICU messages, and Intl formatters (Phase 1)." },
       { name: "Accessibility helpers", status: "planned", desc: "ARIA helpers and a11y defaults." },
+    ],
+  },
+  {
+    category: "Styling",
+    items: [
+      { name: "Tailwind CSS", status: "supported", desc: "Tailwind 4 in both toolchains: esdev compiles it natively, Vite through @tailwindcss/vite." },
+      { name: "Scoped CSS Modules", status: "supported", desc: "Component-scoped class names." },
     ],
   },
 ];
@@ -147,6 +147,10 @@ export const reasons = [
   { title: "No virtual DOM", desc: "Signals bind each update to the DOM node it affects. No diffing, no re-rendering of whole components.", icon: "bolt" },
   { title: "Typed server functions", desc: "Call server code like a function: validated input, folder middleware, cross-site calls refused, invalidate() to refetch.", icon: "server" },
   { title: "Your toolchain", desc: "esdev with the capability-secured ES-Runtime, or Vite with Node and the whole npm ecosystem. Same app either way.", icon: "split" },
+  { title: "Forms built in", desc: "@opentf/afw-form: nested reactive values, validation by function or a schema resolver such as Zod, and submit state.", icon: "form" },
+  { title: "i18n built in", desc: "@opentf/afw-i18n: locale-prefixed routes, ICU messages and Intl formatters, prerendered per locale.", icon: "globe" },
+  { title: "Testing built in", desc: "@opentf/afw-test: render, queries and userEvent for components and pages, under esdev or Vitest.", icon: "test" },
+  { title: "Docs sites built in", desc: "@opentf/afw-docs: MDX docs and a blog with search, feeds and llms.txt — this site is one.", icon: "book" },
 ];
 
 // --- Two workflows -----------------------------------------------------------

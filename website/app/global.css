@@ -616,6 +616,36 @@ body {
 .btn-secondary:hover {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
 }
+/* The hero's primary action, as on the other Open Tech Foundation sites: a pill with
+ * the accent rocket. */
+.btn-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  transition: border-color 0.15s, background 0.15s;
+}
+.btn-start:hover {
+  border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+  background: var(--bg-surface);
+}
+.btn-start-icon {
+  color: var(--accent);
+}
+[data-theme='dark'] .btn-start {
+  background: var(--bg-surface);
+}
+[data-theme='dark'] .btn-start:hover {
+  background: #1e293b;
+}
 /* <Link class> lands on the inner <a>; let the host stay inline. */
 .home .afw-link {
   display: contents;
@@ -925,7 +955,23 @@ body {
   color: var(--accent);
 }
 
-/* Performance */
+/* Performance: centered — heading, tables and notes. */
+.bench {
+  text-align: center;
+}
+.bench .section-heading {
+  margin-left: auto;
+  margin-right: auto;
+}
+.bench .bench-card,
+.bench .bench-note,
+.bench .bench-lede {
+  margin-left: auto;
+  margin-right: auto;
+}
+.bench .bench-card {
+  text-align: left; /* the tables keep their own column alignment */
+}
 .bench-card {
   max-width: 48rem;
   overflow-x: auto; /* the tables scroll on narrow screens instead of clipping */

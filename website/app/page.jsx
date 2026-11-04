@@ -13,8 +13,6 @@ export const metadata = {
   canonical: "/",
 };
 
-const GITHUB = "https://github.com/Open-Tech-Foundation/afw";
-
 // Every benchmark caveat lives on /docs/benchmarks; the landing page states the claim in a
 // line and links there, so a figure is never shown without its qualifications a click away.
 const METHOD_LINK = "text-[var(--accent)] font-semibold hover:underline whitespace-nowrap";
@@ -35,6 +33,10 @@ function ReasonIcon({ name }) {
       {name === "bolt" ? <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" /> : null}
       {name === "server" ? <path d="M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01" /> : null}
       {name === "split" ? <path d="M6 3v6a6 6 0 0 0 6 6h0a6 6 0 0 1 6 6M18 3v6a6 6 0 0 1-6 6" /> : null}
+      {name === "form" ? <path d="M4 5h16M4 11h16M4 17h10M17 15l2 2 3-4" /> : null}
+      {name === "globe" ? <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9Z" /> : null}
+      {name === "test" ? <path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4a1.5 1.5 0 0 0 1.3-2L14 9V3M7.5 15h9" /> : null}
+      {name === "book" ? <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5ZM4 19a2 2 0 0 1 2-2h13" /> : null}
     </svg>
   );
 }
@@ -72,13 +74,15 @@ export default function HomePage() {
               server functions — on esdev or on Vite and Node.
             </p>
             <div class="hero-actions">
-              <Link href="/docs/getting-started/installation" class="btn btn-primary">
-                Get started
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                  <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+              <Link href="/docs/getting-started/installation" class="btn-start">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-start-icon" aria-hidden="true">
+                  <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+                  <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-3.05 11a22.35 22.35 0 0 1-3.95 2z" />
+                  <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+                  <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
                 </svg>
+                Get started
               </Link>
-              <a href={GITHUB} target="_blank" rel="noreferrer" class="btn btn-secondary">GitHub</a>
             </div>
             <InstallCommand />
           </div>
@@ -142,7 +146,7 @@ export default function HomePage() {
 
       {/* Performance */}
       <section class="home-section home-section-alt">
-        <div class="home-container">
+        <div class="home-container bench">
           <SectionHeading eyebrow="Performance" title="Fast where it counts">
             The runtime against the React, Solid and Svelte&nbsp;5 libraries — median ms over{" "}
             {benchmark.runs ?? 3} pooled runs, 4× CPU throttling, lower is better.
