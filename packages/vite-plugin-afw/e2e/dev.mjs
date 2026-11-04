@@ -91,6 +91,7 @@ try {
   const pageFile = join(dir, "app", "page.jsx");
   await writeFile(pageFile, (await readFile(pageFile, "utf8")).replace("Home on Vite", "Home edited"));
   check(await until("document.getElementById('title')?.textContent === 'Home edited'"), "a page edit refreshes in place");
+  check((await text("#counter")) === "Clicks 2", `the page edit keeps the state of the components it renders (${await text("#counter")})`);
   check((await evaluate("window.__marker")) === "kept", "the page edit does not reload");
 
   const layoutFile = join(dir, "app", "layout.jsx");

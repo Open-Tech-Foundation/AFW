@@ -96,7 +96,8 @@ HTML without browser Custom Elements, so a server target can point straight at
 
 In `esdev start`, an edited component or page refreshes in place: the host, props
 and named `$state` values survive, while effects and lifecycle hooks are disposed
-and re-run. A page's `metadata` and headings (`toc`) refresh with it, and an edited
+and re-run. Components rendered by the edited page, layout or component keep their
+`$state` too, matched by tag and position. A page's `metadata` and headings (`toc`) refresh with it, and an edited
 `$expose` method is re-installed on the same host. A compile error keeps the previous
 view on screen until the fix is saved.
 
