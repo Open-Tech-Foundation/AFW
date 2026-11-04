@@ -1,20 +1,30 @@
 // The wire encoding of server function arguments and results, shared by the browser
-// stub and the server registry. One module, so the encoding changes in one place.
-//
-// Placeholder: plain JSON. The planned codec is a type-preserving JSON format (Date,
-// Map, Set, BigInt, …) from a dedicated package; it replaces `encode` / `decode` here
-// once that package's decoder is safe for untrusted input.
+// stub and the server registry: @opentf/serialize's `{ v, $refs }` envelope, which
+// round-trips Date, Map, Set, BigInt, URL, RegExp, Error, typed arrays, undefined,
+// NaN/±Infinity/-0, Temporal and shared or cyclic references, while plain data stays
+// readable JSON. Functions, symbols and class instances are refused.
+
+import { SerializeError, parse, stringify } from "@opentf/serialize";
+
+export { SerializeError };
 
 export const CONTENT_TYPE = "application/json";
 
-/** Encode a value for the wire. `undefined` becomes absent (JSON `null` at the top). */
+/** Deepest nesting accepted from a request (`[[1]]` is depth 2). */
+export const MAX_DEPTH = 64;
+
+/** Encode a value for the wire. */
 export function encode(value) {
-  return JSON.stringify(value === undefined ? null : value);
+  return stringify(value);
 }
 
-/** Decode a wire value. Throws on malformed input. `JSON.parse` keeps `__proto__` as an
- *  own key, so a decoded object can never carry a forged prototype. */
-export function decode(text) {
-  if (typeof text !== "string" || text === "") return undefined;
-  return JSON.parse(text);
+/**
+ * Decode a wire value. An empty text is `undefined` (a call without arguments).
+ * `maxLength` / `maxDepth` bound untrusted input; failures throw a `SerializeError`
+ * with a `code` (`INPUT_TOO_LARGE`, `INVALID_JSON`, `INVALID_ENVELOPE`, …). A
+ * `__proto__` key stays an own property, never a prototype.
+ */
+export function decode(text, { maxLength = Infinity, maxDepth = Infinity } = {}) {
+  if (text === "") return undefined;
+  return parse(text, { maxLength, maxDepth });
 }

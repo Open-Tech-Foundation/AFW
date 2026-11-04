@@ -1,5 +1,5 @@
 import { expect, test } from "runtime:test";
-import { copy, file, makeTempDir, mkdir, readDir, remove, stat, write } from "runtime:fs";
+import { copy, file, makeTempDir, mkdir, readDir, realPath, remove, stat, write } from "runtime:fs";
 import { dirname, fromFileURL, join } from "runtime:path";
 import { env } from "runtime:process";
 import { Command } from "runtime:system";
@@ -28,6 +28,10 @@ async function runServer(source) {
     const manifest = await file(join(web, "package.json")).json();
     for (const path of ["package.json", ...manifest.files.filter(path => !path.startsWith("!"))]) {
       await copyPackage(join(web, path), join(dir, "node_modules/@opentf/afw", path));
+    }
+    // The package's registry dependencies, as an install would add them.
+    for (const name of Object.keys(manifest.dependencies ?? {})) {
+      await copyPackage(await realPath(join(web, "node_modules", name)), join(dir, "node_modules", name));
     }
     await write(join(dir, "package.json"), '{"type":"module"}');
     await write(join(dir, "probe.js"), `

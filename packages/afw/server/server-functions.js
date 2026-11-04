@@ -9,7 +9,7 @@
 // that folder's `_middleware` guards it like a page. `createServerFunctions` turns the
 // build's `{ endpoint: fn }` map into a handler for those requests.
 
-import { CONTENT_TYPE, decode, encode } from "../core/fn-codec.js";
+import { CONTENT_TYPE, MAX_DEPTH, SerializeError, decode, encode } from "../core/fn-codec.js";
 import { isNotFound } from "./loader.js";
 
 const MARK = Symbol.for("afw.serverFunction");
@@ -79,12 +79,14 @@ function crossSite(request, url) {
  *
  * @param {Record<string, Function>} endpoints  `{ "/todos/__fn/<id>": listTodos }`, built
  *        by the toolchain from the app's `*.server` modules.
- * @param {{ maxBodyBytes?: number }} [options]
+ * @param {{ maxBodyBytes?: number, maxDepth?: number }} [options]  limits on the decoded
+ *        input: body size (default 1 MiB) and nesting depth (default 64)
  * @returns {{ size: number, handle: (request: Request, context?: object) => Promise<Response | null> }}
  *   `handle` answers a request for one of the endpoints, or returns null. `context` is
  *   what middleware built (`locals`, `env`, `ctx`).
  */
-export function createServerFunctions(endpoints = {}, { maxBodyBytes = 1024 * 1024 } = {}) {
+export function createServerFunctions(endpoints = {}, { maxBodyBytes = 1024 * 1024, maxDepth = MAX_DEPTH } = {}) {
+  const limits = { maxLength: maxBodyBytes, maxDepth };
   const table = new Map();
   for (const [path, fn] of Object.entries(endpoints)) {
     const kind = serverFunctionKind(fn);
@@ -104,22 +106,24 @@ export function createServerFunctions(endpoints = {}, { maxBodyBytes = 1024 * 10
     let input;
     try {
       if (method === "GET") {
-        input = decode(url.searchParams.get("a") ?? "");
+        input = decode(url.searchParams.get("a") ?? "", limits);
       } else {
         const type = request.headers.get("content-type") ?? "";
         // Forms and plain-text posts can be sent cross-site without a preflight; JSON cannot.
         if (!type.startsWith(CONTENT_TYPE)) return json(415, { error: { message: `Expected ${CONTENT_TYPE}` } });
-        const body = await request.text();
-        if (body.length > maxBodyBytes) return json(413, { error: { message: "Request body too large" } });
-        input = decode(body);
+        input = decode(await request.text(), limits);
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof SerializeError && error.code === "INPUT_TOO_LARGE") {
+        return json(413, { error: { message: "Request body too large" } });
+      }
       return json(400, { error: { message: "Malformed request body" } });
     }
 
     const ctx = { request, url, locals: context.locals ?? {}, env: context.env, ctx: context.ctx };
     try {
       const result = await entry.fn(input, ctx);
+      // A result the codec refuses (a class instance, a function) is a server bug: 500.
       return new Response(encode(result), { status: 200, headers: { "content-type": CONTENT_TYPE, "cache-control": "no-store" } });
     } catch (error) {
       if (error instanceof Response) return error; // a redirect or custom status from the function

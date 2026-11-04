@@ -80,7 +80,11 @@ importers:
         specifier: ^5.16.0
         version: 5.57.0
 
-  packages/afw: {}
+  packages/afw:
+    dependencies:
+      '@opentf/serialize':
+        specifier: ^0.1.0
+        version: 0.1.0
 
   packages/afw-build: {}
 
@@ -971,6 +975,9 @@ packages:
 
   '@opentf/esrun-types@0.4.0':
     resolution: {integrity: sha512-MEjKuFur/3zBP8xY05tLD7GKI07NWTMcmbyJjnL8g/Mt5Qu0Beetj+MjMDlog/Lbdr3krziGAQIBbRqtXd60Dg==}
+
+  '@opentf/serialize@0.1.0':
+    resolution: {integrity: sha512-kRyYKuQHahHpVMfX1QtxohJuEd/iUkp9VYYUT3w/Oo64K+ONmvx3JB/nFJALHwfDsWKfmDIBMHBUULBWdltaog==}
 
   '@opentf/std@0.19.0':
     resolution: {integrity: sha512-tnBP9Fv3T7Sfd1VWJQKfq6BubBH/qvVEC80zzMeeLW7epACt0jtpZ7ivB9A5HLSzb8Lxs9Mc0V/jvD6jStq+bA==}
@@ -2393,6 +2400,8 @@ snapshots:
       state-local: 1.0.7
 
   '@opentf/esrun-types@0.4.0': {}
+
+  '@opentf/serialize@0.1.0': {}
 
   '@opentf/std@0.19.0': {}
 

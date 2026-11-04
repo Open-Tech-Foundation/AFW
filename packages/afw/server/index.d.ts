@@ -202,5 +202,6 @@ export class ValidationError extends Error {
 /** The handler for server function requests, from the build's `{ endpoint: fn }` map. */
 export function createServerFunctions(
   endpoints: Record<string, ServerFunction<any, any>>,
-  options?: { maxBodyBytes?: number },
+  /** Limits on decoded input: body size (default 1 MiB) and nesting depth (default 64). */
+  options?: { maxBodyBytes?: number; maxDepth?: number },
 ): { size: number; handle(request: Request, context?: { locals?: Record<string, unknown>; env?: unknown; ctx?: unknown }): Promise<Response | null> };

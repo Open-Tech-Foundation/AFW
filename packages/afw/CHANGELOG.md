@@ -13,6 +13,13 @@
   responses, invalid input as 400 with the issues, `notFound()` as 404, a thrown
   `Response` passed through, other errors as a generic 500. Types keep each
   function's input and output.
+- Server function arguments and results use `@opentf/serialize` (a new dependency):
+  `Date`, `Map`, `Set`, `BigInt`, `URL`, `RegExp`, `Error`, typed arrays, `undefined`
+  and shared or cyclic references survive the call, while plain data stays readable
+  JSON (`{"v": …}`). Request input is decoded within limits: `maxBodyBytes` (413
+  beyond it) and `maxDepth` (default 64); a malformed body, or one without the
+  envelope, is a 400; a `__proto__` key stays an own property. A result the codec
+  refuses (a class instance, a function) is a generic 500.
 - Server functions, browser side: `serverFunction(endpoint, kind)`, which the
   generated stubs call. Queries go by GET (POST for large arguments), actions by POST;
   an optional `{ signal }` aborts the call. Failures reject with a

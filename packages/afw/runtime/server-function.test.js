@@ -32,6 +32,12 @@ describe("serverFunction", () => {
     expect(calls[1].method).toBe("POST");
   });
 
+  test("Date, Map, BigInt and undefined survive the round trip", async () => {
+    serve({ "/t/__fn/a": action(async ({ at, n }) => ({ at, n: n + 1n, seen: new Map([["k", undefined]]) })) });
+    const out = await serverFunction("/t/__fn/a", "action")({ at: new Date(5), n: 1n });
+    expect([out.at instanceof Date, out.at.getTime(), out.n, out.seen.has("k")]).toEqual([true, 5, 2n, true]);
+  });
+
   test("an action posts its input", async () => {
     serve({ "/t/__fn/a": action(async (input) => ({ saved: input.title })) });
     expect(await serverFunction("/t/__fn/a", "action")({ title: "x" })).toEqual({ saved: "x" });

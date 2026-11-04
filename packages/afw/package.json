@@ -65,5 +65,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "types": "./index.d.ts"
+  "types": "./index.d.ts",
+  "dependencies": {
+    "@opentf/serialize": "^0.1.0"
+  }
 }

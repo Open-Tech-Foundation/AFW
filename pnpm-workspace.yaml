@@ -6,3 +6,5 @@ allowBuilds:
   '@opentf/afw-compiler': false
   esbuild: true
   workerd: true
+minimumReleaseAgeExclude:
+  - '@opentf/serialize@0.1.0'
