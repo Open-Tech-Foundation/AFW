@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- `afwc serve` answers a `server-exports` request: the exports of a `*.server` module
+  and which are server functions (`query()` / `action()` from `@opentf/afw/server`,
+  under any local name), without running the module. `export * from`, re-exports and
+  destructured exports are errors with their position, so a server function is never
+  missed or exposed by accident.
+
 ## [0.22.0] - 2026-11-03
 
 ### Added

@@ -32,3 +32,6 @@ pub mod graph;
 
 /// Source provenance and version-3 source-map emission.
 pub mod sourcemap;
+
+/// The exports of a `*.server` module and which are server functions.
+pub mod server_exports;

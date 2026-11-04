@@ -383,6 +383,21 @@ fn serve(source_map: bool) -> ExitCode {
         let id = String::from_utf8_lossy(&id_buf).into_owned();
         let source = String::from_utf8_lossy(&src_buf).into_owned();
 
+        // `server-exports` lists a `.server` module's exports instead of compiling it
+        // (docs/SERVER_FUNCTIONS.md): `OK` with `{"exports":[{"name","kind"}]}`.
+        if target_tok == "server-exports" {
+            match afw_compiler::server_exports::server_exports(std::path::Path::new(&id), &source) {
+                Ok(exports) => {
+                    let items: Vec<serde_json::Value> = exports
+                        .iter()
+                        .map(|e| serde_json::json!({ "name": e.name, "kind": e.kind.map(|k| k.as_str()) }))
+                        .collect();
+                    write_frame(&mut writer, true, serde_json::json!({ "exports": items }).to_string().as_bytes());
+                }
+                Err(e) => write_frame(&mut writer, false, Diag::at(&id, e.message, &source, e.offset, e.len).json().as_bytes()),
+            }
+            continue;
+        }
         // The serve protocol's 4th field selects the codegen backend by token; an
         // unknown token falls back to CSR (the safe default).
         let target = match target_tok.as_str() {
