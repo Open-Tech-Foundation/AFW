@@ -12,6 +12,16 @@ afterAll(() => closeCompilers());
 // The server bundle keeps @opentf/afw external; this package does not depend on it,
 // so the test points the import at the workspace copy.
 const AFW_SERVER = join(dirname(fromFileURL(import.meta.url)), "../../afw/server/index.js");
+const PACKAGES = join(dirname(fromFileURL(import.meta.url)), "../..");
+// A bare @opentf/* specifier left in a bundle → its workspace file.
+function workspaceFile(spec) {
+  const table = {
+    "@opentf/afw": "afw/index.js", "@opentf/afw/server": "afw/server/index.js",
+    "@opentf/afw-build/document": "afw-build/document.js",
+  };
+  if (!table[spec]) throw new Error(`unmapped external ${spec}`);
+  return join(PACKAGES, table[spec]);
+}
 
 async function fixture() {
   await mkdir(".cache", { recursive: true });
@@ -75,6 +85,46 @@ test("a browser build gets stubs; the server answers them under the folder's mid
     expect((await added.json()).v).toEqual({ added: "x" });
     expect((await call(serverFunctionEndpoint(app, join(app, "admin/stats.server.js"), "stats"))).status).toBe(403);
     expect((await call(serverFunctionEndpoint(app, join(app, "todos/todos.server.js"), "helper"))).status).toBe(404);
+  } finally {
+    await remove(dir, { recursive: true });
+  }
+});
+
+test("with mode ssr, @afw/server renders pages, and a loader calls a server function directly", async () => {
+  const { dir, app } = await fixture();
+  try {
+    await write(join(app, "todos", "loader.js"), `
+      import { listTodos } from "./todos.server.js";
+      export default async function loader({ locals }) { return listTodos({ prefix: "p" }, { locals }); }
+    `);
+    await write(join(app, "todos", "page.jsx"), `
+      import { router } from "@opentf/afw";
+      export default function Todos() { return <p id="who">{router.data?.user} {router.data?.prefix}</p>; }
+    `);
+    await write(join(dir, "server.js"), `
+      import { createHandler, createPageRenderer } from "@afw/server";
+      const shell = '<!doctype html><html><head><title>t</title></head><body><div id="app"></div></body></html>';
+      export const handle = createHandler({ renderPage: createPageRenderer({ shell }), fallback: () => new Response("fallback", { status: 404 }) });
+    `);
+    // "server", as an esdev server target builds.
+    const bundle = await build({ input: join(dir, "server.js"), platform: "server", plugins: [createAfwAppPlugin({ mode: "ssr" })] });
+    let code;
+    try {
+      code = (await bundle.generate({ format: "esm" })).output.map((chunk) => chunk.code ?? "").join("\n");
+    } finally {
+      await bundle.close();
+    }
+    const externals = [...new Set([...code.matchAll(/from "(@opentf\/[^"]+)"/g)].map((m) => m[1]))];
+    let linked = code;
+    for (const spec of externals) linked = linked.replaceAll(`"${spec}"`, JSON.stringify(workspaceFile(spec)));
+    await write(join(dir, "ssr.bundle.js"), linked);
+    const { handle } = await import(join(dir, "ssr.bundle.js"));
+    const res = await handle(new Request("http://app.test/todos", { headers: { accept: "text/html" } }));
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    // The loader's data, from a direct call that saw the middleware's locals.
+    expect(html.replace(/<!--[^>]*-->/g, "")).toContain('<p id="who">ada p</p>');
+    expect(html).toContain("data-afw-hydrate");
   } finally {
     await remove(dir, { recursive: true });
   }

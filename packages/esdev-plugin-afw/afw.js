@@ -1,6 +1,6 @@
 import { createAfwPlugin, lazyCompiler } from "./plugin.js";
 import { createAfwRoutes } from "./routes.js";
-import { SERVER_LOAD_FILTER, createAfwServer } from "./server.js";
+import { SERVER_LOAD_FILTER, SERVER_RESOLVE_IDS, createAfwServer } from "./server.js";
 
 // The default package entry is the plugin a starter lists in esdev.json.
 // Named compiler/routes factories remain available for custom build drivers.
@@ -10,14 +10,15 @@ export function createAfwAppPlugin({ appDir = "app", exclude = [], routes = true
   const compiler = createAfwPlugin({ ...options, failOnError, getCompiler });
   if (!routes) return compiler;
   const routing = createAfwRoutes({ appDir, exclude });
-  const server = createAfwServer({ appDir, exclude, getCompiler });
+  // Server-rendered apps get their pages registered in @afw/server.
+  const server = createAfwServer({ appDir, exclude, getCompiler, pages: options.mode === "ssr" });
   return {
     ...compiler,
     resolve: {
-      filter: { id: /^(?:@afw\/routes|@afw\/server|@opentf\/afw(?:\/runtime)?)$/ },
+      filter: { id: /^(?:@afw\/routes|@afw\/server|@opentf\/afw-build\/document|@opentf\/afw(?:\/runtime)?)$/ },
       handler(source, importer, ctx) {
         if (source === "@afw/routes") return routing.resolve.handler(source, importer);
-        if (source === "@afw/server") return server.resolve(source, importer);
+        if (SERVER_RESOLVE_IDS.includes(source)) return server.resolve(source, importer, ctx);
         return compiler.resolve.handler(source, importer, ctx);
       },
     },

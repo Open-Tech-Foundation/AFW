@@ -13,6 +13,10 @@
   `loaders` and `serverFunctions` too.
 - `createAfwServer` and `lazyCompiler` for custom build drivers; `createAfwPlugin`
   takes `getCompiler` to share one `afwc serve` child.
+- With `mode: "ssr"`, `@afw/server` also registers every page and exports
+  `createPageRenderer({ shell })`: pass it as `createHandler({ renderPage })` and the
+  server renders pages per request, with loader data and server functions in the same
+  handler.
 
 ## [0.6.0] - 2026-11-03
 
