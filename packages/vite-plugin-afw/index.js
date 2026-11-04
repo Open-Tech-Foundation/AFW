@@ -20,7 +20,8 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
-  FRAMEWORK_IMPORT, ROUTES_ID, SERVER_ID, SOURCE_FILTER,
+  FRAMEWORK_IMPORT, ROUTES_ID, SERVER_ID, SERVER_MODULE_FILE, SOURCE_FILTER, discoverServerModules, serverExports,
+  serverFunctionStub,
   chooseTarget, compileModule, discoverServerFiles, hasServerFiles, resolveAppRoot, resolveCompiler,
   prerender, routesModule, serverModule, stampHydrateSentinel, startCompilerServer, usesServerEntry,
   validateOptions,
@@ -35,7 +36,7 @@ const SERVER_PREFIX = `\0${SERVER_ID}:`;
 // The built server's entry: starts the Node server around `@afw/server`.
 const NODE_SERVER_ID = "@afw/node-server";
 const ROUTE_FILE = /(?:^|\/)(?:(?:page|layout|404)\.(?:mdx|md|jsx|tsx)|loader\.(?:js|ts)|routeGuard\.(?:js|ts))$/;
-const SERVER_FILE = /(?:^|\/)(?:route\.(?:jsx?|tsx?)|_middleware\.(?:jsx?|tsx?)|loader\.(?:js|ts)|page\.(?:mdx|md|jsx|tsx))$/;
+const SERVER_FILE = /(?:^|\/)(?:route\.(?:jsx?|tsx?)|_middleware\.(?:jsx?|tsx?)|loader\.(?:js|ts)|page\.(?:mdx|md|jsx|tsx)|[^/]+\.server\.(?:[cm]?js|[cm]?ts))$/;
 // The dev server's fallback: nothing on the app's server answered, so Vite serves it.
 const PASS_HEADER = "x-afw-vite-pass";
 const pass = () => new Response(null, { status: 404, headers: { [PASS_HEADER]: "1" } });
@@ -86,6 +87,9 @@ export default function afw({
   // Under Vitest (mode "test"), modules compile for the test's DOM environment:
   // client rendering, no refresh code, framework imports left as they are.
   let testing = false;
+  // Whether this build has a server to answer server functions (a prerendered site
+  // built with \`server: false\` has none).
+  let shipsServer = true;
   let projectRoot = nodeHost.cwd();
   let server = null; // the afwc client, started on the first compiled module
   let serverPromise = null;
@@ -178,8 +182,11 @@ export default function afw({
       projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());
       // Whether to ship a Node server: always for server-rendered pages; otherwise
       // when asked, or ("auto") when the app has API routes, middleware or loaders.
+      const appRoot = await serverRoot();
       const ship = mode === "ssr" || serverBuild === true ||
-        (serverBuild === "auto" && hasServerFiles(await discoverServerFiles(nodeHost, await serverRoot(), { exclude })));
+        (serverBuild === "auto" && (hasServerFiles(await discoverServerFiles(nodeHost, appRoot, { exclude })) ||
+          (await discoverServerModules(nodeHost, appRoot, { exclude })).length > 0));
+      shipsServer = ship;
       if (!ship && mode !== "ssg") return config;
       const outDir = nodeHost.path.resolve(projectRoot, userConfig.build?.outDir ?? "dist");
       const bundlerOptions = rolldown ? "rolldownOptions" : "rollupOptions";
@@ -234,6 +241,10 @@ export default function afw({
       };
       devServer.watcher.on("add", refresh);
       devServer.watcher.on("unlink", refresh);
+      // An edited .server module may add or remove server functions: rebuild the table.
+      devServer.watcher.on("change", (file) => {
+        if (SERVER_MODULE_FILE.test(slash(file))) void serverRoot().then((root) => invalidate(SERVER_PREFIX, [root]));
+      });
 
       // Server routes run on Node inside the dev server. Installed after Vite's own
       // middlewares, so modules and assets never reach the app's `_middleware`; what
@@ -310,7 +321,24 @@ export default function afw({
       return null;
     },
 
-    async load(id) {
+    async load(id, options) {
+      // A .server module in browser code becomes fetch stubs (docs/SERVER_FUNCTIONS.md);
+      // server builds keep the real module.
+      const file = cleanId(id);
+      if (SERVER_MODULE_FILE.test(file) && !file.startsWith("\0") && !isServer(this, options)) {
+        const root = await serverRoot();
+        if (!file.startsWith(`${root}/`)) this.error(`${file}: server modules must be inside the app directory (${root})`);
+        if (!shipsServer) this.error(`${file}: a server function cannot be called from this build, which has no server (server: false)`);
+        const source = await nodeHost.readText(file);
+        let exports;
+        try {
+          exports = await serverExports(await compiler(), file, source);
+        } catch (e) {
+          const diag = e?.diag ?? {};
+          this.error({ message: diag.message ?? e?.message ?? String(e), id: file, loc: diag.line ? { file, line: diag.line, column: Math.max(0, (diag.column ?? 1) - 1) } : undefined, frame: diag.frame });
+        }
+        return { code: serverFunctionStub(root, file, exports), map: null, moduleType: "js" };
+      }
       if (id === `\0${NODE_SERVER_ID}`) {
         return (
           `import * as app from ${JSON.stringify(SERVER_ID)};\n` +
@@ -322,7 +350,8 @@ export default function afw({
       if (id.startsWith(SERVER_PREFIX)) {
         const [root, query] = id.slice(SERVER_PREFIX.length).split("?");
         const pages = query === "pages";
-        const { code, files } = await serverModule(nodeHost, root, { exclude, i18n, pages, drafts: !pages });
+        const listExports = async (file) => serverExports(await compiler(), file, await nodeHost.readText(file));
+        const { code, files } = await serverModule(nodeHost, root, { exclude, i18n, pages, drafts: !pages, listExports });
         for (const file of files) this.addWatchFile(file);
         return { code, map: null };
       }

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- Server functions (`query()` / `action()` in `*.server.{js,ts}` under `app/`): browser
+  code gets fetch stubs in place of the module, the server gets the real module, and
+  the dev server and the built Node server answer `<folder>/__fn/<id>` inside that
+  folder's middleware. Importing a server-only helper into browser code fails the
+  build; so does calling a server function from a build with no server
+  (`server: false`). An app with only server functions ships a server under
+  `server: "auto"`. Editing a `.server` module updates its endpoints without a restart.
+
 ## [0.2.0] - 2026-11-04
 
 ### Fixed

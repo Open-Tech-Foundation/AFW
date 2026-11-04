@@ -7,6 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { build, createServer } from "vite";
 
+import { serverFunctionEndpoint } from "@opentf/afw-build";
 import afw from "@opentf/vite-plugin-afw";
 import { copyFixture } from "./helpers.mjs";
 
@@ -45,6 +46,34 @@ async function serverContract(origin) {
   assert.equal(guarded.headers.get("location"), "/");
 }
 
+// Server functions, called as the browser stub calls them (same origin).
+async function serverFunctionContract(origin, dir) {
+  const endpoint = (file, name) => `${origin}${serverFunctionEndpoint(`${dir}/app`, `${dir}/app/${file}`, name)}`;
+  const same = { origin };
+  const list = await fetch(`${endpoint("todos/todos.server.js", "listTodos")}?a=${encodeURIComponent('{"prefix":"test"}')}`, { headers: same });
+  assert.equal(list.status, 200);
+  assert.equal(list.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await list.json(), { todos: ["test it on Node"], via: "middleware" }, "middleware locals reach the function");
+
+  const add = endpoint("todos/todos.server.js", "addTodo");
+  const post = (body, headers = {}) => fetch(add, { method: "POST", headers: { ...same, "content-type": "application/json", ...headers }, body });
+  assert.deepEqual(await (await post('{"title":"x"}')).json(), { added: "x", checked: true });
+  assert.equal((await post("{}")).status, 422, "a thrown Response passes through");
+  assert.equal((await fetch(add, { headers: same })).status, 405, "an action is POST only");
+  assert.equal((await post('{"title":"x"}', { origin: "https://evil.test" })).status, 403, "cross-site calls are refused");
+
+  // The admin folder's middleware guards its functions too.
+  const stats = await fetch(endpoint("admin/stats.server.js", "stats"), { headers: same, redirect: "manual" });
+  assert.equal(stats.status, 302);
+  const allowed = await fetch(endpoint("admin/stats.server.js", "stats"), { headers: { ...same, "x-role": "admin" } });
+  assert.deepEqual(await allowed.json(), { users: 3 });
+
+  // Plain exports are not endpoints.
+  const helper = await fetch(endpoint("todos/todos.server.js", "helper"), { headers: same });
+  assert.doesNotMatch(helper.headers.get("content-type") ?? "", /json/);
+  assert.doesNotMatch(await helper.text(), /server-only-secret/);
+}
+
 describe("dev server", () => {
   let server, dir, cleanup, origin;
   before(async () => {
@@ -60,6 +89,15 @@ describe("dev server", () => {
   });
 
   test("runs API routes, middleware and loaders on Node", () => serverContract(origin));
+
+  test("answers server functions under the folder's middleware", () => serverFunctionContract(origin, dir));
+
+  test("serves a .server module to the browser as stubs only", async () => {
+    const code = await (await fetch(`${origin}/app/todos/todos.server.js`)).text();
+    assert.match(code, /serverFunction\(/);
+    assert.match(code, /listTodos/);
+    assert.doesNotMatch(code, /server-only-secret|node:fs|helper/);
+  });
 
   test("module requests never reach the app's middleware", async () => {
     const res = await fetch(`${origin}/app/admin/page.jsx`);
@@ -120,6 +158,16 @@ describe("production build", () => {
 
   test("the built server passes the same contract on plain Node", () => serverContract(origin));
 
+  test("the built server answers server functions", () => serverFunctionContract(origin, dir));
+
+  test("the client bundle has the stubs and none of the server module", async () => {
+    const { readdir } = await import("node:fs/promises");
+    const assets = join(dir, "dist", "client", "assets");
+    const code = (await Promise.all((await readdir(assets)).filter((f) => f.endsWith(".js")).map((f) => readFile(join(assets, f), "utf8")))).join("\n");
+    assert.ok(code.includes(serverFunctionEndpoint(`${dir}/app`, `${dir}/app/todos/todos.server.js`, "addTodo")));
+    assert.doesNotMatch(code, /server-only-secret|node:fs/);
+  });
+
   test("serves hashed assets as immutable and refuses paths outside the client", async () => {
     const shell = await (await fetch(`${origin}/`, { headers: html })).text();
     const script = shell.match(/src="(\/assets\/[^"]+\.js)"/)[1];
@@ -145,10 +193,34 @@ test("an app without server files builds the client alone", async () => {
 test("server: false keeps a full-stack app's build client-only", async () => {
   const { dir, cleanup } = await copyFixture("fullstack");
   try {
+    // No page calls a server function: a build with no server could not answer it.
+    const page = join(dir, "app", "todos", "page.jsx");
+    await writeFile(page, (await readFile(page, "utf8")).replace(/^import \{ addTodo.*$\n|^globalThis\.__todosFns.*$\n/gm, ""));
     // What `vite build` runs when the plugin configures no app build.
     await build({ ...quiet, root: dir, plugins: [afw({ server: false })] });
     assert.ok(await exists(join(dir, "dist", "index.html")));
     assert.ok(!(await exists(join(dir, "dist", "server"))));
+  } finally {
+    await cleanup();
+  }
+});
+
+test("importing a server-only helper into browser code fails the build", async () => {
+  const { dir, cleanup } = await copyFixture("fullstack");
+  try {
+    const page = join(dir, "app", "todos", "page.jsx");
+    await writeFile(page, (await readFile(page, "utf8")).replace("import { addTodo, listTodos }", "import { addTodo, helper, listTodos }"));
+    const { createBuilder } = await import("vite");
+    await assert.rejects((await createBuilder({ ...quiet, root: dir, plugins: [afw()] })).buildApp(), /helper/);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("a server function in a build with no server is an error", async () => {
+  const { dir, cleanup } = await copyFixture("fullstack");
+  try {
+    await assert.rejects(build({ ...quiet, root: dir, plugins: [afw({ server: false })] }), /has no server/);
   } finally {
     await cleanup();
   }
