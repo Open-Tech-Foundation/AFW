@@ -18,6 +18,28 @@ import { Link } from "@opentf/afw";
 <Link href="/about">About</Link>
 ```
 
+### Prefetching
+
+`<Link>` warms its route before the click, so the navigation has nothing left to wait
+for:
+
+- What is warmed: the page and layout chunks, and the route's
+  [loader data](/docs/data-fetching), which the navigation then reuses (once, within
+  30 seconds).
+- `prefetch="intent"` (default): on hover, focus or touch.
+- `prefetch="viewport"`: when the link scrolls into view, for a few key links.
+- `prefetch="none"`: never.
+- Skipped for `reload` links, MPA navigation, and when the browser asks to save data
+  (`Save-Data`).
+- `prefetch(path)` from `@opentf/afw` warms a route from code.
+- [`invalidate()`](/docs/server-functions#refetch-after-an-action) drops prefetched
+  data, which may be stale.
+
+```jsx
+<Link href="/dashboard" prefetch="viewport">Dashboard</Link>
+<Link href="/export" prefetch="none">Export</Link>
+```
+
 ## The router
 
 The global `router` is reactive — read its fields directly (no `.value`):

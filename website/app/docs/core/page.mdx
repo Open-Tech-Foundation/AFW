@@ -31,7 +31,9 @@ or nested data you update by mutation.
 | Export | Description |
 | --- | --- |
 | `mountApp(options)` | Boot the app: `{ pages, target, guard?, i18n?, nav?, loaders? }`. |
-| `Link` | Client-side navigation anchor (`<Link href="…">`). Localized automatically when i18n is enabled. |
+| `Link` | Client-side navigation anchor (`<Link href="…">`). Localized automatically when i18n is enabled; prefetches on hover by default (`prefetch="intent" \| "viewport" \| "none"`). |
+| `prefetch(path)` | Warm a route: its page and layout chunks and its loader data. |
+| `invalidate(...fns)` | Refetch the live resources that called these server functions; with no arguments, every resource and the page's loader data. |
 | `router` | Reactive route facade: `pathname`, `params`, `query`, `locale`, `data`, `push`, `replace`. |
 
 ### Internationalization

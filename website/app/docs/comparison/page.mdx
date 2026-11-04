@@ -69,7 +69,7 @@ gives you out of the box, and it is explicit about where AFW is behind.
 | Per-route error and loading UI | 🟡 ⁶ | ✅ | ✅ | ✅ | 🟡 | 🟡 | ❌ | 🟡 |
 | Server middleware | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Client-side route guards | ✅ | 🟡 | ✅ | 🟡 | ✅ | 🟡 | ❌ | 🟡 |
-| Link prefetching | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Link prefetching | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | View transitions | ❌ | 🟡 | 🟡 | ✅ | 🟡 | 🟡 | ✅ | ❌ |
 | Locale-prefix routing (i18n) | ✅ | 🟡 | ❌ | ❌ | 🟡 | 🟡 | ✅ | ❌ |
 
@@ -98,7 +98,8 @@ gives you out of the box, and it is explicit about where AFW is behind.
 10. In the esdev workflow, the server runs on ES-Runtime, which grants file, network
     and process access only as declared. It does not run Node APIs.
 11. Typed `query()` / `action()` server functions with schema validation, under folder
-    middleware. No progressive-enhancement forms or cross-call invalidation yet.
+    middleware, and `invalidate()` to refetch after an action. No progressive-enhancement
+    forms or single-flight updates yet.
 
 ## Pages, content and SEO
 
@@ -152,15 +153,15 @@ gives you out of the box, and it is explicit about where AFW is behind.
 
 AFW is alpha. Compared with the frameworks above it does not yet have:
 
-- **Complete server functions** — AFW has typed `query()` / `action()` calls, but not
-  yet forms that submit without JavaScript or refetching every use after an action,
-  which Next.js, React Router, SvelteKit and SolidStart provide.
+- **Complete server functions** — AFW has typed `query()` / `action()` calls and
+  `invalidate()`, but not yet forms that submit without JavaScript or single-flight
+  updates, which Next.js, React Router, SvelteKit and SolidStart provide.
 - **Streaming server rendering** — pages render to one complete HTML string, and
   loaders finish before rendering starts.
 - **Richer loaders** — layout loaders and redirects from a loader.
 - **Routing conventions** — route groups, optional segments, per-route error and
   loading files, and fully type-checked routes in the style of TanStack Router.
-- **Navigation polish** — link prefetching and view transitions.
+- **Navigation polish** — view transitions.
 - **Image optimization**, and **cached or incremental regeneration**.
 - **Ecosystem and maturity** — none of the others is new, and React, Vue and Svelte
   each come with a large library ecosystem AFW cannot match yet. APIs can change

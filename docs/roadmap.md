@@ -24,7 +24,8 @@
 * [x] Phase A: file-based `app/api/**` `Request→Response` handlers, method exports, `[param]`/`[...rest]`, nested `_middleware`, runtime handlers and API-bundle emission (`dist/server/api.js`); native esdev fullstack orchestration remains to be verified, Node/Fetch adapters.
 * [x] Phase B.1: typed server functions (`query`/`action` in `*.server.{js,ts}`), validated with Standard Schema, under folder middleware, encoded with `@opentf/serialize`; both toolchains, dev and production — see [docs/SERVER_FUNCTIONS.md](SERVER_FUNCTIONS.md).
 * [ ] Phase B.2: forms that submit to an action without JavaScript; redirects from actions.
-* [ ] Phase B.3: `invalidate(query)` and single-flight updates; opt-in query caching.
+* [x] Phase B.3a: `invalidate(query)` / `invalidate()` refetch live resources and the page's loader data.
+* [ ] Phase B.3b: single-flight updates; opt-in query caching.
 * [ ] Phase B.4: compiler co-location of server functions via the Server IR.
 
 ## Data Fetching — see [docs/DATA.md](DATA.md)

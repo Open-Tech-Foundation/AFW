@@ -162,5 +162,8 @@ export default function UserProfile() {
 - A rejection sets `error` and keeps the last good `data`; the next success
   clears it. `refetch()` re-runs manually.
 - A `source` returning `null`/`false` pauses fetching (conditional resources).
+- [`invalidate()`](/docs/server-functions#refetch-after-an-action) refetches every live
+  resource and reloads the page's loader data; `invalidate(listTodos)` only the
+  resources that called that server function.
 - During SSG/SSR nothing fetches and `loading` stays `true`, so the prerendered
   HTML shows your loading branch and [hydration](/docs/deployment/hydration) stays aligned.

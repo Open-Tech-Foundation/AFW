@@ -77,6 +77,33 @@ export default function Todos() {
 - Works with [`resource()`](/docs/data-fetching) as-is: it refetches when its
   arguments change and drops superseded responses.
 
+## Refetch after an action
+
+After an action changes data, `invalidate()` refetches what shows it:
+
+```jsx
+import { invalidate, resource } from "@opentf/afw";
+import { addTodo, listTodos } from "./todos.server.js";
+
+const todos = resource(() => listTodos({ done: false }));
+
+async function save(title) {
+  await addTodo({ title });
+  await invalidate(listTodos); // every live resource that called listTodos refetches
+}
+```
+
+- `invalidate(listTodos, listUsers)` — refetch the live resources that called these
+  server functions. Other resources are left alone.
+- `invalidate()` — refetch every live resource and reload the current page's
+  [loader data](/docs/data-fetching) into `router.data`. Use it when a page shows
+  loader data, as the starter's todos page does.
+- A resource records the server functions its fetcher calls as it starts
+  (`() => listTodos(args)`). For one called after an `await`, name it:
+  `resource(fn, { invalidatedBy: [listTodos] })`.
+- Resources of unmounted components are not refetched.
+- It resolves when the refetches settle; on the server it does nothing.
+
 ## Errors
 
 A failed call rejects with a `ServerFunctionError` (from `@opentf/afw`):
@@ -251,6 +278,7 @@ serve({ port: Number(env.PORT ?? "3000") }, handle);
 ## Not yet
 
 - Forms that submit to an action without JavaScript.
-- `invalidate(listTodos)` to refetch every live use after an action.
+- Single-flight updates: an action returning the fresh query data with its response,
+  saving the refetch round trip.
 - Server functions declared inside a component file.
 - Streaming results.
