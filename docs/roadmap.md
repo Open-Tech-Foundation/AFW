@@ -22,7 +22,7 @@
 
 ## API Routes — see [docs/API.md](API.md)
 * [x] Phase A: file-based `app/api/**` `Request→Response` handlers, method exports, `[param]`/`[...rest]`, nested `_middleware`, runtime handlers and API-bundle emission (`dist/server/api.js`); native esdev fullstack orchestration remains to be verified, Node/Fetch adapters.
-* [ ] Phase B (compiler): typed server functions / loaders + actions via the Server IR, splitting the client/server boundary.
+* [ ] Phase B: typed server functions (`query`/`action`) — planned in [docs/SERVER_FUNCTIONS.md](SERVER_FUNCTIONS.md); compiler co-location via the Server IR is its phase 4.
 
 ## Data Fetching — see [docs/DATA.md](DATA.md)
 * [x] Phase A.5 (runtime/toolchain): route loaders (`loader.{js,ts}` → `router.data`; inline payload + `<path>/__data.json` across dev/serve/SSG/SPA-nav) and the client-side `resource()` primitive.

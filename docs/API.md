@@ -179,10 +179,10 @@ plugin does not automatically expose variables based on a `PUBLIC_` prefix.
 
 ## 8. Phase B (planned)
 
-Typed **server functions** and **actions** callable from components — the compiler
-(Metadata + Server IR, ARCHITECTURE §4.4) splits the client/server boundary and
-generates the client-side `fetch`. This turns the Server IR placeholder into real
-lowering and is tracked separately from Phase A.
+Typed **server functions** and **actions** callable from components. The plan is in
+[docs/SERVER_FUNCTIONS.md](SERVER_FUNCTIONS.md): `query()` and `action()` exports in
+`*.server.{js,ts}` modules, served under each folder's middleware, with compiler
+co-location (Server IR, ARCHITECTURE §4.4) as a later phase.
 
 Page **loaders** shipped ahead of Phase B in runtime/toolchain form — a
 `loader.{js,ts}` file sibling to a page, feeding the reactive `router.data`
