@@ -78,6 +78,17 @@ try {
   await evaluate(`document.querySelector('a[href="/todos"]').click()`);
   check(await until("document.querySelectorAll('#todos li').length === 2"), "client navigation fetches loader data from the Node server");
   check((await evaluate("window.__marker")) === "kept", "the loader-data navigation does not reload");
+
+  // Server functions: the page imported stubs; calling them reaches Node.
+  check(JSON.stringify(await evaluate("__todosFns.listTodos({ prefix: 'test' })")) === JSON.stringify({ todos: ["test it on Node"], via: "middleware" }),
+    "a server function query runs on Node with the middleware's locals");
+  check((await evaluate("__todosFns.addTodo({ title: 'x' }).then((r) => r.added)")) === "x", "a server function action posts and returns its result");
+  check((await evaluate("__todosFns.addTodo({}).catch((e) => e.name + ' ' + e.status)")) === "ServerFunctionError 422",
+    "a refused action rejects with a ServerFunctionError and its status");
+  const fnsFile = join(dir, "app", "todos", "todos.server.js");
+  await writeFile(fnsFile, (await readFile(fnsFile, "utf8")).replace("return { added: title,", "return { added: title.toUpperCase(),"));
+  check(await until("__todosFns.addTodo({ title: 'y' }).then((r) => r.added === 'Y')"), "an edited server function answers without a restart");
+  check((await evaluate("window.__marker")) === "kept", "calling server functions does not reload");
   await evaluate(`document.querySelector('a[href="/"]').click()`);
   await until("document.getElementById('counter')");
   await evaluate("document.getElementById('counter').click()");

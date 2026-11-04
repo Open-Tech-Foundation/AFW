@@ -1,8 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { listTodos } from "./todos.server.js";
 
-// Data read with Node's fs, relative to where the server runs (the project root).
+// A server function called directly on the server: no HTTP round trip, same locals.
 export default async function loader({ locals }) {
-  const todos = JSON.parse(await readFile(join(process.cwd(), "data", "todos.json"), "utf8"));
-  return { todos, via: locals.via };
+  return listTodos({}, { locals });
 }
