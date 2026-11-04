@@ -9,7 +9,7 @@ export interface AfwPluginOptions {
   exclude?: string[];
   /** `false` drops the `@afw/routes` module. Default `true`. */
   routes?: boolean;
-  /** Build `dist/server`: `"auto"` (default) when the app has API routes, middleware or loaders. */
+  /** Build `dist/server`: `"auto"` (default) when the app has API routes, middleware, loaders or server functions. */
   server?: boolean | "auto";
   /** Force one compiler backend (tests, custom builds). */
   target?: "csr" | "ssg" | "hydrate";
@@ -21,3 +21,10 @@ export interface AfwPluginOptions {
 
 /** AFW for Vite: compiles components, serves `@afw/routes`, runs server routes on Node. */
 export default function afw(options?: AfwPluginOptions): Plugin;
+
+/**
+ * The project's AFW source packages: dependencies in `<root>/package.json` that declare
+ * `@opentf/afw` as a peer or dependency (component libraries publishing JSX). The
+ * plugin compiles them instead of pre-bundling them or loading them as they are.
+ */
+export function afwSourcePackages(root: string): Promise<string[]>;

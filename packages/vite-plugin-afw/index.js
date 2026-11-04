@@ -46,6 +46,39 @@ const pass = () => new Response(null, { status: 404, headers: { [PASS_HEADER]: "
 export const AFW_PACKAGE_PATH = /[\\/]node_modules[\\/]@opentf[\\/]/;
 const OWN_PACKAGES = ["@opentf/afw", "@opentf/afw-docs", "@opentf/afw-form", "@opentf/afw-i18n", "@opentf/afw-test"];
 
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * The project's AFW source packages: dependencies that declare `@opentf/afw` (as a peer
+ * or a dependency), such as component libraries publishing JSX. Like AFW's own
+ * packages, they must go through the compiler: never pre-bundled, never loaded from
+ * node_modules as they are by Node or Vitest.
+ */
+export async function afwSourcePackages(root) {
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  } catch {
+    return [];
+  }
+  const names = Object.keys({ ...manifest.dependencies, ...manifest.devDependencies, ...manifest.optionalDependencies })
+    .filter((name) => !name.startsWith("@opentf/"));
+  const found = [];
+  for (const name of names) {
+    // The package's own manifest, from the nearest node_modules up from the project.
+    for (let dir = root; ; dir = nodeHost.path.dirname(dir)) {
+      try {
+        const dep = JSON.parse(await readFile(join(dir, "node_modules", name, "package.json"), "utf8"));
+        if (dep.peerDependencies?.["@opentf/afw"] || dep.dependencies?.["@opentf/afw"]) found.push(name);
+        break;
+      } catch {
+        if (nodeHost.path.dirname(dir) === dir) break;
+      }
+    }
+  }
+  return found;
+}
+
 const cleanId = (id) => id.replace(/[?#].*$/, "");
 // Imports the generated server modules make on the plugin's behalf. They are the
 // plugin's dependencies, not the app's, so they resolve from here: under a strict
@@ -164,19 +197,23 @@ export default function afw({
       // JSX. Compiled `.tsx` still carries its TypeScript types, so Vite's transform
       // keeps running there to strip them. Vite 8 transforms with Oxc, Vite 7 with esbuild.
       const rolldown = !!this?.meta?.rolldownVersion;
+      const rootOption = userConfig.root ?? userConfig.test?.root;
+      const root = slash(rootOption ? nodeHost.path.resolve(nodeHost.cwd(), rootOption) : nodeHost.cwd());
+      const libraries = await afwSourcePackages(root);
+      const libraryPaths = libraries.map((name) => new RegExp(`[\\\\/]node_modules[\\\\/]${escapeRegExp(name).replace("/", "[\\\\/]")}[\\\\/]`));
       const config = {
         [rolldown ? "oxc" : "esbuild"]: { exclude: [JS_SOURCE_FILTER] },
-        optimizeDeps: { exclude: [...OWN_PACKAGES] },
-        // AFW's own server code is bundled into dist/server; the app's npm
-        // dependencies stay external and load from node_modules at run time.
-        ssr: { noExternal: [/^@opentf\/afw/, /^@opentf\/vite-plugin-afw/] },
+        optimizeDeps: { exclude: [...OWN_PACKAGES, ...libraries] },
+        // AFW's own server code and AFW source packages are bundled into dist/server;
+        // the app's other npm dependencies stay external and load from node_modules.
+        ssr: { noExternal: [/^@opentf\/afw/, /^@opentf\/vite-plugin-afw/, ...libraries] },
       };
       if (env.mode === "test") {
         // AFW packages ship JSX sources (afw-docs components); Vitest must run them
         // through the compiler rather than load them from node_modules as they are.
         // Vitest matches resolved paths as well as names, so both forms are listed:
         // in an installed app the files sit under node_modules/@opentf/.
-        return { ...config, test: { server: { deps: { inline: [/^@opentf\//, AFW_PACKAGE_PATH] } } } };
+        return { ...config, test: { server: { deps: { inline: [/^@opentf\//, AFW_PACKAGE_PATH, ...libraries, ...libraryPaths] } } } };
       }
       if (env.command !== "build") return config;
       projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());

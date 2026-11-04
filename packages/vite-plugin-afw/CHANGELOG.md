@@ -11,6 +11,10 @@
   build; so does calling a server function from a build with no server
   (`server: false`). An app with only server functions ships a server under
   `server: "auto"`. Editing a `.server` module updates its endpoints without a restart.
+- Component libraries that publish JSX source work from `node_modules`: any
+  dependency that declares `@opentf/afw` (as a peer or dependency) is compiled like
+  AFW's own packages — kept out of dev pre-bundling, bundled into server and
+  prerender builds, and inlined for Vitest. `afwSourcePackages(root)` lists them.
 
 ## [0.2.0] - 2026-11-04
 
