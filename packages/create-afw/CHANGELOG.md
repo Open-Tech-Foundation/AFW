@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-04
+
 ### Changed
 
 - Interactive prompts like `create-vite`'s: arrow-key selection with descriptions, a

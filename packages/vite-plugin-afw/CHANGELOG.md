@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-04
+
 ### Fixed
 
 - Vitest compiles AFW's packages in installed apps. The test-mode inline rule matched
