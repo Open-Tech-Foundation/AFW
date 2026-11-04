@@ -11,7 +11,8 @@
 - Tailwind CSS: a styling choice for apps and libraries (`--styling tailwind`, or
   `--tailwind`), set up with `@tailwindcss/vite`.
 - Apps with a server include server functions: `app/todos/todos.server.js`, called by
-  the todos page and directly by its loader.
+  the todos page and directly by its loader; after adding a todo the page calls
+  `invalidate()` to reload its data.
 
 ### Changed
 

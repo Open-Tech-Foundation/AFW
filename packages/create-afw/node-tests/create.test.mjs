@@ -139,11 +139,14 @@ for (const language of ["ts", "js"]) {
           // The page's server function, called as its browser stub calls it.
           const assets = join(client, "assets");
           const code = (await Promise.all((await readdir(assets)).filter((f) => f.endsWith(".js")).map((f) => readFile(join(assets, f), "utf8")))).join("\n");
-          const endpoint = code.match(/\/todos\/__fn\/[0-9a-f]{16}/)?.[0];
-          assert.ok(endpoint, "the client bundle calls the server function");
-          const added = await fetch(`${url}${endpoint}`, { method: "POST", headers: { origin: url, "content-type": "application/json" }, body: '{"v":{"title":"Ship it"}}' });
-          assert.equal(added.status, 200);
-          assert.deepEqual((await added.json()).v.at(-1), "Ship it");
+          const endpoints = [...new Set(code.match(/\/todos\/__fn\/[0-9a-f]{16}/g) ?? [])];
+          assert.ok(endpoints.length, "the client bundle calls the server functions");
+          // The action answers with the list it added to; a query ignores the title.
+          const answers = await Promise.all(endpoints.map(async (endpoint) => {
+            const res = await fetch(`${url}${endpoint}`, { method: "POST", headers: { origin: url, "content-type": "application/json" }, body: '{"v":{"title":"Ship it"}}' });
+            return res.status === 200 ? (await res.json()).v : null;
+          }));
+          assert.ok(answers.some((list) => list?.at(-1) === "Ship it"), JSON.stringify(answers));
         } finally {
           child.kill();
         }

@@ -357,20 +357,20 @@ export default async function loader({ locals }${ts ? ": { locals: Record<string
   return { todos: await listTodos(undefined, { locals }) };
 }
 `;
-  files[`app/todos/page.${jsx}`] = `import { router } from "@opentf/afw";
+  files[`app/todos/page.${jsx}`] = `import { invalidate, router } from "@opentf/afw";
 import { addTodo } from "./todos.server.${js}";
 
 export const metadata = { title: "Todos" };
 
 export default function Todos() {
-  let added = $state${ts ? "<string[] | null>" : ""}(null);
   let title = $state("");
-  const todos = $derived(added ?? ${ts ? "(router.data as { todos?: string[] } | undefined)" : "router.data"}?.todos ?? []);
+  const todos = $derived(${ts ? "(router.data as { todos?: string[] } | undefined)" : "router.data"}?.todos ?? []);
 
   async function add(event${ts ? ": SubmitEvent" : ""}) {
     event.preventDefault();
-    added = await addTodo({ title });
+    await addTodo({ title });
     title = "";
+    await invalidate(); // reload this page's loader data
   }
 
   return (
