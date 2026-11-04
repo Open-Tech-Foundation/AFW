@@ -1,22 +1,31 @@
 ---
 title: Library Template
-description: Publish JSX source components and test them through esdev.
+description: Publish components as JSX source; apps compile them with esdev or Vite.
 ---
 
 import { Callout } from "@opentf/afw-docs";
 
 # Library Template
 
-Component libraries can ship JSX/TSX source from `index.js`. Consumer apps compile
-that source with `@opentf/esdev-plugin-afw`; the library does not need to bundle a
-second copy of the framework.
+Component libraries can ship JSX/TSX source from `index.js`. Apps compile that source
+with their own AFW plugin, so the library does not bundle a second copy of the
+framework.
 
-```bash
-esdev create my-lib --template=library --package-manager=pnpm
-```
+- **esdev:** `esdev create my-lib --template=library --package-manager=pnpm`. The
+  project compiles components for tests and includes a rendering test that
+  `esdev test --dom` runs.
+- **Vite:** `npm create @opentf/afw my-lib -- --template=library` (add
+  `--styling=tailwind` for Tailwind classes). It includes a preview app
+  (`npm run dev`) and a Vitest test.
 
-The generated project compiles components for tests and includes a rendering test;
-`esdev test --dom` runs it.
+## Using a library in a Vite app
+
+- Install it next to `@opentf/afw`. Nothing to configure.
+- `@opentf/vite-plugin-afw` compiles every dependency that declares `@opentf/afw` (as a
+  peer or a dependency): in the dev server, in server and prerender builds, and in
+  Vitest.
+- A library that uses Tailwind classes needs `@source "../node_modules/my-lib";` in the
+  app's stylesheet, since Tailwind does not scan `node_modules`.
 
 ## Package entry
 

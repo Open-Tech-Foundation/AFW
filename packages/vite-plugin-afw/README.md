@@ -53,7 +53,8 @@ canonical links and `sitemap.xml`.
 
 ## Server routes
 
-API routes (`route.js`), middleware (`_middleware.js`) and loaders (`loader.js`) run
+API routes (`route.js`), middleware (`_middleware.js`), loaders (`loader.js`) and
+[server functions](https://afw.opentechf.org/docs/server-functions) (`*.server.js`) run
 on Node, so they can use any npm package, native addons included:
 
 ```js
@@ -82,7 +83,7 @@ export async function POST(request) {
 | `appDir` | `"app"` | The routes folder. A bare name is found beside the importing entry |
 | `exclude` | `[]` | Folders under `appDir` that hold no routes |
 | `routes` | `true` | `false` drops the `@afw/routes` module |
-| `server` | `"auto"` | Build `dist/server`: `"auto"` when the app has server files, or `true`/`false` |
+| `server` | `"auto"` | Build `dist/server`: `"auto"` when the app has server files or server functions, or `true`/`false` |
 | `i18n` | — | `{ locales, defaultLocale }`: locale prefixes for server routes and rendered pages |
 | `baseUrl` | `""` | The site's absolute URL, for canonical links and `sitemap.xml` |
 | `target` | — | Force one compiler backend (`csr`, `ssg`, `hydrate`) |
@@ -90,7 +91,12 @@ export async function POST(request) {
 ## What it does
 
 - Compiles `.jsx`, `.tsx`, `.md` and `.mdx` through the AFW compiler, including those
-  shipped by AFW packages such as `@opentf/afw-docs`.
+  shipped by AFW packages such as `@opentf/afw-docs` and by component libraries: any
+  dependency that declares `@opentf/afw` is kept out of pre-bundling, bundled into
+  server builds and inlined for Vitest.
+- Works with Tailwind CSS 4: add `tailwindcss()` from `@tailwindcss/vite` after `afw()`.
+- Replaces `*.server.js` modules with fetch stubs in browser code; the server answers
+  them under their folder's middleware.
 - Generates `@afw/routes` from `app/`: pages (lazy, code-split), loader route patterns
   and the route guard. Adding or removing a route file reloads the route table.
 - Development: components, pages and layouts refresh in place, keeping their state

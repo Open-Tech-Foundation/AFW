@@ -87,17 +87,34 @@ npm create @opentf/afw my-app
 Follow the prompts, or pass the choices as flags:
 
 ```bash
-npm create @opentf/afw my-app -- --template=fullstack --language=ts
+npm create @opentf/afw my-app -- --template=app --render=ssg --server --styling=tailwind
 ```
 
 | Template | Purpose |
 | --- | --- |
-| `spa` | A browser app with file-based routing and client rendering. |
-| `fullstack` | An SPA plus API routes, middleware and loaders on a Node server. |
-| `ssr` | Pages rendered on a Node server per request and hydrated in the browser. |
-| `ssg` | Every page prerendered to static HTML at build time. |
+| `app` | An app with file-based routing; you choose how pages render and whether it has a server. |
+| `docs` | An MDX docs and blog site (`@opentf/afw-docs`), prerendered, with search and feeds. |
+| `library` | A component library published as JSX source, compiled by the apps that use it. |
 
-Each project has `dev`, `build`, `test` (Vitest) and either `start` (the built Node
-server) or `preview` scripts. TypeScript projects add `typecheck`. Server code runs
-on Node in development and production, so any npm package works there.
+The choices for `app` are independent:
+
+- **Rendering** (`--render`): `spa` renders in the browser, `ssr` renders per request on
+  Node and hydrates, `ssg` prerenders to static HTML at build time.
+- **Server** (`--server`): API routes, middleware, loaders and
+  [server functions](/docs/server-functions) on Node, with any rendering. `ssr` always
+  has one.
+- **Styling** (`--styling`): plain CSS or [Tailwind CSS](/docs/core-concepts/styling#tailwind-css),
+  also for `library`.
+- **Language** (`--language`): `ts` (default) or `js`, for every template.
+
+Scripts:
+
+- Apps and docs sites: `dev`, `build`, `test` (Vitest), and `start` (the built Node
+  server) or `preview`.
+- Libraries: `dev` (a preview app) and `test`.
+- TypeScript projects add `typecheck`.
+- Server code runs on Node in development and production, so any npm package works
+  there.
+- The template names of earlier releases (`spa`, `fullstack`, `ssr`, `ssg`) still work
+  as shorthands for `app`.
 

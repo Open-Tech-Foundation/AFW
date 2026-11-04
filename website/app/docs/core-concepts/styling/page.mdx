@@ -1,6 +1,6 @@
 ---
 title: Styling
-description: Global CSS, CSS Modules, inline style objects, and dynamic classes.
+description: Global CSS, CSS Modules, Tailwind CSS, inline style objects, and dynamic classes.
 ---
 
 # Styling
@@ -24,6 +24,53 @@ import styles from "./Card.module.css";
 
 <div class={styles.card}>…</div>
 ```
+
+## Tailwind CSS
+
+Tailwind CSS 4 works in both workflows. Start the stylesheet with its import and use
+utility classes in `class`:
+
+```css
+/* app/global.css */
+@import "tailwindcss";
+```
+
+```jsx
+<button class="rounded-md bg-sky-600 px-3 py-1 text-white">Save</button>
+```
+
+**Vite + Node** — add the Tailwind Vite plugin after AFW's
+(`npm create @opentf/afw -- --styling=tailwind` sets this up):
+
+```bash
+npm install -D tailwindcss @tailwindcss/vite
+```
+
+```js
+// vite.config.js
+import afw from "@opentf/vite-plugin-afw";
+import tailwindcss from "@tailwindcss/vite";
+
+export default { plugins: [afw(), tailwindcss()] };
+```
+
+**esdev + ES-Runtime** — no plugin and no config: install `tailwindcss` and import it.
+esdev compiles the stylesheet with the project's own Tailwind
+([esdev's Tailwind guide](https://esrun.opentechf.org/esdev/build/tailwind)).
+
+```bash
+npm install -D tailwindcss
+```
+
+Either way:
+
+- Classes are found by scanning the project's source files, `.jsx`, `.tsx` and `.mdx`
+  included, in both string and object `class` values.
+- A class must appear in full in the source: write `done ? "line-through" : ""`, not a
+  name assembled from pieces.
+- `node_modules` is not scanned. For a component library that uses Tailwind classes, add
+  its folder with `@source "../node_modules/my-lib";`.
+- Tailwind v3 (configured through PostCSS) is not supported by esdev; use v4.
 
 ## Inline styles
 
