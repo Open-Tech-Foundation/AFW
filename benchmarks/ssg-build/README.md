@@ -2,7 +2,7 @@
 
 **What it measures:** the cost of *building* a static site — peak memory and wall
 time for both AFW workflows (`esdev build`, `vite build`) and the equivalent command
-in four other tools, all rendering the **same** MDX page.
+in five other tools, all rendering the **same** MDX page.
 
 This is a **build-time** benchmark. It is unrelated to the runtime benchmark in
 [`../README.md`](../README.md), which measures update latency in the browser.
@@ -38,19 +38,20 @@ Sites stay at **one page** so the numbers isolate per-page cost.
 | **Next.js** 16.4 + `@next/mdx`, Turbopack | `next build` (`output: "export"`) | yes — 557 KB |
 | **TanStack Start** 1.169 | `vite build` (prerender) | yes — 506 KB |
 | **Vite** 8.3 + `@mdx-js/rollup` 3.1 | SSR bundle + a prerender script | no |
+| **Bun** 1.4 + `@mdx-js/mdx` 3.1 | `Bun.build` SSR bundle + a prerender step (`bun build.mjs`) | no |
 
-**Read the last column before comparing anything.** Astro and Vite emit no
+**Read the last column before comparing anything.** Astro, Vite and Bun emit no
 client bundle for these pages, so they are doing strictly less work than the
 three tools that also build a hydration bundle. Vite is not an SSG framework at
 all — it is the standard hand-rolled `renderToString` + prerender pattern,
 included as a floor for "what does the underlying toolchain cost".
 
 Two smaller asymmetries: AFW and Astro syntax-highlight the code blocks at build
-time (AFW with `syntect`, Astro with Shiki by default) while Next.js, TanStack Start and
-Vite produce no highlight markup, and Next.js inlines an RSC payload the others have no
+time (AFW with `syntect`, Astro with Shiki by default) while Next.js, TanStack Start,
+Vite and Bun produce no highlight markup, and Next.js inlines an RSC payload the others have no
 equivalent of.
 
-Output parity was verified rather than assumed — all six emit the same
+Output parity was verified rather than assumed — all seven emit the same
 structure (36 `<table>` and 43 `<pre>` at 1×; 288 and 344 at 8×).
 
 ## Results
@@ -66,7 +67,8 @@ Median of three warm runs.
 
 | | peak RSS | wall |
 |---|---|---|
-| **AFW on esdev** | **165 MB** | **0.21 s** |
+| Bun (no client bundle) | **141 MB** | 0.33 s |
+| **AFW on esdev** | 165 MB | **0.21 s** |
 | Vite (no client bundle) | 354 MB | 0.78 s |
 | **AFW on Vite + Node** | 403 MB | 0.54 s |
 | Astro (no client bundle) | 589 MB | 1.09 s |
@@ -80,21 +82,24 @@ median above).
 
 | | 72 KB | 145 KB | 289 KB | 578 KB | 1.2 MB | 2.3 MB |
 |---|---|---|---|---|---|---|
-| **AFW on esdev** | **165 / 0.21** | **210 / 0.32** | **282 / 0.46** | **406 / 0.89** | **582 / 1.81** | **901** / 4.04 |
+| **AFW on esdev** | 165 / **0.21** | 210 / **0.32** | 282 / **0.46** | 406 / **0.89** | **582 / 1.81** | **901** / 4.04 |
 | **AFW on Vite + Node** | 403 / 0.54 | 445 / 0.65 | 528 / 0.83 | 577 / 1.25 | 764 / 2.30 | 971 / 4.75 |
 | Astro | 589 / 1.09 | 618 / 1.17 | 655 / 1.26 | 758 / 1.46 | 888 / 2.14 | 1286 / **2.80** |
 | Vite | 354 / 0.78 | 370 / 0.96 | 477 / 1.29 | 670 / 2.04 | 919 / 3.59 | 1361 / 7.15 |
 | TanStack Start | 689 / 1.58 | 740 / 1.93 | 841 / 2.69 | 1249 / 4.35 | 1424 / 7.79 | 2511 / 16.98 |
 | Next.js | 904 / 1.85 | 1158 / 2.79 | 1219 / 3.84 | 1630 / 5.78 | 2230 / 12.16 | 2815 / 28.07 |
+| Bun | **141** / 0.33 | **175** / 0.51 | **256** / 0.79 | **389** / 1.37 | 598 / 2.60 | 1083 / 5.58 |
 
 Single runs above 72 KB, so read the shape of each row rather than its individual
 cells.
 
 ### Where AFW stands
 
-- **Memory:** AFW on esdev has the lowest peak at every size, 901 MB at 2.3 MB against
-  Astro's 1286 MB, while also building a client bundle.
-- **Build time:** AFW on esdev is fastest up to 1.2 MB. At 2.3 MB Astro is faster
+- **Memory:** Bun has the lowest peak up to 578 KB (141 MB against AFW's 165 MB at
+  72 KB), building no client bundle. From 1.2 MB AFW on esdev is lowest: 901 MB at
+  2.3 MB against Bun's 1083 MB and Astro's 1286 MB, while also building a client bundle.
+- **Build time:** AFW on esdev is fastest up to 1.2 MB, and faster than Bun at every
+  size. At 2.3 MB Astro is faster
   (2.8 s against 4.0 s); AFW's time grows faster than linearly between the last two
   sizes, which is the next thing to investigate. Astro builds no client bundle.
 - **The two AFW workflows:** Vite + Node costs about 240 MB more at 72 KB than esdev (it
@@ -214,7 +219,7 @@ whole process tree — is defined by code you can read rather than by a claim.
 
 **Not reproducible today:** the *exact table*, from a single command. Three gaps:
 
-1. **The five projects are not vendored.** You rebuild them from the notes below.
+1. **The comparison projects are not vendored.** You rebuild them from the notes below.
 2. **Dependency versions float.** They were installed with plain `npm i`, so a run
    next month resolves different versions. The majors used are in the table above.
 3. **The compiler is a local build.** The last three AFW rows are
@@ -256,7 +261,7 @@ python3 measure.py <label> <outdir> -- <command...>
 esdev benchmarks/ssg-build/make-ladder.mjs path/to/spec.mdx ./out   # writes spec-1x.mdx … spec-32x.mdx
 ```
 
-The five projects are not vendored — each needs its own `node_modules`, and
+The comparison projects are not vendored — each needs its own `node_modules`, and
 pinning five toolchains in this repo would rot faster than it would help. Create
 them from the table above (one route importing the fixture, defaults everywhere
 else), then measure each build. Points worth knowing if you rebuild the set:
@@ -281,6 +286,10 @@ fixture as `app/page.mdx`, an `index.html` and an `entry.js` that calls `mountAp
   prerender target (`ssg.js`, `then: "run"`). `ssg.js` is the website's own
   (`website/ssg.js`). Measured: `esdev build --minify`.
 - **Vite + Node** — `vite.config.js` with `afw({ mode: "ssg" })`. Measured: `vite build`.
+
+**Bun** — `build.mjs`: `Bun.build` with an `onLoad` plugin that compiles `.mdx` with
+`@mdx-js/mdx` and `remark-gfm`, then renders the SSR bundle into `dist/index.html`.
+Measured: `bun build.mjs`.
 
 `make-ladder.mjs` runs on esdev from the repo root:
 `esdev benchmarks/ssg-build/make-ladder.mjs <spec.mdx> <outdir>`. `measure.py` is

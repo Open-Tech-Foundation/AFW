@@ -127,9 +127,10 @@ export default function Benchmarks() {
       <h2 className={H2}>Build cost — a framework-level comparison</h2>
       <p className={P}>
         This one compares frameworks: Astro, Next.js and TanStack Start are full
-        frameworks, and Vite is the underlying build tool included as a floor. AFW is measured
+        frameworks, and Vite and Bun are build tools included as floors — each compiling the
+        MDX page, rendering it on the server and writing the HTML. AFW is measured
         in both of its workflows — esdev, and Vite + Node. It measures the cost of{" "}
-        <em>building</em> a static site, not of serving one — six toolchains pre-rendering the
+        <em>building</em> a static site, not of serving one — seven toolchains pre-rendering the
         same 72&nbsp;KB MDX documentation page.
       </p>
 
@@ -139,11 +140,11 @@ export default function Benchmarks() {
 
       <h3 className={H3}>Read the asymmetries first</h3>
       <p className={P}>
-        The columns do not represent equal work. Astro and Vite ship no client JavaScript
-        for these pages, whereas both AFW workflows, Next.js and TanStack Start additionally
+        The columns do not represent equal work. Astro, Vite and Bun ship no client
+        JavaScript for these pages, whereas both AFW workflows, Next.js and TanStack Start additionally
         build a hydration bundle. Two smaller asymmetries: AFW and Astro
         syntax-highlight the code blocks at build time (Astro with Shiki, by default) while
-        Next.js, TanStack Start and Vite do not, and Next.js inlines an RSC payload the others
+        Next.js, TanStack Start, Vite and Bun do not, and Next.js inlines an RSC payload the others
         have no equivalent of.
       </p>
       <p className={P}>
@@ -153,9 +154,11 @@ export default function Benchmarks() {
       </p>
       <p className={P}>
         As the page grows, the picture changes. Across a ladder from 72&nbsp;KB to 2.3&nbsp;MB,
-        AFW on esdev keeps the lowest peak memory throughout (901&nbsp;MB at 2.3&nbsp;MB, against
-        Astro&rsquo;s 1,286&nbsp;MB) and builds fastest up to about 1&nbsp;MB. At 2.3&nbsp;MB Astro
-        builds faster (2.8&nbsp;s against 4.0&nbsp;s), without building a client bundle. The full
+        Bun uses the least memory up to about 0.6&nbsp;MB, without building a client bundle; from
+        1.2&nbsp;MB AFW on esdev uses the least (901&nbsp;MB at 2.3&nbsp;MB, against Bun&rsquo;s
+        1,083&nbsp;MB and Astro&rsquo;s 1,286&nbsp;MB). AFW on esdev builds fastest up to about
+        1&nbsp;MB, and faster than Bun at every size; at 2.3&nbsp;MB Astro builds faster
+        (2.8&nbsp;s against 4.0&nbsp;s), also without a client bundle. The full
         ladder is in the{" "}
         <a href="https://github.com/Open-Tech-Foundation/afw/blob/main/benchmarks/ssg-build/README.md" className={A}>
           benchmark&rsquo;s README
