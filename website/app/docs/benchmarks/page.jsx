@@ -24,6 +24,16 @@ const A = "text-[var(--accent)] underline";
 export default function Benchmarks() {
   const resolutionMs = benchmark.resolutionMs.toFixed(1);
   const runs = benchmark.runs ?? 3;
+  // The commentary reads its figures from the report, so it cannot drift from the table.
+  const ms = (label, engine) => {
+    const value = benchmark.rows.find((r) => r.label === label)?.values[engine];
+    return typeof value === "number" ? Math.round(value).toLocaleString("en") : "—";
+  };
+  const wins = benchmark.rows.filter((r) => r.best).map((r) => ({ label: r.label, engine: r.best }));
+  const name = (engine) => (engine === "afw" ? "AFW" : engine[0].toUpperCase() + engine.slice(1));
+  const winsText = wins.length
+    ? `${wins.map((w) => `${name(w.engine)} takes ${w.label}`).join("; ")}; the other ${benchmark.rows.length - wins.length} rows are ties.`
+    : "Every row is a tie.";
 
   return (
     <div className="flex-1 max-w-4xl mx-auto px-8 w-full py-16">
@@ -36,9 +46,9 @@ export default function Benchmarks() {
       </p>
 
       <p className={NOTE}>
-        The runtime table was re-measured on {benchmark.generatedAt.slice(0, 10)} with the current
-        toolchain, all four engines under the same conditions. The build-cost table keeps its
-        July–August 2026 measurements from the earlier toolchain.
+        Both tables were re-measured with the current toolchains: the runtime table on{" "}
+        {benchmark.generatedAt.slice(0, 10)}, the build-cost table on {ssgBenchmark.measuredAt}, each
+        with every engine under the same conditions.
       </p>
 
       {/* ── Runtime ─────────────────────────────────────────────────────────── */}
@@ -56,9 +66,10 @@ export default function Benchmarks() {
       </div>
 
       <p className={P}>
-        AFW leads no operation here. Solid takes <em>create 1,000 rows</em>; the other
-        seven rows are ties. It is well clear of React on <em>swap 2 rows</em> (33 vs 246)
-        and <em>clear 10,000</em> (179 vs 261).
+        {winsText}{" "}
+        AFW is well clear of React on <em>swap 2 rows</em> ({ms("swap 2 rows (1k)", "afw")} vs {ms("swap 2 rows (1k)", "react")}),{" "}
+        <em>create 10,000 rows</em> ({ms("create 10,000 rows", "afw")} vs {ms("create 10,000 rows", "react")}) and{" "}
+        <em>clear 10,000 rows</em> ({ms("clear 10,000 rows", "afw")} vs {ms("clear 10,000 rows", "react")}).
       </p>
 
       <h3 className={H3}>Method</h3>
@@ -90,9 +101,8 @@ export default function Benchmarks() {
       <h3 className={H3}>What is and is not fair here</h3>
       <p className={P}>
         The asymmetry between a framework and a view library is real, but it lands{" "}
-        <em>outside</em> the measured window. The published AFW case was measured with the full{" "}
-        <code>afw build</code> toolchain and boots the router and mount layer; the other
-        three are minimal hand-rolled bundles with no router. The current AFW runner uses esdev; these published measurements retain their original toolchain. That cost is paid once at
+        <em>outside</em> the measured window. The AFW case is built with esdev and boots the router and mount
+        layer; the other three are minimal hand-rolled bundles with no router. That cost is paid once at
         startup and never enters a timed sample, so it neither inflates nor deflates the
         per-operation medians — but it does mean AFW carries weight the others do not.
         For the same reason, a bundle-size column would <em>not</em> belong in this table.
@@ -117,9 +127,10 @@ export default function Benchmarks() {
       <h2 className={H2}>Build cost — a framework-level comparison</h2>
       <p className={P}>
         This one compares frameworks: Astro, Next.js and TanStack Start are full
-        frameworks, and Vite is the underlying build tool included as a floor. It measures
-        the cost of <em>building</em> a static site, not of serving one — five toolchains
-        pre-rendering the same 72&nbsp;KB MDX documentation page.
+        frameworks, and Vite is the underlying build tool included as a floor. AFW is measured
+        in both of its workflows — esdev, and Vite + Node. It measures the cost of{" "}
+        <em>building</em> a static site, not of serving one — six toolchains pre-rendering the
+        same 72&nbsp;KB MDX documentation page.
       </p>
 
       <div className={CARD}>
@@ -128,24 +139,27 @@ export default function Benchmarks() {
 
       <h3 className={H3}>Read the asymmetries first</h3>
       <p className={P}>
-        The columns do not represent equal work. <code>astro</code> and <code>vite</code>{" "}
-        ship no client JavaScript for these pages, whereas AFW, Next.js and TanStack
-        Start additionally build a hydration bundle. Two smaller asymmetries run the other
-        way, against AFW: it is the only tool that syntax-highlights the code blocks at
-        build time, and Next.js inlines an RSC payload the others have no equivalent of.
+        The columns do not represent equal work. Astro and Vite ship no client JavaScript
+        for these pages, whereas both AFW workflows, Next.js and TanStack Start additionally
+        build a hydration bundle. Two smaller asymmetries: AFW and Astro
+        syntax-highlight the code blocks at build time (Astro with Shiki, by default) while
+        Next.js, TanStack Start and Vite do not, and Next.js inlines an RSC payload the others
+        have no equivalent of.
       </p>
       <p className={P}>
-        The figures also come from two separate runs. The AFW column was re-measured
-        after the build fixes in <code>@opentf/afw-compiler</code> and re-verified across
-        the whole 72&nbsp;KB–2.3&nbsp;MB ladder; the other four are from the original sweep
-        and were not re-run, so small gaps should be treated as noise. The 72&nbsp;KB
-        memory cell read 122–140&nbsp;MB between two consecutive runs, which is this
-        benchmark&rsquo;s noise floor for that cell.
+        Each cell is the median of three warm runs on one machine ({ssgBenchmark.env}); the
+        first build of each project was discarded. Every tool rendered the same structure
+        (36 tables and 43 code blocks).
       </p>
       <p className={P}>
-        The advantage holds across the size ladder — a 2.3&nbsp;MB page builds in
-        2.9&nbsp;s against Astro&rsquo;s 3.7&nbsp;s — where it previously reversed beyond
-        roughly a megabyte.
+        As the page grows, the picture changes. Across a ladder from 72&nbsp;KB to 2.3&nbsp;MB,
+        AFW on esdev keeps the lowest peak memory throughout (901&nbsp;MB at 2.3&nbsp;MB, against
+        Astro&rsquo;s 1,286&nbsp;MB) and builds fastest up to about 1&nbsp;MB. At 2.3&nbsp;MB Astro
+        builds faster (2.8&nbsp;s against 4.0&nbsp;s), without building a client bundle. The full
+        ladder is in the{" "}
+        <a href="https://github.com/Open-Tech-Foundation/afw/blob/main/benchmarks/ssg-build/README.md" className={A}>
+          benchmark&rsquo;s README
+        </a>.
       </p>
 
       {/* ── Reproduce ───────────────────────────────────────────────────────── */}

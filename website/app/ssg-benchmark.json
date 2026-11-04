@@ -1,45 +1,68 @@
 {
-  "measuredAt": "2026-07-31 (afw, re-verified 2026-08-01); 2026-07-04 (astro, next, tanstack, vite)",
-  "measurementNote": "The afw column was re-measured after the linear-MDX-parse and template-cloning build fixes, and re-verified on 2026-08-01 across the whole 72 KB–2.3 MB ladder with unchanged results (the 72 KB cell read 122–140 MB between two runs, which is this benchmark's noise floor for that cell). The other four toolchains were not re-run and carry the original sweep's numbers. See benchmarks/ssg-build/README.md.",
-  "env": "Intel i7-8700K (12 threads), 16 GB RAM, Linux 6.12, Node 24.14",
+  "measuredAt": "2026-11-05",
+  "measurementNote": "All six toolchains re-measured on the same machine and day: the median of three warm runs at the 72 KB page. Both AFW workflows are measured: esdev (`esdev build --minify`) and Vite + Node (`vite build`). See benchmarks/ssg-build/README.md for the size ladder and the caveats.",
+  "env": "Intel i7-8700K (12 threads), 16 GB RAM, Linux 6.12, Node 26.13, esdev 0.26",
   "fixture": "One route rendering a real 72 KB MDX docs page (1751 lines, 43 code blocks, 298 table rows)",
   "engines": [
-    "afw",
+    "afw-esdev",
+    "afw-vite",
     "astro",
     "next",
     "tanstack",
     "vite"
   ],
-  "highlightEngine": "afw",
+  "labels": {
+    "afw-esdev": "AFW esdev",
+    "afw-vite": "AFW Vite",
+    "astro": "Astro",
+    "next": "Next",
+    "tanstack": "TanStack",
+    "vite": "Vite"
+  },
+  "highlightEngines": [
+    "afw-esdev",
+    "afw-vite"
+  ],
   "shipsClientJs": {
-    "afw": true,
+    "afw-esdev": true,
+    "afw-vite": true,
     "astro": false,
     "next": true,
     "tanstack": true,
     "vite": false
   },
+  "versions": {
+    "afw-esdev": "@opentf/afw 0.35 \u00b7 esdev-plugin-afw 0.7 \u00b7 esdev 0.26",
+    "afw-vite": "@opentf/afw 0.35 \u00b7 vite-plugin-afw 0.3 \u00b7 Vite 8.3",
+    "astro": "Astro 7.4 + @astrojs/mdx 8.1",
+    "next": "Next.js 16.4 + @next/mdx",
+    "tanstack": "TanStack Start 1.169",
+    "vite": "Vite 8.3 + @mdx-js/rollup 3.1"
+  },
   "rows": [
     {
       "label": "Peak build memory (MB)",
       "values": {
-        "afw": 140,
-        "astro": 416,
-        "next": 1226,
-        "tanstack": 510,
-        "vite": 260
+        "afw-esdev": 165,
+        "afw-vite": 403,
+        "astro": 589,
+        "next": 904,
+        "tanstack": 689,
+        "vite": 354
       },
-      "best": "afw"
+      "best": "afw-esdev"
     },
     {
       "label": "Build time (s)",
       "values": {
-        "afw": 0.25,
-        "astro": 1.23,
-        "next": 3.78,
-        "tanstack": 1.96,
-        "vite": 0.77
+        "afw-esdev": 0.21,
+        "afw-vite": 0.54,
+        "astro": 1.09,
+        "next": 1.85,
+        "tanstack": 1.58,
+        "vite": 0.78
       },
-      "best": "afw"
+      "best": "afw-esdev"
     }
   ]
 }

@@ -160,14 +160,15 @@ export default function HomePage() {
           </p>
           <h3 class="bench-subtitle">Build cost</h3>
           <p class="bench-lede">
-            Building a static site against Astro, Next.js, TanStack Start and Vite: peak memory and wall
-            time, lower is better.
+            Building the same static MDX page with both AFW workflows — esdev, and Vite + Node — and with
+            Astro, Next.js, TanStack Start and Vite: peak memory and wall time, lower is better.
           </p>
           <div class="bench-card">
             <BenchmarkTable report={ssgBenchmark} rowHeader="Metric" />
           </div>
           <p class="bench-note">
-            Historical measurements from July–August 2026; the columns do not represent equal work.{" "}
+            Measured {ssgBenchmark.measuredAt}. Astro and Vite ship no client JavaScript, so the columns
+            do not represent equal work.{" "}
             <Link href="/docs/benchmarks" class={METHOD_LINK}>Method &amp; caveats →</Link>
           </p>
         </div>

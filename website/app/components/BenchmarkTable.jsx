@@ -3,7 +3,7 @@
 // can't drift from the run it was recorded from.
 //
 // Used for both homepage tables: the runtime report (app/benchmark-report.json,
-// written by `bun run bench all`, whose `best` already applies the
+// written by `tsr bench -- all`, whose `best` already applies the
 // timing-resolution tie rule) and the SSG build report (app/ssg-benchmark.json).
 // `rowHeader` names what the rows are, since those differ — operations vs metrics.
 
@@ -17,7 +17,11 @@ function formatMs(value) {
 
 export default function BenchmarkTable(props) {
   const report = props.report;
-  const lead = report.highlightEngine ?? report.engines[0];
+  // The highlighted engines (AFW's columns), and the header text for each engine:
+  // `labels` names a column when its key is not its name ("afw-esdev" → "AFW esdev").
+  const leads = report.highlightEngines ?? [report.highlightEngine ?? report.engines[0]];
+  const isLead = (engine) => leads.includes(engine);
+  const label = (engine) => report.labels?.[engine] ?? engine;
 
   // Every cell's text + classes are precomputed here so the JSX `.map` bodies
   // below stay single expressions (no locals inside markup). Same styling rules
@@ -25,7 +29,8 @@ export default function BenchmarkTable(props) {
   // text color (accent when it wins); other engines are muted unless they win.
   const columns = report.engines.map((engine) => ({
     engine,
-    cls: `${HEAD_CLS} ${engine === lead ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`,
+    label: label(engine),
+    cls: `${HEAD_CLS} ${isLead(engine) ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`,
   }));
   const rows = report.rows.map((row) => ({
     label: row.label,
@@ -35,10 +40,10 @@ export default function BenchmarkTable(props) {
       cls:
         `${CELL_CLS} ` +
         (row.best === engine
-          ? engine === lead
+          ? isLead(engine)
             ? "font-bold text-[var(--accent)]"
             : "font-bold text-[var(--text-main)]"
-          : engine === lead
+          : isLead(engine)
             ? "text-[var(--text-main)]"
             : "text-[var(--text-muted)]"),
     })),
@@ -51,7 +56,7 @@ export default function BenchmarkTable(props) {
           <tr className="bg-[var(--bg-surface)] border-b border-[var(--border)]">
             <th className="px-6 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">{props.rowHeader ?? "Operation"}</th>
             {columns.map((col) => (
-              <th key={col.engine} className={col.cls}>{col.engine}</th>
+              <th key={col.engine} className={col.cls}>{col.label}</th>
             ))}
           </tr>
         </thead>

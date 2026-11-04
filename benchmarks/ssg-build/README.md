@@ -1,8 +1,8 @@
 # SSG build benchmark
 
 **What it measures:** the cost of *building* a static site — peak memory and wall
-time for `afw build --ssg` and the equivalent command in four other tools, all
-rendering the **same** MDX page.
+time for both AFW workflows (`esdev build`, `vite build`) and the equivalent command
+in four other tools, all rendering the **same** MDX page.
 
 This is a **build-time** benchmark. It is unrelated to the runtime benchmark in
 [`../README.md`](../README.md), which measures update latency in the browser.
@@ -32,11 +32,12 @@ Sites stay at **one page** so the numbers isolate per-page cost.
 
 | Tool | Command | Ships client JS? |
 |------|---------|------------------|
-| **AFW** `@opentf/afw-cli@1.23` | `afw build --ssg` | yes — 574 KB hydration bundle |
-| **Astro** 7.1 + `@astrojs/mdx` 7.0 | `astro build` | no — zero JS for a plain MDX page |
-| **Next.js** 16.2 + `@next/mdx`, Turbopack | `next build` (`output: "export"`) | yes — 612 KB |
-| **TanStack Start** 1.168 | `vite build` (prerender) | yes — 485 KB |
-| **Vite** 8.1 + `@mdx-js/rollup` | SSR bundle + a prerender script | no |
+| **AFW on esdev** — `@opentf/afw` 0.35, `esdev-plugin-afw` 0.7, esdev 0.26 | `esdev build --minify` (with a prerender target) | yes — 209 KB |
+| **AFW on Vite + Node** — `@opentf/afw` 0.35, `vite-plugin-afw` 0.3, Vite 8.3 | `vite build` (`mode: "ssg"`) | yes — 210 KB |
+| **Astro** 7.4 + `@astrojs/mdx` 8.1 | `astro build` | no — zero JS for a plain MDX page |
+| **Next.js** 16.4 + `@next/mdx`, Turbopack | `next build` (`output: "export"`) | yes — 557 KB |
+| **TanStack Start** 1.169 | `vite build` (prerender) | yes — 506 KB |
+| **Vite** 8.3 + `@mdx-js/rollup` 3.1 | SSR bundle + a prerender script | no |
 
 **Read the last column before comparing anything.** Astro and Vite emit no
 client bundle for these pages, so they are doing strictly less work than the
@@ -44,40 +45,70 @@ three tools that also build a hydration bundle. Vite is not an SSG framework at
 all — it is the standard hand-rolled `renderToString` + prerender pattern,
 included as a floor for "what does the underlying toolchain cost".
 
-Two smaller asymmetries, both against us: AFW is the only tool that
-syntax-highlights the code blocks (build-time `syntect`; the others produced no
-highlight markup), and Next.js inlines an RSC payload the others have no
+Two smaller asymmetries: AFW and Astro syntax-highlight the code blocks at build
+time (AFW with `syntect`, Astro with Shiki by default) while Next.js, TanStack Start and
+Vite produce no highlight markup, and Next.js inlines an RSC payload the others have no
 equivalent of.
 
-Output parity was verified rather than assumed — all five emit the same
-structure (288 `<table>`, 344 `<pre>`, 320 `<h2>` at 8×).
+Output parity was verified rather than assumed — all six emit the same
+structure (36 `<table>` and 43 `<pre>` at 1×; 288 and 344 at 8×).
 
 ## Results
 
-Intel i7-8700K (12 threads), 16 GB RAM, Linux 6.12, Node 24.14. Peak RSS sampled
-across the whole process tree at 50 Hz. One run per cell. The tables come from
-separate sweeps, so the same tool's 72 KB cell differs by a few percent between
-them (AFW read 254 MB in one and 262 MB in another) — that spread is the
-run-to-run noise floor, and no claim here rests on a margin near it. See
+Measured 2026-11-05. Intel i7-8700K (12 threads), 16 GB RAM, Linux 6.12, Node 26.13,
+esdev 0.26. Peak RSS sampled across the whole process tree at 50 Hz, on real disk. The
+first build of each project was discarded. See
 [How reproducible is this?](#how-reproducible-is-this) before quoting any of it.
 
 ### At the real page size (72 KB)
 
+Median of three warm runs.
+
 | | peak RSS | wall |
 |---|---|---|
-| **AFW** | **140 MB** | **0.25 s** |
-| Vite (no client bundle) | 260 MB | 0.77 s |
-| Astro (no client bundle) | 416 MB | 1.23 s |
-| TanStack Start | 510 MB | 1.96 s |
-| Next.js | 1226 MB | 3.78 s |
-
-The AFW cell is from the latest sweep (it read 254 MB / 0.50 s before the two
-fixes below); the other four are the original one and were not re-run.
+| **AFW on esdev** | **165 MB** | **0.21 s** |
+| Vite (no client bundle) | 354 MB | 0.78 s |
+| **AFW on Vite + Node** | 403 MB | 0.54 s |
+| Astro (no client bundle) | 589 MB | 1.09 s |
+| TanStack Start | 689 MB | 1.58 s |
+| Next.js | 904 MB | 1.85 s |
 
 ### As one page grows
 
-Peak RSS / wall time, one run per size. `SIGSEGV` is a hard crash, not a slow
-build.
+Peak RSS (MB) / wall time (s), one run per size above 72 KB (the 72 KB column is the
+median above).
+
+| | 72 KB | 145 KB | 289 KB | 578 KB | 1.2 MB | 2.3 MB |
+|---|---|---|---|---|---|---|
+| **AFW on esdev** | **165 / 0.21** | **210 / 0.32** | **282 / 0.46** | **406 / 0.89** | **582 / 1.81** | **901** / 4.04 |
+| **AFW on Vite + Node** | 403 / 0.54 | 445 / 0.65 | 528 / 0.83 | 577 / 1.25 | 764 / 2.30 | 971 / 4.75 |
+| Astro | 589 / 1.09 | 618 / 1.17 | 655 / 1.26 | 758 / 1.46 | 888 / 2.14 | 1286 / **2.80** |
+| Vite | 354 / 0.78 | 370 / 0.96 | 477 / 1.29 | 670 / 2.04 | 919 / 3.59 | 1361 / 7.15 |
+| TanStack Start | 689 / 1.58 | 740 / 1.93 | 841 / 2.69 | 1249 / 4.35 | 1424 / 7.79 | 2511 / 16.98 |
+| Next.js | 904 / 1.85 | 1158 / 2.79 | 1219 / 3.84 | 1630 / 5.78 | 2230 / 12.16 | 2815 / 28.07 |
+
+Single runs above 72 KB, so read the shape of each row rather than its individual
+cells.
+
+### Where AFW stands
+
+- **Memory:** AFW on esdev has the lowest peak at every size, 901 MB at 2.3 MB against
+  Astro's 1286 MB, while also building a client bundle.
+- **Build time:** AFW on esdev is fastest up to 1.2 MB. At 2.3 MB Astro is faster
+  (2.8 s against 4.0 s); AFW's time grows faster than linearly between the last two
+  sizes, which is the next thing to investigate. Astro builds no client bundle.
+- **The two AFW workflows:** Vite + Node costs about 240 MB more at 72 KB than esdev (it
+  runs Vite and Node, then a separate prerender build) and stays ahead of every tool
+  that also ships client JavaScript.
+- **Against the earlier toolchain:** the retired `afw build --ssg` (afw-cli 1.23,
+  July 2026) built the 2.3 MB page in 2.9 s / 712 MB, so esdev is currently slower at
+  the top of the ladder; the 72 KB cell is within noise of it (140–165 MB).
+
+### History: the AFW build fixes (retired `afw build --ssg`, July–August 2026)
+
+These rows record how the earlier toolchain's build cost was brought down. They were
+measured with `afw build --ssg`, not with the current workflows, and the other tools
+were not part of this sweep.
 
 | | 72 KB | 145 KB | 289 KB | 578 KB | 1.2 MB | 2.3 MB |
 |---|---|---|---|---|---|---|
@@ -85,23 +116,9 @@ build.
 | AFW (0.13, SSG fold only) | 268 / 0.5 | 320 / 0.8 | 375 / 1.4 | 604 / 3.9 | 867 / 10.3 | 1720 / 47.2 |
 | AFW (+ static adopt) | 165 / 0.3 | 218 / 0.4 | 293 / 0.9 | 414 / 1.9 | 695 / 4.9 | 1280 / 16.1 |
 | AFW (+ linear MDX parse) | 162 / 0.3 | 206 / 0.4 | 303 / 0.7 | 407 / 1.2 | 642 / 2.3 | 1245 / 5.0 |
-| **AFW (current)** | **140 / 0.3** | **156 / 0.3** | **202 / 0.5** | **263 / 0.8** | **426 / 1.4** | **712 / 2.9** |
-| Astro | 395 / 5.8 † | 417 / 1.2 | 484 / 1.4 | 555 / 1.6 | 592 / 2.2 | 943 / 3.7 |
-| Vite | 260 / 0.7 | 332 / 0.9 | 424 / 1.3 | 581 / 2.2 | 840 / 4.0 | 1490 / 8.6 |
-| TanStack Start | 507 / 1.6 | 546 / 2.1 | 606 / 3.0 | 990 / 4.9 | 1485 / 9.0 | 2022 / 19.0 |
-| Next.js | 1252 / 3.6 | 1343 / 4.1 | 1457 / 5.0 | 1666 / 7.3 | 2069 / 13.1 | 2977 / 31.3 |
+| AFW (+ template cloning) | 140 / 0.3 | 156 / 0.3 | 202 / 0.5 | 263 / 0.8 | 426 / 1.4 | 712 / 2.9 |
 
-† Cold-cache first run — 1.1 s warm. Single runs, so read the shape of each row
-rather than its individual cells.
-
-**Read the four AFW rows as one sweep and the other four tools as another.**
-The last three AFW rows were re-measured together, on the same machine and
-fixture, by compiling the *same* site with three compiler builds — so the deltas
-between them are apples to apples. The other tools were not re-run; their cells
-are the earlier sweep's. The "+ static adopt" row is the previous "current" row
-re-measured (it read 1320 MB / 15.1 s then, 1280 / 16.1 now), which is about the
-run-to-run spread this benchmark has always had and is worth keeping in mind
-before reading anything into a single cell.
+`SIGSEGV` is a hard crash, not a slow build.
 
 ## What the numbers say
 
@@ -175,11 +192,10 @@ DOM trees to be indistinguishable in headless Chromium, by `outerHTML` and node 
 node. That env var is also the escape hatch if the analysis is ever wrong for some
 app's markup.
 
-**Where we stand.** At 2.3 MB we are now the fastest and leanest of the five —
-2.9 s against Astro's 3.7 s, 712 MB against its 943 MB — while building a hydration
-bundle neither Astro nor Vite produces at all. Across the whole ladder the row is
-now roughly linear in page size, which is the property that matters: the earlier
-rows were not slow so much as accelerating.
+**Where that left the earlier toolchain.** At 2.3 MB `afw build --ssg` was the fastest
+and leanest of the five tools then measured — 2.9 s against Astro's 3.7 s, 712 MB against
+its 943 MB. For today's numbers, with both current workflows, see
+[Results](#results).
 
 Three of these four fixes were ours and one was in a dependency, which is worth
 recording on its own: "our build is slow at scale" turned out to be four unrelated
@@ -255,10 +271,17 @@ else), then measure each build. Points worth knowing if you rebuild the set:
 - Discard the first run of each project; cold dependency-optimization caches cost
   seconds (Astro's first 72 KB build took 5.8 s against 1.1 s warm).
 
-## Native esdev builds
+## The AFW projects
 
-The results above measured the historical `afw build --ssg` toolchain. Keep
-that command label with those numbers. For a new native run, use an app with
-esdev.json and a release prerender target, measure `esdev build --minify`,
-and record its esdev/compiler versions separately. `make-ladder.mjs` now runs
-on esdev; `measure.py` remains a tool-independent process-tree measurement script.
+Both are plain installed apps (`npm install` of the published packages), with the
+fixture as `app/page.mdx`, an `index.html` and an `entry.js` that calls `mountApp`:
+
+- **esdev** — `esdev.json` with `@opentf/esdev-plugin-afw` (`mode: "ssg"`) and
+  `@opentf/afw-cli/ssg`'s `siteOutputPlugin`; a `web` target (`index.html` → `dist`) and a
+  prerender target (`ssg.js`, `then: "run"`). `ssg.js` is the website's own
+  (`website/ssg.js`). Measured: `esdev build --minify`.
+- **Vite + Node** — `vite.config.js` with `afw({ mode: "ssg" })`. Measured: `vite build`.
+
+`make-ladder.mjs` runs on esdev from the repo root:
+`esdev benchmarks/ssg-build/make-ladder.mjs <spec.mdx> <outdir>`. `measure.py` is
+tool-independent.
