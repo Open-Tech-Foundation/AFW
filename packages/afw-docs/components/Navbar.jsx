@@ -10,6 +10,7 @@ import Search from "./Search.jsx";
 import SidebarToggle from "./SidebarToggle.jsx";
 import NavbarLink from "./NavbarLink.jsx";
 import NavIcon from "./NavIcon.jsx";
+import NavbarMenu from "./NavbarMenu.jsx";
 import { Link } from "@opentf/afw";
 
 // `aria-label` / `aria-labelledby` name the banner landmark, `navLabel` names the
@@ -55,6 +56,7 @@ export default function Navbar(props) {
               </a>
             ) : null}
             <ThemeToggle />
+            {links.length ? <NavbarMenu links={links} /> : null}
           </div>
           {config.search ? <Search /> : null}
         </div>

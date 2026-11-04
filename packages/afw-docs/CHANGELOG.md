@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The navbar no longer overflows small screens on pages without a sidebar (a
+  marketing home): below 768px the top-level links move into a menu button
+  (`NavbarMenu`), as they move into the drawer on pages with a sidebar. The menu closes
+  on navigation and on Escape.
+- A docs page's "Last updated" / "Edit this page" row and its prev/next links are as
+  wide as the article, no longer wider.
+
 ## [0.32.0] - 2026-11-03
 
 ### Added

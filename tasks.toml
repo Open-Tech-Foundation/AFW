@@ -104,7 +104,7 @@ run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup 
 # Tests use CSR independently of the website's hydrate build configuration.
 [tasks.test-afw-docs-dom]
 deps = ["build-compiler", "warm-test-deps"]
-run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-docs/tests/MobileDrawer.test.js packages/afw-docs/tests/SidebarCollapseAll.test.js packages/afw-docs/tests/Tabs.test.js packages/afw-docs/tests/Blog.test.js"
+run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-docs/tests/MobileDrawer.test.js packages/afw-docs/tests/SidebarCollapseAll.test.js packages/afw-docs/tests/Tabs.test.js packages/afw-docs/tests/Blog.test.js packages/afw-docs/tests/NavbarMenu.test.js"
 
 [tasks.test-afw-form]
 deps = ["build-compiler", "warm-test-deps"]
@@ -144,6 +144,10 @@ parallel = true
 deps = ["build-compiler"]
 run = "esdev packages/afw-docs/tests/e2e/mobile-drawer.mjs"
 
+[tasks.test-e2e-docs-navbar]
+deps = ["build-compiler"]
+run = "esdev packages/afw-docs/tests/e2e/navbar-menu.mjs"
+
 [tasks.test-e2e-docs-sidebar]
 deps = ["build-compiler"]
 run = "esdev packages/afw-docs/tests/e2e/sidebar-collapse.mjs"
@@ -159,7 +163,7 @@ deps = ["build-compiler"]
 run = "node packages/afw-docs/node-tests/e2e-vite.mjs"
 
 [tasks.test-e2e-docs]
-deps = ["test-e2e-docs-drawer", "test-e2e-docs-sidebar", "test-e2e-docs-hydration", "test-e2e-docs-vite"]
+deps = ["test-e2e-docs-drawer", "test-e2e-docs-sidebar", "test-e2e-docs-hydration", "test-e2e-docs-vite", "test-e2e-docs-navbar"]
 
 [tasks.test-e2e-afw-test]
 deps = ["build-compiler"]

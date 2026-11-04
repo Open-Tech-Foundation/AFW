@@ -311,8 +311,44 @@
     .afwd-navbar-version {
       display: none; /* reclaim brand width on small screens */
     }
-    :root[data-afw-has-sidebar] .afwd-navbar-nav {
-      display: none; /* surfaced in the drawer instead */
+    /* The links leave the bar: into the drawer on pages with a sidebar, into the menu
+     * (NavbarMenu) on pages without one. */
+    .afwd-navbar-nav {
+      display: none;
+    }
+    :root:not([data-afw-has-sidebar]) .afwd-navbar-menu-toggle {
+      display: inline-flex;
+    }
+    .afwd-navbar-menu {
+      position: absolute;
+      top: var(--afw-navbar-height);
+      left: 0;
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 0.5rem 1rem 1rem;
+      background: var(--afw-bg);
+      border-bottom: 1px solid var(--afw-border);
+      box-shadow: 0 12px 24px -16px rgb(0 0 0 / 0.35);
+    }
+    .afwd-navbar-menu .afwd-navbar-link {
+      padding: 0.7rem 0.25rem;
+      font-size: 1rem;
+    }
+    .afwd-navbar-menu .afwd-navbar-link::after {
+      display: none;
+    }
+    .afwd-navbar-menu .afwd-navbar-link + .afwd-navbar-link {
+      border-top: 1px solid var(--afw-border);
+    }
+  }
+  /* Hidden unless the mobile rule above shows it; the menu never shows on wide screens. */
+  .afwd-navbar-menu-toggle {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .afwd-navbar-menu {
+      display: none;
     }
   }
 
@@ -1262,6 +1298,7 @@
 
   /* ── Page meta (last updated · edit link) ──────────────────────────────────── */
   .afwd-page-meta {
+    max-width: var(--afw-content-max); /* aligned with the article above */
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1299,6 +1336,7 @@
 
   /* ── Pagination ────────────────────────────────────────────────────────────── */
   .afwd-pagination {
+    max-width: var(--afw-content-max);
     display: flex;
     justify-content: space-between;
     gap: 1rem;
