@@ -135,8 +135,8 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     options.i18n = { locales: i18n.locales, defaultLocale: i18n.defaultLocale ?? i18n.locales[0] };
   }
   const pageFiles = pages ? await discoverPages(host, root, { exclude, drafts }) : [];
-  // Server functions (docs/SERVER_FUNCTIONS.md): \`listExports(file)\` asks the compiler
-  // which exports of a \`.server\` module are query()/action().
+  // Server functions (docs/SERVER_FUNCTIONS.md): `listExports(file)` asks the compiler
+  // which exports of a `.server` module are query()/action().
   const fns = listExports ? await serverFunctionTable(host, root, { exclude, listExports }) : { imports: "", table: "", files: [] };
   const p = group(pageFiles, "p");
   const renderPart = pages
