@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import { startVitest } from "vitest/node";
 
+import afw from "@opentf/vite-plugin-afw";
 import { copyFixture } from "./helpers.mjs";
 
 async function runVitest(dir) {
@@ -38,6 +39,18 @@ test("@opentf/afw-test runs AFW component and page tests under Vitest", async ()
   } finally {
     await cleanup();
   }
+});
+
+test("Vitest compiles AFW packages from node_modules, as installed apps have them", async () => {
+  // In this repository @opentf/* resolve through workspace symlinks, outside
+  // node_modules, so Vitest would compile them regardless; an installed app does not.
+  const config = await afw().config.call({ meta: {} }, {}, { mode: "test", command: "serve" });
+  const inline = config.test.server.deps.inline;
+  const matches = (id) => inline.some((rule) => (typeof rule === "string" ? id.includes(rule) : rule.test(id)));
+  assert.ok(matches("/home/me/app/node_modules/@opentf/afw/components/Link.jsx"));
+  assert.ok(matches("C:\\app\\node_modules\\@opentf\\afw-docs\\components\\Tabs.jsx"));
+  assert.ok(matches("@opentf/afw"));
+  assert.ok(!matches("/home/me/app/node_modules/react/index.js"));
 });
 
 test("the same tests pass under the jsdom environment", async () => {

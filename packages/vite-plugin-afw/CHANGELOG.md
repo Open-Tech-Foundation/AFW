@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Vitest compiles AFW's packages in installed apps. The test-mode inline rule matched
+  `@opentf/*` package names only, but Vitest checks resolved paths under
+  `node_modules`, so a test importing `@opentf/afw` failed with "Unknown file
+  extension .jsx". (Inside the AFW repository the packages are workspace symlinks
+  outside `node_modules`, which hid it.)
+
 ## [0.1.0] - 2026-11-03
 
 ### Added

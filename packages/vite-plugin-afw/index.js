@@ -41,6 +41,8 @@ const PASS_HEADER = "x-afw-vite-pass";
 const pass = () => new Response(null, { status: 404, headers: { [PASS_HEADER]: "1" } });
 // AFW's own packages ship ES modules and JSX sources the compiler must see, so the
 // dependency optimizer leaves them alone.
+// A file inside one of AFW's packages in an installed app.
+export const AFW_PACKAGE_PATH = /[\\/]node_modules[\\/]@opentf[\\/]/;
 const OWN_PACKAGES = ["@opentf/afw", "@opentf/afw-docs", "@opentf/afw-form", "@opentf/afw-i18n", "@opentf/afw-test"];
 
 const cleanId = (id) => id.replace(/[?#].*$/, "");
@@ -168,7 +170,9 @@ export default function afw({
       if (env.mode === "test") {
         // AFW packages ship JSX sources (afw-docs components); Vitest must run them
         // through the compiler rather than load them from node_modules as they are.
-        return { ...config, test: { server: { deps: { inline: [/^@opentf\//] } } } };
+        // Vitest matches resolved paths as well as names, so both forms are listed:
+        // in an installed app the files sit under node_modules/@opentf/.
+        return { ...config, test: { server: { deps: { inline: [/^@opentf\//, AFW_PACKAGE_PATH] } } } };
       }
       if (env.command !== "build") return config;
       projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());
