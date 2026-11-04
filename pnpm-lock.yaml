@@ -159,6 +159,10 @@ importers:
         version: 5.0.5(@types/node@22.20.2)(happy-dom@21.0.4)(jsdom@30.1.3)(vite@8.3.5(@types/node@22.20.2)(esbuild@0.28.1))
 
   packages/create-afw:
+    dependencies:
+      '@opentf/std':
+        specifier: 0.20.0
+        version: 0.20.0
     devDependencies:
       '@opentf/afw':
         specifier: workspace:*
@@ -959,6 +963,10 @@ packages:
 
   '@opentf/std@0.19.0':
     resolution: {integrity: sha512-tnBP9Fv3T7Sfd1VWJQKfq6BubBH/qvVEC80zzMeeLW7epACt0jtpZ7ivB9A5HLSzb8Lxs9Mc0V/jvD6jStq+bA==}
+    engines: {node: '>=20.0.0'}
+
+  '@opentf/std@0.20.0':
+    resolution: {integrity: sha512-CUgFmVWsZzIHZAl6cAkZ4YTCXZl2KgJ5IGoo5ArT6LRCnHT22YQoiwR5gM7CcnGprkZDDpJRpeBnh8XFRd/uHw==}
     engines: {node: '>=20.0.0'}
 
   '@oxc-project/types@0.156.0':
@@ -2352,6 +2360,8 @@ snapshots:
   '@opentf/esrun-types@0.4.0': {}
 
   '@opentf/std@0.19.0': {}
+
+  '@opentf/std@0.20.0': {}
 
   '@oxc-project/types@0.156.0': {}
 

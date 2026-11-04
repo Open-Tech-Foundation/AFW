@@ -47,5 +47,8 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@opentf/std": "0.20.0"
   }
 }
