@@ -43,11 +43,9 @@ function renderingTarget(mode, ctx) {
  * `afwc serve` child as `afwPlugin`). An async factory would depend on the
  * host awaiting it; this shape works either way.
  */
-export function createAfwPlugin({ target, mode = "spa", failOnError = false, onResult, quiet } = {}) {
+export function createAfwPlugin({ target, mode = "spa", failOnError = false, onResult, quiet, getCompiler } = {}) {
   validateOptions({ mode, target });
-  let serverPromise = null;
-  const getServer = () =>
-    (serverPromise ??= resolveCompiler().then(({ afwc }) => startCompilerServer(afwc, { sourceMap: true })));
+  const getServer = getCompiler ?? lazyCompiler();
   return {
     name: "afw",
     resolve: serverImports(target),
@@ -65,6 +63,12 @@ export function createAfwPlugin({ target, mode = "spa", failOnError = false, onR
       },
     },
   };
+}
+
+/** A getter for one `afwc serve` child, started on first use. */
+export function lazyCompiler() {
+  let serverPromise = null;
+  return () => (serverPromise ??= resolveCompiler().then(({ afwc }) => startCompilerServer(afwc, { sourceMap: true })));
 }
 
 // Plain JS shared modules do not pass through the JSX compiler. Resolve their

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- Server functions (`query()` / `action()` in `*.server.{js,ts}` under `app/`): browser
+  builds load the module as fetch stubs, server builds keep the real module.
+  Importing a server-only helper into browser code fails the build.
+- A virtual `@afw/server` module for server targets, the same one the Vite plugin
+  generates: `createHandler({ files, fallback })` runs the app's middleware around API
+  routes, server functions and loader data. Exports `apiRoutes`, `middleware`,
+  `loaders` and `serverFunctions` too.
+- `createAfwServer` and `lazyCompiler` for custom build drivers; `createAfwPlugin`
+  takes `getCompiler` to share one `afwc serve` child.
+
 ## [0.6.0] - 2026-11-03
 
 ### Changed

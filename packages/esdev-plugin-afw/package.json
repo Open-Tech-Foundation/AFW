@@ -15,7 +15,8 @@
     "host.js",
     "plugin.js",
     "routes.js",
-    "afw.js"
+    "afw.js",
+    "server.js"
   ],
   "dependencies": {
     "@opentf/afw-build": "workspace:*",

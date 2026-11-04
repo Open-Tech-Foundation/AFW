@@ -5,7 +5,8 @@
 // top-level plugins. Programmatic build drivers use the named factories.
 
 export { closeCompilers, compileError, resolveCompiler, startCompilerServer } from "./compiler.js";
-export { createAfwPlugin, afwPlugin } from "./plugin.js";
+export { createAfwPlugin, afwPlugin, lazyCompiler } from "./plugin.js";
+export { createAfwServer } from "./server.js";
 export { createAfwRoutes, isUnpublishedPage } from "./routes.js";
 export { default, createAfwAppPlugin } from "./afw.js";
 export { esdevHost } from "./host.js";
