@@ -9,24 +9,24 @@ importers:
   .:
     dependencies:
       '@opentf/afw':
-        specifier: 0.33.0
-        version: 0.33.0
+        specifier: 0.35.0
+        version: 0.35.0
       '@opentf/afw-docs':
-        specifier: 0.31.0
-        version: 0.31.0(@opentf/afw@0.33.0)
+        specifier: 0.33.0
+        version: 0.33.0(@opentf/afw@0.35.0)
       '@opentf/afw-form':
-        specifier: 1.28.0
-        version: 1.28.0(@opentf/afw@0.33.0)
+        specifier: 1.30.0
+        version: 1.30.0(@opentf/afw@0.35.0)
       '@opentf/afw-i18n':
-        specifier: 1.28.0
-        version: 1.28.0(@opentf/afw@0.33.0)
+        specifier: 1.30.0
+        version: 1.30.0(@opentf/afw@0.35.0)
     devDependencies:
       '@opentf/afw-cli':
-        specifier: 1.32.0
-        version: 1.32.0(@opentf/afw@0.33.0)
+        specifier: 1.34.0
+        version: 1.34.0(@opentf/afw@0.35.0)
       '@opentf/esdev-plugin-afw':
-        specifier: 0.5.0
-        version: 0.5.0
+        specifier: 0.7.0
+        version: 0.7.0
       tailwindcss:
         specifier: 4.2.2
         version: 4.2.2
@@ -48,37 +48,43 @@ packages:
   '@formatjs/intl-localematcher@0.6.2':
     resolution: {integrity: sha512-XOMO2Hupl0wdd172Y06h6kLpBz6Dv+J4okPLl4LPtzbr8f66WbIoy4ev98EBuZ6ZK4h5ydTN6XneT4QVpD7cdA==}
 
-  '@opentf/afw-cli@1.32.0':
-    resolution: {integrity: sha512-zJ4JonWoZeN/zkQhrVj8d5P9SaPIuPaRCSZXHlKcXd9V/ngb4CkD0kkARaXzaTy7fttLl+4J6tQDZxeiPt9i0g==}
+  '@opentf/afw-build@0.2.0':
+    resolution: {integrity: sha512-CWK1jdUxI9dpDSA3MI7rJ/xnwRL6CnI+z5DLTTdbzcUtpsYroNLSABEQTyihmFDjd7nDO5l5WrcaFfrfxfHgpA==}
+
+  '@opentf/afw-cli@1.34.0':
+    resolution: {integrity: sha512-yMdp594To/xzXCZngT7gZJjKCyuVvu7+wTjv+bNKf360ck1Cj3MDn+wtgorT3lp0zxOy08WJfsKVE9YAeSlYpw==}
     engines: {esdev: '>=0.16.0'}
     peerDependencies:
-      '@opentf/afw': 0.33.0
+      '@opentf/afw': 0.35.0
 
-  '@opentf/afw-compiler@0.21.0':
-    resolution: {integrity: sha512-feY8nGiXdNoG1/ewOr2Jm2pSVLP/GQ9hNlj0VvcbXJqq9EC7WmL+EP4pt3JdeLQuQNNALXgOrylUBDahCziIQw==}
+  '@opentf/afw-compiler@0.23.0':
+    resolution: {integrity: sha512-L4yPh5jQP4bjFLtSR59IFj6NAjfaFyPLS4CcMw4ckqzhd6d7FwuiTsUaZvRqUDh8psXWVfuESFALGksMsesf5A==}
+    engines: {esdev: '>=0.16.0', node: '>=22'}
+
+  '@opentf/afw-docs@0.33.0':
+    resolution: {integrity: sha512-rqLN4cq48CSeDig/RAe/K4RIPvi7QJSsLgbCQRck8m1VqeW7hUi5p+m8FLv8nUUOlw61i1FhncTDKLrFfnq39g==}
+    peerDependencies:
+      '@opentf/afw': 0.35.0
+
+  '@opentf/afw-form@1.30.0':
+    resolution: {integrity: sha512-uyTFmN415QtudoVDvjda6wLwotMiTUnvjn/ZtAvt1jG1Ur/7JdjVHB2Xc/M1DpFDcy3GAjwTDjyz7X4mN7T6fg==}
+    peerDependencies:
+      '@opentf/afw': 0.35.0
+
+  '@opentf/afw-i18n@1.30.0':
+    resolution: {integrity: sha512-VTW6/0kmL4fixYBLP5tdg6k7qSecjOOk1CJacoTklMzaGtheiWE2TPTW7h80TFSa0sc3Ie5/z2d6oKqmheZrYg==}
+    peerDependencies:
+      '@opentf/afw': 0.35.0
+
+  '@opentf/afw@0.35.0':
+    resolution: {integrity: sha512-KPN+HRITJ0d3+9FWMv3IgnFfMa285kWrkW2UUDiAcc9vEMLp3dQGjrf5s0k6Ut0MBz7CZ6qV7Cb5+wlYhaQ2kA==}
+
+  '@opentf/esdev-plugin-afw@0.7.0':
+    resolution: {integrity: sha512-ub8jVtQMrMvSnxHYGntuFvpq8o9iB+MdOiUov6aeXU4AWQJ5vOXxMp4tO6socodO6wuAUx26qjzVMyjzZF04Dw==}
     engines: {esdev: '>=0.16.0'}
 
-  '@opentf/afw-docs@0.31.0':
-    resolution: {integrity: sha512-001ZaiGQRNYdcD8L2sYWrBWBybiu7sUJ60l4CA8Xy3llFGDoYtofcnsM/l/u+KJq8bVhpHbtvuIW8RyTyhQHPg==}
-    peerDependencies:
-      '@opentf/afw': 0.33.0
-
-  '@opentf/afw-form@1.28.0':
-    resolution: {integrity: sha512-8pocptfxf5AUnUCHQkd/7ZDHzDAjq9DAQ8e3//5n5VhWYaqlsHFVcHT7DOx+WT0qLSA5OasmtlI6egXp1BJcTw==}
-    peerDependencies:
-      '@opentf/afw': 0.33.0
-
-  '@opentf/afw-i18n@1.28.0':
-    resolution: {integrity: sha512-ObiOq8IOuXhDu9MNJm17hUaoZyF8qkPpfUc9mhnrY7P7rLP3okqlVTpN3HkhGV1OF8SU4jkfNfWkkvPwSpeLOQ==}
-    peerDependencies:
-      '@opentf/afw': 0.33.0
-
-  '@opentf/afw@0.33.0':
-    resolution: {integrity: sha512-K5i7jaOu6QQBtF6eWYd4bluptyAfvh2ibYow3B/MR2Bv2OoK41JsAU0JIOTxpu97GJhWd0H68SX0wqfbHCTfCA==}
-
-  '@opentf/esdev-plugin-afw@0.5.0':
-    resolution: {integrity: sha512-kd9gwsZfGdGFrw7k247VOgL9CvgLq2q1sZkICRYZhX12TxIACl3iY+eHegd9lEvW0FhOT2RVlVQnwY+QTCsDgQ==}
-    engines: {esdev: '>=0.16.0'}
+  '@opentf/serialize@0.1.0':
+    resolution: {integrity: sha512-kRyYKuQHahHpVMfX1QtxohJuEd/iUkp9VYYUT3w/Oo64K+ONmvx3JB/nFJALHwfDsWKfmDIBMHBUULBWdltaog==}
 
   '@opentf/std@0.19.0':
     resolution: {integrity: sha512-tnBP9Fv3T7Sfd1VWJQKfq6BubBH/qvVEC80zzMeeLW7epACt0jtpZ7ivB9A5HLSzb8Lxs9Mc0V/jvD6jStq+bA==}
@@ -124,33 +130,41 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@opentf/afw-cli@1.32.0(@opentf/afw@0.33.0)':
-    dependencies:
-      '@opentf/afw': 0.33.0
-      '@opentf/esdev-plugin-afw': 0.5.0
+  '@opentf/afw-build@0.2.0': {}
 
-  '@opentf/afw-compiler@0.21.0': {}
-
-  '@opentf/afw-docs@0.31.0(@opentf/afw@0.33.0)':
+  '@opentf/afw-cli@1.34.0(@opentf/afw@0.35.0)':
     dependencies:
-      '@opentf/afw': 0.33.0
-      '@opentf/afw-compiler': 0.21.0
+      '@opentf/afw': 0.35.0
+      '@opentf/afw-build': 0.2.0
+      '@opentf/esdev-plugin-afw': 0.7.0
 
-  '@opentf/afw-form@1.28.0(@opentf/afw@0.33.0)':
+  '@opentf/afw-compiler@0.23.0': {}
+
+  '@opentf/afw-docs@0.33.0(@opentf/afw@0.35.0)':
     dependencies:
-      '@opentf/afw': 0.33.0
+      '@opentf/afw': 0.35.0
+      '@opentf/afw-compiler': 0.23.0
+
+  '@opentf/afw-form@1.30.0(@opentf/afw@0.35.0)':
+    dependencies:
+      '@opentf/afw': 0.35.0
       '@opentf/std': 0.19.0
 
-  '@opentf/afw-i18n@1.28.0(@opentf/afw@0.33.0)':
+  '@opentf/afw-i18n@1.30.0(@opentf/afw@0.35.0)':
     dependencies:
-      '@opentf/afw': 0.33.0
+      '@opentf/afw': 0.35.0
       intl-messageformat: 10.7.18
 
-  '@opentf/afw@0.33.0': {}
-
-  '@opentf/esdev-plugin-afw@0.5.0':
+  '@opentf/afw@0.35.0':
     dependencies:
-      '@opentf/afw-compiler': 0.21.0
+      '@opentf/serialize': 0.1.0
+
+  '@opentf/esdev-plugin-afw@0.7.0':
+    dependencies:
+      '@opentf/afw-build': 0.2.0
+      '@opentf/afw-compiler': 0.23.0
+
+  '@opentf/serialize@0.1.0': {}
 
   '@opentf/std@0.19.0': {}
 

@@ -9,14 +9,14 @@
     "preview": "esdev preview"
   },
   "dependencies": {
-    "@opentf/afw": "0.33.0",
-    "@opentf/afw-docs": "0.31.0",
-    "@opentf/afw-form": "1.28.0",
-    "@opentf/afw-i18n": "1.28.0"
+    "@opentf/afw": "0.35.0",
+    "@opentf/afw-docs": "0.33.0",
+    "@opentf/afw-form": "1.30.0",
+    "@opentf/afw-i18n": "1.30.0"
   },
   "devDependencies": {
-    "@opentf/esdev-plugin-afw": "0.5.0",
-    "@opentf/afw-cli": "1.32.0",
+    "@opentf/afw-cli": "1.34.0",
+    "@opentf/esdev-plugin-afw": "0.7.0",
     "tailwindcss": "4.2.2"
   }
 }
