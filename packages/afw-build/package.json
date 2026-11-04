@@ -19,7 +19,8 @@
     "routes.js",
     "server.js",
     "document.js",
-    "prerender.js"
+    "prerender.js",
+    "server-functions.js"
   ],
   "keywords": [
     "afw",

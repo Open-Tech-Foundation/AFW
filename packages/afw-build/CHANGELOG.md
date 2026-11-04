@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- Server functions at build time: `discoverServerModules` finds `*.server.{js,ts}`
+  modules under `app/`; `serverFunctionEndpoint` gives each `query()` / `action()`
+  export a stable endpoint under its folder (`/todos/__fn/<id>`, the id hiding the
+  path); `serverFunctionStub` generates the browser module (one fetch stub per server
+  function, server-only helpers left out); `serverExports` asks the compiler which
+  exports are server functions. `serverModule({ listExports })` registers them in
+  `@afw/server`, answered inside the middleware before loader data.
+
 ## [0.1.0] - 2026-11-03
 
 ### Added

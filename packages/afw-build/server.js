@@ -13,6 +13,7 @@
 //   // middleware → API routes → loader data → files → page render → fallback
 
 import { discoverPages, routeKey } from "./routes.js";
+import { serverFunctionTable } from "./server-functions.js";
 
 /** The specifier a server entry imports. */
 export const SERVER_ID = "@afw/server";
@@ -120,7 +121,7 @@ export function serverConflicts(host, dir, files) {
  *           pages?: boolean, drafts?: boolean }} [options]
  * @returns {Promise<{ code: string, files: string[] }>}
  */
-export async function serverModule(host, root, { exclude = [], i18n = null, pages = false, drafts = true } = {}) {
+export async function serverModule(host, root, { exclude = [], i18n = null, pages = false, drafts = true, listExports } = {}) {
   const files = await discoverServerFiles(host, root, { exclude });
   const problems = serverConflicts(host, root, files);
   if (problems.length) throw new Error(`AFW server routes:\n  ${problems.join("\n  ")}`);
@@ -134,6 +135,9 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     options.i18n = { locales: i18n.locales, defaultLocale: i18n.defaultLocale ?? i18n.locales[0] };
   }
   const pageFiles = pages ? await discoverPages(host, root, { exclude, drafts }) : [];
+  // Server functions (docs/SERVER_FUNCTIONS.md): \`listExports(file)\` asks the compiler
+  // which exports of a \`.server\` module are query()/action().
+  const fns = listExports ? await serverFunctionTable(host, root, { exclude, listExports }) : { imports: "", table: "", files: [] };
   const p = group(pageFiles, "p");
   const renderPart = pages
     ? `import { collectRoutePaths, configureI18n, registerRoutes, renderHead, renderRoute, resolveMetadata } from "@opentf/afw/server";\n` +
@@ -160,8 +164,8 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
       `}\n`
     : "";
   const code =
-    `import { createApiHandler, createFetchHandler, createLoaderRegistry, createMiddleware } from "@opentf/afw/server";\n` +
-    [r.imports, m.imports, l.imports].filter(Boolean).join("\n") + "\n" +
+    `import { createApiHandler, createFetchHandler, createLoaderRegistry, createMiddleware, createServerFunctions } from "@opentf/afw/server";\n` +
+    [r.imports, m.imports, l.imports, fns.imports].filter(Boolean).join("\n") + "\n" +
     `const options = ${JSON.stringify(options)};\n` +
     `const routeModules = {\n${r.map}\n};\n` +
     `const middlewareModules = {\n${m.map}\n};\n` +
@@ -170,6 +174,7 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     `export const apiRoutes = createApiHandler(routeModules, {}, options);\n` +
     `export const middleware = createMiddleware(middlewareModules, options);\n` +
     `export const loaders = createLoaderRegistry(loaderModules, options);\n` +
+    `export const serverFunctions = createServerFunctions({\n${fns.table}\n});\n` +
     `export const loaderRoutes = ${JSON.stringify(loaderRoutePatterns(host, root, files.loaders))};\n` +
     renderPart +
     `/**\n` +
@@ -181,13 +186,14 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     `  const terminal = async (request, env, ctx, init) => {\n` +
     `    const locals = init?.locals ?? {};\n` +
     `    return (await apiRoutes(request, env, ctx, init)) ??\n` +
+    `      (await serverFunctions.handle(request, { locals, env, ctx })) ??\n` +
     `      (await loaders.handle(request, { locals })) ??\n` +
     `      (files ? await files(request) : null) ??\n` +
     `      (renderPage ? await renderPage(request, { locals }) : null);\n` +
     `  };\n` +
     `  return createFetchHandler(terminal, { middleware, fallback });\n` +
     `}\n`;
-  return { code, files: [...files.routes, ...files.middleware, ...files.loaders, ...pageFiles] };
+  return { code, files: [...files.routes, ...files.middleware, ...files.loaders, ...pageFiles, ...fns.files] };
 }
 
 function loaderRoutePatterns(host, root, loaders) {

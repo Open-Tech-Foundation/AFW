@@ -22,3 +22,6 @@ export {
   stampHydrateSentinel, stampRenderedPath, withHtmlLang,
 } from "./document.js";
 export { prerender, robotsTxt, sitemapXml } from "./prerender.js";
+export {
+  SERVER_MODULE_FILE, discoverServerModules, serverExports, serverFunctionEndpoint, serverFunctionStub, serverFunctionTable,
+} from "./server-functions.js";
