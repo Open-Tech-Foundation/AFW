@@ -1,6 +1,6 @@
 # Server functions — plan
 
-Status: **proposed** (November 2026). Closes the "client/server boundary" open question
+Status: **agreed** (November 2026); see §8 for what each decision settled. Closes the "client/server boundary" open question
 (ARCHITECTURE §7) for the first version, and fills the `Query` / `Action` placeholders of
 the Server IR (ARCHITECTURE §4.4, `crates/afw_ir/src/server.rs`).
 
@@ -58,7 +58,7 @@ export default function Todos() {
 
 ## 3. Decisions
 
-### 3.1 Authoring: `*.server.{js,ts}` files with `query()` / `action()` — recommended
+### 3.1 Authoring: `*.server.{js,ts}` files with `query()` / `action()`
 
 | Option | Used by | For AFW |
 | --- | --- | --- |
@@ -84,9 +84,21 @@ export default function Todos() {
   does not reveal file paths and stays the same across builds of unchanged code.
 - `query`: `GET` with the encoded arguments in `?a=`, or `POST` when they are too large.
   `action`: `POST`.
-- Body and result encoding: JSON extended with `Date`, `Map`, `Set`, `BigInt`, `URL`,
-  `undefined` and `RegExp` (a small tagged encoding, `<`-escaped as `serializeRouteData`
-  does). **Open decision** — see §8.
+- Body and result encoding: [`@opentf/obj-diff`](https://obj-diff.opentechf.org/docs/serialization)
+  `stringify` / `parse`. Values stay readable JSON in the network panel; special types
+  become `@n` tokens with their type in a `$refs` table. Round-trips `Date`, `Map`, `Set`,
+  `BigInt`, `URL`, `RegExp`, `Error`, typed arrays, `undefined`, `NaN`/`±Infinity`/`-0`,
+  `Temporal` and cyclic references. Functions, symbols and class instances throw, which
+  is the right answer for a wire format.
+  - **Blocker before phase 1 (in `obj-diff`):** `parse` turns a `__proto__` key in the
+    input into the parsed object's prototype
+    (`parse('{"v":{"__proto__":{"isAdmin":true}}}').isAdmin === true`), where
+    `JSON.parse` keeps it as an own key. Server functions decode untrusted bodies, so
+    `parse` must define such keys as own properties, or reject them. No global pollution
+    was found; unknown type tags and missing `$ref`s are already rejected.
+  - AFW's side: decode inside a size limit, turn a parse failure (including a stack
+    overflow from deep nesting) into `400`, and require the `{ v, $refs }` envelope,
+    since a body without it currently parses to `undefined` instead of failing.
 - Responses: `200` with the encoded result; `400` with validation issues; `404` for
   `notFound()`; a thrown `Response` (redirect, custom status) passes through; any other
   error is `500` with a generic message and the error logged server-side.
@@ -176,13 +188,31 @@ Functions receive `(input, context)`, the same context API routes get:
 - Server functions on a prerendered-only site (no server to call).
 - Automatic optimistic updates.
 
-## 8. Open decisions
+## 8. Decisions (settled November 2026)
 
-1. **Authoring model** — `*.server.{js,ts}` files with `query()`/`action()` (recommended),
-   or a `"use server"` directive, or a TanStack-style builder.
-2. **Encoding** — extended JSON with tagged types (recommended: small, readable in the
-   network panel), or a library such as `devalue` (cyclic references, more types).
-3. **Endpoint scoping** — per-folder `<folder>/__fn/<id>` so folder middleware guards it
-   (recommended), or one flat `/__afw/fn/<id>` guarded only by root middleware.
-4. **Where `.server` modules may live** — anywhere under `app/` (recommended), or also in
-   shared folders outside it (then they need a scope for middleware).
+1. **Authoring** — `*.server.{js,ts}` modules exporting `query()` / `action()`.
+2. **Encoding** — `@opentf/obj-diff` `stringify` / `parse`, once the `__proto__` handling in
+   §3.2 is fixed.
+3. **Endpoints** — per folder, `<folder>/__fn/<id>`, under that folder's middleware.
+4. **Location** — `.server` modules anywhere under `app/`; they may import shared code
+   from outside it.
+
+## 9. Prior art: the query side
+
+| Framework | Declare | Call | Refetch |
+| --- | --- | --- | --- |
+| SvelteKit (remote functions, experimental) | `query(schema, fn)` in `*.remote.ts` | `await getPosts()` in markup | `getPosts().refresh()` |
+| TanStack Start | `createServerFn({ method: "GET" }).validator(v).handler(fn)` | `getTodos({ data })`, usually in a route loader | router invalidation, TanStack Query keys |
+| SolidStart | `query(async () => { "use server"; … }, "key")` | `createAsync(() => getTodos())` | `revalidate("key")` |
+| Astro | `defineAction({ input, handler })` in `src/actions/` | `await actions.getTodos(input)` → `{ data, error }` | call again |
+| Next.js | reads in Server Components; Server Actions are POST-only mutations | — | `revalidatePath`, `updateTag` |
+| React Router | route `loader` | `useLoaderData()`, `useFetcher().load()` | revalidation after actions |
+| Nuxt | `server/api/*.get.ts` | `useFetch("/api/…")` | `refresh()` |
+
+What AFW takes from it:
+
+- Schema-first signatures, as SvelteKit and Astro have (`query(schema, fn)`).
+- A read/write split everywhere (query/command, GET/POST, query/action).
+- Direct calls during server rendering, no HTTP round trip.
+- Refetch across every live use (SvelteKit `.refresh()`, SolidStart keys): AFW's
+  `resource()` covers one call site today; `invalidate(listTodos)` is phase 3.
