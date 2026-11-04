@@ -75,9 +75,14 @@ try {
   await evaluate(`document.querySelector('a[href="/about"]').click()`);
   check(await until("document.querySelector('main h1')?.textContent === 'About'"), "client navigation renders the Markdown page");
   check((await evaluate("window.__marker")) === "kept", "client navigation does not reload");
+  // Hovering a link prefetches its loader data; the click then reuses it.
+  const dataFetches = `performance.getEntriesByType("resource").filter((e) => e.name.includes("/todos/__data.json")).length`;
+  await evaluate(`document.querySelector('a[href="/todos"]').dispatchEvent(new Event("pointerenter"))`);
+  check(await until(`${dataFetches} === 1`), "hovering a link prefetches the route's loader data");
   await evaluate(`document.querySelector('a[href="/todos"]').click()`);
   check(await until("document.querySelectorAll('#todos li').length === 2"), "client navigation fetches loader data from the Node server");
   check((await evaluate("window.__marker")) === "kept", "the loader-data navigation does not reload");
+  check((await evaluate(dataFetches)) === 1, "the navigation reused the prefetched data");
 
   // Server functions: the page imported stubs; calling them reaches Node.
   check(JSON.stringify(await evaluate("__todosFns.listTodos({ prefix: 'test' })")) === JSON.stringify({ todos: ["test it on Node"], via: "middleware" }),
@@ -85,6 +90,14 @@ try {
   check((await evaluate("__todosFns.addTodo({ title: 'x' }).then((r) => r.added)")) === "x", "a server function action posts and returns its result");
   check((await evaluate("__todosFns.addTodo({}).catch((e) => e.name + ' ' + e.status)")) === "ServerFunctionError 422",
     "a refused action rejects with a ServerFunctionError and its status");
+  // invalidate(): the page's resource refetches after an action changes the data.
+  // The page loaded its count before the action above, so it is stale until invalidated.
+  await until("document.getElementById('live-count')?.textContent");
+  await evaluate("__todosFns.addTodo({ title: 'one more' })");
+  const serverCount = await evaluate("__todosFns.listTodos({}).then((r) => r.todos.length)");
+  check((await evaluate("Number(document.getElementById('live-count').textContent)")) < serverCount, "the page's live data is stale after an action");
+  await evaluate("__todosFns.invalidate(__todosFns.listTodos)");
+  check(await until(`document.getElementById('live-count').textContent === "${serverCount}"`), "invalidate(listTodos) refetches the page's live data");
   const fnsFile = join(dir, "app", "todos", "todos.server.js");
   await writeFile(fnsFile, (await readFile(fnsFile, "utf8")).replace("return { added: title,", "return { added: title.toUpperCase(),"));
   check(await until("__todosFns.addTodo({ title: 'y' }).then((r) => r.added === 'Y')"), "an edited server function answers without a restart");
