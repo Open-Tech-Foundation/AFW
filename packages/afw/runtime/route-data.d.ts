@@ -13,3 +13,12 @@ export function readInlineRouteData(): any;
 export function __resetInlineRouteData(): void;
 /** The reserved per-route data filename/URL suffix (`/todos` → `/todos/__data.json`). */
 export const DATA_FILE: "__data.json";
+/** The header the data endpoint sets when a loader redirected. */
+export const REDIRECT_HEADER: "x-afw-redirect";
+/** Returned by `fetchRouteData` in place of data when the route redirects. */
+export class RouteRedirect {
+  constructor(location: string, options?: { reload?: boolean });
+  redirect: string;
+  /** A full page load is needed (the server redirected the data request itself). */
+  reload: boolean;
+}

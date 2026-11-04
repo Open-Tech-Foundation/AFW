@@ -197,6 +197,18 @@ describe("handle — the __data.json endpoint", () => {
     { appDir: "/proj/app" },
   );
 
+  test("a loader's thrown redirect is answered as a header the router follows; other Responses pass through", async () => {
+    const thrown = createLoaderRegistry({
+      "/proj/app/old/loader.js": { default: () => { throw new Response(null, { status: 302, headers: { location: "/new" } }); } },
+      "/proj/app/secret/loader.js": { default: () => { throw new Response("no", { status: 403 }); } },
+    }, { appDir: "/proj/app" });
+    const moved = await thrown.handle(new Request("http://x/old/__data.json"));
+    expect(moved.status).toBe(200);
+    expect(moved.headers.get("x-afw-redirect")).toBe("/new");
+    const refused = await thrown.handle(new Request("http://x/secret/__data.json"));
+    expect(refused.status).toBe(403);
+  });
+
   test("a non-data path is not ours (null → caller falls through)", async () => {
     expect(await registry.handle(new Request("http://x/todos"))).toBe(null);
   });

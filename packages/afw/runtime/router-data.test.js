@@ -83,6 +83,22 @@ describe("navigate + loader data", () => {
     expect(app.textContent).toContain("todos");
   });
 
+  test("a loader's redirect navigates to its target, replacing the entry", async () => {
+    globalThis.fetch = async (url) => {
+      fetched.push(String(url));
+      if (String(url).startsWith("/todos/")) return new Response("null", { headers: { "content-type": "application/json", "x-afw-redirect": "/items/7" } });
+      return jsonResponse({ id: 7 });
+    };
+    const app = await mountFixture();
+    const before = window.history.length;
+    await navigate("/todos");
+    await tick();
+    expect(router.pathname).toBe("/items/7");
+    expect(router.data).toEqual({ id: 7 });
+    expect(app.textContent).toContain("item");
+    expect(window.history.length).toBe(before, "the redirect replaced the entry instead of adding one");
+  });
+
   test("a loader-less route never fetches and resets stale data", async () => {
     globalThis.fetch = async (url) => {
       fetched.push(String(url));

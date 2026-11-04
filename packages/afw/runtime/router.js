@@ -22,7 +22,7 @@ import { prepareRouteHead, updateRouteHead } from "./head.js";
 import { beginHydration, cursor, endHydration, renderedForPath } from "./hydrate.js";
 import { collectHotState, withHotCarry } from "./hot-carry.js";
 import { buildScopedView, runCleanup, runMount } from "./mount.js";
-import { fetchRouteData, readInlineRouteData } from "./route-data.js";
+import { RouteRedirect, fetchRouteData, readInlineRouteData } from "./route-data.js";
 import { setRouteDataRefresher } from "./invalidate.js";
 import { compareRoutes, compileRoute, decodeParams } from "./route-match.js";
 
@@ -471,6 +471,15 @@ export function prefetch(path) {
  * Reload the current page's loader data into `router.data` (`invalidate()`), and drop
  * prefetched data, which may be stale too.
  */
+/** Go where a loader (or the server) redirected a navigation. */
+function followRedirect(target) {
+  if (target.reload) {
+    window.location.assign(target.redirect);
+    return;
+  }
+  return navigate(target.redirect, true);
+}
+
 export async function refreshRouteData() {
   prefetched.clear();
   if (!isBrowser || !rootEl) return;
@@ -480,7 +489,9 @@ export async function refreshRouteData() {
   const seq = navSeq;
   try {
     const data = await fetchRouteData(pathname, window.location.search);
-    if (seq === navSeq) state.data.value = data; // a navigation since owns the data
+    if (seq !== navSeq) return; // a navigation since owns the data
+    if (data instanceof RouteRedirect) return followRedirect(data);
+    state.data.value = data;
   } catch (e) {
     reportError(e, { phase: "data", path: pathname });
   }
@@ -628,6 +639,7 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
         reportError(e, { phase: "data", path: url.pathname });
       }
       if (seq !== navSeq) return; // a newer navigation superseded this one
+      if (data instanceof RouteRedirect) return followRedirect(data);
     }
   }
 

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- A loader can throw a `Response`, as API routes and server functions can. A redirect
+  on a client navigation navigates to its target (replacing the history entry): the
+  data endpoint answers it with an `x-afw-redirect` header, since `fetch` would follow
+  a real 3xx to an HTML page. Other statuses pass through. When middleware redirects a
+  data request (an auth guard), the router loads the page in full so the server's
+  redirect applies, instead of failing to parse HTML as data.
+
 ## [0.35.0] - 2026-11-04
 
 ### Added

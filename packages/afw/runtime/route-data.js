@@ -25,13 +25,36 @@ export function dataUrlFor(pathname, search = "") {
   return (path === "/" ? `/${DATA_FILE}` : `${path}/${DATA_FILE}`) + (search || "");
 }
 
+/** The header the data endpoint sets when a loader redirected (`throw redirect`). */
+export const REDIRECT_HEADER = "x-afw-redirect";
+
+/**
+ * What `fetchRouteData` returns instead of data when the route redirects:
+ * `{ redirect: "/login", reload: false }`. `reload` asks for a full page load, for a
+ * redirect the browser hid (middleware redirecting the data request itself).
+ */
+export class RouteRedirect {
+  constructor(location, { reload = false } = {}) {
+    this.redirect = location;
+    this.reload = reload;
+  }
+}
+
 /**
  * Fetch a route's loader data. 200 → the parsed JSON; 404 → `undefined` (no
- * loader / `notFound()`); anything else throws (the router reports it and
- * commits the navigation with no data).
+ * loader / `notFound()`); a redirect → a {@link RouteRedirect}; anything else throws
+ * (the router reports it and commits the navigation with no data).
  */
 export async function fetchRouteData(pathname, search = "") {
-  const res = await fetch(dataUrlFor(pathname, search));
+  // "manual": a redirect is not data. Following it would fetch an HTML page.
+  const res = await fetch(dataUrlFor(pathname, search), { redirect: "manual" });
+  const location = res.headers.get(REDIRECT_HEADER);
+  if (location) return new RouteRedirect(location); // the loader redirected
+  // Middleware redirected the data request (an auth guard): the target is hidden
+  // from fetch, so load the page itself and let the server redirect it.
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+    return new RouteRedirect(pathname + search, { reload: true });
+  }
   if (res.status === 404) return undefined;
   if (!res.ok) throw new Error(`route data request for ${pathname} failed (${res.status})`);
   return res.json();

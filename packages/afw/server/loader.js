@@ -155,6 +155,13 @@ export function createLoaderRegistry(loaderModules = {}, { appDir, i18n } = {}) 
       return new Response(method === "HEAD" ? null : json || "null", { status: 200, headers });
     } catch (e) {
       if (isNotFound(e)) return new Response("null", { status: 404, headers });
+      if (e instanceof Response) {
+        // A redirect is answered as data the router follows: fetch() would follow a
+        // real 3xx to an HTML page. Any other thrown Response (401, 403…) passes through.
+        const location = e.status >= 300 && e.status < 400 ? e.headers.get("location") : null;
+        if (location) return new Response("null", { status: 200, headers: { ...headers, "x-afw-redirect": location } });
+        return e;
+      }
       console.error(`✗ loader ${pagePath}:`, e?.stack ?? e);
       return Response.json({ error: "Internal Server Error" }, { status: 500 });
     }
