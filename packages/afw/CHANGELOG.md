@@ -13,6 +13,11 @@
   responses, invalid input as 400 with the issues, `notFound()` as 404, a thrown
   `Response` passed through, other errors as a generic 500. Types keep each
   function's input and output.
+- Server functions, browser side: `serverFunction(endpoint, kind)`, which the
+  generated stubs call. Queries go by GET (POST for large arguments), actions by POST;
+  an optional `{ signal }` aborts the call. Failures reject with a
+  `ServerFunctionError` carrying `status` (and `issues` for invalid input); a redirect
+  from the server is reported with `redirected: true` instead of being followed.
 
 ### Fixed
 

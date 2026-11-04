@@ -9,6 +9,7 @@ export * from "../core/errors.js";
 export * from "../core/context.js";
 export * from "../runtime/lifecycle.js";
 export { resource } from "../runtime/resource.js";
+export { ServerFunctionError, serverFunction } from "../runtime/server-function.js";
 export { copyText, copyWithFeedback } from "../runtime/clipboard.js";
 export { Link, ContextProvider, Portal, ErrorBoundary, RawHtml, CodeFence } from "./builtins.js";
 export * from "./head.js";
