@@ -1,0 +1,726 @@
+{
+  "measuredAt": "2026-11-04",
+  "runs": 3,
+  "sizes": [
+    10,
+    100,
+    1000
+  ],
+  "tools": {
+    "afw-esdev": {
+      "10": {
+        "parity": true,
+        "buildMemoryMb": 109.2,
+        "buildSeconds": 0.21,
+        "devStartSeconds": 0.2749469249999993,
+        "editToBrowserSeconds": 0.18810822999999982,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "afw-esdev-k10-r1",
+              "exit": 0,
+              "peak_mb": 109.2,
+              "wall_s": 0.25
+            },
+            {
+              "label": "afw-esdev-k10-r2",
+              "exit": 0,
+              "peak_mb": 108.8,
+              "wall_s": 0.21
+            },
+            {
+              "label": "afw-esdev-k10-r3",
+              "exit": 0,
+              "peak_mb": 110.6,
+              "wall_s": 0.21
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 0.3281825079999999,
+              "editToBrowser": 0.18810822999999982,
+              "reloaded": false
+            },
+            {
+              "coldStart": 0.2741462169999995,
+              "editToBrowser": 0.18758940000000074,
+              "reloaded": false
+            },
+            {
+              "coldStart": 0.2749469249999993,
+              "editToBrowser": 0.19997927499999968,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "100": {
+        "parity": true,
+        "buildMemoryMb": 132.7,
+        "buildSeconds": 0.32,
+        "devStartSeconds": 0.37898568499999963,
+        "editToBrowserSeconds": 0.27274073299999874,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "afw-esdev-k100-r1",
+              "exit": 0,
+              "peak_mb": 133.6,
+              "wall_s": 0.29
+            },
+            {
+              "label": "afw-esdev-k100-r2",
+              "exit": 0,
+              "peak_mb": 132.2,
+              "wall_s": 0.32
+            },
+            {
+              "label": "afw-esdev-k100-r3",
+              "exit": 0,
+              "peak_mb": 132.7,
+              "wall_s": 0.33
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 0.37898568499999963,
+              "editToBrowser": 0.27274073299999874,
+              "reloaded": false
+            },
+            {
+              "coldStart": 0.38154717899999924,
+              "editToBrowser": 0.2752701159999997,
+              "reloaded": false
+            },
+            {
+              "coldStart": 0.37712675899999887,
+              "editToBrowser": 0.26824352400000134,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "1000": {
+        "parity": true,
+        "buildMemoryMb": 351.7,
+        "buildSeconds": 1.19,
+        "devStartSeconds": 1.1460781810000045,
+        "editToBrowserSeconds": 1.024478277000002,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "afw-esdev-k1000-r1",
+              "exit": 0,
+              "peak_mb": 346.3,
+              "wall_s": 1.13
+            },
+            {
+              "label": "afw-esdev-k1000-r2",
+              "exit": 0,
+              "peak_mb": 352.2,
+              "wall_s": 1.19
+            },
+            {
+              "label": "afw-esdev-k1000-r3",
+              "exit": 0,
+              "peak_mb": 351.7,
+              "wall_s": 1.57
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 1.8069173179999998,
+              "editToBrowser": 1.0213515540000007,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.1460781810000045,
+              "editToBrowser": 1.0318129770000015,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.1451825400000015,
+              "editToBrowser": 1.024478277000002,
+              "reloaded": false
+            }
+          ]
+        }
+      }
+    },
+    "afw-vite": {
+      "10": {
+        "parity": true,
+        "buildMemoryMb": 359,
+        "buildSeconds": 0.48,
+        "devStartSeconds": 0.4720167970000039,
+        "editToBrowserSeconds": 0.033464894999997344,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "afw-vite-k10-r1",
+              "exit": 0,
+              "peak_mb": 356.6,
+              "wall_s": 0.5
+            },
+            {
+              "label": "afw-vite-k10-r2",
+              "exit": 0,
+              "peak_mb": 366.5,
+              "wall_s": 0.48
+            },
+            {
+              "label": "afw-vite-k10-r3",
+              "exit": 0,
+              "peak_mb": 359,
+              "wall_s": 0.48
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 0.9375490290000016,
+              "editToBrowser": 0.033767892999996545,
+              "reloaded": false
+            },
+            {
+              "coldStart": 0.4720167970000039,
+              "editToBrowser": 0.03292920900000172,
+              "reloaded": false
+            },
+            {
+              "coldStart": 0.4718436450000008,
+              "editToBrowser": 0.033464894999997344,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "100": {
+        "parity": true,
+        "buildMemoryMb": 407.6,
+        "buildSeconds": 0.64,
+        "devStartSeconds": 0.5328044240000017,
+        "editToBrowserSeconds": 0.0341665420000063,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "afw-vite-k100-r1",
+              "exit": 0,
+              "peak_mb": 423.5,
+              "wall_s": 0.63
+            },
+            {
+              "label": "afw-vite-k100-r2",
+              "exit": 0,
+              "peak_mb": 407.6,
+              "wall_s": 0.64
+            },
+            {
+              "label": "afw-vite-k100-r3",
+              "exit": 0,
+              "peak_mb": 400.8,
+              "wall_s": 0.64
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 0.5328044240000017,
+              "editToBrowser": 0.034543785000001666,
+              "reloaded": false
+            },
+            {
+              "coldStart": 0.5224944880000039,
+              "editToBrowser": 0.03345302999999694,
+              "reloaded": false
+            },
+            {
+              "coldStart": 0.5507649689999962,
+              "editToBrowser": 0.0341665420000063,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "1000": {
+        "parity": true,
+        "buildMemoryMb": 766,
+        "buildSeconds": 1.86,
+        "devStartSeconds": 1.0513475610000023,
+        "editToBrowserSeconds": 0.056309743000005255,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "afw-vite-k1000-r1",
+              "exit": 0,
+              "peak_mb": 798.6,
+              "wall_s": 1.85
+            },
+            {
+              "label": "afw-vite-k1000-r2",
+              "exit": 0,
+              "peak_mb": 766,
+              "wall_s": 1.86
+            },
+            {
+              "label": "afw-vite-k1000-r3",
+              "exit": 0,
+              "peak_mb": 765.7,
+              "wall_s": 1.88
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 1.016522536000004,
+              "editToBrowser": 0.056309743000005255,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.0760492290000112,
+              "editToBrowser": 0.0533900799999974,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.0513475610000023,
+              "editToBrowser": 0.057785248000000136,
+              "reloaded": false
+            }
+          ]
+        }
+      }
+    },
+    "next": {
+      "10": {
+        "parity": true,
+        "buildMemoryMb": 2460.3,
+        "buildSeconds": 4.14,
+        "devStartSeconds": 1.894673072999998,
+        "editToBrowserSeconds": 0.03382595099999162,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "next-k10-r1",
+              "exit": 0,
+              "peak_mb": 2433.4,
+              "wall_s": 4.17
+            },
+            {
+              "label": "next-k10-r2",
+              "exit": 0,
+              "peak_mb": 2496.4,
+              "wall_s": 4.13
+            },
+            {
+              "label": "next-k10-r3",
+              "exit": 0,
+              "peak_mb": 2460.3,
+              "wall_s": 4.14
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 2.0297787499999975,
+              "editToBrowser": 0.0327818280000065,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.894673072999998,
+              "editToBrowser": 0.03399262599999202,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.8844915670000046,
+              "editToBrowser": 0.03382595099999162,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "100": {
+        "parity": true,
+        "buildMemoryMb": 2886.7,
+        "buildSeconds": 5.2,
+        "devStartSeconds": 2.0495575959999988,
+        "editToBrowserSeconds": 0.03417817500000819,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "next-k100-r1",
+              "exit": 0,
+              "peak_mb": 2886.7,
+              "wall_s": 5.5
+            },
+            {
+              "label": "next-k100-r2",
+              "exit": 0,
+              "peak_mb": 2892.5,
+              "wall_s": 5.2
+            },
+            {
+              "label": "next-k100-r3",
+              "exit": 0,
+              "peak_mb": 2880.4,
+              "wall_s": 5.03
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 1.9833190179999802,
+              "editToBrowser": 0.03475446000002557,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.252100292999996,
+              "editToBrowser": 0.03417817500000819,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.0495575959999988,
+              "editToBrowser": 0.033763821000000464,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "1000": {
+        "parity": true,
+        "buildMemoryMb": 5848.9,
+        "buildSeconds": 16.56,
+        "devStartSeconds": 2.6986700419999834,
+        "editToBrowserSeconds": 0.07946128899999894,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "next-k1000-r1",
+              "exit": 0,
+              "peak_mb": 5848.9,
+              "wall_s": 16.08
+            },
+            {
+              "label": "next-k1000-r2",
+              "exit": 0,
+              "peak_mb": 6149.1,
+              "wall_s": 17.55
+            },
+            {
+              "label": "next-k1000-r3",
+              "exit": 0,
+              "peak_mb": 5153.3,
+              "wall_s": 16.56
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 2.943995203999977,
+              "editToBrowser": 0.07946128899999894,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.6986700419999834,
+              "editToBrowser": 0.06632071599998744,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.6045577150000025,
+              "editToBrowser": 0.0838581450000056,
+              "reloaded": false
+            }
+          ]
+        }
+      }
+    },
+    "tanstack": {
+      "10": {
+        "parity": true,
+        "buildMemoryMb": 809.1,
+        "buildSeconds": 1.64,
+        "devStartSeconds": 1.4067574310000055,
+        "editToBrowserSeconds": 0.04469866900000488,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "tanstack-k10-r1",
+              "exit": 0,
+              "peak_mb": 809.1,
+              "wall_s": 1.64
+            },
+            {
+              "label": "tanstack-k10-r2",
+              "exit": 0,
+              "peak_mb": 833.3,
+              "wall_s": 1.66
+            },
+            {
+              "label": "tanstack-k10-r3",
+              "exit": 0,
+              "peak_mb": 772.8,
+              "wall_s": 1.63
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 1.433232684000017,
+              "editToBrowser": 0.04469866900000488,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.392831922000012,
+              "editToBrowser": 0.034594381999981126,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.4067574310000055,
+              "editToBrowser": 0.04501761499998975,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "100": {
+        "parity": true,
+        "buildMemoryMb": 907.9,
+        "buildSeconds": 2.63,
+        "devStartSeconds": 2.074599730000016,
+        "editToBrowserSeconds": 0.0445047959999647,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "tanstack-k100-r1",
+              "exit": 0,
+              "peak_mb": 907.9,
+              "wall_s": 2.63
+            },
+            {
+              "label": "tanstack-k100-r2",
+              "exit": 0,
+              "peak_mb": 895.6,
+              "wall_s": 2.62
+            },
+            {
+              "label": "tanstack-k100-r3",
+              "exit": 0,
+              "peak_mb": 915.7,
+              "wall_s": 2.64
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 2.074599730000016,
+              "editToBrowser": 0.0445047959999647,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.1214335640000064,
+              "editToBrowser": 0.043327938999980685,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.0576474140000065,
+              "editToBrowser": 0.045050961999979336,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "1000": {
+        "parity": true,
+        "buildMemoryMb": 1287.2,
+        "buildSeconds": 10.31,
+        "devStartSeconds": 7.338378797000042,
+        "editToBrowserSeconds": 7.932871599999955,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "tanstack-k1000-r1",
+              "exit": 0,
+              "peak_mb": 1289.3,
+              "wall_s": 10.38
+            },
+            {
+              "label": "tanstack-k1000-r2",
+              "exit": 0,
+              "peak_mb": 1270.7,
+              "wall_s": 10.26
+            },
+            {
+              "label": "tanstack-k1000-r3",
+              "exit": 0,
+              "peak_mb": 1287.2,
+              "wall_s": 10.31
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 7.07913939299999,
+              "editToBrowser": 7.596044452000002,
+              "reloaded": false
+            },
+            {
+              "coldStart": 7.393276454000035,
+              "editToBrowser": 7.9331232600000225,
+              "reloaded": false
+            },
+            {
+              "coldStart": 7.338378797000042,
+              "editToBrowser": 7.932871599999955,
+              "reloaded": false
+            }
+          ]
+        }
+      }
+    },
+    "astro": {
+      "10": {
+        "parity": true,
+        "buildMemoryMb": 776.1,
+        "buildSeconds": 1.43,
+        "devStartSeconds": 2.0387924559999955,
+        "editToBrowserSeconds": 0.033915104000014254,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "astro-k10-r1",
+              "exit": 0,
+              "peak_mb": 776.1,
+              "wall_s": 1.48
+            },
+            {
+              "label": "astro-k10-r2",
+              "exit": 0,
+              "peak_mb": 790.7,
+              "wall_s": 1.43
+            },
+            {
+              "label": "astro-k10-r3",
+              "exit": 0,
+              "peak_mb": 774.7,
+              "wall_s": 1.43
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 2.0387924559999955,
+              "editToBrowser": 0.03345170700002927,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.002960770000005,
+              "editToBrowser": 0.03491147300001467,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.046354369000008,
+              "editToBrowser": 0.033915104000014254,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "100": {
+        "parity": true,
+        "buildMemoryMb": 863.4,
+        "buildSeconds": 1.69,
+        "devStartSeconds": 2.175899065000005,
+        "editToBrowserSeconds": 0.034150385999993885,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "astro-k100-r1",
+              "exit": 0,
+              "peak_mb": 853.7,
+              "wall_s": 1.69
+            },
+            {
+              "label": "astro-k100-r2",
+              "exit": 0,
+              "peak_mb": 863.4,
+              "wall_s": 1.67
+            },
+            {
+              "label": "astro-k100-r3",
+              "exit": 0,
+              "peak_mb": 863.4,
+              "wall_s": 1.7
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 2.1873067989999546,
+              "editToBrowser": 0.033939990999992,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.1267970290000084,
+              "editToBrowser": 0.03435387199994875,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.175899065000005,
+              "editToBrowser": 0.034150385999993885,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "1000": {
+        "parity": true,
+        "buildMemoryMb": 1225,
+        "buildSeconds": 4.6,
+        "devStartSeconds": 3.14384145800001,
+        "editToBrowserSeconds": 0.0565099840000039,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "astro-k1000-r1",
+              "exit": 0,
+              "peak_mb": 1240.7,
+              "wall_s": 4.6
+            },
+            {
+              "label": "astro-k1000-r2",
+              "exit": 0,
+              "peak_mb": 1225,
+              "wall_s": 4.66
+            },
+            {
+              "label": "astro-k1000-r3",
+              "exit": 0,
+              "peak_mb": 1190.8,
+              "wall_s": 4.59
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 3.14384145800001,
+              "editToBrowser": 0.05654172100004507,
+              "reloaded": false
+            },
+            {
+              "coldStart": 3.1811744980000074,
+              "editToBrowser": 0.0565099840000039,
+              "reloaded": false
+            },
+            {
+              "coldStart": 3.1427396220000228,
+              "editToBrowser": 0.05503330499998992,
+              "reloaded": false
+            }
+          ]
+        }
+      }
+    }
+  }
+}

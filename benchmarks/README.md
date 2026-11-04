@@ -22,6 +22,20 @@ latency**, and (later) **memory**.
 > double-`rAF` proxy (see the caveat below); tracing-based timing is the next
 > step.
 
+## Where to run
+
+Every benchmark here runs on a **solid-state disk** (any SSD; on this machine the root
+filesystem, `/`). Never on:
+
+- **the spinning disk** the repo lives on (`/media/G/WD_LINUX_FILES`, `sda`): cold reads
+  of `node_modules` dominate a build (an Astro build read 21 s there, 2 s on the SSD);
+- **tmpfs** (`/tmp`): its files are charged to RAM, which corrupts the memory figures.
+
+Keep working copies under `~/.cache/<benchmark>` (the full-stack harness does by
+default), and check a directory with `findmnt -T <dir>` and `lsblk -o NAME,ROTA`
+(`ROTA` must be `0`). Each harness also discards a warm-up run, so measured runs start
+with the files in the page cache.
+
 ## Methodology
 
 We follow the de-facto industry standard, the

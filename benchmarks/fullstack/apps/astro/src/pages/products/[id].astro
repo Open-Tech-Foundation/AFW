@@ -1,0 +1,15 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import AddToCart from "../../../components/AddToCart.jsx";
+import products from "../../../data/products.json";
+const product = products.find((p) => p.id === Number(Astro.params.id));
+if (!product) return new Response("Not Found", { status: 404 });
+---
+<Layout>
+  <article>
+    <h1 class="text-2xl font-bold">{product.name}</h1>
+    <p class="text-lg">${product.price}</p>
+    <p>{product.description}</p>
+    <AddToCart client:load id={product.id} />
+  </article>
+</Layout>

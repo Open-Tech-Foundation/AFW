@@ -1,0 +1,18 @@
+---
+import CartBadge from "../../components/CartBadge.jsx";
+import "../styles.css";
+---
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Store</title></head>
+  <body>
+    <div class="mx-auto max-w-4xl p-6">
+      <nav class="mb-6 flex gap-4">
+        <a href="/">Home</a>
+        <a href="/docs/getting-started">Docs</a>
+        <a href="/account">Account</a>
+        <CartBadge client:load />
+      </nav>
+      <main><slot /></main>
+    </div>
+  </body>
+</html>

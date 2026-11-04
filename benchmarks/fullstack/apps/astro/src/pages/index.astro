@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Counter from "../../components/Counter.jsx";
+import products from "../../data/products.json";
+const featured = products.slice(0, 5);
+---
+<Layout>
+  <section>
+    <h1 class="text-3xl font-bold">Store</h1>
+    <Counter client:load />
+    <ul id="featured" class="mt-4 list-disc pl-6">
+      {featured.map((product) => <li><a href={`/products/${product.id}`}>{product.name}</a></li>)}
+    </ul>
+  </section>
+</Layout>

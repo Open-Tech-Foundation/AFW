@@ -1,0 +1,13 @@
+{
+  "name": "bench-fullstack-afw",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@opentf/afw": "0.35.0" },
+  "devDependencies": {
+    "@opentf/esdev-plugin-afw": "0.7.0",
+    "@opentf/vite-plugin-afw": "0.3.0",
+    "@tailwindcss/vite": "4.3.3",
+    "tailwindcss": "4.3.3",
+    "vite": "8.3.5"
+  }
+}

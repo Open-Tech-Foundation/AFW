@@ -1,0 +1,5 @@
+/* Explicit sources: the client and server builds then generate the same stylesheet
+ * (and the same hash), so the page links the file the client build emits. */
+@import "tailwindcss" source(none);
+@source "../src";
+@source "../components";

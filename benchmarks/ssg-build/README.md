@@ -271,7 +271,8 @@ else), then measure each build. Points worth knowing if you rebuild the set:
   imported functions.
 - **TanStack Start** — the router module must export `getRouter`, not
   `createRouter`.
-- Run the projects on **real disk**. A `tmpfs` scratch directory is charged to
+- Run the projects on a **solid-state disk** (see [Where to run](../README.md#where-to-run)),
+  never the repo's spinning disk. A `tmpfs` scratch directory is charged to
   RAM and corrupts the memory measurement.
 - Discard the first run of each project; cold dependency-optimization caches cost
   seconds (Astro's first 72 KB build took 5.8 s against 1.1 s warm).
