@@ -186,8 +186,14 @@ deps = ["test-e2e-vite-dev", "test-e2e-vite-ssr"]
 deps = ["build-compiler"]
 run = "esdev scripts/verify-hmr.mjs"
 
+# Server functions on esdev: `esdev start` with the generated @afw/server, in Chrome,
+# then a production build and server.
+[tasks.test-e2e-esdev-fns]
+deps = ["build-compiler"]
+run = "esdev scripts/verify-server-functions.mjs"
+
 [tasks.test-e2e]
-deps = ["test-e2e-docs", "test-e2e-afw-test", "test-e2e-benchmark-runner", "test-e2e-hmr", "test-e2e-vite"]
+deps = ["test-e2e-docs", "test-e2e-afw-test", "test-e2e-benchmark-runner", "test-e2e-hmr", "test-e2e-esdev-fns", "test-e2e-vite"]
 
 # Local convenience — CI runs the fast and browser tiers as separate parallel jobs, so this
 # is the "use my cores" path on a dev machine. `build-compiler` is de-duplicated to one run.
