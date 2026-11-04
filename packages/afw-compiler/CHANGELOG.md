@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-04
+
 ### Added
 
 - `afwc serve` answers a `server-exports` request: the exports of a `*.server` module

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-04
+
 ### Added
 
 - Server functions (`query()` / `action()` in `*.server.{js,ts}` under `app/`): browser

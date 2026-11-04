@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-11-04
+
 ### Fixed
 
 - The navbar no longer overflows small screens on pages without a sidebar (a

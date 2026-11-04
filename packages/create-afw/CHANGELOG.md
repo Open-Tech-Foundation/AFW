@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-04
+
 ### Added
 
 - `docs` template: an `@opentf/afw-docs` site on Vite — MDX docs and a blog, prerendered,

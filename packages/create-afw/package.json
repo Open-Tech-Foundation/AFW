@@ -1,6 +1,6 @@
 {
   "name": "@opentf/create-afw",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Create an AFW app on Vite and Node: npm create @opentf/afw.",
   "type": "module",
   "bin": {
