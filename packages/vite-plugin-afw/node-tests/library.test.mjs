@@ -23,17 +23,24 @@ before(async () => {
     name: "afw-demo-ui", version: "1.0.0", type: "module", exports: { ".": "./index.js" },
     peerDependencies: { "@opentf/afw": "*" },
   }));
-  await writeFile(join(lib, "index.js"), 'export { default as Greeting } from "./src/Greeting.jsx";\n');
+  await writeFile(join(lib, "index.js"), 'export { default as Greeting } from "./src/Greeting.jsx";\nexport { default as Tag } from "./src/Tag.tsx";\n');
+  // A TypeScript component too: a library may publish .tsx source.
+  await writeFile(join(lib, "src", "Tag.tsx"), `interface TagProps { text: string }
+export default function Tag({ text }: TagProps) {
+  const shout = (value: string): string => value.toUpperCase();
+  return <em id="tag">{shout(text)}</em>;
+}
+`);
   await writeFile(join(lib, "src", "Greeting.jsx"), `export default function Greeting({ name }) {
   let clicks = $state(0);
   return <button id="greeting" onclick={() => clicks++}>Hello {name} from the library ({clicks})</button>;
 }
 `);
   await writeFile(join(dir, "package.json"), JSON.stringify({ name: "consumer", private: true, type: "module", dependencies: { "afw-demo-ui": "1.0.0" } }));
-  await writeFile(join(dir, "app", "page.jsx"), `import { Greeting } from "afw-demo-ui";
+  await writeFile(join(dir, "app", "page.jsx"), `import { Greeting, Tag } from "afw-demo-ui";
 
 export default function Home() {
-  return <section><h1 id="title">Home</h1><Greeting name="Ada" /></section>;
+  return <section><h1 id="title">Home</h1><Greeting name="Ada" /><Tag text="typed tag" /></section>;
 }
 `);
   await mkdir(join(dir, "tests"), { recursive: true });
@@ -56,6 +63,8 @@ test("the dev server compiles the library instead of pre-bundling it", async () 
     const mod = await server.transformRequest(join(dir, "node_modules", "afw-demo-ui", "src", "Greeting.jsx"));
     assert.doesNotMatch(mod.code, /\$state\(/, "the macro was compiled");
     assert.doesNotMatch(mod.code, /jsx\(|React/, "not read as React JSX");
+    const tsx = await server.transformRequest(join(dir, "node_modules", "afw-demo-ui", "src", "Tag.tsx"));
+    assert.doesNotMatch(tsx.code, /interface TagProps|: string/, "TypeScript stripped");
   } finally {
     await server.close();
   }
@@ -66,6 +75,7 @@ test("a prerendered build renders the library component on Node", async () => {
   const html = await readFile(join(dir, "dist", "index.html"), "utf8");
   assert.match(html, /Hello <!--[^>]*-->?Ada|Hello Ada/);
   assert.match(html, /from the library/);
+  assert.match(html, /TYPED TAG/, "the .tsx component rendered, types stripped");
 });
 
 test("Vitest compiles the library", async () => {
