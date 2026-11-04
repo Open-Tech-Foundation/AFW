@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { access, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 
@@ -135,6 +135,33 @@ describe("mode: ssg", () => {
       assert.match(await (await fetch(`${origin}/todos`, { headers: html })).text(), /<ul id="todos">/);
       assert.equal((await (await fetch(`${origin}/api/hello?name=ssg`)).json()).hello, "ssg");
       assert.equal((await fetch(`${origin}/nope`, { headers: html })).status, 404);
+    } finally {
+      child?.kill();
+      await cleanup();
+    }
+  });
+
+  test("a loader's thrown Response is the page's response: a redirect, or a refusal", async () => {
+    const { dir, cleanup } = await copyFixture("fullstack");
+    let child;
+    try {
+      await mkdir(join(dir, "app", "old"), { recursive: true });
+      await writeFile(join(dir, "app", "old", "page.jsx"), "export default function Old() { return <p>old</p>; }");
+      await writeFile(join(dir, "app", "old", "loader.js"), 'export default () => { throw new Response(null, { status: 301, headers: { location: "/todos" } }); };\n');
+      await mkdir(join(dir, "app", "locked"), { recursive: true });
+      await writeFile(join(dir, "app", "locked", "page.jsx"), "export default function Locked() { return <p>locked</p>; }");
+      await writeFile(join(dir, "app", "locked", "loader.js"), 'export default () => { throw new Response("Forbidden", { status: 403 }); };\n');
+      await buildApp(dir, { mode: "ssr" });
+      let origin;
+      ({ child, origin } = startBuiltServer(dir));
+      const url = await origin;
+      const page = await fetch(`${url}/old`, { headers: { accept: "text/html" }, redirect: "manual" });
+      assert.equal(page.status, 301);
+      assert.equal(page.headers.get("location"), "/todos");
+      const data = await fetch(`${url}/old/__data.json`, { redirect: "manual" });
+      assert.equal(data.status, 200);
+      assert.equal(data.headers.get("x-afw-redirect"), "/todos", "client navigations get the redirect as data");
+      assert.equal((await fetch(`${url}/locked`, { headers: { accept: "text/html" } })).status, 403);
     } finally {
       child?.kill();
       await cleanup();
