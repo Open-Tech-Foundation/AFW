@@ -152,7 +152,9 @@ try {
       assert(await evaluate('document.querySelector("section")===window.__pageSection'),'app/layout.jsx keeps the page view in place');
       assert(await evaluate('document.getElementById("counter").textContent')===counter,'app/layout.jsx keeps child component state');
     } else {
-      assert(await evaluate('document.getElementById("counter").textContent.endsWith(": 0")'),'app/page.jsx rebuilds the page view and its children');
+      // The page view is rebuilt, so its components get new elements; their state carries over.
+      assert(await evaluate('document.querySelector("section")!==window.__pageSection'),'app/page.jsx rebuilds the page view');
+      assert(await evaluate('document.getElementById("counter").textContent')===counter,'app/page.jsx keeps child component state');
     }
   }
   // A page's metadata is route data the router re-reads: editing it refreshes in place.
@@ -171,12 +173,15 @@ try {
   assert(await evaluate('document.querySelector(".afw-exposer")===window.__exposeHost && document.getElementById("exposer").textContent==="2"'),'exposed host and its state survive');
   // Renaming an exposed method changes the API callers use: the module is invalidated, so
   // its importer re-runs (or the page reloads) and no host keeps the stale method.
+  const counterBefore=await evaluate('document.getElementById("counter").textContent');
   await write(project+'/Exposer.jsx',(await file(project+'/Exposer.jsx').text()).replace('greet()','wave()'));
   await until('typeof document.querySelector(".afw-exposer")?.wave==="function"');
   assert(await evaluate('document.querySelector(".afw-exposer").greet===undefined'),'renaming an exposed method leaves no stale method on the host');
-  await until('document.getElementById("counter")?.textContent==="Component C: 0"');
+  // The page re-runs; the unchanged Counter it renders keeps its state.
+  assert(await evaluate('document.getElementById("counter")?.textContent')===counterBefore,'a sibling module re-run keeps Counter state');
+  const counterBase=Number(counterBefore.split(": ")[1]);
   await evaluate('document.getElementById("counter").click();document.getElementById("counter").click();document.getElementById("counter").click()');
-  await until('document.getElementById("counter")?.textContent==="Component C: 3"');
+  await until('document.getElementById("counter")?.textContent==="Component C: '+(counterBase+3)+'"');
   const token2=await evaluate('window.__hmrDocumentToken');
   await write(project+'/Counter.jsx',(await file(project+'/Counter.jsx').text()).replace('let count=$state(0);','let count=$state(0); let extra=$state(1);'));
   await until('window.__hmrDocumentToken!=='+JSON.stringify(token2));

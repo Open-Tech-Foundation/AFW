@@ -4,6 +4,7 @@
 // caches lifecycle callbacks at define time, so stable callbacks dispatch to the
 // current implementation rather than redefining an existing tag.
 import { scope } from "../core/signals.js";
+import { collectHotState, takeHotState, withHotCarry } from "./hot-carry.js";
 import { refreshHotRoute } from "./router.js";
 
 const components = new Map();
@@ -93,6 +94,12 @@ export function registerHotRoute(hot, factory, shape = "", exports = "", data = 
 }
 
 export function hotState(host, key, create) {
+  // A new element built by a refresh picks up the state of the one it replaces.
+  if (!host.__afwHotCarried) {
+    host.__afwHotCarried = true;
+    const carried = takeHotState(host);
+    if (carried) host._hotState = carried;
+  }
   const slots = host._hotState ??= new Map();
   if (!slots.has(key)) slots.set(key, create());
   return slots.get(key);
@@ -114,13 +121,17 @@ function refresh(record, hosts) {
     const focusId = host.contains(focused) ? focused.id : null;
     const selection = focusId && typeof focused.selectionStart === "number"
       ? [focused.selectionStart, focused.selectionEnd] : null;
+    // Components this one renders get new elements; carry their state across. Its
+    // slotted children are moved, not rebuilt, so they keep theirs anyway.
+    const slotted = host._hotChildren || [];
+    const carried = collectHotState([...host.children], slotted);
     cleanup(host);
     host._mounted = false;
     host._hotRefreshing = true;
     // Slotted children belong to the parent. Keep the original capture and move
     // those nodes into the new view in the same task (no genuine disconnect).
-    host.replaceChildren(...(host._hotChildren || []));
-    try { record.connected?.call(host); }
+    host.replaceChildren(...slotted);
+    try { withHotCarry(carried, () => record.connected?.call(host)); }
     finally { host._hotRefreshing = false; }
     if (focusId) {
       const target = document.getElementById(focusId);

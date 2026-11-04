@@ -20,6 +20,7 @@ import { getRenderContext } from "../core/render-context.js";
 import { resolveMetadataModules } from "../core/metadata.js";
 import { prepareRouteHead, updateRouteHead } from "./head.js";
 import { beginHydration, cursor, endHydration, renderedForPath } from "./hydrate.js";
+import { collectHotState, withHotCarry } from "./hot-carry.js";
 import { buildScopedView, runCleanup, runMount } from "./mount.js";
 import { fetchRouteData, readInlineRouteData } from "./route-data.js";
 import { compareRoutes, compileRoute, decodeParams } from "./route-match.js";
@@ -710,10 +711,15 @@ export async function refreshHotRoute(factory, data = null) {
     const layouts = layoutModules.map((module, i) => (index === layoutModules.length - i ? fresh(module) : namespace(module)));
     // An edited page may have new headings: publish them before the view rebuilds.
     setRouteToc(page);
-    node = buildScopedView(() => factory(props, previous));
     const old = viewNodes(previous);
     if (old.length === 0) throw new Error("the refreshed view has no nodes in the document to replace");
-    old[0].parentNode.insertBefore(node, old[0]);
+    // Components the rebuilt view renders get new elements, which connect on insert;
+    // carry their state across. A layout's page is moved, not rebuilt.
+    const carried = collectHotState(old, inner ? viewNodes(inner) : []);
+    withHotCarry(carried, () => {
+      node = buildScopedView(() => factory(props, previous));
+      old[0].parentNode.insertBefore(node, old[0]);
+    });
     for (const n of old) n.remove();
     runCleanup(previous);
     currentNodes = currentNodes.map((current, i) => (i === index ? node : current));

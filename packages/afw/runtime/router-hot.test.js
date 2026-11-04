@@ -4,7 +4,7 @@
 
 import { afterEach, expect, test } from "runtime:test";
 import { effect, signal } from "../core/signals.js";
-import { hotRouteState, registerHotRoute } from "./hmr.js";
+import { hotRouteState, hotState, registerHotModule, registerHotRoute } from "./hmr.js";
 import { mountApp, router, routes } from "./router.js";
 
 const tick = async (n = 4) => { for (let i = 0; i < n; i++) await new Promise((r) => setTimeout(r, 0)); };
@@ -244,4 +244,105 @@ test("a page edit refreshes in place under Vite's hot API, which has no keep()",
   expect(app.querySelector(".layout")).toBe(layout);
   expect(pageHot.invalidated).toBe(0);
   expect(pageHot.accepted).toBe(2);
+});
+
+// A stateful component the way hot (development) builds compile it: `$state` lives in
+// the host's `_hotState` slots, read through `hotState`.
+class HotCount extends HTMLElement {
+  connectedCallback() {
+    if (this._mounted) return;
+    this._mounted = true;
+    if (!this._hotRefreshing) this._hotState = new Map();
+    const count = hotState(this, "count", () => signal(0));
+    const button = document.createElement("button");
+    button.className = "count";
+    effect(() => { button.textContent = `${this.dataset.label}:${count.value}`; });
+    button.onclick = () => count.value++;
+    this.replaceChildren(button);
+  }
+}
+if (!customElements.get("x-hot-count")) customElements.define("x-hot-count", HotCount);
+
+function pageWithCounters(title, labels) {
+  return () => {
+    const root = document.createElement("section");
+    const h1 = document.createElement("h1");
+    h1.textContent = title;
+    root.append(h1);
+    for (const label of labels) {
+      const counter = document.createElement("x-hot-count");
+      counter.dataset.label = label;
+      root.append(counter);
+    }
+    return root;
+  };
+}
+
+test("a page edit keeps the state of the components it renders", async () => {
+  const pageHot = fakeHot();
+  await mountRoute(pageHot, null, pageWithCounters("A", ["first", "second"]));
+  const [first, second] = app.querySelectorAll(".count");
+  first.click(); first.click(); second.click();
+  expect([...app.querySelectorAll(".count")].map((b) => b.textContent)).toEqual(["first:2", "second:1"]);
+  const oldHosts = [...app.querySelectorAll("x-hot-count")];
+
+  registerHotRoute(pageHot, pageWithCounters("B", ["first", "second"]), "[]");
+  await tick();
+
+  expect(app.querySelector("h1").textContent).toBe("B");
+  const hosts = [...app.querySelectorAll("x-hot-count")];
+  expect(hosts.some((h) => oldHosts.includes(h))).toBe(false); // new elements…
+  expect([...app.querySelectorAll(".count")].map((b) => b.textContent)).toEqual(["first:2", "second:1"]); // …same state, in order
+  app.querySelector(".count").click();
+  expect(app.querySelector(".count").textContent).toBe("first:3"); // and still live
+});
+
+test("a component added by the edit starts fresh; the rest keep theirs", async () => {
+  const pageHot = fakeHot();
+  await mountRoute(pageHot, null, pageWithCounters("A", ["one"]));
+  app.querySelector(".count").click();
+
+  registerHotRoute(pageHot, pageWithCounters("B", ["one", "two"]), "[]");
+  await tick();
+
+  expect([...app.querySelectorAll(".count")].map((b) => b.textContent)).toEqual(["one:1", "two:0"]);
+});
+
+// A component (compiled-style host) that renders <x-hot-count> in its own view.
+function panelVersion(label) {
+  return class extends HTMLElement {
+    static tag = "x-hot-panel";
+    connectedCallback() {
+      if (this._mounted) return;
+      this._mounted = true;
+      if (!this._hotRefreshing) this._hotState = new Map();
+      const title = document.createElement("h2");
+      title.textContent = label;
+      const counter = document.createElement("x-hot-count");
+      counter.dataset.label = "inner";
+      this.replaceChildren(title, counter);
+    }
+  };
+}
+
+test("a component edit keeps the state of the components it renders", async () => {
+  const hot = fakeHot();
+  registerHotModule(hot, [[panelVersion("Panel A"), "shape"]]);
+  const holder = document.createElement("div");
+  document.body.append(holder);
+  try {
+    holder.append(document.createElement("x-hot-panel"));
+    holder.querySelector(".count").click();
+    holder.querySelector(".count").click();
+    const oldCounter = holder.querySelector("x-hot-count");
+    expect(holder.querySelector(".count").textContent).toBe("inner:2");
+
+    registerHotModule(hot, [[panelVersion("Panel B"), "shape"]]);
+
+    expect(holder.querySelector("h2").textContent).toBe("Panel B");
+    expect(holder.querySelector("x-hot-count") === oldCounter).toBe(false);
+    expect(holder.querySelector(".count").textContent).toBe("inner:2");
+  } finally {
+    holder.remove();
+  }
 });

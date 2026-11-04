@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Editing a page, layout or component in development no longer resets the state of
+  the components it renders. The rebuilt view gets new component elements; each now
+  takes the `$state` of the element it replaces, matched by tag and position, so a
+  counter inside an edited page keeps its count. A component added by the edit starts
+  fresh. Development builds only.
+
 ## [0.34.0] - 2026-11-03
 
 ### Fixed
