@@ -67,12 +67,12 @@ test("a browser build gets stubs; the server answers them under the folder's mid
     const origin = "http://app.test";
     const call = (path, init = {}) => handle(new Request(`${origin}${path}`, { ...init, headers: { origin, ...init.headers } }));
 
-    const listed = await call(`${listEndpoint}?a=${encodeURIComponent('{"prefix":"t"}')}`);
-    expect(await listed.json()).toEqual({ prefix: "t", user: "ada", ok: true });
+    const listed = await call(`${listEndpoint}?a=${encodeURIComponent('{"v":{"prefix":"t"}}')}`);
+    expect((await listed.json()).v).toEqual({ prefix: "t", user: "ada", ok: true });
     const added = await call(serverFunctionEndpoint(app, join(app, "todos/todos.server.js"), "addTodo"), {
-      method: "POST", headers: { "content-type": "application/json" }, body: '{"title":"x"}',
+      method: "POST", headers: { "content-type": "application/json" }, body: '{"v":{"title":"x"}}',
     });
-    expect(await added.json()).toEqual({ added: "x" });
+    expect((await added.json()).v).toEqual({ added: "x" });
     expect((await call(serverFunctionEndpoint(app, join(app, "admin/stats.server.js"), "stats"))).status).toBe(403);
     expect((await call(serverFunctionEndpoint(app, join(app, "todos/todos.server.js"), "helper"))).status).toBe(404);
   } finally {

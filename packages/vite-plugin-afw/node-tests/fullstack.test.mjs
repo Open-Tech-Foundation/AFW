@@ -50,23 +50,26 @@ async function serverContract(origin) {
 async function serverFunctionContract(origin, dir) {
   const endpoint = (file, name) => `${origin}${serverFunctionEndpoint(`${dir}/app`, `${dir}/app/${file}`, name)}`;
   const same = { origin };
-  const list = await fetch(`${endpoint("todos/todos.server.js", "listTodos")}?a=${encodeURIComponent('{"prefix":"test"}')}`, { headers: same });
+  // The wire format: @opentf/serialize's envelope; plain data is `{"v": <json>}`.
+  const result = async (res) => (await res.json()).v;
+  const list = await fetch(`${endpoint("todos/todos.server.js", "listTodos")}?a=${encodeURIComponent('{"v":{"prefix":"test"}}')}`, { headers: same });
   assert.equal(list.status, 200);
   assert.equal(list.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await list.json(), { todos: ["test it on Node"], via: "middleware" }, "middleware locals reach the function");
+  assert.deepEqual(await result(list), { todos: ["test it on Node"], via: "middleware" }, "middleware locals reach the function");
 
   const add = endpoint("todos/todos.server.js", "addTodo");
   const post = (body, headers = {}) => fetch(add, { method: "POST", headers: { ...same, "content-type": "application/json", ...headers }, body });
-  assert.deepEqual(await (await post('{"title":"x"}')).json(), { added: "x", checked: true });
-  assert.equal((await post("{}")).status, 422, "a thrown Response passes through");
+  assert.deepEqual(await result(await post('{"v":{"title":"x"}}')), { added: "x", checked: true });
+  assert.equal((await post('{"v":{}}')).status, 422, "a thrown Response passes through");
+  assert.equal((await post('{"title":"x"}')).status, 400, "a body without the envelope is malformed");
   assert.equal((await fetch(add, { headers: same })).status, 405, "an action is POST only");
-  assert.equal((await post('{"title":"x"}', { origin: "https://evil.test" })).status, 403, "cross-site calls are refused");
+  assert.equal((await post('{"v":{"title":"x"}}', { origin: "https://evil.test" })).status, 403, "cross-site calls are refused");
 
   // The admin folder's middleware guards its functions too.
   const stats = await fetch(endpoint("admin/stats.server.js", "stats"), { headers: same, redirect: "manual" });
   assert.equal(stats.status, 302);
   const allowed = await fetch(endpoint("admin/stats.server.js", "stats"), { headers: { ...same, "x-role": "admin" } });
-  assert.deepEqual(await allowed.json(), { users: 3 });
+  assert.deepEqual(await result(allowed), { users: 3 });
 
   // Plain exports are not endpoints.
   const helper = await fetch(endpoint("todos/todos.server.js", "helper"), { headers: same });

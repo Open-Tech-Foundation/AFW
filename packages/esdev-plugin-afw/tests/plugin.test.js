@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "runtime:test";
-import { copy, file, makeTempDir, mkdir, readDir, remove, stat, write } from "runtime:fs";
+import { copy, file, makeTempDir, mkdir, readDir, realPath, remove, stat, write } from "runtime:fs";
 import { dirname, fromFileURL, join } from "runtime:path";
 import { env } from "runtime:process";
 import { Command } from "runtime:system";
@@ -153,6 +153,11 @@ test("a starter config loads the default factory and builds browser and server r
       for (const path of ["package.json", ...manifest.files.filter(path => !path.startsWith("!") && path !== "bin")]) {
         await copyPath(join(packageDir, path), join(scratch, "node_modules/@opentf", name, path));
       }
+    }
+    // And the framework's own registry dependencies, as an install would add them.
+    const afwDeps = (await file(join(root, "packages/afw/package.json")).json()).dependencies ?? {};
+    for (const name of Object.keys(afwDeps)) {
+      await copyPath(await realPath(join(root, "packages/afw/node_modules", name)), join(scratch, "node_modules", name));
     }
     await mkdir(join(scratch, "app"), { recursive: true });
     await write(join(scratch, "package.json"), JSON.stringify({

@@ -1,5 +1,5 @@
 import { Command } from "runtime:system";
-import { copy, file, makeTempDir, mkdir, readDir, remove, stat, write } from "runtime:fs";
+import { copy, file, makeTempDir, mkdir, readDir, realPath, remove, stat, write } from "runtime:fs";
 import { arch, cwd, env, platform } from "runtime:process";
 const root = cwd(), children = [], logs = [], errors = [];
 const cache = `${root}/.cache`;
@@ -17,6 +17,10 @@ for (const name of ["afw", "afw-build", "esdev-plugin-afw", "afw-compiler"]) {
   for (const path of ["package.json", ...manifest.files.filter(path => !path.startsWith('!') && path !== 'bin')]) {
     await copyPath(`${source}/${path}`, `${project}/node_modules/@opentf/${name}/${path}`);
   }
+}
+// The framework's registry dependencies, as an install would add them.
+for (const dep of Object.keys((await file(`${root}/packages/afw/package.json`).json()).dependencies ?? {})) {
+  await copyPath(await realPath(`${root}/packages/afw/node_modules/${dep}`), `${project}/node_modules/${dep}`);
 }
 // The fixture resolves the local compiler through the packaged resolver, with
 // no registry dependencies or workspace links.
