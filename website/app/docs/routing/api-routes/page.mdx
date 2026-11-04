@@ -99,16 +99,16 @@ export default auth;
 
 ## Running & deploying
 
-Supply a server entry that imports route modules and calls `createApiHandler` or
-`createFetchHandler`. Build that entry as an esdev server target. The compiler/routes
-plugin alone does not generate an HTTP server or discover API handlers automatically.
-See [Server](/docs/deployment/server) for a native API entry.
+The AFW plugin discovers every `route.*` file and serves them through the generated
+[`@afw/server`](/docs/deployment/server) handler, inside the app's middleware:
 
-A project prerender/build script can explicitly call `emitApiBundle` from
-`@opentf/afw-cli/ssg` to write `dist/server/api.js`. This repo's SSG script does so
-when API routes exist. A plain esdev browser build does not emit it automatically.
+- **Vite + Node** — `vite` answers them in the dev server; `vite build` ships a Node
+  server in `dist/server` whenever the app has API routes.
+- **esdev** — the app's server target serves `createHandler()` from `@afw/server`, and
+  `esdev start` restarts it when a route changes.
+- **Hand-built** — `emitApiBundle` from `@opentf/afw-cli/ssg` writes the routes and
+  middleware to `dist/server/api.js` for a custom build script.
 
 Keep server-only imports in route modules. On ES-Runtime, read variables from
-`runtime:process`'s `env`; on other runtimes, use the host's environment API or
-platform bindings supplied as `context.env`. The retired CLI's automatic Bun
-`.env` loading does not apply to this setup.
+`runtime:process`'s `env`; on Node, `process.env`; on other runtimes, the host's
+environment API or platform bindings supplied as `context.env`.

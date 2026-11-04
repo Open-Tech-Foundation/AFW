@@ -172,7 +172,11 @@ import type { CookieOptions, CookieSource, CookieTarget } from "@opentf/afw/serv
   calling `setCookie`: `const wrapped = new Response(res.body, res)`.
 </Callout>
 
-## Build output (`dist/server/api.js`)
+## Hand-built bundle (`dist/server/api.js`)
+
+The generated `@afw/server` module covers most apps. A custom build script can instead
+write the routes and middleware to `dist/server/api.js` with `emitApiBundle` from
+`@opentf/afw-cli/ssg`:
 
 | Export | Purpose |
 | --- | --- |
@@ -182,7 +186,20 @@ import type { CookieOptions, CookieSource, CookieTarget } from "@opentf/afw/serv
 
 ## Adapters
 
-Fetch-native runtimes use `createFetchHandler` as above. Node uses the `node:http` adapter:
+Fetch-native runtimes export `createHandler()` from `@afw/server` (or `createFetchHandler`
+as above) as their `fetch`. `@afw/server` exists inside a build with the AFW plugin; a
+Vite build also writes it to `dist/server/app.js`. Node uses the `node:http` adapter:
+
+```js
+// your own Node server, beside a Vite build
+import { createServer } from "node:http";
+import { createHandler } from "./dist/server/app.js";
+import { toNodeListener } from "@opentf/afw/server/adapters/node";
+
+createServer(toNodeListener(createHandler())).listen(3000);
+```
+
+From the hand-built bundle:
 
 ```js
 import { createServer } from "node:http";

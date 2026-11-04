@@ -27,9 +27,9 @@ Choose the output that fits your app:
 - **[Server](/docs/deployment/server)** — run a server for per-request SSR and
   [API routes](/docs/routing/api-routes), through a server entry or runtime adapter. Best for
   fullstack apps that need server logic.
-- **[Fetch handler](/docs/deployment/fetch-handler)** — deploy `dist/server/api.js` to any
-  Fetch-native runtime (Workers, Deno, Bun edge, etc.): static assets plus middleware and
-  API routes, with platform bindings via `context.env`.
+- **[Fetch handler](/docs/deployment/fetch-handler)** — deploy the generated handler to any
+  Fetch-native runtime (Workers, Deno, Bun edge, etc.): static assets plus middleware, API
+  routes, loader data and server functions, with platform bindings via `context.env`.
 
 <Callout type="tip" title="Same bundle, more HTML">
   SSG doesn't change your app — it runs the same components through a string renderer at
@@ -51,7 +51,15 @@ paths so client-side routes resolve. A fully **static-generated** site needs no 
 
 ## Running a server
 
-If your app uses SSR or [API routes](/docs/routing/api-routes), run a server instead of
-serving `dist/` statically — through your server entry or an explicitly emitted
-`dist/server/api.js` behind a runtime adapter (Bun, Node, Cloudflare Workers, Deno). See
-**[Server](/docs/deployment/server)** for the native entry and adapter options.
+If your app uses SSR, [API routes](/docs/routing/api-routes), loaders or
+[server functions](/docs/server-functions), run a server instead of serving `dist/`
+statically:
+
+- **Vite + Node** — `vite build` emits `dist/server/index.js`; run it with
+  `node dist/server/index.js`.
+- **esdev** — build the app's server target, which serves the generated `@afw/server`
+  handler, and run it with `esdev dist/server.js`.
+- **Any Fetch runtime** (Workers, Deno, Bun) — export the same handler as the
+  runtime's `fetch`.
+
+See **[Server](/docs/deployment/server)** and **[Fetch handler](/docs/deployment/fetch-handler)**.

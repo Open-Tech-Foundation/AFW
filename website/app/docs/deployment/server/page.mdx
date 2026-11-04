@@ -108,8 +108,7 @@ Keep runtime-specific imports in the server entry, not in client components.
 
 On ES-Runtime, read variables from `runtime:process`'s `env`. Other hosts expose
 variables through their own environment API, and Fetch platforms can pass bindings
-as `context.env`/`context.ctx`. Configure environment loading for your chosen host;
-the retired CLI's automatic Bun `.env` loading is not part of esdev integration.
+as `context.env`/`context.ctx`. Node servers read `process.env`. Configure environment loading for your chosen host.
 
 Keep database clients and secrets in `loader.*`, `route.*`, `_middleware.*` and
 server entries. The compiler does not provide a guarantee that arbitrary imports

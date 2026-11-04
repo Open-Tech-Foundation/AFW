@@ -130,8 +130,8 @@ maps can still point into that generated source rather than the original prose.
 
 Runtime errors go through the framework's error-reporting API, including the
 `afw:error` event and console logging. `<ErrorBoundary>` can show a fallback
-while still reporting the error. The native compiler plugin does not supply the
-retired CLI's `/__route` stack rewriting or error-overlay controls.
+while still reporting the error. With Vite, compile errors show in Vite's overlay with
+their position and code frame.
 
 See [Error boundaries](/docs/core-concepts/error-boundary).
 

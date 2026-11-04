@@ -84,8 +84,7 @@ it still throws, the boundary catches it again.
 
 Every caught error is still **reported** to runtime error subscribers and the
 `afw:error` window event before the fallback renders. With no subscribers, the
-runtime also logs it to the console. A development host can display these reports,
-but the native plugin does not install the retired CLI's overlay bridge. The boundary
+runtime also logs it to the console. A development host can display these reports. The boundary
 contains user-visible failure; it does not hide errors from developers.
 
 ## SSR and hydration
