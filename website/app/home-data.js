@@ -41,7 +41,7 @@ export const capabilities = [
       { name: "Nested layouts", status: "supported", desc: "Shared layouts composed around matching routes." },
       { name: "Route guards", status: "supported", desc: "Client navigation checks and redirects; server auth uses middleware." },
       { name: "Code splitting", status: "supported", desc: "Dynamic route imports bundled and split by esdev." },
-      { name: "Route prefetch", status: "planned", desc: "Preload route chunks on hover or when a link enters the viewport." },
+      { name: "Link prefetching", status: "supported", desc: "<Link> warms a route's chunks and loader data on hover, focus or in view." },
     ],
   },
   {
@@ -56,11 +56,12 @@ export const capabilities = [
   {
     category: "Tooling & DX",
     items: [
-      { name: "esdev templates", status: "partial", desc: "Native plugin setup is available; embedded AFW templates await their upstream migration." },
+      { name: "Two toolchains", status: "supported", desc: "esdev + ES-Runtime, or Vite + Node — the same app/ folder builds with either." },
+      { name: "Project scaffolding", status: "supported", desc: "npm create @opentf/afw or esdev create: app, docs or library; any rendering; CSS or Tailwind." },
       { name: "Dev server + reload on save", status: "supported", desc: "esdev watches and rebuilds configured targets, refreshing accepted modules or reloading the page." },
       { name: "CSS hot updates", status: "supported", desc: "Global stylesheet edits update in place and keep page state." },
       { name: "JavaScript module HMR", status: "supported", desc: "esdev hot-swaps JavaScript modules that explicitly accept updates." },
-      { name: "Component HMR", status: "partial", desc: "Compatible component edits retain state and recover after a compile error; page/layout edits remount route views." },
+      { name: "Component HMR", status: "supported", desc: "Component, page and layout edits refresh in place and keep their state; a compile error keeps the last view." },
       { name: "Compiler diagnostics", status: "supported", desc: "Located compile errors and source maps; runtime errors report through the framework API." },
       { name: "Testing library", status: "supported", desc: "Component testing utilities." },
       { name: "TypeScript / TSX", status: "beta", desc: "Compile TSX components with macro typings; full editor tooling is in progress." },
@@ -70,7 +71,7 @@ export const capabilities = [
   {
     category: "Styling",
     items: [
-      { name: "Tailwind CSS", status: "supported", desc: "Processed by esdev from your CSS import; install Tailwind in the app." },
+      { name: "Tailwind CSS", status: "supported", desc: "Tailwind 4 in both toolchains: esdev compiles it natively, Vite through @tailwindcss/vite." },
       { name: "Scoped CSS Modules", status: "supported", desc: "Component-scoped class names." },
     ],
   },
@@ -81,9 +82,87 @@ export const capabilities = [
       { name: "Cookie helpers", status: "supported", desc: "getCookie / setCookie / deleteCookie on @opentf/afw/server — RFC 6265 helpers for middleware, API routes, and loaders." },
       { name: "Reactive forms", status: "beta", desc: "@opentf/afw-form — nested reactive values, validation and submit state." },
       { name: "API routes", status: "supported", desc: "File-based route.js / route.ts endpoints — standard Request/Response and dynamic params." },
-      { name: "Data fetching", status: "supported", desc: "Route loaders (loader.js → router.data across SSR/SSG/SPA) + client-side resource(); queries and actions planned." },
+      { name: "Server functions", status: "supported", desc: "Typed query() / action() in .server.js files, validated, under folder middleware; invalidate() refetches." },
+      { name: "Data fetching", status: "supported", desc: "Route loaders (loader.js → router.data across SSR/SSG/SPA) and the client-side resource()." },
+      { name: "Progressive forms", status: "planned", desc: "<form action={addTodo}> that works without JavaScript under SSR." },
       { name: "Internationalization", status: "beta", desc: "@opentf/afw-i18n — URL-prefix locale routing, ICU messages, and Intl formatters (Phase 1)." },
       { name: "Accessibility helpers", status: "planned", desc: "ARIA helpers and a11y defaults." },
     ],
+  },
+];
+
+// --- Hero code showcase ------------------------------------------------------
+export const codeSamples = [
+  {
+    label: "Component",
+    file: "app/Counter.jsx",
+    code: `export default function Counter({ start = 0 }) {
+  let count = $state(start);
+  const doubled = $derived(count * 2);
+
+  return (
+    <button onclick={() => count++}>
+      {count} × 2 = {doubled}
+    </button>
+  );
+}`,
+  },
+  {
+    label: "Server function",
+    file: "app/todos/todos.server.js",
+    code: `import { action, query } from "@opentf/afw/server";
+import { z } from "zod";
+
+export const listTodos = query(async (_, { locals }) =>
+  db.todos.list({ owner: locals.user.id }));
+
+export const addTodo = action(
+  z.object({ title: z.string().min(1) }),
+  async ({ title }, { locals }) =>
+    db.todos.insert({ owner: locals.user.id, title }),
+);`,
+  },
+  {
+    label: "Page",
+    file: "app/todos/page.jsx",
+    code: `import { invalidate, resource } from "@opentf/afw";
+import { addTodo, listTodos } from "./todos.server.js";
+
+export default function Todos() {
+  const todos = resource(() => listTodos());
+
+  async function add(title) {
+    await addTodo({ title }); // a typed call, no fetch, no URL
+    await invalidate(listTodos);
+  }
+
+  return <ul>{(todos.data ?? []).map((t) => <li>{t.title}</li>)}</ul>;
+}`,
+  },
+];
+
+// --- Why AFW -----------------------------------------------------------------
+export const reasons = [
+  { title: "Web Components, compiled", desc: "Every component is a real Custom Element, built from JSX at compile time. Usable in any page, with or without a framework.", icon: "box" },
+  { title: "No virtual DOM", desc: "Signals bind each update to the DOM node it affects. No diffing, no re-rendering of whole components.", icon: "bolt" },
+  { title: "Typed server functions", desc: "Call server code like a function: validated input, folder middleware, cross-site calls refused, invalidate() to refetch.", icon: "server" },
+  { title: "Your toolchain", desc: "esdev with the capability-secured ES-Runtime, or Vite with Node and the whole npm ecosystem. Same app either way.", icon: "split" },
+];
+
+// --- Two workflows -----------------------------------------------------------
+export const workflows = [
+  {
+    name: "esdev + ES-Runtime",
+    tagline: "One binary: dev server, bundler, test runner and a capability-secured server runtime.",
+    points: ["No node_modules toolchain to assemble", "File, network and process access only as declared", "Browser tests, coverage and benchmarks built in"],
+    command: "esdev create my-app",
+    href: "/docs/getting-started/installation",
+  },
+  {
+    name: "Vite + Node",
+    tagline: "The tools your team already runs, with server code on Node.",
+    points: ["Any npm package on the server, native addons included", "Vitest for component and page tests", "Deploy dist/server to any Node host"],
+    command: "npm create @opentf/afw@latest",
+    href: "/docs/getting-started/installation#vite-and-node",
   },
 ];

@@ -1,7 +1,7 @@
 import { Navbar } from "@opentf/afw-docs";
 import config from "../afw.config.js";
 
-const AFW_ORG = "https://opentechf.org/";
+const AFW_ORG = "https://opentechf.org";
 
 // Site-wide SEO defaults, inherited by every route (least-specific in the metadata
 // merge). `titleTemplate` brands every child page's `<title>` (e.g. "Installation —
@@ -40,22 +40,23 @@ export default function WebsiteLayout(props) {
         {props.children}
       </div>
 
-      <footer className="py-12 border-t border-[#1e293b] flex justify-start items-center px-8 text-xs text-slate-400 bg-[#020617] mt-auto transition-colors">
-        <a
-          href={AFW_ORG}
-          target="_blank"
-          rel="noreferrer"
-          class="afw-footer-org-link"
-        >
-          <img
-            src="/img/afw-logo.svg"
-            alt=""
-            width="24"
-            height="24"
-            class="afw-footer-org-logo"
-          />
-          <span>© Open Tech Foundation</span>
-        </a>
+      <footer class="site-footer">
+        <div class="site-footer-inner">
+          <div class="site-footer-org">
+            <a href={AFW_ORG} target="_blank" rel="noreferrer" class="site-footer-org-link">
+              <img src="/img/otf-logo.svg" alt="" width="24" height="24" class="site-footer-org-logo" />
+              <span>© Open Tech Foundation</span>
+            </a>
+            <span>· MIT</span>
+          </div>
+          <a href="https://opentechf.org/policies" target="_blank" rel="noopener noreferrer" aria-label="Open organization policies in a new tab">
+            Organization policies ↗
+          </a>
+          <a href="https://esrun.opentechf.org/esdev" target="_blank" rel="noreferrer" class="site-footer-built">
+            Built with <strong>esdev</strong> on ES-Runtime
+          </a>
+        </div>
+        <div class="site-footer-bottomline">No trackers, no analytics.</div>
       </footer>
     </div>
   );

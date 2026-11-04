@@ -3,7 +3,7 @@ title: Introduction
 description: AFW is a native-first, zero-VDOM framework that compiles JSX to standard Web Components driven by fine-grained signals.
 ---
 
-import { Callout } from "@opentf/afw-docs";
+import { Callout, Card, Cards } from "@opentf/afw-docs";
 import CounterDemo from "../components/CounterDemo.jsx";
 
 # Introduction
@@ -28,8 +28,9 @@ compile to factories. State changes run the dependent DOM bindings.
   [route guards](/docs/routing/route-guards), plus
   [static generation](/docs/deployment/static-generation),
   [server rendering](/docs/deployment/server), and
-  [hydration](/docs/deployment/hydration). Server features require an app-owned
-  server entry; a browser build alone does not start one.
+  [hydration](/docs/deployment/hydration), and typed
+  [server functions](/docs/server-functions). With Vite, `vite build` ships a Node
+  server when the app has server code; with esdev, the app's server target serves it.
 
 ## A first component
 
@@ -54,7 +55,13 @@ The button above is that snippet, compiled and running on this page — click it
   place rather than re-rendering them — see [Hydration](/docs/deployment/hydration).
 </Callout>
 
-Start with [Installation](/docs/getting-started/installation), then learn the
-[Project Structure](/docs/getting-started/project-structure). The
-[Components](/docs/core-concepts/components) and
-[Reactivity](/docs/core-concepts/reactivity) guides explain how to build your UI.
+## Next steps
+
+<Cards>
+  <Card title="Installation" href="/docs/getting-started/installation" desc="Create a project with npm create @opentf/afw or esdev create." />
+  <Card title="Components" href="/docs/core-concepts/components" desc="JSX components that compile to Custom Elements." />
+  <Card title="Reactivity" href="/docs/core-concepts/reactivity" desc="$state, $derived and $effect, and what a change re-runs." />
+  <Card title="Server functions" href="/docs/server-functions" desc="Call server code from components as typed async functions." />
+  <Card title="Deployment" href="/docs/deployment" desc="Static output, a Node server, or any Fetch-native runtime." />
+  <Card title="Comparison" href="/docs/comparison" desc="How AFW stands against Next.js, SvelteKit, Astro and others." />
+</Cards>

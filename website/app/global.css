@@ -533,119 +533,566 @@ body {
   font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
-/* Site footer — Open Tech Foundation org link (footer is always dark). */
-.afw-footer-org-link {
+/* ── Home page ───────────────────────────────────────────────────────────────
+   The navbar's container (90rem, 1.5rem gutters) for every section and the footer,
+   so the page lines up with the logo and the header's right edge. */
+.home {
+  flex: 1;
+  width: 100%;
+}
+.home-container {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+.home-section {
+  padding: 5.5rem 0;
+}
+.home-section-alt {
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.section-heading {
+  max-width: 44rem;
+  margin-bottom: 2.5rem;
+}
+.section-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.6rem;
+}
+.section-title {
+  font-size: clamp(1.75rem, 3vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+.section-lede {
+  margin: 1rem 0 0;
+  font-size: 1.08rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+.section-lede code,
+.workflow-command code {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.9rem;
+  padding: 0 1.4rem;
+  border-radius: 0.7rem;
+  font-weight: 700;
+  font-size: 0.98rem;
+  text-decoration: none;
+  transition: transform 0.12s, opacity 0.15s, border-color 0.15s, background 0.15s;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-primary {
+  background: var(--accent);
+  color: #1a0d00;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+}
+.btn-secondary {
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+.btn-secondary:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+/* <Link class> lands on the inner <a>; let the host stay inline. */
+.home .afw-link {
+  display: contents;
+}
+
+/* Hero */
+.hero {
+  padding: 5rem 0 5.5rem;
+}
+.hero-grid {
+  display: grid;
+  gap: 3rem;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  }
+}
+.hero-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.hero-badge-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.hero-title {
+  margin: 1.4rem 0 0;
+  font-size: clamp(2.5rem, 5.5vw, 4rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+.hero-lede {
+  margin: 1.4rem 0 0;
+  max-width: 34rem;
+  font-size: 1.15rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+/* Grid items default to min-width: auto, so a long code line would widen the column
+ * past the screen; let them shrink and scroll inside instead. */
+.hero-grid > *,
+.how-grid > *,
+.workflow-grid > *,
+.cap-grid > *,
+.reason-grid > * {
+  min-width: 0;
+}
+.install {
+  max-width: min(30rem, 100%);
+}
+
+/* Install command */
+.install {
+  margin-top: 2rem;
+}
+.install-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.install-tab {
+  padding: 0.3rem 0.7rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.install-tab:hover {
+  color: var(--text-main);
+}
+.install-tab.is-active {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.install-line {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  height: 3rem;
+  padding: 0 0.5rem 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--bg-surface);
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+.install-prompt {
+  color: var(--accent);
+}
+.install-command {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.install-copy {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--bg-main);
+  color: var(--text-muted);
+  font: inherit;
+  font-family: 'Geist', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.install-copy:hover {
+  color: var(--text-main);
+}
+.install-copy.is-copied {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+/* Code window (always dark) */
+.code-window {
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  border-radius: 1rem;
+  background: #0b1120;
+  box-shadow: 0 30px 60px -30px rgba(2, 6, 23, 0.6);
+}
+.code-window-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid #1e293b;
+  background: #0f172a;
+}
+.code-window-dots {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+.code-window-dots i {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: #334155;
+}
+.code-window-tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+.code-window-tab {
+  padding: 0.3rem 0.7rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: none;
+  color: #94a3b8;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.code-window-tab:hover {
+  color: #e2e8f0;
+}
+.code-window-tab.is-active {
+  background: #1e293b;
+  color: #f8fafc;
+}
+.code-window-panel.is-hidden {
+  display: none;
+}
+.code-window-file {
+  padding: 0.8rem 1.2rem 0;
+  color: #64748b;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+.code-window-pre {
+  margin: 0;
+  padding: 0.8rem 1.2rem 1.4rem;
+  overflow-x: auto;
+  color: #e2e8f0;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.84rem;
+  line-height: 1.7;
+}
+.tok-comment { color: #64748b; font-style: italic; }
+.tok-string { color: #a5d6a7; }
+.tok-tag { color: #7dd3fc; }
+.tok-keyword { color: #f0abfc; }
+.tok-macro { color: #ffb067; font-weight: 600; }
+.tok-number { color: #fca5a5; }
+.tok-call { color: #93c5fd; }
+
+/* Why AFW */
+.reason-grid {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .reason-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .reason-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.reason-card {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--bg-main);
+}
+.reason-icon {
+  display: inline-flex;
+  padding: 0.55rem;
+  border-radius: 0.7rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.reason-title {
+  margin: 1rem 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.reason-desc {
+  margin: 0;
+  font-size: 0.93rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* How it works */
+.how-grid {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  .how-grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+}
+
+/* Two workflows */
+.workflow-grid {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 768px) {
+  .workflow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.workflow-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--bg-main);
+}
+.workflow-name {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+.workflow-tagline {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.workflow-points {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.8;
+}
+.workflow-command {
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.6rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.86rem;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.workflow-command span {
+  color: var(--accent);
+}
+
+/* Performance */
+.bench-card {
+  max-width: 48rem;
+  overflow-x: auto; /* the tables scroll on narrow screens instead of clipping */
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--bg-main);
+}
+.bench-note,
+.bench-lede {
+  max-width: 48rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.bench-subtitle {
+  margin: 3rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* Capabilities */
+.cap-grid {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 768px) {
+  .cap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1100px) {
+  .cap-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.cap-card {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--bg-main);
+}
+.cap-group {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cap-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.9rem;
+}
+.cap-item {
+  display: flex;
+  gap: 0.7rem;
+}
+.cap-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.45rem;
+  border-radius: 50%;
+}
+.cap-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.cap-status {
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  vertical-align: 0.1em;
+}
+.cap-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* Closing call to action */
+.cta {
+  padding: 3.5rem 2rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: radial-gradient(80% 120% at 50% 0%, var(--accent-soft), transparent 70%), var(--bg-surface);
+  text-align: center;
+}
+.cta-title {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.cta-lede {
+  margin: 0.9rem auto 0;
+  max-width: 32rem;
+  color: var(--text-muted);
+}
+.cta-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+/* ── Site footer (always dark), like the other Open Tech Foundation sites ───── */
+.site-footer {
+  margin-top: auto;
+  border-top: 1px solid #1e293b;
+  background: #020617;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+.site-footer-inner {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+}
+.site-footer-org {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.site-footer a {
   color: #94a3b8;
   text-decoration: none;
   transition: color 0.15s;
 }
-.afw-footer-org-link:hover {
+.site-footer a:hover {
   color: #f1f5f9;
 }
-.afw-footer-org-logo {
+.site-footer-org-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.site-footer-org-logo {
   display: block;
   flex-shrink: 0;
-  opacity: 0.92;
 }
-
-/* Hero install — chip tabs + command pill with copy feedback. */
-.install-tabs {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.65rem;
-  max-width: 100%;
-}
-.install-chips {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.3rem;
-  padding: 0.3rem;
-  border: 1px solid var(--border);
-  border-radius: 9999px;
-  background: var(--bg-surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-.install-chip {
-  padding: 0.38rem 0.95rem;
-  border: 1px solid transparent;
-  border-radius: 9999px;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
-}
-.install-chip:hover {
-  color: var(--text-main);
-  background: var(--bg-main);
-}
-.install-chip.is-active {
-  color: var(--accent);
-  background: var(--bg-main);
-  border-color: var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-}
-.install-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.4rem 0.45rem 0.4rem 1.1rem;
-  border: 1px solid var(--border);
-  border-radius: 9999px;
-  background: var(--bg-surface);
-  font-size: 0.875rem;
-  color: var(--text-main);
-}
-.install-pill .install-prompt {
-  color: var(--accent);
-  font-weight: 700;
-}
-.install-pill .install-cmd {
-  white-space: nowrap;
-  overflow-x: auto;
-  max-width: min(72vw, 28rem);
-  scrollbar-width: none;
-}
-.install-pill .install-cmd::-webkit-scrollbar {
-  display: none;
-}
-.install-copy {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.4rem 0.85rem;
-  border: 1px solid var(--border);
-  border-radius: 9999px;
-  background: var(--bg-main);
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.install-copy:hover {
-  color: var(--text-main);
-  border-color: var(--accent);
-}
-.install-copy-label {
+.site-footer-built {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
-.install-copy:has(.is-copied) {
-  border-color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
+.site-footer-built strong {
+  color: var(--accent);
 }
-.install-copy-label.is-copied {
-  color: #10b981;
+.site-footer-bottomline {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 1.75rem;
+  font-size: 0.78rem;
+  color: #64748b;
 }
 
 /* ── Reactive-trace demo ─────────────────────────────────────────────────────
