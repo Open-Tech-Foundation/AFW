@@ -2,7 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+
+- `docs` template: an `@opentf/afw-docs` site on Vite — MDX docs and a blog, prerendered,
+  with search, feeds, `sitemap.xml` and `llms.txt`.
+- `library` template: components published as JSX source, `@opentf/afw` as a peer
+  dependency, a preview app (`npm run dev`) and a Vitest test.
+- Tailwind CSS: a styling choice for apps and libraries (`--styling tailwind`, or
+  `--tailwind`), set up with `@tailwindcss/vite`.
+- Apps with a server include server functions: `app/todos/todos.server.js`, called by
+  the todos page and directly by its loader.
+
 ### Changed
+
+- An app's rendering and its server are separate choices: `--render spa|ssr|ssg` and
+  `--server` / `--no-server` (SSR always has a server), so every combination is
+  available — a prerendered site with API routes, say. The prompts ask for a template
+  (`app`, `docs`, `library`), then only what it needs. The old template names
+  (`spa`, `fullstack`, `ssr`, `ssg`) still work as shorthands for `app`.
 
 - The scaffolder never starts the dev server. The "Install with … and start now?"
   prompt and `--immediate` are gone: it installs the dependencies with the package

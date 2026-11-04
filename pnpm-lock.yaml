@@ -174,15 +174,24 @@ importers:
       '@opentf/afw':
         specifier: workspace:*
         version: link:../afw
+      '@opentf/afw-docs':
+        specifier: workspace:*
+        version: link:../afw-docs
       '@opentf/afw-test':
         specifier: workspace:*
         version: link:../afw-test
       '@opentf/vite-plugin-afw':
         specifier: workspace:*
         version: link:../vite-plugin-afw
+      '@tailwindcss/vite':
+        specifier: 4.3.3
+        version: 4.3.3(vite@8.3.5(@types/node@22.20.2)(esbuild@0.28.1)(jiti@2.7.0))
       happy-dom:
         specifier: 21.0.4
         version: 21.0.4
+      tailwindcss:
+        specifier: 4.3.3
+        version: 4.3.3
       vite:
         specifier: 8.3.5
         version: 8.3.5(@types/node@22.20.2)(esbuild@0.28.1)(jiti@2.7.0)

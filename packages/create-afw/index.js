@@ -2,7 +2,7 @@
 // `npm create @opentf/afw` — scaffold an AFW app on Vite and Node.
 //
 //   npm create @opentf/afw@latest
-//   npm create @opentf/afw@latest my-app -- --template fullstack-ts
+//   npm create @opentf/afw@latest my-app -- --template app --render ssr --styling tailwind
 //
 // For the esdev + ES-Runtime workflow, use `esdev create` instead.
 
@@ -16,21 +16,25 @@ import { styleText } from "node:util";
 import * as prompts from "@clack/prompts";
 import { slugify } from "@opentf/std";
 
-import { TEMPLATES, projectFiles } from "./templates.js";
+import { LEGACY_TEMPLATES, RENDERINGS, STYLINGS, TEMPLATES, projectFiles } from "./templates.js";
 import { afwVersions } from "./versions.js";
 
 const DEFAULT_DIRECTORY = "afw-app";
 const LANGUAGES = { ts: "TypeScript", js: "JavaScript" };
 const TEMPLATE_NAMES = Object.keys(TEMPLATES);
+const SERVER_HINT = "API routes, middleware, loaders and server functions on Node";
 const VALID_NAME = /^(?:@[a-z\d\-*~][a-z\d\-*._~]*\/)?[a-z\d\-~][a-z\d\-._~]*$/;
 
 const HELP = `Usage: npm create @opentf/afw [directory] -- [options]
 
-Create an AFW app on Vite and Node. With no options, you are asked for each choice.
+Create an AFW project on Vite and Node. With no options, you are asked for each choice.
 
 Options:
-  -t, --template <name>   ${TEMPLATE_NAMES.map((t) => `${t}`).join(", ")}; add -ts or -js to pick the language
-                          (e.g. fullstack-ts). TypeScript is the default.
+  -t, --template <name>   ${TEMPLATE_NAMES.join(", ")} (add -ts or -js to pick the language)
+  -r, --render <mode>     app: ${Object.keys(RENDERINGS).join(", ")}
+      --server            app: add ${SERVER_HINT}
+      --no-server         app: no server (not with --render ssr, which always has one)
+  -s, --styling <name>    app and library: ${Object.keys(STYLINGS).join(", ")} (--tailwind for short)
   -l, --language <lang>   ts or js
       --overwrite         Remove the files in a non-empty target directory first
       --no-install        Skip installing dependencies
@@ -40,11 +44,19 @@ Options:
 Templates:
 ${TEMPLATE_NAMES.map((t) => `  ${t.padEnd(10)} ${TEMPLATES[t]}`).join("\n")}
 
+Renderings (app):
+${Object.entries(RENDERINGS).map(([r, label]) => `  ${r.padEnd(10)} ${label}`).join("\n")}
+
+Shorthands from earlier releases: ${Object.entries(LEGACY_TEMPLATES).map(([name, t]) => `${name} = app --render ${t.render}${t.server ? " --server" : ""}`).join("; ")}.
+
 For the esdev + ES-Runtime workflow, use \`esdev create\`.`;
 
-/** Parse the command line. Throws on an unknown option or value. */
+/** Parse the command line. Throws on an unknown option or value, or conflicting ones. */
 export function parseArgs(args) {
-  const options = { directory: undefined, template: undefined, language: undefined, overwrite: false, install: true, interactive: undefined, help: false };
+  const options = {
+    directory: undefined, template: undefined, render: undefined, server: undefined, styling: undefined,
+    language: undefined, overwrite: false, install: true, interactive: undefined, help: false,
+  };
   const value = (i, flag) => {
     const next = args[i + 1];
     if (next === undefined || next.startsWith("-")) throw new Error(`${flag} needs a value`);
@@ -55,6 +67,11 @@ export function parseArgs(args) {
     const [flag, inline] = arg.startsWith("--") && arg.includes("=") ? [arg.slice(0, arg.indexOf("=")), arg.slice(arg.indexOf("=") + 1)] : [arg, undefined];
     if (flag === "-h" || flag === "--help") options.help = true;
     else if (flag === "-t" || flag === "--template") options.template = inline ?? value(i++, flag);
+    else if (flag === "-r" || flag === "--render") options.render = inline ?? value(i++, flag);
+    else if (flag === "--server") options.server = true;
+    else if (flag === "--no-server") options.server = false;
+    else if (flag === "-s" || flag === "--styling") options.styling = inline ?? value(i++, flag);
+    else if (flag === "--tailwind") options.styling = "tailwind";
     else if (flag === "-l" || flag === "--language") options.language = inline ?? value(i++, flag);
     else if (flag === "--ts" || flag === "--typescript") options.language = "ts";
     else if (flag === "--js") options.language = "js";
@@ -67,18 +84,42 @@ export function parseArgs(args) {
     else throw new Error(`Unexpected argument: ${arg}`);
   }
   if (options.template !== undefined) {
-    const match = options.template.match(/^(.*?)(?:-(ts|js))?$/);
-    if (!TEMPLATES[match[1]]) {
+    const [, base, lang] = options.template.match(/^(.*?)(?:-(ts|js))?$/);
+    if (!TEMPLATES[base] && !LEGACY_TEMPLATES[base]) {
       throw new Error(`Unknown template "${options.template}". Choose one of: ${TEMPLATE_NAMES.join(", ")} (optionally with -ts or -js).`);
     }
-    options.template = match[1];
-    if (match[2]) {
-      if (options.language && options.language !== match[2]) throw new Error(`--template ${match[1]}-${match[2]} conflicts with --language ${options.language}`);
-      options.language = match[2];
+    if (lang) {
+      if (options.language && options.language !== lang) throw new Error(`--template ${options.template} conflicts with --language ${options.language}`);
+      options.language = lang;
     }
+    const legacy = LEGACY_TEMPLATES[base];
+    if (legacy) {
+      // An earlier release's name: a shorthand for app with its rendering and server.
+      if (options.render !== undefined && options.render !== legacy.render) throw new Error(`--template ${base} conflicts with --render ${options.render}`);
+      if (legacy.server && options.server === false) throw new Error(`--template ${base} conflicts with --no-server`);
+      options.template = legacy.template;
+      options.render = legacy.render;
+      options.server ??= legacy.server;
+    } else {
+      options.template = base;
+    }
+  }
+  if (options.render !== undefined && !RENDERINGS[options.render]) {
+    throw new Error(`Unknown rendering "${options.render}". Choose one of: ${Object.keys(RENDERINGS).join(", ")}.`);
+  }
+  if (options.styling !== undefined && !STYLINGS[options.styling]) {
+    throw new Error(`Unknown styling "${options.styling}". Choose one of: ${Object.keys(STYLINGS).join(", ")}.`);
   }
   if (options.language !== undefined && !LANGUAGES[options.language]) {
     throw new Error(`Unknown language "${options.language}". Choose ts or js.`);
+  }
+  if (options.render === "ssr" && options.server === false) throw new Error("--render ssr always has a server; drop --no-server");
+  if (options.template && options.template !== "app") {
+    if (options.render !== undefined) throw new Error(`--render applies to the app template, not ${options.template}`);
+    if (options.server !== undefined) throw new Error(`--server applies to the app template, not ${options.template}`);
+  }
+  if (options.template === "docs" && options.styling !== undefined) {
+    throw new Error("--styling applies to the app and library templates; the docs template uses the afw-docs theme");
   }
   return options;
 }
@@ -114,7 +155,8 @@ async function emptyDir(dir) {
  * (default), `"remove"` its files first, or `"ignore"` and write beside them.
  */
 export async function create({
-  directory = DEFAULT_DIRECTORY, template = "spa", language = "ts", packageName, existing = "error", cwd: base = cwd(),
+  directory = DEFAULT_DIRECTORY, template = "app", render = "spa", server = false, styling = "css", language = "ts",
+  packageName, existing = "error", cwd: base = cwd(),
 } = {}) {
   const target = resolve(base, directory);
   const name = packageName ?? basename(target);
@@ -123,7 +165,7 @@ export async function create({
     if (existing === "remove") await emptyDir(target);
     else if (existing !== "ignore") throw new Error(`${target} is not empty. Use --overwrite to remove its files.`);
   }
-  const files = projectFiles({ name, template, typescript: language === "ts", versions: await afwVersions() });
+  const files = projectFiles({ name, template, render, server, styling, typescript: language === "ts", versions: await afwVersions() });
   for (const [path, contents] of Object.entries(files)) {
     const file = join(target, path);
     await mkdir(dirname(file), { recursive: true });
@@ -224,13 +266,20 @@ export async function main(args = argv.slice(2)) {
     packageName ||= toValidPackageName(basename(target));
   }
 
-  const template = options.template ?? (interactive
-    ? await ask(prompts.select({
-      message: "Select a template:",
-      options: TEMPLATE_NAMES.map((value) => ({ value, label: value, hint: TEMPLATES[value] })),
-    }))
-    : "spa");
+  const choose = (message, entries) => ask(prompts.select({
+    message, options: Object.entries(entries).map(([value, hint]) => ({ value, label: value, hint })),
+  }));
 
+  const template = options.template ?? (interactive ? await choose("Select a template:", TEMPLATES) : "app");
+  const isApp = template === "app";
+  const render = isApp ? (options.render ?? (interactive ? await choose("How should pages render?", RENDERINGS) : "spa")) : undefined;
+  // Server-rendered pages need a server; the other renderings may add one.
+  const server = isApp && (render === "ssr" || (options.server ?? (interactive
+    ? await ask(prompts.confirm({ message: `Add a server? (${SERVER_HINT})`, initialValue: false }))
+    : false)));
+  const styling = template === "docs" ? undefined : (options.styling ?? (interactive
+    ? await ask(prompts.select({ message: "Select a styling:", options: Object.entries(STYLINGS).map(([value, label]) => ({ value, label })) }))
+    : "css"));
   const language = options.language ?? (interactive
     ? await ask(prompts.select({
       message: "Select a language:",
@@ -239,9 +288,10 @@ export async function main(args = argv.slice(2)) {
     : "ts");
 
   const where = relative(cwd(), target) || ".";
-  prompts.log.step(`Scaffolding ${template} (${LANGUAGES[language]}) in ${styleText("cyan", target)}`);
+  const summary = [isApp && render, server && "server", styling && STYLINGS[styling], LANGUAGES[language]].filter(Boolean).join(", ");
+  prompts.log.step(`Scaffolding ${template} (${summary}) in ${styleText("cyan", target)}`);
   try {
-    await create({ directory: target, template, language, packageName, existing });
+    await create({ directory: target, template, render, server, styling, language, packageName, existing });
   } catch (error) {
     prompts.cancel(error.message);
     exit(1);

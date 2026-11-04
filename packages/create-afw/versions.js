@@ -10,7 +10,12 @@ import { readFile } from "node:fs/promises";
 
 import { timeoutRun } from "@opentf/std";
 
-export const AFW_PACKAGES = { "@opentf/afw": "afw", "@opentf/afw-test": "afw-test", "@opentf/vite-plugin-afw": "vite-plugin-afw" };
+export const AFW_PACKAGES = {
+  "@opentf/afw": "afw",
+  "@opentf/afw-docs": "afw-docs",
+  "@opentf/afw-test": "afw-test",
+  "@opentf/vite-plugin-afw": "vite-plugin-afw",
+};
 
 const REGISTRY_TIMEOUT_MS = 5000;
 

@@ -6,19 +6,31 @@ Create an [AFW](https://afw.opentechf.org) app on **Vite and Node**:
 npm create @opentf/afw@latest
 ```
 
-The prompts ask for a project name, a template and a language (arrow keys and Enter),
-then install the dependencies and show the command to start the dev server. Nothing
-is started for you.
+The prompts ask for a project name and a template, then only what that template needs
+(arrow keys and Enter). The dependencies are installed and the command to start the
+dev server is shown. Nothing is started for you.
+
+| Prompt | Asked for | Choices |
+| --- | --- | --- |
+| Template | every project | `app`, `docs`, `library` |
+| Rendering | `app` | `spa` (in the browser), `ssr` (per request, hydrated), `ssg` (prerendered) |
+| Server | `app`, unless `ssr` | API routes, middleware, loaders and server functions on Node: yes or no |
+| Styling | `app`, `library` | CSS, or Tailwind CSS |
+| Language | every project | TypeScript (default), JavaScript |
 
 Or pass the choices:
 
 ```sh
-npm create @opentf/afw@latest my-app -- --template fullstack-ts
+npm create @opentf/afw@latest my-app -- --template app --render ssg --server --tailwind
+npm create @opentf/afw@latest my-docs -- --template docs-js
 ```
 
 | Option | Values |
 | --- | --- |
-| `-t`, `--template` | `spa`, `fullstack`, `ssr`, `ssg`; add `-ts` or `-js` for the language (`fullstack-js`) |
+| `-t`, `--template` | `app`, `docs`, `library`; add `-ts` or `-js` for the language (`app-js`) |
+| `-r`, `--render` | `spa` (default), `ssr`, `ssg` — `app` only |
+| `--server`, `--no-server` | Add a Node server, or not (default) — `app` only; `ssr` always has one |
+| `-s`, `--styling` | `css` (default) or `tailwind`; `--tailwind` for short — `app` and `library` |
 | `-l`, `--language` | `ts` (default) or `js` |
 | `--overwrite` | Remove the files in a non-empty target directory first |
 | `--no-install` | Skip installing dependencies |
@@ -26,15 +38,18 @@ npm create @opentf/afw@latest my-app -- --template fullstack-ts
 
 | Template | What you get |
 | --- | --- |
-| `spa` | Single-page app, rendered in the browser |
-| `fullstack` | SPA plus API routes, middleware and loaders on a Node server |
-| `ssr` | Server-rendered pages on a Node server, hydrated in the browser |
-| `ssg` | Every page prerendered to static HTML at build time |
+| `app` | File-based pages and a component test; with a server, an API route, middleware, a loader and server functions |
+| `docs` | An [`@opentf/afw-docs`](https://afw.opentechf.org/packages/afw-docs) site: MDX docs and a blog, prerendered, with search, RSS/Atom feeds, `sitemap.xml` and `llms.txt` |
+| `library` | Components published as JSX source (`index.js` and `src/`), `@opentf/afw` as a peer dependency, a preview app and a test |
+
+The names of earlier releases still work: `spa`, `fullstack` (`app --server`), `ssr`
+and `ssg`.
 
 - A non-empty target directory: choose to cancel, remove its files, or ignore them.
 - A folder name that is not a valid package name: you are asked for one (`My App` → `my-app`).
-- Every project has `dev`, `build` and `test` (Vitest) scripts, and either `start` (the
-  built Node server) or `preview`. TypeScript projects add `typecheck`.
+- Apps and docs sites have `dev`, `build` and `test` (Vitest) scripts, and either `start`
+  (the built Node server) or `preview`. A library has `dev` (its preview) and `test`.
+  TypeScript projects add `typecheck`.
 - New projects depend on the current AFW release from the npm registry.
 
 For the esdev + ES-Runtime workflow, use `esdev create` instead.
