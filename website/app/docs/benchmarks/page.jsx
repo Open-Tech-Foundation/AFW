@@ -8,7 +8,7 @@ import BenchmarkTable from "../../components/BenchmarkTable.jsx";
 export const metadata = {
   title: "Benchmarks",
   description:
-    "How AFW is measured: a rendering-layer comparison against the React, Solid and Svelte libraries, and a framework-level build-cost comparison against Astro, Next.js, TanStack Start and Vite.",
+    "How AFW is measured: a rendering-layer comparison against the React, Solid and Svelte libraries, a full-stack app against Next.js, TanStack Start, SolidStart, SvelteKit and Astro, and a build-cost comparison against Astro, Next.js, TanStack Start and Vite.",
   canonical: "/docs/benchmarks",
 };
 
@@ -152,18 +152,25 @@ export default function Benchmarks() {
           Next.js&rsquo;s {fs(1000, "Build memory", "next")?.toLocaleString("en")}&nbsp;MB in {fs(1000, "Build time", "next")}&nbsp;s.
         </li>
         <li>
-          <strong>Dev:</strong> AFW on Vite starts its dev server fastest at 1,000 pages and shows an edit
-          fastest ({fs(1000, "Edit", "afw-vite")}&nbsp;s).
+          <strong>Dev:</strong> AFW on Vite starts its dev server fastest at 1,000 pages
+          ({fs(1000, "Dev start", "afw-vite")}&nbsp;s), AFW on esdev up to 100. SolidStart shows an edit fastest at every size
+          ({fs(1000, "Edit", "solidstart")}&nbsp;s at 1,000 pages, against {fs(1000, "Edit", "afw-vite")}&nbsp;s for AFW on Vite).
         </li>
         <li>
           <strong>Where AFW is behind:</strong> on esdev, an edit takes {fs(10, "Edit", "afw-esdev")}&nbsp;s to reach the
-          browser at 10 pages — the slowest of the five — and {fs(1000, "Edit", "afw-esdev")}&nbsp;s at 1,000, growing with
+          browser at 10 pages — the slowest of the seven — and {fs(1000, "Edit", "afw-esdev")}&nbsp;s at 1,000, growing with
           the app where the others stay under a tenth of a second (except TanStack Start).
         </li>
         <li>
           <strong>Others:</strong> TanStack Start&rsquo;s dev server slows sharply at 1,000 pages
           ({fs(1000, "Dev start", "tanstack")}&nbsp;s to start, {fs(1000, "Edit", "tanstack")}&nbsp;s per edit); Next.js uses the most build
           memory at every size, partly because it prerenders the static routes at build time.
+        </li>
+        <li>
+          <strong>SolidStart and SvelteKit:</strong> SvelteKit builds 1,000 pages in {fs(1000, "Build time", "sveltekit")}&nbsp;s with{" "}
+          {fs(1000, "Build memory", "sveltekit")?.toLocaleString("en")}&nbsp;MB and starts its dev server in {fs(1000, "Dev start", "sveltekit")}&nbsp;s; SolidStart takes the longest
+          to build them ({fs(1000, "Build time", "solidstart")}&nbsp;s), and its build memory varies most from run to run at that size
+          (1,388 to 2,007&nbsp;MB, median {fs(1000, "Build memory", "solidstart")?.toLocaleString("en")}).
         </li>
       </ul>
       <h3 className={H3}>Method</h3>
@@ -174,7 +181,7 @@ export default function Benchmarks() {
         <li>Measured {fullstack.measuredAt} on a solid-state disk ({fullstack.env}).</li>
         <li>
           Each framework builds the app its own way, which is what is compared: Next.js prerenders
-          static routes, Astro hydrates only its islands. The code, spec and harness are in{" "}
+          static routes, Astro hydrates only its islands, SvelteKit&rsquo;s mdsvex highlights the docs&rsquo; code at build time. The code, spec and harness are in{" "}
           <a href="https://github.com/Open-Tech-Foundation/afw/tree/main/benchmarks/fullstack" className={A}>benchmarks/fullstack</a>.
         </li>
       </ul>

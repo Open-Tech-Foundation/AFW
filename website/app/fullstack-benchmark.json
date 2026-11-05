@@ -1,11 +1,13 @@
 {
-  "measuredAt": "2026-11-04",
+  "measuredAt": "2026-11-04 to 2026-11-05",
   "runs": 3,
   "engines": [
     "afw-esdev",
     "afw-vite",
     "next",
     "tanstack",
+    "solidstart",
+    "sveltekit",
     "astro"
   ],
   "labels": {
@@ -13,6 +15,8 @@
     "afw-vite": "AFW Vite",
     "next": "Next",
     "tanstack": "TanStack",
+    "solidstart": "SolidStart",
+    "sveltekit": "SvelteKit",
     "astro": "Astro"
   },
   "highlightEngines": [
@@ -32,6 +36,8 @@
             "afw-vite": 359,
             "next": 2460,
             "tanstack": 809,
+            "solidstart": 977,
+            "sveltekit": 705,
             "astro": 776
           },
           "best": "afw-esdev"
@@ -44,6 +50,8 @@
             "afw-vite": 0.48,
             "next": 4.14,
             "tanstack": 1.64,
+            "solidstart": 3.97,
+            "sveltekit": 1.97,
             "astro": 1.43
           },
           "best": "afw-esdev"
@@ -56,6 +64,8 @@
             "afw-vite": 0.47,
             "next": 1.89,
             "tanstack": 1.41,
+            "solidstart": 2.65,
+            "sveltekit": 1.08,
             "astro": 2.04
           },
           "best": "afw-esdev"
@@ -68,9 +78,11 @@
             "afw-vite": 0.033,
             "next": 0.034,
             "tanstack": 0.045,
+            "solidstart": 0.023,
+            "sveltekit": 0.024,
             "astro": 0.034
           },
-          "best": "afw-vite"
+          "best": "solidstart"
         }
       ]
     },
@@ -85,6 +97,8 @@
             "afw-vite": 408,
             "next": 2887,
             "tanstack": 908,
+            "solidstart": 988,
+            "sveltekit": 769,
             "astro": 863
           },
           "best": "afw-esdev"
@@ -97,6 +111,8 @@
             "afw-vite": 0.64,
             "next": 5.2,
             "tanstack": 2.63,
+            "solidstart": 4.51,
+            "sveltekit": 2.52,
             "astro": 1.69
           },
           "best": "afw-esdev"
@@ -109,6 +125,8 @@
             "afw-vite": 0.53,
             "next": 2.05,
             "tanstack": 2.07,
+            "solidstart": 2.74,
+            "sveltekit": 1.21,
             "astro": 2.18
           },
           "best": "afw-esdev"
@@ -121,9 +139,11 @@
             "afw-vite": 0.034,
             "next": 0.034,
             "tanstack": 0.045,
+            "solidstart": 0.023,
+            "sveltekit": 0.034,
             "astro": 0.034
           },
-          "best": "afw-vite"
+          "best": "solidstart"
         }
       ]
     },
@@ -138,6 +158,8 @@
             "afw-vite": 766,
             "next": 5849,
             "tanstack": 1287,
+            "solidstart": 1934,
+            "sveltekit": 1155,
             "astro": 1225
           },
           "best": "afw-esdev"
@@ -150,6 +172,8 @@
             "afw-vite": 1.86,
             "next": 16.56,
             "tanstack": 10.31,
+            "solidstart": 17.11,
+            "sveltekit": 7.34,
             "astro": 4.6
           },
           "best": "afw-esdev"
@@ -162,6 +186,8 @@
             "afw-vite": 1.05,
             "next": 2.7,
             "tanstack": 7.34,
+            "solidstart": 3.17,
+            "sveltekit": 1.99,
             "astro": 3.14
           },
           "best": "afw-vite"
@@ -174,9 +200,11 @@
             "afw-vite": 0.056,
             "next": 0.079,
             "tanstack": 7.933,
+            "solidstart": 0.046,
+            "sveltekit": 0.056,
             "astro": 0.057
           },
-          "best": "afw-vite"
+          "best": "solidstart"
         }
       ]
     }
