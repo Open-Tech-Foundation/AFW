@@ -37,6 +37,8 @@ in each framework's file conventions, so the build grows with the app: K = 10, 1
 | **AFW on Vite + Node** | `@opentf/afw` 0.35, `vite-plugin-afw` 0.3, Vite 8.3 | `vite build` | `node dist/server/index.js` | `vite` |
 | **Next.js** | 16.4, App Router, Turbopack | `next build` | `next start` | `next dev` |
 | **TanStack Start** | 1.169, Nitro 3 (node-server) | `vite build` | `node .output/server/index.mjs` | `vite` |
+| **SolidStart** | 2.2, Solid 1.9, Nitro 3 (node-server) | `vite build` | `node .output/server/index.mjs` | `vite` |
+| **SvelteKit** | 3.1, Svelte 5.57, `@sveltejs/adapter-node` 6, mdsvex | `vite build` | `node build/index.js` | `vite dev` |
 | **Astro** | 7.4, React islands, `@astrojs/node` | `astro build` | `node dist/server/entry.mjs` | `astro dev` |
 
 Both AFW workflows build the same `apps/afw/` folder.
@@ -65,6 +67,12 @@ Each framework builds the app its own way, which is what is being compared:
   render every page per request. That is part of Next's build cost.
 - **Astro** ships JavaScript only for the islands (`client:load`); the others hydrate
   the whole page.
+- **SolidStart** loads its data with `query()` server functions (`"use server"`), and
+  renders the MDX docs through `solid-mdx`, as SolidStart's MDX template does — Solid
+  cannot render MDX's plain tag names without it.
+- **SvelteKit** loads its data in `+page.server.js`, and renders the docs with mdsvex,
+  its usual Markdown preprocessor (`.md` routes); mdsvex highlights the code blocks
+  with Prism at build time.
 - **TanStack Start** needed its Tailwind sources pinned (`@source` in
   `src/styles.css`): with automatic detection its client and server builds generated
   different stylesheets, and the page linked a file the build never emitted (a 404).
@@ -83,5 +91,7 @@ node benchmarks/fullstack/run.mjs --work=/path/on/an/ssd
 - Each tool's working copy is installed once (`npm install`); each size regenerates the
   pages, does one discarded warm-up build, then the measured runs.
 - Results go to `results/<date>.json`; a rerun with `--only` replaces just those tools.
+- `node benchmarks/fullstack/report.mjs` turns the results into the site's tables: it
+  merges every results file, each tool from the newest file that measured it.
 - Chrome comes from `CHROME_BIN`, else `/usr/bin/chromium`. `measure.py` is the SSG
   benchmark's process-tree sampler.

@@ -69,6 +69,20 @@ const TOOLS = {
     dev: (port) => [bin("astro"), ["dev", "--port", String(port), "--host", "127.0.0.1"]],
     counter: "components/Counter.jsx",
   },
+  solidstart: {
+    app: "solidstart", generator: "solidstart", caches: [".output", "dist", "node_modules/.vite", ".solid-start"],
+    build: [bin("vite"), ["build"]],
+    start: (port) => ["node", [".output/server/index.mjs"], { PORT: String(port), HOST: "127.0.0.1" }],
+    dev: (port) => [bin("vite"), ["--port", String(port), "--strictPort", "--host", "127.0.0.1"]],
+    counter: "components/Counter.jsx",
+  },
+  sveltekit: {
+    app: "sveltekit", generator: "sveltekit", caches: ["build", ".svelte-kit", "node_modules/.vite"],
+    build: [bin("vite"), ["build"]],
+    start: (port) => ["node", ["build/index.js"], { PORT: String(port), HOST: "127.0.0.1" }],
+    dev: (port) => [bin("vite"), ["dev", "--port", String(port), "--strictPort", "--host", "127.0.0.1"]],
+    counter: "components/Counter.svelte",
+  },
 };
 
 const args = argv;

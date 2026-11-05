@@ -140,6 +140,69 @@ import Widget from "../../../components/gen/Widget${i}.jsx";
   widget: (i) => [`components/gen/Widget${i}.jsx`, reactWidget(i)],
 };
 
+// The Solid dialect, for SolidStart.
+FRAMEWORKS.solidstart = {
+  clean: ["src/routes/pages", "src/routes/docs", "components/gen"],
+  data: "data/products.json",
+  doc: (slug) => `src/routes/docs/${slug}.mdx`,
+  page: (i) => [`src/routes/pages/p${i}.jsx`, `import Card from "../../../components/Card.jsx";
+import Widget from "../../../components/gen/Widget${i}.jsx";
+
+export default function Page${i}() {
+  return (
+    <section>
+      <h1 class="text-2xl font-bold">Page ${i}</h1>
+      <Card title="Section ${i}">
+        <p>Generated route ${i}, with its own interactive widget.</p>
+      </Card>
+      <Widget />
+    </section>
+  );
+}
+`],
+  widget: (i) => [`components/gen/Widget${i}.jsx`, `import { Show, createSignal } from "solid-js";
+
+export default function Widget${i}() {
+  const [open, setOpen] = createSignal(false);
+  return (
+    <div class="widget rounded border p-2">
+      <button onClick={() => setOpen(!open())}>Toggle ${i}</button>
+      <Show when={open()}><p>Details for widget ${i}</p></Show>
+    </div>
+  );
+}
+`],
+};
+
+// The Svelte dialect, for SvelteKit; mdsvex renders the docs as .md routes.
+FRAMEWORKS.sveltekit = {
+  clean: ["src/routes/pages", "src/routes/docs", "components/gen"],
+  data: "data/products.json",
+  doc: (slug) => `src/routes/docs/${slug}/+page.md`,
+  page: (i) => [`src/routes/pages/p${i}/+page.svelte`, `<script>
+  import Card from "../../../../components/Card.svelte";
+  import Widget from "../../../../components/gen/Widget${i}.svelte";
+</script>
+
+<section>
+  <h1 class="text-2xl font-bold">Page ${i}</h1>
+  <Card title="Section ${i}">
+    <p>Generated route ${i}, with its own interactive widget.</p>
+  </Card>
+  <Widget />
+</section>
+`],
+  widget: (i) => [`components/gen/Widget${i}.svelte`, `<script>
+  let open = $state(false);
+</script>
+
+<div class="widget rounded border p-2">
+  <button onclick={() => (open = !open)}>Toggle ${i}</button>
+  {#if open}<p>Details for widget ${i}</p>{/if}
+</div>
+`],
+};
+
 export async function generate(framework, appDir, k) {
   const f = FRAMEWORKS[framework];
   if (!f) throw new Error(`unknown framework ${framework}`);

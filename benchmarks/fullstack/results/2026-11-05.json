@@ -1,0 +1,297 @@
+{
+  "measuredAt": "2026-11-05",
+  "runs": 3,
+  "sizes": [
+    10,
+    100,
+    1000
+  ],
+  "tools": {
+    "solidstart": {
+      "10": {
+        "parity": true,
+        "buildMemoryMb": 977.1,
+        "buildSeconds": 3.97,
+        "devStartSeconds": 2.6494191720000018,
+        "editToBrowserSeconds": 0.023089633999999932,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "solidstart-k10-r1",
+              "exit": 0,
+              "peak_mb": 977.1,
+              "wall_s": 3.93
+            },
+            {
+              "label": "solidstart-k10-r2",
+              "exit": 0,
+              "peak_mb": 945,
+              "wall_s": 4
+            },
+            {
+              "label": "solidstart-k10-r3",
+              "exit": 0,
+              "peak_mb": 984.2,
+              "wall_s": 3.97
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 2.6494191720000018,
+              "editToBrowser": 0.023147643000000245,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.6323351770000007,
+              "editToBrowser": 0.023089633999999932,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.700563708999998,
+              "editToBrowser": 0.022434151000001294,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "100": {
+        "parity": true,
+        "buildMemoryMb": 988,
+        "buildSeconds": 4.51,
+        "devStartSeconds": 2.7387955999999978,
+        "editToBrowserSeconds": 0.023104401000004146,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "solidstart-k100-r1",
+              "exit": 0,
+              "peak_mb": 988,
+              "wall_s": 4.57
+            },
+            {
+              "label": "solidstart-k100-r2",
+              "exit": 0,
+              "peak_mb": 1056.7,
+              "wall_s": 4.51
+            },
+            {
+              "label": "solidstart-k100-r3",
+              "exit": 0,
+              "peak_mb": 984.4,
+              "wall_s": 4.5
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 2.7387955999999978,
+              "editToBrowser": 0.022505374000000303,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.7012685950000015,
+              "editToBrowser": 0.023742189999997207,
+              "reloaded": false
+            },
+            {
+              "coldStart": 2.7497081289999987,
+              "editToBrowser": 0.023104401000004146,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "1000": {
+        "parity": true,
+        "buildMemoryMb": 1933.8,
+        "buildSeconds": 17.11,
+        "devStartSeconds": 3.1678658590000124,
+        "editToBrowserSeconds": 0.045942906000011136,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "solidstart-k1000-r1",
+              "exit": 0,
+              "peak_mb": 1933.8,
+              "wall_s": 17.31
+            },
+            {
+              "label": "solidstart-k1000-r2",
+              "exit": 0,
+              "peak_mb": 2007.2,
+              "wall_s": 17.11
+            },
+            {
+              "label": "solidstart-k1000-r3",
+              "exit": 0,
+              "peak_mb": 1387.9,
+              "wall_s": 16.69
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 3.1678658590000124,
+              "editToBrowser": 0.0450549769999925,
+              "reloaded": false
+            },
+            {
+              "coldStart": 3.145691936999996,
+              "editToBrowser": 0.09897607500001322,
+              "reloaded": false
+            },
+            {
+              "coldStart": 3.1788978700000152,
+              "editToBrowser": 0.045942906000011136,
+              "reloaded": false
+            }
+          ]
+        }
+      }
+    },
+    "sveltekit": {
+      "10": {
+        "parity": true,
+        "buildMemoryMb": 704.5,
+        "buildSeconds": 1.97,
+        "devStartSeconds": 1.0844746419999864,
+        "editToBrowserSeconds": 0.02417610800001421,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "sveltekit-k10-r1",
+              "exit": 0,
+              "peak_mb": 701.6,
+              "wall_s": 1.97
+            },
+            {
+              "label": "sveltekit-k10-r2",
+              "exit": 0,
+              "peak_mb": 721.5,
+              "wall_s": 1.97
+            },
+            {
+              "label": "sveltekit-k10-r3",
+              "exit": 0,
+              "peak_mb": 704.5,
+              "wall_s": 2.01
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 1.0686944630000217,
+              "editToBrowser": 0.02291993599999114,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.1379686020000082,
+              "editToBrowser": 0.03299763699999312,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.0844746419999864,
+              "editToBrowser": 0.02417610800001421,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "100": {
+        "parity": true,
+        "buildMemoryMb": 768.9,
+        "buildSeconds": 2.52,
+        "devStartSeconds": 1.2105216409999993,
+        "editToBrowserSeconds": 0.03428900499999872,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "sveltekit-k100-r1",
+              "exit": 0,
+              "peak_mb": 767.8,
+              "wall_s": 2.52
+            },
+            {
+              "label": "sveltekit-k100-r2",
+              "exit": 0,
+              "peak_mb": 768.9,
+              "wall_s": 2.53
+            },
+            {
+              "label": "sveltekit-k100-r3",
+              "exit": 0,
+              "peak_mb": 771.7,
+              "wall_s": 2.52
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 1.2120782739999996,
+              "editToBrowser": 0.03400789899998927,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.2105216409999993,
+              "editToBrowser": 0.03475664199999301,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.2069379999999947,
+              "editToBrowser": 0.03428900499999872,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "1000": {
+        "parity": true,
+        "buildMemoryMb": 1155.1,
+        "buildSeconds": 7.34,
+        "devStartSeconds": 1.9856083769999968,
+        "editToBrowserSeconds": 0.05613218699998106,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "sveltekit-k1000-r1",
+              "exit": 0,
+              "peak_mb": 1172.9,
+              "wall_s": 7.42
+            },
+            {
+              "label": "sveltekit-k1000-r2",
+              "exit": 0,
+              "peak_mb": 1155.1,
+              "wall_s": 7.34
+            },
+            {
+              "label": "sveltekit-k1000-r3",
+              "exit": 0,
+              "peak_mb": 1139.3,
+              "wall_s": 7.24
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 2.0294767989999962,
+              "editToBrowser": 0.05613218699998106,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.9616681339999777,
+              "editToBrowser": 0.055463738999998895,
+              "reloaded": false
+            },
+            {
+              "coldStart": 1.9856083769999968,
+              "editToBrowser": 0.05661056999998982,
+              "reloaded": false
+            }
+          ]
+        }
+      }
+    }
+  }
+}
