@@ -6,16 +6,9 @@
 // written by `tsr bench -- all`, whose `best` already applies the
 // timing-resolution tie rule) and the SSG build report (app/ssg-benchmark.json).
 // `rowHeader` names what the rows are, since those differ — operations vs metrics.
+// EngineBenchmarkTable.jsx is the same table turned: one row per engine.
 
-const HEAD_CLS = "px-4 py-3 text-xs font-bold uppercase tracking-widest text-right";
-const CELL_CLS = "px-4 py-3 text-right font-mono";
-
-// One decimal by default ("243.35 → 243.4", "278.7 → 278.7"), or the row's own
-// `digits`; missing → em dash.
-function formatMs(value, digits) {
-  if (typeof value !== "number") return "—";
-  return digits === undefined ? value.toFixed(1).replace(/\.0$/, "") : value.toFixed(digits);
-}
+import { CELL_CLS, HEAD_CLS, formatMs } from "./benchmark-format.js";
 
 export default function BenchmarkTable(props) {
   const report = props.report;

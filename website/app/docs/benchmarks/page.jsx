@@ -4,6 +4,7 @@
 // here, so the landing page stays scannable without the claims losing their context.
 import { benchmark, fullstack, fullstackTable, ssgBenchmark } from "../../home-data.js";
 import BenchmarkTable from "../../components/BenchmarkTable.jsx";
+import EngineBenchmarkTable from "../../components/EngineBenchmarkTable.jsx";
 
 export const metadata = {
   title: "Benchmarks",
@@ -133,16 +134,16 @@ export default function Benchmarks() {
         cart badge, a home page with a counter and loader data, server-rendered product pages from a
         data file, two API routes, middleware guarding a page, ten MDX docs pages, Tailwind, and K
         generated route pages with their own interactive components. Measured at K = 10, 100 and
-        1,000 pages.
+        1,000 pages. Each table lists the tools fastest build first; lower is better.
       </p>
       <div className={CARD}>
-        <BenchmarkTable report={fullstackTable(1000)} rowHeader="1,000 pages" />
+        <EngineBenchmarkTable report={fullstackTable(1000)} rowHeader="1,000 pages" sortBy="Build time" />
       </div>
       <div className={CARD}>
-        <BenchmarkTable report={fullstackTable(100)} rowHeader="100 pages" />
+        <EngineBenchmarkTable report={fullstackTable(100)} rowHeader="100 pages" sortBy="Build time" />
       </div>
       <div className={CARD}>
-        <BenchmarkTable report={fullstackTable(10)} rowHeader="10 pages" />
+        <EngineBenchmarkTable report={fullstackTable(10)} rowHeader="10 pages" sortBy="Build time" />
       </div>
       <h3 className={H3}>What the numbers say</h3>
       <ul className="max-w-3xl list-disc pl-6 mb-4 space-y-2 text-[var(--text-muted)] leading-relaxed">

@@ -1,5 +1,6 @@
 import { Link } from "@opentf/afw";
 import BenchmarkTable from "./components/BenchmarkTable.jsx";
+import EngineBenchmarkTable from "./components/EngineBenchmarkTable.jsx";
 import CodeShowcase from "./components/CodeShowcase.jsx";
 import InstallCommand from "./components/InstallCommand.jsx";
 import RenderPipeline from "./components/RenderPipeline.jsx";
@@ -161,10 +162,10 @@ export default function HomePage() {
           <h3 class="bench-subtitle">A full-stack app: dev speed, build speed and memory</h3>
           <p class="bench-lede">
             The same app — server-rendered pages, loaders, API routes, middleware, MDX docs and Tailwind —
-            in both AFW workflows, Next.js, TanStack Start, SolidStart, SvelteKit, Nuxt and Astro, at 1,000 pages. Lower is better.
+            in both AFW workflows, Next.js, TanStack Start, SolidStart, SvelteKit, Nuxt and Astro, at 1,000 pages, fastest build first. Lower is better.
           </p>
           <div class="bench-card">
-            <BenchmarkTable report={fullstackTable(1000)} rowHeader="Metric" />
+            <EngineBenchmarkTable report={fullstackTable(1000)} rowHeader="1,000 pages" sortBy="Build time" />
           </div>
           <p class="bench-note">
             Measured {fullstack.measuredAt}, median of {fullstack.runs} runs; every app passed the same output
