@@ -1010,6 +1010,13 @@ body {
   border: 1px solid var(--border);
   border-radius: 1rem;
   background: var(--bg-main);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+@media (hover: hover) {
+  .cap-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+  }
 }
 .cap-group {
   margin: 0 0 1rem;
