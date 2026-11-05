@@ -26,6 +26,7 @@ Returns a stable `form` object.
 | `register(path)` | Returns `{ name, value, checked, error, isTouched, oninput, onblur }` to spread onto an input. |
 | `handleSubmit(fn)` | Returns a submit handler; validates, then calls `fn(values)` only when valid. |
 | `reset(values?)` | Resets to `initialValues`, or to `values` (which become the new baseline). |
+| `setError(path, message)` | Sets a field's error from outside the validator, such as a server refusing the submit; an empty `message` clears it. The next validation of the field, or `reset()`, replaces it. |
 
 ### Reactive state
 

@@ -92,3 +92,25 @@ const form = createForm({
 
 `handleSubmit` always runs the validator first and only calls your handler when
 `isValid` is `true`, so a final check is guaranteed regardless of `mode`.
+
+## Errors from the server
+
+The server can still refuse a valid-looking submit — a taken username, a schema it
+checks again. Put its message on the field with `setError(path, message)`:
+
+```jsx
+const form = createForm({ initialValues: { username: "" }, validator: zodResolver(schema) });
+
+const submit = form.handleSubmit(async (values) => {
+  try {
+    await createAccount(values);
+  } catch (error) {
+    form.setError("username", error.issues?.[0]?.message ?? error.message);
+  }
+});
+```
+
+- The error shows wherever `form.errors.username` or the field's `error` is read.
+- An empty message clears it.
+- The next validation of the field replaces it — with `reValidateMode: "onChange"`,
+  as soon as the user edits the field — and `reset()` clears it.
