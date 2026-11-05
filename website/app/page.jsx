@@ -21,7 +21,7 @@ const METHOD_LINK = "text-[var(--accent)] font-semibold hover:underline whitespa
 // Status marks for the capability lists. Supported items carry no label.
 const STATUS = {
   supported: { label: "", dot: "bg-emerald-500" },
-  beta: { label: "Beta", dot: "bg-sky-500" },
+  alpha: { label: "Alpha", dot: "bg-sky-500" },
   partial: { label: "Partial", dot: "bg-violet-500" },
   planned: { label: "Planned", dot: "bg-amber-500" },
 };

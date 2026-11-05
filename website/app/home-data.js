@@ -30,7 +30,7 @@ export const fullstack = fullstackReport;
 export const fullstackTable = (k) => ({ ...fullstackReport, rows: fullstackReport.tables.find((t) => t.k === k).rows });
 
 // --- Capabilities & roadmap (grouped; statuses verified against the codebase) -
-//     status: "supported" | "partial" | "beta" | "planned"
+//     status: "supported" | "partial" | "alpha" | "planned"
 export const capabilities = [
   {
     category: "Core",
@@ -73,7 +73,7 @@ export const capabilities = [
       { name: "Component HMR", status: "supported", desc: "Component, page and layout edits refresh in place and keep their state; a compile error keeps the last view." },
       { name: "Compiler diagnostics", status: "supported", desc: "Located compile errors and source maps; runtime errors report through the framework API." },
       { name: "Testing library", status: "supported", desc: "Component testing utilities." },
-      { name: "TypeScript / TSX", status: "beta", desc: "Compile TSX components with macro typings; full editor tooling is in progress." },
+      { name: "TypeScript / TSX", status: "alpha", desc: "Compile TSX components with macro typings; full editor tooling is in progress." },
       { name: "Devtools extension", status: "planned", desc: "Component, state, and network inspection." },
     ],
   },
@@ -82,12 +82,12 @@ export const capabilities = [
     items: [
       { name: "Middleware", status: "supported", desc: "Server middleware for pages, APIs and loader data when included in the request pipeline." },
       { name: "Cookie helpers", status: "supported", desc: "getCookie / setCookie / deleteCookie on @opentf/afw/server — RFC 6265 helpers for middleware, API routes, and loaders." },
-      { name: "Reactive forms", status: "beta", desc: "@opentf/afw-form — nested reactive values, validation and submit state." },
+      { name: "Reactive forms", status: "alpha", desc: "@opentf/afw-form — nested reactive values, validation and submit state." },
       { name: "API routes", status: "supported", desc: "File-based route.js / route.ts endpoints — standard Request/Response and dynamic params." },
       { name: "Server functions", status: "supported", desc: "Typed query() / action() in .server.js files, validated, under folder middleware; invalidate() refetches." },
       { name: "Data fetching", status: "supported", desc: "Route loaders (loader.js → router.data across SSR/SSG/SPA) and the client-side resource()." },
       { name: "Progressive forms", status: "planned", desc: "<form action={addTodo}> that works without JavaScript under SSR." },
-      { name: "Internationalization", status: "beta", desc: "@opentf/afw-i18n — URL-prefix locale routing, ICU messages, and Intl formatters (Phase 1)." },
+      { name: "Internationalization", status: "alpha", desc: "@opentf/afw-i18n — URL-prefix locale routing, ICU messages, and Intl formatters (Phase 1)." },
       { name: "Accessibility helpers", status: "planned", desc: "ARIA helpers and a11y defaults." },
     ],
   },
