@@ -8,7 +8,7 @@ import BenchmarkTable from "../../components/BenchmarkTable.jsx";
 export const metadata = {
   title: "Benchmarks",
   description:
-    "How AFW is measured: a rendering-layer comparison against the React, Solid and Svelte libraries, a full-stack app against Next.js, TanStack Start, SolidStart, SvelteKit and Astro, and a build-cost comparison against Astro, Next.js, TanStack Start and Vite.",
+    "How AFW is measured: a rendering-layer comparison against the React, Solid and Svelte libraries, a full-stack app against Next.js, TanStack Start, SolidStart, SvelteKit, Nuxt and Astro, and a build-cost comparison against Astro, Next.js, TanStack Start and Vite.",
   canonical: "/docs/benchmarks",
 };
 
@@ -158,7 +158,7 @@ export default function Benchmarks() {
         </li>
         <li>
           <strong>Where AFW is behind:</strong> on esdev, an edit takes {fs(10, "Edit", "afw-esdev")}&nbsp;s to reach the
-          browser at 10 pages — the slowest of the seven — and {fs(1000, "Edit", "afw-esdev")}&nbsp;s at 1,000, growing with
+          browser at 10 pages — the slowest of the eight — and {fs(1000, "Edit", "afw-esdev")}&nbsp;s at 1,000, growing with
           the app where the others stay under a tenth of a second (except TanStack Start).
         </li>
         <li>
@@ -168,9 +168,14 @@ export default function Benchmarks() {
         </li>
         <li>
           <strong>SolidStart and SvelteKit:</strong> SvelteKit builds 1,000 pages in {fs(1000, "Build time", "sveltekit")}&nbsp;s with{" "}
-          {fs(1000, "Build memory", "sveltekit")?.toLocaleString("en")}&nbsp;MB and starts its dev server in {fs(1000, "Dev start", "sveltekit")}&nbsp;s; SolidStart takes the longest
-          to build them ({fs(1000, "Build time", "solidstart")}&nbsp;s), and its build memory varies most from run to run at that size
+          {fs(1000, "Build memory", "sveltekit")?.toLocaleString("en")}&nbsp;MB and starts its dev server in {fs(1000, "Dev start", "sveltekit")}&nbsp;s; SolidStart takes{" "}
+          {fs(1000, "Build time", "solidstart")}&nbsp;s to build them, and its build memory varies most from run to run at that size
           (1,388 to 2,007&nbsp;MB, median {fs(1000, "Build memory", "solidstart")?.toLocaleString("en")}).
+        </li>
+        <li>
+          <strong>Nuxt:</strong> the slowest build at every size ({fs(1000, "Build time", "nuxt")}&nbsp;s at 1,000 pages) and the second most
+          build memory after Next.js ({fs(1000, "Build memory", "nuxt")?.toLocaleString("en")}&nbsp;MB). Its build also runs Nuxt Content, which parses
+          the docs into an SQLite database and highlights their code.
         </li>
       </ul>
       <h3 className={H3}>Method</h3>
@@ -181,7 +186,7 @@ export default function Benchmarks() {
         <li>Measured {fullstack.measuredAt} on a solid-state disk ({fullstack.env}).</li>
         <li>
           Each framework builds the app its own way, which is what is compared: Next.js prerenders
-          static routes, Astro hydrates only its islands, SvelteKit&rsquo;s mdsvex highlights the docs&rsquo; code at build time. The code, spec and harness are in{" "}
+          static routes, Astro hydrates only its islands, SvelteKit&rsquo;s mdsvex and Nuxt Content highlight the docs&rsquo; code at build time. The code, spec and harness are in{" "}
           <a href="https://github.com/Open-Tech-Foundation/afw/tree/main/benchmarks/fullstack" className={A}>benchmarks/fullstack</a>.
         </li>
       </ul>

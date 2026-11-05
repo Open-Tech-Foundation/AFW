@@ -8,6 +8,7 @@
     "tanstack",
     "solidstart",
     "sveltekit",
+    "nuxt",
     "astro"
   ],
   "labels": {
@@ -17,6 +18,7 @@
     "tanstack": "TanStack",
     "solidstart": "SolidStart",
     "sveltekit": "SvelteKit",
+    "nuxt": "Nuxt",
     "astro": "Astro"
   },
   "highlightEngines": [
@@ -38,6 +40,7 @@
             "tanstack": 809,
             "solidstart": 977,
             "sveltekit": 705,
+            "nuxt": 1274,
             "astro": 776
           },
           "best": "afw-esdev"
@@ -52,6 +55,7 @@
             "tanstack": 1.64,
             "solidstart": 3.97,
             "sveltekit": 1.97,
+            "nuxt": 8.54,
             "astro": 1.43
           },
           "best": "afw-esdev"
@@ -66,6 +70,7 @@
             "tanstack": 1.41,
             "solidstart": 2.65,
             "sveltekit": 1.08,
+            "nuxt": 3.88,
             "astro": 2.04
           },
           "best": "afw-esdev"
@@ -80,6 +85,7 @@
             "tanstack": 0.045,
             "solidstart": 0.023,
             "sveltekit": 0.024,
+            "nuxt": 0.056,
             "astro": 0.034
           },
           "best": "solidstart"
@@ -99,6 +105,7 @@
             "tanstack": 908,
             "solidstart": 988,
             "sveltekit": 769,
+            "nuxt": 1462,
             "astro": 863
           },
           "best": "afw-esdev"
@@ -113,6 +120,7 @@
             "tanstack": 2.63,
             "solidstart": 4.51,
             "sveltekit": 2.52,
+            "nuxt": 10.17,
             "astro": 1.69
           },
           "best": "afw-esdev"
@@ -127,6 +135,7 @@
             "tanstack": 2.07,
             "solidstart": 2.74,
             "sveltekit": 1.21,
+            "nuxt": 3.77,
             "astro": 2.18
           },
           "best": "afw-esdev"
@@ -141,6 +150,7 @@
             "tanstack": 0.045,
             "solidstart": 0.023,
             "sveltekit": 0.034,
+            "nuxt": 0.056,
             "astro": 0.034
           },
           "best": "solidstart"
@@ -160,6 +170,7 @@
             "tanstack": 1287,
             "solidstart": 1934,
             "sveltekit": 1155,
+            "nuxt": 3459,
             "astro": 1225
           },
           "best": "afw-esdev"
@@ -174,6 +185,7 @@
             "tanstack": 10.31,
             "solidstart": 17.11,
             "sveltekit": 7.34,
+            "nuxt": 28.09,
             "astro": 4.6
           },
           "best": "afw-esdev"
@@ -188,6 +200,7 @@
             "tanstack": 7.34,
             "solidstart": 3.17,
             "sveltekit": 1.99,
+            "nuxt": 4.64,
             "astro": 3.14
           },
           "best": "afw-vite"
@@ -202,6 +215,7 @@
             "tanstack": 7.933,
             "solidstart": 0.046,
             "sveltekit": 0.056,
+            "nuxt": 0.079,
             "astro": 0.057
           },
           "best": "solidstart"
