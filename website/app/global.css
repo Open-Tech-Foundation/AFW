@@ -710,7 +710,6 @@ body {
 .hero-grid > *,
 .how-grid > *,
 .workflow-grid > *,
-.cap-grid > *,
 .reason-grid > * {
   min-width: 0;
 }
@@ -992,18 +991,21 @@ body {
   font-weight: 700;
 }
 
-/* Capabilities */
+/* Capabilities: the groups differ a lot in length (2 to 10 items), so the cards stack
+ * in columns at their own height instead of a grid stretching each row to its
+ * tallest card. */
 .cap-grid {
-  display: grid;
-  gap: 1rem;
+  column-gap: 1rem;
 }
 @media (min-width: 768px) {
-  .cap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cap-grid { columns: 2; }
 }
 @media (min-width: 1100px) {
-  .cap-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cap-grid { columns: 3; }
 }
 .cap-card {
+  break-inside: avoid;
+  margin-bottom: 1rem;
   padding: 1.5rem;
   border: 1px solid var(--border);
   border-radius: 1rem;
