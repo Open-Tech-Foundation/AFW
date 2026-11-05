@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Internal
+
+- A test runs the website's tutorial as written: it scaffolds the app with the
+  tutorial's `npm create` command, writes every code block labelled with a file path
+  (including `[param]` folders), then runs the app's tests, builds it and checks the
+  running server — the notes page, a note's page and its 404, and the server functions.
+  A tutorial that drifts from the framework now fails here. No change to the published
+  package.
+
 ## [0.3.0] - 2026-11-04
 
 ### Added
