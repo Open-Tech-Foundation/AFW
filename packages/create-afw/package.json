@@ -24,6 +24,7 @@
   "devDependencies": {
     "@opentf/afw": "workspace:*",
     "@opentf/afw-docs": "workspace:*",
+    "@opentf/afw-form": "workspace:*",
     "@opentf/afw-test": "workspace:*",
     "@opentf/vite-plugin-afw": "workspace:*",
     "@tailwindcss/vite": "4.3.3",

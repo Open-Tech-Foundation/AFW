@@ -56,8 +56,9 @@ test("its tests pass (npm test)", async () => {
     assert.deepEqual(files.flatMap((f) => f.tasks).map((t) => `${t.name}: ${t.result?.state}`).sort(), [
       "/ focuses the input: pass",
       "counts clicks: pass",
+      "refuses an empty note without calling the server: pass",
       "saves the typed note and clears the input: pass",
-      "shows the server's validation message: pass",
+      "shows the server's refusal on the field: pass",
     ]);
   } finally {
     await vitest.close();

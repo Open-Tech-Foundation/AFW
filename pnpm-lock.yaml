@@ -124,8 +124,8 @@ importers:
   packages/afw-form:
     dependencies:
       '@opentf/std':
-        specifier: ^0.19.0
-        version: 0.19.0
+        specifier: ^0.20.0
+        version: 0.20.0
     devDependencies:
       '@opentf/afw':
         specifier: workspace:*
@@ -177,6 +177,9 @@ importers:
       '@opentf/afw-docs':
         specifier: workspace:*
         version: link:../afw-docs
+      '@opentf/afw-form':
+        specifier: workspace:*
+        version: link:../afw-form
       '@opentf/afw-test':
         specifier: workspace:*
         version: link:../afw-test

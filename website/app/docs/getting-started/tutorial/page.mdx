@@ -1,6 +1,6 @@
 ---
 title: Tutorial
-description: Build a small notes app — reactive state, lifecycle hooks, a loader, typed server functions, a dynamic route and a test — then ship it as a Node server.
+description: Build a small notes app — reactive state, lifecycle hooks, a form with @opentf/afw-form, a loader, server functions, a dynamic route and a test — then ship it as a Node server.
 ---
 
 import { Callout } from "@opentf/afw-docs";
@@ -9,10 +9,11 @@ import { Callout } from "@opentf/afw-docs";
 
 Build a notes app from scratch, in about twenty minutes:
 
-- a component with reactive state, a ref and lifecycle hooks
+- a form built with `@opentf/afw-form`, with a ref and lifecycle hooks
+- one Zod schema that checks a note in the browser and again on the server
 - a loader that renders the notes on the server
-- server functions to add and delete notes, validated with Zod
-- a page that reacts to its data with `$derived` and `$effect`
+- server functions to add and delete notes
+- a page with its own state, reacting with `$state`, `$derived` and `$effect`
 - a dynamic route with a 404
 - a component test
 - a production build that runs on Node
@@ -25,7 +26,7 @@ is the same; only the server entry differs (see [Server Setup](/docs/deployment/
 ```bash
 npm create @opentf/afw@latest my-notes -- --template app --render ssr --language js
 cd my-notes
-npm install zod
+npm install zod @opentf/afw-form
 npm run dev
 ```
 
@@ -33,10 +34,20 @@ npm run dev
   browser. It always includes a Node server.
 - The starter already has a home page, an About page and a todos example. Open
   `http://localhost:5173`.
-- Zod validates the server functions' input. Any
-  [Standard Schema](https://standardschema.dev) library works.
+- Zod validates a note. Any [Standard Schema](https://standardschema.dev) library
+  works.
+- `@opentf/afw-form` is AFW's form library: field binding, validation and submit state.
 
 ## 2. Write the server functions
+
+One schema describes a valid note. Both the form and the server import it:
+
+```js app/notes/schema.js
+import { z } from "zod";
+
+export const noteSchema = z.object({ text: z.string().trim().min(1, "Write something first") });
+```
+
 
 A `*.server.js` file runs only on the server. Its `query()` and `action()` exports
 become functions the browser can call; everything else in it stays on the server.
@@ -44,6 +55,7 @@ become functions the browser can call; everything else in it stays on the server
 ```js app/notes/notes.server.js
 import { action, query } from "@opentf/afw/server";
 import { z } from "zod";
+import { noteSchema } from "./schema.js";
 
 // In memory for the tutorial: a real app keeps notes in its database.
 const notes = [{ id: 1, text: "Read the AFW docs" }];
@@ -51,7 +63,7 @@ let nextId = 2;
 
 export const listNotes = query(async () => notes);
 
-export const addNote = action(z.object({ text: z.string().trim().min(1, "Write something first") }), async ({ text }) => {
+export const addNote = action(noteSchema, async ({ text }) => {
   const note = { id: nextId++, text };
   notes.push(note);
   return note;
@@ -66,6 +78,8 @@ export const deleteNote = action(z.object({ id: z.number() }), async ({ id }) =>
 - `query()` is for reads, `action()` for writes.
 - With a schema, the input is validated on the server before the function runs. Invalid
   input never reaches it: the call fails with the schema's issues.
+- `schema.js` is a plain module, so the browser can import it too; `notes.server.js`
+  never reaches the browser.
 
 ## 3. Load the notes on the server
 
@@ -85,15 +99,23 @@ export default async function loader() {
 ## 4. Build the form component
 
 ```jsx app/notes/NoteForm.jsx
+import { createForm } from "@opentf/afw-form";
+import { noteSchema } from "./schema.js";
+
 export default function NoteForm({ save }) {
-  let text = $state("");
-  let error = $state("");
-  let saving = $state(false);
+  const form = createForm({
+    initialValues: { text: "" },
+    mode: "onSubmit",
+    validate: (values) => {
+      const result = noteSchema.safeParse(values);
+      return result.success ? {} : { text: result.error.issues[0].message };
+    },
+  });
   const input = $ref();
 
-  // "/" anywhere on the page jumps to the input.
+  // "/" jumps to the input, unless you are already typing in a field.
   function shortcut(event) {
-    if (event.key === "/" && document.activeElement !== input) {
+    if (event.key === "/" && event.target.tagName !== "INPUT") {
       event.preventDefault();
       input.focus();
     }
@@ -105,32 +127,34 @@ export default function NoteForm({ save }) {
   });
   onCleanup(() => document.removeEventListener("keydown", shortcut));
 
-  async function submit(event) {
-    event.preventDefault();
-    saving = true;
+  const submit = form.handleSubmit(async ({ text }) => {
     try {
       await save(text);
-      text = "";
-      error = "";
+      form.reset();
     } catch (e) {
-      error = e.issues?.[0]?.message ?? e.message;
-    } finally {
-      saving = false;
+      form.setError("text", e.issues?.[0]?.message ?? e.message);
     }
-  }
+  });
 
   return (
     <form onsubmit={submit}>
-      <input ref={input} value={text} oninput={(e) => (text = e.target.value)} placeholder="New note (press /)" aria-label="New note" />
-      <button type="submit" disabled={saving}>Add</button>
-      {error ? <p role="alert">{error}</p> : null}
+      <input ref={input} {...form.register("text")} placeholder="New note (press /)" aria-label="New note" />
+      <button type="submit" disabled={form.isSubmitting}>Add</button>
+      {form.errors.text ? <p role="alert">{form.errors.text}</p> : null}
     </form>
   );
 }
 ```
 
-- `$state` makes `text`, `error` and `saving` reactive: assigning them updates only the
-  DOM that reads them. `saving` disables the button, so a double click saves once.
+- `createForm` holds the field's value, its error and the submit state, all reactive.
+- `register("text")` gives the input its `name`, `value` and event handlers.
+- `handleSubmit` runs `validate` first, so an empty note is refused in the browser
+  without calling the server, and with the same message the server would send.
+- `mode: "onSubmit"` checks only on submit, so the focused, empty input shows no error
+  before you have typed.
+- `form.isSubmitting` disables the button while saving, so a double click saves once.
+- If the server still refuses the note, `setError` shows its message on the field.
+  `reset()` clears the input after a save.
 - The component compiles to a Custom Element. `save` is a prop, set by the page.
 - `$ref()` holds the `<input>` element once it is in the DOM.
 - `onMount` runs once the component is connected: it focuses the input and listens for
@@ -138,7 +162,7 @@ export default function NoteForm({ save }) {
 - `onCleanup` runs when the component is removed — here, when you navigate away — so
   the listener does not outlive the page.
 - Neither hook runs on the server; see [Lifecycle](/docs/core-concepts/lifecycle).
-- A rejected server function call carries the schema's `issues`.
+- More in [Forms](/packages/afw-form).
 
 ## 5. Build the page
 
@@ -150,7 +174,9 @@ import { addNote, deleteNote } from "./notes.server.js";
 export const metadata = { title: "Notes" };
 
 export default function Notes() {
+  let filter = $state("");
   const notes = $derived(router.data?.notes ?? []);
+  const shown = $derived(notes.filter((note) => note.text.toLowerCase().includes(filter.toLowerCase())));
 
   $effect(() => {
     document.title = `Notes (${notes.length})`;
@@ -169,8 +195,9 @@ export default function Notes() {
   return (
     <section>
       <h1>Notes</h1>
+      <input type="search" value={filter} oninput={(e) => (filter = e.target.value)} placeholder="Filter" aria-label="Filter notes" />
       <ul>
-        {notes.map((note) => (
+        {shown.map((note) => (
           <li key={note.id}>
             <Link href={`/notes/${note.id}`}>{note.text}</Link> <button onclick={() => remove(note.id)}>Delete</button>
           </li>
@@ -182,7 +209,9 @@ export default function Notes() {
 }
 ```
 
-- `$derived` recomputes `notes` whenever `router.data` changes.
+- `$state` makes `filter` reactive: assigning it updates only what reads it.
+- `$derived` recomputes `notes` when `router.data` changes, and `shown` when either
+  `notes` or `filter` does.
 - `$effect` re-runs whenever a signal it reads changes: the tab title follows the count.
 - `key={note.id}` lets a list update move the existing rows instead of rebuilding them.
 - The page imports `addNote` from `notes.server.js`, but the browser gets a small fetch
@@ -212,7 +241,8 @@ Open `/notes`:
 
 - the list is in the server-rendered HTML;
 - adding or deleting a note updates it without a reload, and the tab title follows;
-- an empty note shows "Write something first", from the schema;
+- typing in the filter narrows the list as you type;
+- an empty note shows "Write something first", from the schema, without a request;
 - press `/` anywhere on the page to jump to the input.
 
 <Callout type="tip" title="Prefetching">
@@ -272,13 +302,23 @@ test("saves the typed note and clears the input", async () => {
   expect(getByRole("textbox").value).toBe("");
 });
 
-test("shows the server's validation message", async () => {
-  const save = async () => {
-    throw Object.assign(new Error("Invalid input"), { issues: [{ message: "Write something first" }] });
-  };
+test("refuses an empty note without calling the server", async () => {
+  const save = vi.fn(async () => {});
   const { getByRole, findByRole } = render(NoteForm, { save });
   await userEvent.setup().click(getByRole("button", { name: "Add" }));
   expect((await findByRole("alert")).textContent).toBe("Write something first");
+  expect(save).not.toHaveBeenCalled();
+});
+
+test("shows the server's refusal on the field", async () => {
+  const save = async () => {
+    throw Object.assign(new Error("Invalid input"), { issues: [{ message: "Too many notes" }] });
+  };
+  const { getByRole, findByRole } = render(NoteForm, { save });
+  const user = userEvent.setup();
+  await user.type(getByRole("textbox", { name: "New note" }), "One more");
+  await user.click(getByRole("button", { name: "Add" }));
+  expect((await findByRole("alert")).textContent).toBe("Too many notes");
 });
 
 test("/ focuses the input", async () => {
@@ -318,11 +358,12 @@ npm start
 ```
 
 - The build needs the dev dependencies (Vite and the AFW plugin); the running server
-  does not, so prune them after building. It still imports `zod` and `@opentf/afw`
-  from `node_modules`.
+  does not, so prune them after building. It still imports its dependencies (`zod`,
+  `@opentf/afw`, `@opentf/afw-form`) from `node_modules`.
 
 ## Next
 
+- [Forms](/packages/afw-form): nested fields, arrays and validation timing.
 - [Lifecycle](/docs/core-concepts/lifecycle) and [Reactivity](/docs/core-concepts/reactivity):
   the other hooks, and `$state`, `$derived` and `$effect` in depth.
 - [Server Functions](/docs/server-functions): authentication, passing `locals` from
