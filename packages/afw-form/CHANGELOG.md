@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-11-05
+
 ### Added
 
 - `form.setError(path, message)` sets a field's error from outside the validator, such
