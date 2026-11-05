@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-11-05
+
 ### Added
 
 - A loader can throw a `Response`, as API routes and server functions can. A redirect

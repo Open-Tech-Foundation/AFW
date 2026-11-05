@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-05
+
 ### Internal
 
 - A test runs the website's tutorial as written: it scaffolds the app with the
