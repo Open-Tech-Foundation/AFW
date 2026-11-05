@@ -601,12 +601,17 @@ body {
 .btn:active {
   transform: scale(0.97);
 }
+/* "Get started", here and in the hero (.btn-start): a filled blue that holds in both themes. */
 .btn-primary {
-  background: var(--accent);
-  color: #1a0d00;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgb(37 99 235 / 0.35);
+  transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
 }
 .btn-primary:hover {
-  opacity: 0.9;
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  box-shadow: 0 6px 20px rgb(37 99 235 / 0.45);
+  transform: translateY(-1px);
 }
 .btn-secondary {
   border: 1px solid var(--border);
@@ -616,35 +621,32 @@ body {
 .btn-secondary:hover {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
 }
-/* The hero's primary action, as on the other Open Tech Foundation sites: a pill with
- * the accent rocket. */
+/* The hero's primary action: a filled blue pill with the rocket, matching .btn-primary. */
 .btn-start {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border: 1px solid var(--border);
+  padding: 0.75rem 1.4rem;
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--bg-main);
-  color: var(--text-main);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
   font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
-  transition: border-color 0.15s, background 0.15s;
+  box-shadow: 0 4px 14px rgb(37 99 235 / 0.35);
+  transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
 }
 .btn-start:hover {
-  border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
-  background: var(--bg-surface);
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  box-shadow: 0 6px 20px rgb(37 99 235 / 0.45);
+  transform: translateY(-1px);
+}
+.btn-start:active {
+  transform: scale(0.97);
 }
 .btn-start-icon {
-  color: var(--accent);
-}
-[data-theme='dark'] .btn-start {
-  background: var(--bg-surface);
-}
-[data-theme='dark'] .btn-start:hover {
-  background: #1e293b;
+  color: currentColor;
 }
 /* <Link class> lands on the inner <a>; let the host stay inline. */
 .home .afw-link {
