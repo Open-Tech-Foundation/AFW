@@ -210,17 +210,17 @@ export default function Benchmarks() {
         have no equivalent of.
       </p>
       <p className={P}>
-        Each cell is the median of three warm runs on one machine ({ssgBenchmark.env}); the
+        Each cell is the median of three warm runs on one machine, on a solid-state disk ({ssgBenchmark.env}); the
         first build of each project was discarded. Every tool rendered the same structure
         (36 tables and 43 code blocks).
       </p>
       <p className={P}>
         As the page grows, the picture changes. Across a ladder from 72&nbsp;KB to 2.3&nbsp;MB,
         Bun uses the least memory up to about 0.6&nbsp;MB, without building a client bundle; from
-        1.2&nbsp;MB AFW on esdev uses the least (901&nbsp;MB at 2.3&nbsp;MB, against Bun&rsquo;s
-        1,083&nbsp;MB and Astro&rsquo;s 1,286&nbsp;MB). AFW on esdev builds fastest up to about
-        1&nbsp;MB, and faster than Bun at every size; at 2.3&nbsp;MB Astro builds faster
-        (2.8&nbsp;s against 4.0&nbsp;s), also without a client bundle. The full
+        1.2&nbsp;MB AFW uses the least (at 2.3&nbsp;MB, 831&nbsp;MB on Vite and 947&nbsp;MB on esdev,
+        against Astro&rsquo;s 953&nbsp;MB and Bun&rsquo;s 1,198&nbsp;MB). AFW on esdev builds fastest up to about
+        0.6&nbsp;MB, and faster than Bun at every size; from 1.2&nbsp;MB Astro builds faster
+        (2.5&nbsp;s against 3.8&nbsp;s at 2.3&nbsp;MB), also without a client bundle. The full
         ladder is in the{" "}
         <a href="https://github.com/Open-Tech-Foundation/afw/blob/main/benchmarks/ssg-build/README.md" className={A}>
           benchmark&rsquo;s README

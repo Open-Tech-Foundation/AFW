@@ -1,6 +1,6 @@
 {
   "measuredAt": "2026-11-05",
-  "measurementNote": "All seven toolchains re-measured on the same machine and day: the median of three warm runs at the 72 KB page. Both AFW workflows are measured: esdev (`esdev build --minify`) and Vite + Node (`vite build`). See benchmarks/ssg-build/README.md for the size ladder and the caveats.",
+  "measurementNote": "All seven toolchains re-measured on the same machine and day, on a solid-state disk: the median of three warm runs at the 72 KB page. Both AFW workflows are measured: esdev (`esdev build --minify`) and Vite + Node (`vite build`). See benchmarks/ssg-build/README.md for the size ladder and the caveats.",
   "env": "Intel i7-8700K (12 threads), 16 GB RAM, Linux 6.12, Node 26.13, esdev 0.26",
   "fixture": "One route rendering a real 72 KB MDX docs page (1751 lines, 43 code blocks, 298 table rows)",
   "engines": [
@@ -35,8 +35,8 @@
     "bun": false
   },
   "versions": {
-    "afw-esdev": "@opentf/afw 0.35 \u00b7 esdev-plugin-afw 0.7 \u00b7 esdev 0.26",
-    "afw-vite": "@opentf/afw 0.35 \u00b7 vite-plugin-afw 0.3 \u00b7 Vite 8.3",
+    "afw-esdev": "@opentf/afw 0.35 · esdev-plugin-afw 0.7 · esdev 0.26",
+    "afw-vite": "@opentf/afw 0.35 · vite-plugin-afw 0.3 · Vite 8.3",
     "astro": "Astro 7.4 + @astrojs/mdx 8.1",
     "next": "Next.js 16.4 + @next/mdx",
     "tanstack": "TanStack Start 1.169",
@@ -47,13 +47,13 @@
     {
       "label": "Peak build memory (MB)",
       "values": {
-        "afw-esdev": 165,
-        "afw-vite": 403,
-        "astro": 589,
-        "next": 904,
-        "tanstack": 689,
-        "vite": 354,
-        "bun": 141
+        "afw-esdev": 161,
+        "afw-vite": 306,
+        "astro": 482,
+        "next": 821,
+        "tanstack": 602,
+        "vite": 244,
+        "bun": 144
       },
       "best": "bun"
     },
@@ -61,12 +61,12 @@
       "label": "Build time (s)",
       "values": {
         "afw-esdev": 0.21,
-        "afw-vite": 0.54,
-        "astro": 1.09,
-        "next": 1.85,
-        "tanstack": 1.58,
-        "vite": 0.78,
-        "bun": 0.33
+        "afw-vite": 0.36,
+        "astro": 0.88,
+        "next": 1.69,
+        "tanstack": 1.38,
+        "vite": 0.6,
+        "bun": 0.35
       },
       "best": "afw-esdev"
     }

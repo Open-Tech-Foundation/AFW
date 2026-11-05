@@ -57,7 +57,8 @@ structure (36 `<table>` and 43 `<pre>` at 1×; 288 and 344 at 8×).
 ## Results
 
 Measured 2026-11-05. Intel i7-8700K (12 threads), 16 GB RAM, Linux 6.12, Node 26.13,
-esdev 0.26. Peak RSS sampled across the whole process tree at 50 Hz, on real disk. The
+esdev 0.26. Peak RSS sampled across the whole process tree at 50 Hz, on a solid-state
+disk. The
 first build of each project was discarded. See
 [How reproducible is this?](#how-reproducible-is-this) before quoting any of it.
 
@@ -67,13 +68,13 @@ Median of three warm runs.
 
 | | peak RSS | wall |
 |---|---|---|
-| Bun (no client bundle) | **141 MB** | 0.33 s |
-| **AFW on esdev** | 165 MB | **0.21 s** |
-| Vite (no client bundle) | 354 MB | 0.78 s |
-| **AFW on Vite + Node** | 403 MB | 0.54 s |
-| Astro (no client bundle) | 589 MB | 1.09 s |
-| TanStack Start | 689 MB | 1.58 s |
-| Next.js | 904 MB | 1.85 s |
+| Bun (no client bundle) | **144 MB** | 0.35 s |
+| **AFW on esdev** | 161 MB | **0.21 s** |
+| Vite (no client bundle) | 244 MB | 0.60 s |
+| **AFW on Vite + Node** | 306 MB | 0.36 s |
+| Astro (no client bundle) | 482 MB | 0.88 s |
+| TanStack Start | 602 MB | 1.38 s |
+| Next.js | 821 MB | 1.69 s |
 
 ### As one page grows
 
@@ -82,32 +83,34 @@ median above).
 
 | | 72 KB | 145 KB | 289 KB | 578 KB | 1.2 MB | 2.3 MB |
 |---|---|---|---|---|---|---|
-| **AFW on esdev** | 165 / **0.21** | 210 / **0.32** | 282 / **0.46** | 406 / **0.89** | **582 / 1.81** | **901** / 4.04 |
-| **AFW on Vite + Node** | 403 / 0.54 | 445 / 0.65 | 528 / 0.83 | 577 / 1.25 | 764 / 2.30 | 971 / 4.75 |
-| Astro | 589 / 1.09 | 618 / 1.17 | 655 / 1.26 | 758 / 1.46 | 888 / 2.14 | 1286 / **2.80** |
-| Vite | 354 / 0.78 | 370 / 0.96 | 477 / 1.29 | 670 / 2.04 | 919 / 3.59 | 1361 / 7.15 |
-| TanStack Start | 689 / 1.58 | 740 / 1.93 | 841 / 2.69 | 1249 / 4.35 | 1424 / 7.79 | 2511 / 16.98 |
-| Next.js | 904 / 1.85 | 1158 / 2.79 | 1219 / 3.84 | 1630 / 5.78 | 2230 / 12.16 | 2815 / 28.07 |
-| Bun | **141** / 0.33 | **175** / 0.51 | **256** / 0.79 | **389** / 1.37 | 598 / 2.60 | 1083 / 5.58 |
+| **AFW on esdev** | 161 / **0.21** | 204 / **0.32** | 269 / **0.49** | 428 / **0.92** | **571** / 2.05 | 947 / 3.78 |
+| **AFW on Vite + Node** | 306 / 0.36 | 368 / 0.46 | 443 / 0.68 | 489 / 1.06 | 613 / 2.07 | **831** / 4.61 |
+| Astro | 482 / 0.88 | 522 / 0.93 | 570 / 1.06 | 667 / 1.28 | 738 / **1.72** | 953 / **2.52** |
+| Vite | 244 / 0.60 | 300 / 0.77 | 396 / 1.16 | 564 / 1.94 | 802 / 3.41 | 1266 / 6.92 |
+| TanStack Start | 602 / 1.38 | 637 / 1.77 | 733 / 2.50 | 1175 / 4.42 | 1319 / 7.52 | 2439 / 16.30 |
+| Next.js | 821 / 1.69 | 1080 / 2.64 | 1265 / 3.65 | 1553 / 5.54 | 2065 / 10.61 | 2802 / 25.74 |
+| Bun | **144** / 0.35 | **197** / 0.50 | **250** / 0.82 | **397** / 1.39 | 605 / 2.86 | 1198 / 5.40 |
 
 Single runs above 72 KB, so read the shape of each row rather than its individual
 cells.
 
 ### Where AFW stands
 
-- **Memory:** Bun has the lowest peak up to 578 KB (141 MB against AFW's 165 MB at
-  72 KB), building no client bundle. From 1.2 MB AFW on esdev is lowest: 901 MB at
-  2.3 MB against Bun's 1083 MB and Astro's 1286 MB, while also building a client bundle.
-- **Build time:** AFW on esdev is fastest up to 1.2 MB, and faster than Bun at every
-  size. At 2.3 MB Astro is faster
-  (2.8 s against 4.0 s); AFW's time grows faster than linearly between the last two
-  sizes, which is the next thing to investigate. Astro builds no client bundle.
-- **The two AFW workflows:** Vite + Node costs about 240 MB more at 72 KB than esdev (it
-  runs Vite and Node, then a separate prerender build) and stays ahead of every tool
-  that also ships client JavaScript.
+- **Memory:** Bun has the lowest peak up to 578 KB (144 MB against AFW's 161 MB at
+  72 KB), building no client bundle. From 1.2 MB AFW is lowest, while also building a
+  client bundle: esdev at 1.2 MB (571 MB), Vite + Node at 2.3 MB (831 MB, against
+  esdev's 947 MB, Astro's 953 MB and Bun's 1198 MB).
+- **Build time:** AFW on esdev is fastest up to 578 KB, and faster than Bun at every
+  size. From 1.2 MB Astro is faster (2.5 s against 3.8 s at 2.3 MB); AFW's time grows
+  faster than linearly between the last two sizes, which is the next thing to
+  investigate. Astro builds no client bundle.
+- **The two AFW workflows:** Vite + Node costs about 145 MB more at 72 KB than esdev (it
+  runs Vite and Node, then a separate prerender build), uses less at 2.3 MB, and stays
+  ahead of every tool that also ships client JavaScript.
 - **Against the earlier toolchain:** the retired `afw build --ssg` (afw-cli 1.23,
-  July 2026) built the 2.3 MB page in 2.9 s / 712 MB, so esdev is currently slower at
-  the top of the ladder; the 72 KB cell is within noise of it (140–165 MB).
+  July 2026) built the 2.3 MB page in 2.9 s / 712 MB, so both current workflows are
+  slower and heavier at the top of the ladder; the 72 KB cell is within noise of it
+  (140–165 MB).
 
 ### History: the AFW build fixes (retired `afw build --ssg`, July–August 2026)
 
