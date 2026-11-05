@@ -203,6 +203,35 @@ FRAMEWORKS.sveltekit = {
 `],
 };
 
+// The Vue dialect, for Nuxt: auto-imported components (components/gen/Widget3.vue is
+// <GenWidget3>), and the docs as Nuxt Content pages.
+FRAMEWORKS.nuxt = {
+  clean: ["app/pages/pages", "content", "app/components/gen"],
+  data: "data/products.json",
+  doc: (slug) => `content/docs/${slug}.md`,
+  page: (i) => [`app/pages/pages/p${i}.vue`, `<template>
+  <section>
+    <h1 class="text-2xl font-bold">Page ${i}</h1>
+    <Card title="Section ${i}">
+      <p>Generated route ${i}, with its own interactive widget.</p>
+    </Card>
+    <GenWidget${i} />
+  </section>
+</template>
+`],
+  widget: (i) => [`app/components/gen/Widget${i}.vue`, `<script setup>
+const open = ref(false);
+</script>
+
+<template>
+  <div class="widget rounded border p-2">
+    <button @click="open = !open">Toggle ${i}</button>
+    <p v-if="open">Details for widget ${i}</p>
+  </div>
+</template>
+`],
+};
+
 export async function generate(framework, appDir, k) {
   const f = FRAMEWORKS[framework];
   if (!f) throw new Error(`unknown framework ${framework}`);

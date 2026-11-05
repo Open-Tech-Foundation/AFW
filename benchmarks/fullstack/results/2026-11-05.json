@@ -292,6 +292,149 @@
           ]
         }
       }
+    },
+    "nuxt": {
+      "10": {
+        "parity": true,
+        "buildMemoryMb": 1274,
+        "buildSeconds": 8.54,
+        "devStartSeconds": 3.8767626510000044,
+        "editToBrowserSeconds": 0.05562914399999863,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "nuxt-k10-r1",
+              "exit": 0,
+              "peak_mb": 1247.9,
+              "wall_s": 8.61
+            },
+            {
+              "label": "nuxt-k10-r2",
+              "exit": 0,
+              "peak_mb": 1296.1,
+              "wall_s": 8.18
+            },
+            {
+              "label": "nuxt-k10-r3",
+              "exit": 0,
+              "peak_mb": 1274,
+              "wall_s": 8.54
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 3.909312362999997,
+              "editToBrowser": 0.05562914399999863,
+              "reloaded": false
+            },
+            {
+              "coldStart": 3.8767626510000044,
+              "editToBrowser": 0.05623811600000045,
+              "reloaded": false
+            },
+            {
+              "coldStart": 3.772008890999998,
+              "editToBrowser": 0.04516380200000276,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "100": {
+        "parity": true,
+        "buildMemoryMb": 1461.9,
+        "buildSeconds": 10.17,
+        "devStartSeconds": 3.7668599850000026,
+        "editToBrowserSeconds": 0.05642755500000203,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "nuxt-k100-r1",
+              "exit": 0,
+              "peak_mb": 1464.7,
+              "wall_s": 9.74
+            },
+            {
+              "label": "nuxt-k100-r2",
+              "exit": 0,
+              "peak_mb": 1438.9,
+              "wall_s": 10.17
+            },
+            {
+              "label": "nuxt-k100-r3",
+              "exit": 0,
+              "peak_mb": 1461.9,
+              "wall_s": 11.94
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 3.7668599850000026,
+              "editToBrowser": 0.05642755500000203,
+              "reloaded": false
+            },
+            {
+              "coldStart": 3.678404957000006,
+              "editToBrowser": 0.07068584599999303,
+              "reloaded": false
+            },
+            {
+              "coldStart": 4.216162774000011,
+              "editToBrowser": 0.051516565999991146,
+              "reloaded": false
+            }
+          ]
+        }
+      },
+      "1000": {
+        "parity": true,
+        "buildMemoryMb": 3459.2,
+        "buildSeconds": 28.09,
+        "devStartSeconds": 4.637760338000022,
+        "editToBrowserSeconds": 0.07874491599999602,
+        "editReloads": false,
+        "samples": {
+          "builds": [
+            {
+              "label": "nuxt-k1000-r1",
+              "exit": 0,
+              "peak_mb": 3459.2,
+              "wall_s": 28.09
+            },
+            {
+              "label": "nuxt-k1000-r2",
+              "exit": 0,
+              "peak_mb": 3461.7,
+              "wall_s": 28.08
+            },
+            {
+              "label": "nuxt-k1000-r3",
+              "exit": 0,
+              "peak_mb": 3379,
+              "wall_s": 28.41
+            }
+          ],
+          "devs": [
+            {
+              "coldStart": 4.637760338000022,
+              "editToBrowser": 0.07874491599999602,
+              "reloaded": false
+            },
+            {
+              "coldStart": 4.346276011999987,
+              "editToBrowser": 0.07802327999999398,
+              "reloaded": false
+            },
+            {
+              "coldStart": 4.659338656000007,
+              "editToBrowser": 0.08919252899999265,
+              "reloaded": false
+            }
+          ]
+        }
+      }
     }
   }
 }

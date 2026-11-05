@@ -39,6 +39,7 @@ in each framework's file conventions, so the build grows with the app: K = 10, 1
 | **TanStack Start** | 1.169, Nitro 3 (node-server) | `vite build` | `node .output/server/index.mjs` | `vite` |
 | **SolidStart** | 2.2, Solid 1.9, Nitro 3 (node-server) | `vite build` | `node .output/server/index.mjs` | `vite` |
 | **SvelteKit** | 3.1, Svelte 5.57, `@sveltejs/adapter-node` 6, mdsvex | `vite build` | `node build/index.js` | `vite dev` |
+| **Nuxt** | 4.6, Vue 3.5, `@nuxt/content` 3.16, Nitro (node-server) | `nuxt build` | `node .output/server/index.mjs` | `nuxt dev` |
 | **Astro** | 7.4, React islands, `@astrojs/node` | `astro build` | `node dist/server/entry.mjs` | `astro dev` |
 
 Both AFW workflows build the same `apps/afw/` folder.
@@ -73,6 +74,11 @@ Each framework builds the app its own way, which is what is being compared:
 - **SvelteKit** loads its data in `+page.server.js`, and renders the docs with mdsvex,
   its usual Markdown preprocessor (`.md` routes); mdsvex highlights the code blocks
   with Prism at build time.
+- **Nuxt** renders the docs with Nuxt Content, its docs layer: the Markdown is parsed at
+  build time into an SQLite database (Node's built-in `node:sqlite`) that each docs page
+  queries, and the code blocks are highlighted with Shiki. Its components are
+  auto-imported (`components/gen/Widget3.vue` is `<GenWidget3>`), and `/account` is
+  guarded by a global route middleware, which also runs on client navigations.
 - **TanStack Start** needed its Tailwind sources pinned (`@source` in
   `src/styles.css`): with automatic detection its client and server builds generated
   different stylesheets, and the page linked a file the build never emitted (a 404).

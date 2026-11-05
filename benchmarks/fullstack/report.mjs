@@ -25,8 +25,8 @@ for (const run of runs) {
 for (const tool of Object.values(results.tools)) results.dates.add(tool.measuredAt);
 const dates = [...results.dates].sort();
 
-const ENGINES = ["afw-esdev", "afw-vite", "next", "tanstack", "solidstart", "sveltekit", "astro"];
-const LABELS = { "afw-esdev": "AFW esdev", "afw-vite": "AFW Vite", next: "Next", tanstack: "TanStack", solidstart: "SolidStart", sveltekit: "SvelteKit", astro: "Astro" };
+const ENGINES = ["afw-esdev", "afw-vite", "next", "tanstack", "solidstart", "sveltekit", "nuxt", "astro"];
+const LABELS = { "afw-esdev": "AFW esdev", "afw-vite": "AFW Vite", next: "Next", tanstack: "TanStack", solidstart: "SolidStart", sveltekit: "SvelteKit", nuxt: "Nuxt", astro: "Astro" };
 const METRICS = [
   ["Build memory (MB)", "buildMemoryMb", 0],
   ["Build time (s)", "buildSeconds", 2],

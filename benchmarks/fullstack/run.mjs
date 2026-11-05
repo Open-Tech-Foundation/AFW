@@ -83,6 +83,13 @@ const TOOLS = {
     dev: (port) => [bin("vite"), ["dev", "--port", String(port), "--strictPort", "--host", "127.0.0.1"]],
     counter: "components/Counter.svelte",
   },
+  nuxt: {
+    app: "nuxt", generator: "nuxt", caches: [".output", ".nuxt", ".data", "node_modules/.cache", "node_modules/.vite"],
+    build: [bin("nuxt"), ["build"]],
+    start: (port) => ["node", [".output/server/index.mjs"], { PORT: String(port), HOST: "127.0.0.1" }],
+    dev: (port) => [bin("nuxt"), ["dev", "--port", String(port), "--host", "127.0.0.1"]],
+    counter: "app/components/Counter.vue",
+  },
 };
 
 const args = argv;

@@ -49,7 +49,7 @@ test('native report aggregation pools samples and respects the timing resolution
   } finally { await remove(tmp, { recursive: true }); }
 });
 
-test('full-stack generator writes SolidStart and SvelteKit routes in their own conventions', async () => {
+test('full-stack generator writes SolidStart, SvelteKit and Nuxt routes in their own conventions', async () => {
   await mkdir(join(root, '.cache'), { recursive: true });
   const tmp = await makeTempDir({ dir: join(root, '.cache'), prefix: 'fullstack-gen-' });
   try {
@@ -65,6 +65,11 @@ test('full-stack generator writes SolidStart and SvelteKit routes in their own c
     // A smaller regeneration removes the pages the larger one wrote.
     await runNode('benchmarks/fullstack/generate.mjs', ['sveltekit', join(tmp, 'svelte'), '1']);
     expect(await file(join(tmp, 'svelte/src/routes/pages/p3/+page.svelte')).exists()).toBe(false);
+    await runNode('benchmarks/fullstack/generate.mjs', ['nuxt', join(tmp, 'nuxt'), '3']);
+    // Nuxt auto-imports components/gen/Widget3.vue as <GenWidget3>.
+    expect(await file(join(tmp, 'nuxt/app/pages/pages/p3.vue')).text()).toContain('<GenWidget3 />');
+    expect(await file(join(tmp, 'nuxt/app/components/gen/Widget3.vue')).text()).toContain('ref(false)');
+    expect(await file(join(tmp, 'nuxt/content/docs/routing.md')).text()).toContain('## Routing section 4');
   } finally { await remove(tmp, { recursive: true }); }
 });
 
