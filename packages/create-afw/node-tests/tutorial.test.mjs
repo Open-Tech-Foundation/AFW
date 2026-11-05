@@ -27,8 +27,8 @@ before(async () => {
 });
 after(() => rm(scratch, { recursive: true, force: true }));
 
-// ```lang path/to/file\n…``` blocks.
-const fileBlocks = (mdx) => [...mdx.matchAll(/```\w+ ([\w./-]+)\n([\s\S]*?)```/g)].map(([, path, code]) => ({ path, code }));
+// ```lang path/to/file\n…``` blocks; paths may have [param] folders.
+const fileBlocks = (mdx) => [...mdx.matchAll(/```\w+ ([\w./[\]-]+)\n([\s\S]*?)```/g)].map(([, path, code]) => ({ path, code }));
 
 test("the tutorial's create command scaffolds the app it builds on", async () => {
   const command = page.match(/npm create @opentf\/afw@latest (\S+) -- ([^\n]+)/);
@@ -37,6 +37,8 @@ test("the tutorial's create command scaffolds the app it builds on", async () =>
   const server = options.render === "ssr" || !!options.server; // SSR always has a server, as main() resolves it
   assert.deepEqual([options.template, options.render, server, options.language], ["app", "ssr", true, "js"]);
   await create({ directory: root, template: options.template, render: options.render, server, language: options.language });
+  const paths = fileBlocks(page).map((b) => b.path);
+  assert.ok(paths.includes("app/notes/[id]/page.jsx") && paths.includes("app/notes/[id]/loader.js"), `the dynamic route's files are written (${paths})`);
   // The layout the tutorial replaces is the starter's, plus the Notes link.
   const layout = fileBlocks(page).find((b) => b.path === "app/layout.jsx").code;
   assert.equal(layout.replace('        <Link href="/notes">Notes</Link>\n', ""), await readFile(join(root, "app", "layout.jsx"), "utf8"));
@@ -52,6 +54,7 @@ test("its tests pass (npm test)", async () => {
     const files = vitest.state.getFiles();
     assert.deepEqual(files.flatMap((f) => f.result?.errors ?? []).map((e) => e.message), []);
     assert.deepEqual(files.flatMap((f) => f.tasks).map((t) => `${t.name}: ${t.result?.state}`).sort(), [
+      "/ focuses the input: pass",
       "counts clicks: pass",
       "saves the typed note and clears the input: pass",
       "shows the server's validation message: pass",
@@ -73,6 +76,13 @@ test("it builds and runs as the tutorial describes (npm run build, npm start)", 
     const html = await (await fetch(`${url}/notes`, { headers: { accept: "text/html" } })).text();
     assert.match(html, /Read the AFW docs/, "the notes are in the server-rendered HTML");
     assert.match(html, /<h1[^>]*>Notes<\/h1>/);
+    assert.match(html, /href="\/notes\/1"/, "each note links to its own page");
+
+    // The dynamic route: a note's page, and a real 404 for an unknown id.
+    const one = await fetch(`${url}/notes/1`, { headers: { accept: "text/html" } });
+    assert.equal(one.status, 200);
+    assert.match((await one.text()).replace(/<!--[^>]*-->/g, ""), /<h1[^>]*>Read the AFW docs<\/h1>/);
+    assert.equal((await fetch(`${url}/notes/999`, { headers: { accept: "text/html" } })).status, 404);
 
     const assets = join(root, "dist", "client", "assets");
     const code = (await Promise.all((await readdir(assets)).filter((f) => f.endsWith(".js")).map((f) => readFile(join(assets, f), "utf8")))).join("\n");

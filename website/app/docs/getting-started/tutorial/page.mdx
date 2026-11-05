@@ -1,18 +1,19 @@
 ---
 title: Tutorial
-description: Build a small notes app with a component, a loader, typed server functions and a test, then ship it as a Node server.
+description: Build a small notes app — reactive state, lifecycle hooks, a loader, typed server functions, a dynamic route and a test — then ship it as a Node server.
 ---
 
 import { Callout } from "@opentf/afw-docs";
 
 # Tutorial
 
-Build a notes page from scratch, in about fifteen minutes:
+Build a notes app from scratch, in about twenty minutes:
 
-- a component with reactive state
+- a component with reactive state, a ref and lifecycle hooks
 - a loader that renders the notes on the server
-- typed server functions to add and delete notes, validated with Zod
-- `invalidate()` to refresh the page after a change
+- server functions to add and delete notes, validated with Zod
+- a page that reacts to its data with `$derived` and `$effect`
+- a dynamic route with a 404
 - a component test
 - a production build that runs on Node
 
@@ -65,8 +66,6 @@ export const deleteNote = action(z.object({ id: z.number() }), async ({ id }) =>
 - `query()` is for reads, `action()` for writes.
 - With a schema, the input is validated on the server before the function runs. Invalid
   input never reaches it: the call fails with the schema's issues.
-- Each function answers at its own URL under `/notes/`, so a `_middleware.js` in
-  `app/notes/` would guard them too. See [Server Functions](/docs/server-functions).
 
 ## 3. Load the notes on the server
 
@@ -76,13 +75,12 @@ page's `router.data`.
 ```js app/notes/loader.js
 import { listNotes } from "./notes.server.js";
 
-export default async function loader({ locals }) {
-  return { notes: await listNotes(undefined, { locals }) };
+export default async function loader() {
+  return { notes: await listNotes() };
 }
 ```
 
-- A server function called from server code runs directly, with no HTTP request.
-- Pass the `locals` your middleware set, so the function sees the same user.
+- A server function called from server code is a plain async call: no HTTP request.
 
 ## 4. Build the form component
 
@@ -90,37 +88,62 @@ export default async function loader({ locals }) {
 export default function NoteForm({ save }) {
   let text = $state("");
   let error = $state("");
+  let saving = $state(false);
+  const input = $ref();
+
+  // "/" anywhere on the page jumps to the input.
+  function shortcut(event) {
+    if (event.key === "/" && document.activeElement !== input) {
+      event.preventDefault();
+      input.focus();
+    }
+  }
+
+  onMount(() => {
+    input.focus();
+    document.addEventListener("keydown", shortcut);
+  });
+  onCleanup(() => document.removeEventListener("keydown", shortcut));
 
   async function submit(event) {
     event.preventDefault();
+    saving = true;
     try {
       await save(text);
       text = "";
       error = "";
     } catch (e) {
       error = e.issues?.[0]?.message ?? e.message;
+    } finally {
+      saving = false;
     }
   }
 
   return (
     <form onsubmit={submit}>
-      <input value={text} oninput={(e) => (text = e.target.value)} placeholder="New note" aria-label="New note" />
-      <button type="submit">Add</button>
+      <input ref={input} value={text} oninput={(e) => (text = e.target.value)} placeholder="New note (press /)" aria-label="New note" />
+      <button type="submit" disabled={saving}>Add</button>
       {error ? <p role="alert">{error}</p> : null}
     </form>
   );
 }
 ```
 
-- `$state` makes `text` and `error` reactive: assigning them updates only the DOM that
-  reads them.
+- `$state` makes `text`, `error` and `saving` reactive: assigning them updates only the
+  DOM that reads them. `saving` disables the button, so a double click saves once.
 - The component compiles to a Custom Element. `save` is a prop, set by the page.
+- `$ref()` holds the `<input>` element once it is in the DOM.
+- `onMount` runs once the component is connected: it focuses the input and listens for
+  the shortcut.
+- `onCleanup` runs when the component is removed — here, when you navigate away — so
+  the listener does not outlive the page.
+- Neither hook runs on the server; see [Lifecycle](/docs/core-concepts/lifecycle).
 - A rejected server function call carries the schema's `issues`.
 
 ## 5. Build the page
 
 ```jsx app/notes/page.jsx
-import { invalidate, router } from "@opentf/afw";
+import { Link, invalidate, router } from "@opentf/afw";
 import NoteForm from "./NoteForm.jsx";
 import { addNote, deleteNote } from "./notes.server.js";
 
@@ -128,6 +151,10 @@ export const metadata = { title: "Notes" };
 
 export default function Notes() {
   const notes = $derived(router.data?.notes ?? []);
+
+  $effect(() => {
+    document.title = `Notes (${notes.length})`;
+  });
 
   async function save(text) {
     await addNote({ text });
@@ -144,8 +171,8 @@ export default function Notes() {
       <h1>Notes</h1>
       <ul>
         {notes.map((note) => (
-          <li>
-            {note.text} <button onclick={() => remove(note.id)}>Delete</button>
+          <li key={note.id}>
+            <Link href={`/notes/${note.id}`}>{note.text}</Link> <button onclick={() => remove(note.id)}>Delete</button>
           </li>
         ))}
       </ul>
@@ -155,8 +182,11 @@ export default function Notes() {
 }
 ```
 
+- `$derived` recomputes `notes` whenever `router.data` changes.
+- `$effect` re-runs whenever a signal it reads changes: the tab title follows the count.
+- `key={note.id}` lets a list update move the existing rows instead of rebuilding them.
 - The page imports `addNote` from `notes.server.js`, but the browser gets a small fetch
-  stub, not the server code. Calls are typed and need no URL.
+  stub, not the server code. Calls need no URL.
 - `invalidate()` refetches the page's loader data after a change, so the list updates.
 - Add the page to the navigation in `app/layout.jsx`:
 
@@ -178,16 +208,54 @@ export default function Layout({ children }) {
 }
 ```
 
-Open `/notes`: the list is in the server-rendered HTML, and adding or deleting a note
-updates it without a reload. An empty note shows "Write something first", from the
-schema.
+Open `/notes`:
+
+- the list is in the server-rendered HTML;
+- adding or deleting a note updates it without a reload, and the tab title follows;
+- an empty note shows "Write something first", from the schema;
+- press `/` anywhere on the page to jump to the input.
 
 <Callout type="tip" title="Prefetching">
   Hover the Notes link: `<Link>` loads the page's code and its loader data before the
   click, so the navigation has nothing left to wait for.
 </Callout>
 
-## 6. Test the component
+## 6. Add a page per note
+
+A folder in brackets captures a path segment: `app/notes/[id]/` answers `/notes/1`,
+`/notes/2`, and so on.
+
+```js app/notes/[id]/loader.js
+import { notFound } from "@opentf/afw/server";
+import { listNotes } from "../notes.server.js";
+
+export default async function loader({ params }) {
+  const note = (await listNotes()).find((n) => n.id === Number(params.id));
+  if (!note) notFound();
+  return { note };
+}
+```
+
+```jsx app/notes/[id]/page.jsx
+import { Link, router } from "@opentf/afw";
+
+export default function Note() {
+  return (
+    <article>
+      <h1>{router.data?.note?.text}</h1>
+      <p>Note #{router.params.id}</p>
+      <Link href="/notes">All notes</Link>
+    </article>
+  );
+}
+```
+
+- The loader gets the segment as `params.id`; the page reads it as `router.params.id`.
+- `notFound()` answers with the 404 page and HTTP status 404, so `/notes/999` is a real
+  404, not an empty page.
+- Click a note in the list to open its page. See [Dynamic Routes](/docs/routing/dynamic-routes).
+
+## 7. Test the component
 
 ```js tests/NoteForm.test.js
 import { expect, test, vi } from "vitest";
@@ -212,17 +280,25 @@ test("shows the server's validation message", async () => {
   await userEvent.setup().click(getByRole("button", { name: "Add" }));
   expect((await findByRole("alert")).textContent).toBe("Write something first");
 });
+
+test("/ focuses the input", async () => {
+  const { getByRole } = render(NoteForm, { save: async () => {} });
+  const input = getByRole("textbox", { name: "New note" });
+  input.blur();
+  await userEvent.setup().keyboard("/");
+  expect(document.activeElement).toBe(input);
+});
 ```
 
 ```bash
 npm test
 ```
 
-- `render` mounts a component in a DOM; the queries and `userEvent` come from Testing
-  Library.
-- The test passes a fake `save`, so it needs no server.
+- `render` mounts a component in a DOM, which runs its `onMount`; the queries and
+  `userEvent` come from Testing Library.
+- The tests pass a fake `save`, so they need no server.
 
-## 7. Build and run in production
+## 8. Build and run in production
 
 ```bash
 npm run build
@@ -232,13 +308,25 @@ npm start
 - `npm run build` writes the browser assets to `dist/client` and a Node server to
   `dist/server`.
 - `npm start` runs `node dist/server/index.js`. `PORT` and `HOST` set where it listens.
-- To deploy: copy the project to any Node 22+ host, run `npm ci --omit=dev` (the server
-  imports `zod` from `node_modules`), `npm run build`, then `npm start`.
+- To deploy to any Node 22+ host:
+
+```bash
+npm ci
+npm run build
+npm prune --omit=dev
+npm start
+```
+
+- The build needs the dev dependencies (Vite and the AFW plugin); the running server
+  does not, so prune them after building. It still imports `zod` and `@opentf/afw`
+  from `node_modules`.
 
 ## Next
 
-- [Server Functions](/docs/server-functions): authentication, errors and everything
-  that can be sent.
+- [Lifecycle](/docs/core-concepts/lifecycle) and [Reactivity](/docs/core-concepts/reactivity):
+  the other hooks, and `$state`, `$derived` and `$effect` in depth.
+- [Server Functions](/docs/server-functions): authentication, passing `locals` from
+  middleware, errors and everything that can be sent.
 - [Data Fetching](/docs/data-fetching): loaders and `resource()`.
 - [Middleware](/docs/routing/middleware): sign users in and guard sections.
 - [Deployment](/docs/deployment): static hosting, Node and Fetch-native runtimes.
