@@ -12,7 +12,7 @@ import {
 
 export { signal, computed, batch, effect, untracked, reactive, getCurrentInstance };
 
-import { clone, isEql } from "@opentf/std";
+import { clone, isEqual as isEql } from "@opentf/std";
 
 /**
  * Path-based reactive forms engine for AFW.

@@ -8,6 +8,12 @@
   as a server function refusing the submit; an empty message clears it. The next
   validation of the field, or `reset()`, replaces it.
 
+### Changed
+
+- Depends on `@opentf/std` 0.20 (its `isEql` is now `isEqual`). An app whose server
+  bundle resolved `@opentf/std` 0.20 failed to start with "does not provide an export
+  named 'isEql'".
+
 ## [1.30.0] - 2026-11-04
 
 _Dependency updates._
