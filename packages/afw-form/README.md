@@ -139,6 +139,7 @@ order in the component body. Several forms in one component stay independent.
 | `register(path)` | Props to spread onto an input |
 | `handleSubmit(fn)` | Submit handler: validates, then calls `fn(values)` when valid |
 | `reset(values?)` | Restore `initialValues`, or reset to new baseline values |
+| `setError(path, message)` | Set a field's error from outside the validator (a server refusing the submit); an empty message clears it |
 | `values`, `errors`, `touched`, `changed` | Reactive stores, read by path |
 | `isValid`, `isChanged`, `isTouched` | Form-wide status |
 | `isSubmitting`, `isValidating`, `isSubmitted`, `submitCount` | Submission status |

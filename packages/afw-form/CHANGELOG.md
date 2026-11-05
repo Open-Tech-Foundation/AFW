@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- `form.setError(path, message)` sets a field's error from outside the validator, such
+  as a server function refusing the submit; an empty message clears it. The next
+  validation of the field, or `reset()`, replaces it.
+
 ## [1.30.0] - 2026-11-04
 
 _Dependency updates._

@@ -259,6 +259,14 @@ function _createForm(options = {}) {
     });
   };
 
+  // An error from outside the validator — typically the server refusing a submit.
+  // An empty message clears it; the next validation of the field, or reset(),
+  // replaces it like any other error.
+  const setError = (path, message) => {
+    if (message) writePath(errorsStore, path, message);
+    else deletePath(errorsStore, path);
+  };
+
   // --- derived flags
   const isValidSig = computed(() => !hasTruthy(errorsStore));
   const isTouchedSig = computed(() => hasTruthy(touchedStore));
@@ -268,6 +276,7 @@ function _createForm(options = {}) {
     register,
     handleSubmit,
     reset,
+    setError,
     _updateConfig(newMode, newReValidateMode) {
       batch(() => {
         modeSig.value = newMode;
