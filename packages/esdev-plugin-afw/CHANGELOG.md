@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A `.tsx` module's compiled output is reported as `ts`, not `js`. afwc lowers the
+  JSX and keeps the TypeScript, so calling it `js` made the first type annotation or
+  `as` cast in a page a parse error in both browser and server builds; the bundler
+  now strips the types.
+
 ## [0.7.1] - 2026-11-05
 
 _Dependency updates._

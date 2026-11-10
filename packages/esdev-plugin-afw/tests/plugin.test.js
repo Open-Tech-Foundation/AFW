@@ -81,6 +81,21 @@ test("SPA releases use CSR and SSG releases use hydration in the browser", async
   }
 });
 
+test("a .tsx page keeps its TypeScript, and says so", async () => {
+  const typed = 'export default function Page() { const items: string[] = ["a"]; const n = (items.length as number); return <p>{n}</p>; }';
+  for (const context of [
+    { command: "build", platform: "browser", target: "web" },
+    { command: "build", platform: "server", target: "server" },
+  ]) {
+    const result = await afwPlugin({ mode: "ssr" }).transform.handler(typed, "/app/page.tsx", context);
+    // afwc lowers the JSX and leaves the types for the bundler to strip.
+    expect(result.type).toBe("ts");
+    expect(result.code).toContain("string[]");
+  }
+  const plain = await afwPlugin().transform.handler(source, "/app/page.jsx", { command: "build", platform: "browser" });
+  expect(plain.type).toBe("js");
+});
+
 test("already lowered JSX is left to the next transform", async () => {
   const plugin = afwPlugin();
   expect(await plugin.transform.handler("export default 1;", "/app/page.jsx", { type: "js" })).toBeNull();

@@ -83,15 +83,22 @@ function serverImports(target) {
   };
 }
 
-// esdev's transform result: afwc has already lowered the JSX, so the result is plain
-// JavaScript — saying so keeps the bundler from parsing a `.jsx` id as JSX a second
-// time. Side effects (e.g. customElements.define) must survive bundling.
+// esdev's transform result: afwc has already lowered the JSX, so the result is no
+// longer JSX — saying so keeps the bundler from parsing a `.jsx` id as JSX a second
+// time. A `.tsx` source keeps its TypeScript (afwc lowers JSX, not types), so it is
+// `ts`, which the bundler strips; called `js`, its first annotation is a parse
+// error. Side effects (e.g. customElements.define) must survive bundling.
 async function compileModule(server, code, id, { target, failOnError, onResult, quiet, ctx }) {
   const { code: out, map } = await compileWith(server, code, id, {
     target, hot: !!ctx?.hot, failOnError, onResult, quiet,
     error: ctx?.error ? (message) => ctx.error(message) : undefined,
   });
-  return { code: out, ...(map ? { map } : {}), type: "js", moduleSideEffects: true };
+  return { code: out, ...(map ? { map } : {}), type: moduleType(id), moduleSideEffects: true };
+}
+
+/** What a compiled module is: TypeScript for a `.tsx` source, JavaScript otherwise. */
+export function moduleType(id) {
+  return /\.tsx$/i.test(id.split("?")[0]) ? "ts" : "js";
 }
 
 /**
