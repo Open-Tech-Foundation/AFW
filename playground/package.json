@@ -7,7 +7,6 @@
     "@opentf/afw-form": "workspace:*",
     "monaco-editor": "^0.52.2",
     "@monaco-editor/loader": "^1.4.0",
-    "prismjs": "^1.29.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
