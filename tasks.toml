@@ -104,7 +104,7 @@ run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup 
 # Tests use CSR independently of the website's hydrate build configuration.
 [tasks.test-afw-docs-dom]
 deps = ["build-compiler", "warm-test-deps"]
-run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-docs/tests/MobileDrawer.test.js packages/afw-docs/tests/SidebarCollapseAll.test.js packages/afw-docs/tests/Tabs.test.js packages/afw-docs/tests/Blog.test.js packages/afw-docs/tests/NavbarMenu.test.js"
+run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-docs/tests/MobileDrawer.test.js packages/afw-docs/tests/SidebarCollapseAll.test.js packages/afw-docs/tests/Tabs.test.js packages/afw-docs/tests/Blog.test.js packages/afw-docs/tests/NavbarMenu.test.js packages/afw-docs/tests/Breadcrumbs.test.js"
 
 [tasks.test-afw-form]
 deps = ["build-compiler", "warm-test-deps"]

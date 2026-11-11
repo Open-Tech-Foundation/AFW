@@ -6,18 +6,19 @@ import { Link, RawHtml, router } from "@opentf/afw";
 // Emitted beside the nav (JSON-LD is discovered wherever it sits). `siteUrl`
 // (optional site origin) absolutizes the item URLs; without it they stay
 // route-relative. `<` is escaped so the payload can't break out of the script.
+// Only crumbs with a page are listed: a sidebar group without its own page has no
+// URL, and Google rejects a ListItem without `item` ("Missing field 'item'").
+// Positions count the listed crumbs, so they stay 1, 2, 3…
 function breadcrumbJsonLd(trail, siteUrl) {
-  if (!trail.length) return "";
+  const pages = trail.filter((it) => it.path);
+  if (!pages.length) return "";
   const base = (siteUrl || "").replace(/\/+$/, "");
-  const items = trail.map((it, i) => {
-    const entry = {
-      "@type": "ListItem",
-      position: i + 1,
-      name: it.title,
-    };
-    if (it.path) entry.item = base + it.path;
-    return entry;
-  });
+  const items = pages.map((it, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name: it.title,
+    item: base + it.path,
+  }));
   const json = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",

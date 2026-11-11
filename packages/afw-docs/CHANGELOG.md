@@ -24,6 +24,15 @@
   - New variables: `--afw-code-block-*` and `--afw-copy-*` for the chrome, and
     `--sh-*` for token colors.
 
+### Fixed
+
+- Breadcrumb structured data no longer fails Google's "Missing field 'item' (in
+  'itemListElement')" check.
+  - A sidebar group without its own page (e.g. "Core Concepts") had a ListItem with no
+    URL. It is now left out of the BreadcrumbList JSON-LD.
+  - Positions count only the listed pages, so they stay 1, 2, 3…
+  - The visible trail is unchanged.
+
 ## [0.34.0] - 2026-11-05
 
 _Dependency updates._
