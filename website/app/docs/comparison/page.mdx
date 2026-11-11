@@ -68,7 +68,7 @@ The everyday features AFW is still missing, and the plan for each, are on the
 | Nested layouts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
 | Fully type-checked routes and params | ❌ | 🟡 | ✅ | ✅ | 🟡 | 🟡 | ❌ | ❌ |
 | Route groups and optional segments | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| Per-route error and loading UI | 🟡 ⁶ | ✅ | ✅ | ✅ | 🟡 | 🟡 | ❌ | 🟡 |
+| Per-route error and loading UI | ✅ ⁶ | ✅ | ✅ | ✅ | 🟡 | 🟡 | ❌ | 🟡 |
 | Server middleware | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Client-side route guards | ✅ | 🟡 | ✅ | 🟡 | ✅ | 🟡 | ❌ | 🟡 |
 | Link prefetching | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -77,8 +77,8 @@ The everyday features AFW is still missing, and the plan for each, are on the
 
 5. React Router supports file-based routes through its file-routes convention or a
    route config file.
-6. AFW has an `<ErrorBoundary>` component and a single `404` page, not per-route
-   error or loading files.
+6. [`loading.jsx` and `error.jsx`](/docs/routing/loading-and-errors) per folder, in
+   the next release; `<Pending>` and `<ErrorBoundary>` for sections within a page.
 
 ## Data and server
 

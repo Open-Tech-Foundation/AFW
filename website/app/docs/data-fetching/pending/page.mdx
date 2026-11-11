@@ -1,6 +1,6 @@
 ---
 title: Loading States
-description: One loading state for every resource inside a <Pending>: a fallback on first load, a refreshing view on refetch, a delay against flashes, and errors routed to the nearest ErrorBoundary.
+description: One loading state for every resource inside a <Pending>: a fallback on first load, a refreshing view on refetch, a delay against flashes, and a section's own error view or the nearest ErrorBoundary.
 ---
 
 # Loading States
@@ -51,6 +51,7 @@ export default function Profile() {
 ```
 
 - **Only its nearest boundary.** A nested `<Pending>` waits for its own resources, so an inner section can reveal later than the page around it.
+- **A page resource counts where it's read.** Read only inside a section's `<Pending>`, it holds that section, not an outer boundary or the page's [`loading.jsx`](/docs/routing/loading-and-errors).
 - **Paused resources don't count.** A resource whose source is `null` or `false` doesn't hold the fallback.
 
 ## First load and refetch
@@ -61,6 +62,7 @@ export default function Profile() {
 | `refreshing` | none | Shown above the content while a resource inside refetches. |
 | `refetch` | `"keep"` | `"keep"`: the content stays during a refetch. `"fallback"`: show the fallback again. |
 | `delay` | `0` | Milliseconds before `fallback` or `refreshing` appear. A faster load shows neither. |
+| `error` | none | `(error, retry) => view`: show a failed first load here. `retry` refetches what failed. |
 
 - **Revealed together:** the content appears once every resource has settled, not one widget at a time.
 - **During a `delay` on first load,** nothing is shown; during a refetch, the content stays.
@@ -78,12 +80,21 @@ afw-internal-pending[data-pending] > :not([slot]) {
 
 | Situation | What happens |
 | --- | --- |
-| First load fails | The error goes to the nearest `<ErrorBoundary>`. Its retry refetches the failed resources, including a page resource outside the boundary. |
+| First load fails, with an `error` prop | The boundary shows `error(error, retry)` in place of its content. Retry shows the fallback again while the failed resources reload. |
+| First load fails, no `error` prop | The error goes to the nearest `<ErrorBoundary>`, or the page's [`error.jsx`](/docs/routing/loading-and-errors). Its retry refetches the failed resources, including a page resource outside the boundary. |
 | A refetch fails | The last data stays on screen, `resource.error` is set, and the error is reported (dev overlay, `onError`). |
-| No `<ErrorBoundary>` above | The error is reported and the content shows, so the component can read `resource.error`. |
+| Nothing above to catch it | The error is reported and the content shows, so the component can read `resource.error`. |
 | `{ errors: "inline" }` | Only `resource.error` is set; nothing is reported or routed. |
 
 - **Outside any `<Pending>`,** a failure only sets `resource.error`, as before.
+
+One component per dashboard section covers both states:
+
+```jsx
+<Pending fallback={<ChartSkeleton />} error={(error, retry) => <SectionError title="Revenue" onRetry={retry} />}>
+  <RevenueChart />
+</Pending>
+```
 
 ## How it displays
 

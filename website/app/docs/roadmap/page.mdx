@@ -45,8 +45,10 @@ These items need compiler or runtime support, so a third-party package cannot ad
 
 ### Routing
 
-- [ ] **Per-route loading and error files.**
-  - Today: one [`<ErrorBoundary>`](/docs/core-concepts/error-boundary) component and a single `404` page.
+- [x] **Per-route loading and error files.**
+  - [`loading.jsx` and `error.jsx`](/docs/routing/loading-and-errors), in the next release.
+- [ ] **Layout errors.**
+  - `error.jsx` covers the page; an error thrown by a layout is reported, not caught.
 - [ ] **Layout loaders.**
   - Today: loaders run for pages only.
 - [ ] **Route groups and optional segments.**

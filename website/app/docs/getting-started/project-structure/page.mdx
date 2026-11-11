@@ -119,6 +119,8 @@ Files the toolchain recognizes beyond ordinary components. Extensions `.js`, `.t
 | `page.jsx` / `page.mdx` | A route. The folder path is the URL (`app/about/page.jsx` → `/about`). |
 | `layout.jsx` | Wraps every route below it; nests with the folder tree. |
 | `404.jsx` | Rendered when no route matches. |
+| `loading.jsx` | The [loading view](/docs/routing/loading-and-errors) for the pages beneath its folder, during navigation and while their resources load. |
+| `error.jsx` | The [error view](/docs/routing/loading-and-errors) for the pages beneath its folder, when the loader, the page or a resource fails. |
 | `route.js` | An [API endpoint](/docs/routing/api-routes). The folder is the URL (`app/api/hello/route.js` → `/api/hello`). A folder holds a `page.*` or a `route.*`, never both. |
 | `loader.js` | A [route loader](/docs/data-fetching/route-loaders) sibling to a `page.*`. Runs server-side before the page renders; its return value is `router.data`. Requires a matching `page.*` in the same folder. |
 | `_middleware.js` | [Middleware](/docs/routing/middleware) for its folder and everything nested under it (pages, API, loader data, SSR). |

@@ -66,7 +66,8 @@ Features React, Vue, Svelte and Solid developers expect, built in or from their 
 * [x] Async pending boundaries over `resource()`: `<Pending>` (fallback, `refreshing`, `refetch`, `delay`; first-load failures to `<ErrorBoundary>`).
 * [ ] `resource.data` typed as present inside `<Pending>`.
 * [ ] Component-level `lazy()` outside routes.
-* [ ] Per-route loading/error files, layout loaders, route groups, optional segments.
+* [x] Per-route `loading.jsx` / `error.jsx` (nearest file; navigation delay; loader, page and unhandled errors; SSR status 500) and `<Pending error>` for sections.
+* [ ] Layout errors caught by `error.jsx`; layout loaders, route groups, optional segments.
 * [ ] Typed routes (`<Link href>`, `navigate()`, `params`) and schema-validated search params.
 * [ ] Scroll restoration saved per history entry, applied after async page data loads.
 * [ ] View transitions on client navigation.

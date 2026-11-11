@@ -1,0 +1,129 @@
+---
+title: Loading & Error UI
+description: loading.jsx and error.jsx — a route's loading view during navigation and data loading, and its error view when the loader, the page or a resource fails.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Loading & Error UI
+
+Two optional files next to a `page.jsx` give the pages beneath their folder a
+loading view and an error view.
+
+```text
+app/
+├─ layout.jsx
+├─ error.jsx            # catches failures anywhere in the app
+└─ dashboard/
+   ├─ layout.jsx
+   ├─ loading.jsx       # shown while a dashboard page loads
+   ├─ error.jsx         # shown when a dashboard page fails
+   ├─ page.jsx
+   └─ settings/page.jsx # uses dashboard's loading.jsx and error.jsx
+```
+
+<Callout type="info" title="New in the next release">
+  `loading.jsx` and `error.jsx` ship in the next releases of `@opentf/afw`, `@opentf/afw-build` and `@opentf/vite-plugin-afw`.
+</Callout>
+
+## Which file applies
+
+- **The nearest one wins.** The router looks in the page's folder, then each parent up to `app/`.
+- **Inside the layouts.** Both replace only the page, so the layouts around it (navbar, sidebar) stay on screen and keep working.
+- **Layouts are not covered.** An error thrown by a layout (or a component in it) is reported, not caught; wrap that part in an `<ErrorBoundary>`.
+- **Not pages.** `loading.jsx` and `error.jsx` never become routes of their own.
+- **JSX or TSX only.** A `loading.mdx` or `error.md` is a build error.
+
+## `loading.jsx`
+
+```jsx
+// app/dashboard/loading.jsx
+export default function Loading() {
+  return <DashboardSkeleton />;
+}
+```
+
+It shows in two situations:
+
+- **While navigating to the page.** When the page's loader data or code takes longer than 150 ms, the skeleton replaces the old page inside the layouts. A faster navigation never shows it.
+- **While the page's resources load.** It is the [`<Pending>`](/docs/data-fetching/pending) fallback for every `resource()` the page reads outside a section boundary.
+
+It receives `{ params, query }` for the route being loaded.
+
+| Rendering | First load | Client navigation |
+| --- | --- | --- |
+| Client-only app | Shown while the data and resources load | Shown |
+| Server rendering | Loader data is already in the HTML; not shown | Shown |
+| Static generation | Loader data is baked into the HTML; not shown | Shown while the static `__data.json` loads |
+
+## `error.jsx`
+
+```jsx
+// app/dashboard/error.jsx
+export default function DashboardError({ error, retry }) {
+  return (
+    <div role="alert">
+      <p>Couldn't load the dashboard: {error.message}</p>
+      <button onclick={retry}>Try again</button>
+    </div>
+  );
+}
+```
+
+| Prop | What it is |
+| --- | --- |
+| `error` | What failed. After a server render it has a `status`, and in production a generic message. |
+| `retry` | Loads the page again: reruns its loader and rebuilds it, without a full reload. |
+| `params`, `query` | The route's params and query. |
+
+It replaces the page when:
+
+| Failure | Where |
+| --- | --- |
+| The loader throws | Client navigation, or a server render (sent with HTTP 500) |
+| The page throws while it builds | Client |
+| A component inside the page throws, with no `<ErrorBoundary>` around it | Client |
+| A resource's first load fails under `loading.jsx`, or under a `<Pending>` without an `error` prop | Client |
+
+- **Without an `error.jsx`,** a failed loader leaves `router.data` undefined and the page renders, as before.
+- **`notFound()`** still renders `404.jsx` with HTTP 404.
+- **Redirects and refusals** (a thrown `Response`) are unchanged: see [Loader Errors & Redirects](/docs/data-fetching/loader-errors).
+- **Production messages.** A server-rendered error page shows "Something went wrong" in production, so a loader's internals never reach the browser. Development shows the real message.
+- **Static generation.** A loader that throws at build time is reported and that page is skipped, as before. An error page is never baked into a static file.
+
+## Dashboards: sections inside the page
+
+The route files are the page-level default. A page whose sections load independently
+gives each section its own boundary, so they fill in and fail separately:
+
+```jsx
+// app/dashboard/page.jsx
+import { Pending } from "@opentf/afw";
+
+export default function Dashboard() {
+  return (
+    <div class="grid">
+      <Pending fallback={<ChartSkeleton />} error={(e, retry) => <SectionError title="Revenue" onRetry={retry} />}>
+        <RevenueChart />
+      </Pending>
+      <Pending fallback={<TableSkeleton />} error={(e, retry) => <SectionError title="Orders" onRetry={retry} />}>
+        <RecentOrders />
+      </Pending>
+    </div>
+  );
+}
+```
+
+- **Each resource waits on its nearest boundary.** A section's resources hold that section, not `loading.jsx`.
+- **The page shows at once** when every section has a boundary: `loading.jsx` then only covers the navigation and the loader data.
+- **A section's `error`** shows its failure in place; the other sections keep working.
+- **Anything no section catches** (the loader, the page itself, a section without `error`) goes to `error.jsx`.
+
+## Compared with other frameworks
+
+| | AFW | Next.js | React Router | TanStack Start | SvelteKit |
+| --- | --- | --- | --- | --- | --- |
+| Loading UI per route | `loading.jsx` | `loading.js` | `useNavigation()` in a layout | `pendingComponent` | `$navigating` |
+| Error UI per route | `error.jsx` | `error.js` | `ErrorBoundary` export | `errorComponent` | `+error.svelte` |
+| Retry | `retry()` | `reset()` | Revalidate | `router.invalidate()` | `invalidate()` |
+| Per-section loading and error | `<Pending fallback error>` | `<Suspense>` + error boundary | `<Suspense>` + `<Await errorElement>` | `<Suspense>` + `<CatchBoundary>` | `<svelte:boundary>` |

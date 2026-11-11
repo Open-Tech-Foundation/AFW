@@ -152,6 +152,14 @@ paint, keeping hydration adoption aligned.
 * **Server.** The SSG renderer emits `<template shadowrootmode="open">` showing the fallback slot. A server-rendered boundary changes nothing until `exitPending` reports its children adopted.
 * **Lifetime.** A component's resource pushes its effect disposers onto the host's `_cleanups`, so it stops (and unregisters) when the component is torn down.
 
+### Route `loading.jsx` / `error.jsx`
+
+* **Registration.** `registerRoutes` files them in `routes.loading` / `routes.errors` by folder; `nearestRouteFile` walks from the route's folder to the root.
+* **Navigation.** `scheduleRouteLoading` renders the loading view inside the layouts if the navigation still waits after `LOADING_DELAY`; the commit replaces it.
+* **Page build.** `buildRouteNode` builds the page inside a route `<Pending>` (fallback: the loading view, delay 0 if the navigation already showed it). A failed loader (`dataError`) or a throwing page builds the error view instead.
+* **Unhandled errors.** `handleError` with no `<ErrorBoundary>` calls the router's handler (`route-errors.js`); `showRouteError` swaps the page region (`currentRegion`) for the error view when the error's element is inside it.
+* **Server.** `renderDocument({ errors: "render" })` passes a loader failure to `renderRoute(..., { error })`, which renders the nearest `error.jsx` with the error's status and returns the `__afwRouteError` marker as `dataJson`. The client's hydrate path reads it and adopts the error view.
+
 ## 4. Toolchain
 
 - The project build can call `emitLoaderBundle` from `@opentf/afw-cli/ssg` before
