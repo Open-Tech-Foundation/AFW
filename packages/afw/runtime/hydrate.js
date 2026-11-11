@@ -76,9 +76,11 @@ export class HydrationMismatch extends Error {
 //
 // Why it initializes from the DOM sentinel, not `false`: a custom element upgrades — and
 // its `connectedCallback` runs the build-vs-adopt switch — the instant its class is
-// `customElements.define`d. Framework components imported *eagerly* by the app entry
-// (e.g. `<Link>` from `@opentf/afw`) are therefore defined and upgraded during the entry
-// bundle's evaluation, **before** `mountApp` runs `beginHydration()`. If the flag were
+// `customElements.define`d. Compiled components register on first use (the adopt walk's
+// `claimElement(cur, X.tag)`), but framework built-ins register when their module loads
+// (`<Link>` from `@opentf/afw`, the `afw-internal-*` elements), so they are defined and
+// upgraded during the entry bundle's evaluation, **before** `mountApp` runs
+// `beginHydration()`. If the flag were
 // still `false` then, every server-rendered `<afw-link>` would take the *build* arm —
 // re-wrapping the server subtree it should have adopted (a silent `<a><a>` double-build)
 // — long before the router ever starts hydrating. So the flag is seeded synchronously

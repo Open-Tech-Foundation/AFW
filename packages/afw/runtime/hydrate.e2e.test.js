@@ -834,7 +834,9 @@ describe.skipIf(!hasBin)("hydration construct matrix (ssg → hydrate, no rebuil
       reportError,
       handleError,
     });
-    const host = new Panel();
+    // Created through its tag: reading `Panel.tag` registers the element (components
+    // register on first use), and only a registered element can be constructed.
+    const host = document.createElement(Panel.tag);
     host.innerHTML = inner;
     const probe = host.querySelector(".probe");
     const serverBody = host.querySelector(".b");

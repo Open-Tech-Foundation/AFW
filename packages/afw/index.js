@@ -7,7 +7,9 @@ export * from "./runtime/index.js";
 // `Link` is shipped as JSX source and compiled by the consuming app's pipeline
 // (the `.jsx` lands in the module graph and afwc transforms it). Its compiled
 // module self-registers `afw-link` (CSR `customElements.define` / SSG `defineSSG`).
-// The bare import forces that registration to be retained — `<Link>` is used as a
-// tag, so the `Link` binding alone would be tree-shaken.
+// The bare import forces that registration to be retained — call sites address `<Link>`
+// by its literal `afw-link` tag (a framework built-in), not `Link.tag`, so the binding
+// alone would be tree-shaken. (Other compiled components register on first `.tag` read
+// and need no bare import.)
 import "./components/Link.jsx";
 export { default as Link } from "./components/Link.jsx";
