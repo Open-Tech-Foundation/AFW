@@ -1,4 +1,5 @@
 /// <reference path="./macros.d.ts" />
+import type { Transition } from "./runtime/transition.js";
 /** Type-only JSX entry for the AFW compiler (`jsx: "preserve"`). */
 export namespace JSX {
   type Element = Node;
@@ -31,7 +32,16 @@ export namespace JSX {
   type Properties<E> = {
     [K in keyof E as E[K] extends Function ? never : K extends `on${string}` | keyof Common<E> ? never : K]?: E[K];
   };
-  type HTML = { [K in keyof HTMLElementTagNameMap]: Properties<HTMLElementTagNameMap[K]> & Common<HTMLElementTagNameMap[K]> };
+  /**
+   * Enter/exit transitions on an element that a conditional or list adds and removes:
+   * `transition` for both directions, or `in` / `out` for one each.
+   */
+  type Transitions = {
+    transition?: Transition | null | false;
+    in?: Transition | null | false;
+    out?: Transition | null | false;
+  };
+  type HTML = { [K in keyof HTMLElementTagNameMap]: Properties<HTMLElementTagNameMap[K]> & Common<HTMLElementTagNameMap[K]> & Transitions };
   type SVG = { [K in Exclude<keyof SVGElementTagNameMap, keyof HTML>]: Common<SVGElementTagNameMap[K]> & { [attribute: string]: unknown } };
   type IntrinsicElements = HTML & SVG & {
     [tag: `${string}-${string}`]: Common<HTMLElement> & { [attribute: string]: unknown };

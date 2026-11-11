@@ -24,3 +24,4 @@ export * from "./portal.js";
 export * from "./raw-html.js";
 export * from "./code-block.js";
 export * from "./clipboard.js";
+export { setTransition } from "./transition.js";

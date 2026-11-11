@@ -27,6 +27,10 @@
       "types": "./server/adapters/node.d.ts",
       "default": "./server/adapters/node.js"
     },
+    "./transition": {
+      "types": "./runtime/transition.d.ts",
+      "default": "./runtime/transition.js"
+    },
     "./hmr": "./runtime/hmr.js",
     "./jsx-runtime": {
       "types": "./jsx-runtime.d.ts"

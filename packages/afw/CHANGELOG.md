@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- Enter and exit transitions for elements that conditionals and lists add and remove.
+  - `transition={fade()}` animates both ways; `in={…}` and `out={…}` animate one
+    direction each.
+  - Built-in `fade`, `scale`, `fly` and `slide` from `@opentf/afw/transition`, on the
+    Web Animations API. Options: `duration`, `delay`, `easing`, `initial`.
+  - A leaving element stays in place, `inert`, and is removed when its animation ends.
+    Leaving mid-enter reverses the running animation.
+  - The first render of a conditional or list, and a hydrated page, don't animate
+    unless the transition sets `initial: true`.
+  - `prefers-reduced-motion: reduce` skips the animations.
+  - A custom transition is a function returning keyframes, a running animation
+    (Motion) or any thenable (GSAP).
+  - Apps without transitions load none of this code.
+
 ## [0.37.0] - 2026-11-11
 
 ### Internal

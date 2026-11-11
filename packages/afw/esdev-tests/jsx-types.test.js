@@ -34,6 +34,7 @@ test("published framework types support strict TS starters and reject invalid JS
     await write(join(scratch, "pages.tsx"), `
       import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext } from "@opentf/afw";
       import { registerRoutes, query, action, type StandardSchemaV1 } from "@opentf/afw/server";
+      import { fade, fly, slide, type Transition } from "@opentf/afw/transition";
       export function Counter({ initial = 0 }: { initial?: number }) {
         let count = $state(initial);
         return <button onclick={event => { event.currentTarget.disabled = true; count++; }}>{count}</button>;
@@ -56,6 +57,10 @@ test("published framework types support strict TS starters and reject invalid JS
       const ref = signal<HTMLHeadingElement | null>(null);
       const heading = <h1 ref={ref} class={{ active: true }}>Hello</h1>;
       registerRoutes({}); mountApp({ pages: {}, loaders: ["/"], i18n: { locales: ["en"], defaultLocale: "en" } });
+      const pop: Transition = (el, { direction }) => el.animate([{ opacity: direction === "in" ? 0 : 1 }], 100);
+      const animated = <ul><li transition={fade({ duration: 150, initial: true })} /><li in={slide({ axis: "x" })} out={fly({ y: -4 })} /><li transition={pop} /></ul>;
+      // @ts-expect-error a transition is a function, not a name
+      const badTransition = <p transition="fade"/>;
       // @ts-expect-error native event targets retain their type
       const badEvent = <button onclick={event => event.currentTarget.noSuchProperty}/>;
       // @ts-expect-error boolean attribute does not accept an object

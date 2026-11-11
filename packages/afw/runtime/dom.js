@@ -5,6 +5,7 @@
 import { DEV, warnOnce } from "../core/dev.js";
 import { effect, scope, signal } from "../core/signals.js";
 import { claimRegionEnd, claimRegionStart, HydrationMismatch, isHydrating } from "./hydrate.js";
+import { transitionHooks as tx } from "./transition-hooks.js";
 
 /** Distinguishes items that carry identity (objects) from interchangeable primitives. */
 const hasIdentity = (v) => v !== null && (typeof v === "object" || typeof v === "function");
@@ -478,6 +479,9 @@ export function hydrateChild(cur, adoptFn, buildFn, depsFn) {
  * previous branch's scope is disposed so its bindings' effects don't outlive it. */
 function childEffect(anchor, fn, current, skipFirst, currentScope = null, firstFn = fn) {
   let first = skipFirst;
+  // The region's first DOM write; enter transitions skip it unless they opt in.
+  // A hydrated region's first write is a later swap, never initial.
+  let initial = !skipFirst;
   const disposeEffect = effect(() => {
     // Build in a scope: the branch's nested bindings (text/attr/list effects)
     // belong to this run and are disposed when the branch is replaced.
@@ -493,10 +497,14 @@ function childEffect(anchor, fn, current, skipFirst, currentScope = null, firstF
     }
     const next = built.result;
     const host = anchor.parentNode;
+    // A node with an exit transition stays in place, inert, and removes itself
+    // when its animation ends (`tx.leave` returns true).
     for (const n of current) {
-      if (n.parentNode === host) host.removeChild(n);
+      if (n.parentNode === host && !(tx.leave && tx.leave(n))) host.removeChild(n);
     }
     if (host) for (const n of next) host.insertBefore(n, anchor);
+    if (tx.enter && host) for (const n of next) tx.enter(n, initial);
+    initial = false;
     if (currentScope) currentScope.dispose();
     currentScope = built;
     current = next;
@@ -566,6 +574,9 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
   // reorder can be spotted by identity.
   const id = DEV && !keyFn ? listId++ : -1;
   let prevItems = [];
+  // The first run renders the list's initial items; enter transitions skip them
+  // unless they opt in. A hydrated list adopts its first items, so none are new.
+  let initial = true;
   const disposeEffect = effect(() => {
     const data = sourceFn();
     const items = Array.isArray(data) ? data : [];
@@ -609,7 +620,8 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
     // Remove nodes whose keys disappeared, and dispose their bindings.
     for (const entry of cache.values()) {
       if (entry.dispose) entry.dispose();
-      if (entry.node.parentNode) entry.node.parentNode.removeChild(entry.node);
+      const node = entry.node;
+      if (node.parentNode && !(tx.leave && tx.leave(node))) node.parentNode.removeChild(node);
     }
     cache = next;
     prevKeys = newKeys;
@@ -628,6 +640,10 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
       const ref = i + 1 < nodes.length ? nodes[i + 1] : anchor;
       if (nodes[i].nextSibling !== ref) host.insertBefore(nodes[i], ref);
     }
+    if (tx.enter) {
+      for (let i = 0; i < nodes.length; i++) if (prevIndex[i] === -1) tx.enter(nodes[i], initial);
+    }
+    initial = false;
   });
   return () => {
     disposeEffect();
