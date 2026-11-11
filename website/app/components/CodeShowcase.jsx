@@ -1,6 +1,6 @@
 // The hero's code window: a tab per sample (component, server function, page), each
-// highlighted by `highlight.js`, with the file name in the window bar.
-import { highlight } from "./highlight.js";
+// highlighted by `highlight.js` (its `html`), with the file name in the window bar.
+import { RawHtml } from "@opentf/afw";
 
 export default function CodeShowcase(props) {
   const samples = props.samples;
@@ -27,7 +27,7 @@ export default function CodeShowcase(props) {
       {samples.map((sample, index) => (
         <div class={active === index ? "code-window-panel" : "code-window-panel is-hidden"} role="tabpanel">
           <div class="code-window-file">{sample.file}</div>
-          <pre class="code-window-pre"><code>{highlight(sample.code).map((token) => <span class={token.kind ? `tok-${token.kind}` : ""}>{token.text}</span>)}</code></pre>
+          <pre class="code-window-pre"><code><RawHtml html={sample.html} /></code></pre>
         </div>
       ))}
     </div>

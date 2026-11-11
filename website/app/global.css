@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "@opentf/afw-docs/theme";
+@import "@opentf/syntax-highlighter/themes/shared.css";
 
 @theme {
   --color-accent: #ff851b;
@@ -856,13 +857,30 @@ body {
   font-size: 0.84rem;
   line-height: 1.7;
 }
-.tok-comment { color: #64748b; font-style: italic; }
-.tok-string { color: #a5d6a7; }
-.tok-tag { color: #7dd3fc; }
-.tok-keyword { color: #f0abfc; }
-.tok-macro { color: #ffb067; font-weight: 600; }
-.tok-number { color: #fca5a5; }
-.tok-call { color: #93c5fd; }
+/* Sample token colors (@opentf/syntax-highlighter `.sh-*` classes, mapped in
+ * shared.css): GitHub Dark, as the window is always dark. */
+.code-window {
+  --sh-comment: #8b949e;
+  --sh-keyword: #ff7b72;
+  --sh-control: #79c0ff;
+  --sh-string: #a5d6ff;
+  --sh-number: #79c0ff;
+  --sh-regex: #7ee787;
+  --sh-function: #d2a8ff;
+  --sh-method: #d7b2ff;
+  --sh-class: #ffa657;
+  --sh-variable: #c9d1d9;
+  --sh-identifier: #c9d1d9;
+  --sh-constant: #79c0ff;
+  --sh-property: #7ee787;
+  --sh-key: #79c0ff;
+  --sh-parameter: #ffa657;
+  --sh-operator: #ff7b72;
+  --sh-punctuation: #c9d1d9;
+  --sh-decorator: #ffa657;
+  --sh-boolean: #79c0ff;
+  --sh-null: #79c0ff;
+}
 
 /* Why AFW */
 .reason-grid {

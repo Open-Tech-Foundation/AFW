@@ -211,7 +211,8 @@ export default function Benchmarks() {
         The columns do not represent equal work. Astro, Vite and Bun ship no client
         JavaScript for these pages, whereas both AFW workflows, Next.js and TanStack Start additionally
         build a hydration bundle. Two smaller asymmetries: AFW and Astro
-        syntax-highlight the code blocks at build time (Astro with Shiki, by default) while
+        syntax-highlight the code blocks at build time (AFW with syntect in the compiler as of
+        these results, since removed; Astro with Shiki, by default) while
         Next.js, TanStack Start, Vite and Bun do not, and Next.js inlines an RSC payload the others
         have no equivalent of.
       </p>

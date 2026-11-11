@@ -159,10 +159,15 @@ alongside the AFW compiler/routes and site-output plugins:
     { "module": "@opentf/afw-docs/build", "export": "docsNavPlugin",
       "options": { "appDir": "app" } },
     { "module": "@opentf/afw-docs/build", "export": "lastUpdatedPlugin",
-      "options": { "appDir": "app" } }
+      "options": { "appDir": "app" } },
+    { "module": "@opentf/afw-docs/build", "export": "codeHighlightPlugin" }
   ]
 }
 ```
+
+- `codeHighlightPlugin` highlights the code fences of compiled `.md`/`.mdx` pages.
+- It runs after the compiler whatever its place in the list.
+- Without it, fences render as plain text.
 
 Keep your build targets and `siteOutputPlugin` entry from
 [Static Generation](/docs/deployment/static-generation). A blog also needs

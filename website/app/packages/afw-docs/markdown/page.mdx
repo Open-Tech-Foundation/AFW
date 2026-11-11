@@ -183,9 +183,15 @@ for the page scrolls itself instead of overflowing the content column.
 
 ### Code blocks
 
-A fenced block is highlighted at build time (syntect) and decorated with a header and
-copy button. Put a **language** after the fence, and optionally a **filename** — the
-rest of the info string becomes the title shown in the header.
+A fenced block gets a header with a copy button, and its code is syntax-highlighted:
+
+- **When:** at build time, by afw-docs' highlight plugin, right after the compiler. A
+  prerendered page and a page reached by client-side navigation carry the same colors,
+  and no highlighter ships to the browser.
+- **With:** [`@opentf/syntax-highlighter`](https://syntax-highlighter.opentechf.org).
+- **Colors:** GitHub Light and GitHub Dark, following the site's theme.
+- **Header:** put a **language** after the fence, and optionally a **filename** — the
+  rest of the info string becomes the title shown in the header.
 
 ````md
 ```js app.js
@@ -197,8 +203,12 @@ const count = $state(0);
 const count = $state(0);
 ```
 
-Language aliases are handled, so `jsx`, `tsx`, `ts`, and friends all highlight (they map
-to the closest available grammar).
+Languages:
+
+- Use the language's name or a common alias: `js`, `jsx`, `ts`, `tsx`, `sh`/`bash`,
+  `json`, `yml`, `md`/`mdx`, `rs`, `css`, `html`, and the rest of the highlighter's 100+
+  languages.
+- An unknown language (e.g. `text`) or a fence without one renders as plain text.
 
 ## MDX
 

@@ -58,6 +58,8 @@ The callable helpers support custom prerender/output scripts:
 | `docsNavPlugin` | Resolves `@opentf/afw-docs/nav` to the section map (one tree per top-level folder). |
 | `blogPostsPlugin` / `loadPosts` | Resolves `@opentf/afw-docs/posts`; `loadPosts` is the callable scan. |
 | `lastUpdatedPlugin` / `loadLastUpdated` | Resolves `@opentf/afw-docs/updated` (git/frontmatter dates + edit paths). |
+| `codeHighlightPlugin` | Highlights the code fences of compiled `.md`/`.mdx` pages with `@opentf/syntax-highlighter` (a `post` transform). |
+| `highlightCodeFences(code)` | The same pass over one compiled module's code; resolves to the highlighted code. |
 | `renderBlogFeed` | Renders the RSS 2.0 feed from the post list. |
 | `renderAtomFeed` | Renders the Atom 1.0 feed from the post list. |
 | `renderLlmsTxt` / `renderLlmsFullTxt` | Renders compact and full LLM context files from filesystem routes. |

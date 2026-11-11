@@ -98,8 +98,8 @@ Rendered:
 
 <Callout type="warning" title="No syntax highlighting yet">
   `CodeBlock` renders its code as plain (unhighlighted) text. Highlighting happens at
-  build time in the compiler, which only sees literal Markdown fences — not a runtime
-  string prop. Runtime highlighting for `CodeBlock` is deferred to future work. Prefer
+  build time on Markdown fences only — not on a runtime string prop. Runtime
+  highlighting for `CodeBlock` is deferred to future work. Prefer
   a fenced code block when the code is static; use `CodeBlock` only when it must be a
   value (e.g. a tab panel).
 </Callout>
