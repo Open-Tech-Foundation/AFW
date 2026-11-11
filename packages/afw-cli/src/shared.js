@@ -76,7 +76,7 @@ export async function loadDocsPlugins(root, appDir, config, exclude = new Set())
   if (!docs && !blog) return [];
   try {
     const entry = await resolveFrom("@opentf/afw-docs/build", root);
-    const { docsNavPlugin, blogPostsPlugin, lastUpdatedPlugin } = await import(toFileURL(entry).href);
+    const { docsNavPlugin, blogPostsPlugin, lastUpdatedPlugin, codeHighlightPlugin } = await import(toFileURL(entry).href);
     const plugins = [];
     // Resolves `@opentf/afw-docs/nav` to a section map — one generated tree per top-level
     // folder under app/. Any folder with a DocsLayout becomes a section automatically.
@@ -86,6 +86,9 @@ export async function loadDocsPlugins(root, appDir, config, exclude = new Set())
     // Resolves `@opentf/afw-docs/updated` to the per-page last-updated map (every route),
     // when last-updated is turned on anywhere.
     if (wantsLastUpdated(config)) plugins.push(lastUpdatedPlugin({ appDir, exclude, blogDir: blog ? blog.dir ?? "blog" : undefined }));
+    // Highlights the code fences of compiled `.md`/`.mdx` pages (an older afw-docs
+    // without it leaves them as plain text).
+    if (codeHighlightPlugin) plugins.push(codeHighlightPlugin());
     return plugins;
   } catch (e) {
     console.warn(

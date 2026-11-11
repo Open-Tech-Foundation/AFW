@@ -1,5 +1,5 @@
 import { expect, test } from "runtime:test";
-import { copy, exists, file, makeTempDir, mkdir, readDir, remove, stat, write } from "runtime:fs";
+import { copy, exists, file, makeTempDir, mkdir, readDir, realPath, remove, stat, write } from "runtime:fs";
 import { dirname, fromFileURL, join } from "runtime:path";
 import { env } from "runtime:process";
 import { Command } from "runtime:system";
@@ -36,6 +36,12 @@ test("finish indexes prerendered staging, preserves overrides, and protects depl
       for (const path of ["package.json", ...manifest.files.filter(path => !path.startsWith("!") && path !== "bin")]) {
         await copyPath(join(source, path), join(dir, "node_modules/@opentf", name, path));
       }
+    }
+    // afw-docs' one third-party dependency, as installed in the workspace.
+    const highlighter = await realPath(join(root, "packages/afw-docs/node_modules/@opentf/syntax-highlighter"));
+    const highlighterManifest = await file(join(highlighter, "package.json")).json();
+    for (const path of ["package.json", ...highlighterManifest.files]) {
+      await copyPath(join(highlighter, path), join(dir, "node_modules/@opentf/syntax-highlighter", path));
     }
     await mkdir(join(dir, "bin"), { recursive: true });
     for (const name of ["afwc"]) await copy(join(root, "target/debug", name), join(dir, "bin", name));

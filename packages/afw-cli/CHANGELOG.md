@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- `loadDocsPlugins` adds `@opentf/afw-docs`' `codeHighlightPlugin`, so the prerender
+  highlights docs and blog code fences. With an older `@opentf/afw-docs` that lacks it,
+  fences stay plain text.
+
 ## [1.35.0] - 2026-11-05
 
 _Dependency updates._
