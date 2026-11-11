@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- A sidebar group whose folder `_meta` lists `index` keeps its heading as a plain
+  label and lists the folder's own page as a child entry under that label (for example
+  `index: "Overview"`), at the folder's URL. Without `index`, the folder's page is still
+  the heading's link.
+
 ### Fixed
 
 - Code-fence highlighting returns a source map, so esdev 0.27 no longer warns

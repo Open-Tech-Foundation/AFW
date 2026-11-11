@@ -134,10 +134,10 @@ function metaLabel(meta, key) {
 
 /**
  * Build the ordered items of a section directory. Each subdirectory becomes a child
- * node (a link and/or a group). At the docs root (`withIndex`), the root's own
- * `page.*` is emitted as a standalone "Overview"-style entry; in nested groups the
- * folder's own page is the group node's link (added by `buildNode`), so it is not
- * repeated here. Order + labels come from `_meta`.
+ * node (a link and/or a group). With `withIndex` (the docs root, or a group whose
+ * `_meta` lists `index`), the folder's own `page.*` is emitted as a standalone
+ * "Overview"-style entry; otherwise a nested folder's page is the group node's link
+ * (added by `buildNode`), so it is not repeated here. Order + labels come from `_meta`.
  */
 async function buildSection(dir, route, ctx, withIndex = false, exclude = new Set()) {
   const meta = await loadMeta(dir, ctx);
@@ -179,7 +179,12 @@ async function buildSection(dir, route, ctx, withIndex = false, exclude = new Se
   return items;
 }
 
-/** Build a single subdirectory node: its own link (if it has a page) + children. */
+/**
+ * Build a single subdirectory node: its own link (if it has a page) + children.
+ *
+ * A folder whose `_meta` lists `index` keeps its heading a plain label: its own page
+ * becomes a child entry under that label (`index: "Overview"`), at the same URL.
+ */
 async function buildNode(dir, route, key, parentMeta, ctx, exclude) {
   const pf = await pageFile(dir);
   let fm = {};
@@ -187,16 +192,18 @@ async function buildNode(dir, route, key, parentMeta, ctx, exclude) {
     ctx.watch.push(pf);
     if (MD_RE.test(pf)) fm = await readFrontmatter(pf);
   }
-  const children = await buildSection(dir, route, ctx, false, exclude);
   // An unpublished page is left out of the production nav; its children still show.
   const page = pf && (ctx.drafts || !isUnpublished(fm)) ? pf : null;
+  const meta = page ? await loadMeta(dir, ctx) : null;
+  const ownIndex = Boolean(meta && !Array.isArray(meta) && "index" in meta);
+  const children = await buildSection(dir, route, ctx, ownIndex, exclude);
   // A directory that has neither a page nor children contributes nothing.
   if (!page && children.length === 0) return null;
 
   const title = metaLabel(parentMeta, key) ?? fm.sidebar_label ?? fm.title ?? humanize(key);
   return clean({
     title,
-    path: page ? route : undefined,
+    path: page && !ownIndex ? route : undefined,
     order: fm.order,
     items: children.length ? children : undefined,
   });

@@ -38,6 +38,26 @@ test("automatic navigation omits dynamic branches and retains ordered static pag
   expect(watched.some(path => path.endsWith("topic/_meta.json"))).toBe(true);
 });
 
+test("a group whose _meta lists index keeps a plain heading and lists its page as a child", async () => {
+  const { tree } = await navigation({
+    "app/docs/page.mdx": page("Docs"),
+    "app/docs/deploy/page.mdx": page("Deployment"),
+    "app/docs/deploy/_meta.json": JSON.stringify({ index: "Overview", build: "Build" }),
+    "app/docs/deploy/build/page.mdx": page("Production build"),
+    "app/docs/guides/page.mdx": page("Guides"),
+    "app/docs/guides/first/page.mdx": page("First guide"),
+  });
+  expect(tree["/docs"]).toEqual([
+    { title: "Docs", path: "/docs" },
+    { title: "Deployment", items: [
+      { title: "Overview", path: "/docs/deploy" },
+      { title: "Build", path: "/docs/deploy/build" },
+    ] },
+    // Without `index` in its _meta, a folder's page stays the heading's link.
+    { title: "Guides", path: "/docs/guides", items: [{ title: "First guide", path: "/docs/guides/first" }] },
+  ]);
+});
+
 test("dynamic top-level sections and catch-all branches never appear in navigation", async () => {
   const { tree } = await navigation({
     "app/[locale]/docs/page.mdx": page("Localized docs"),
