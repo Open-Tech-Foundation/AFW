@@ -207,10 +207,10 @@ the claimed nodes.
 Both halves of that now treat a static subtree as one unit, which is what keeps a large
 docs page's module small: the adopt walk claims its root and stops, and the build path —
 which this target still carries for SPA navigation and mismatch recovery — stamps it.
-Because the template declarations are module-scope `const`s and `customElements.define`
-upgrades a server-rendered host *synchronously*, they are emitted ahead of every class
-and every `define` (the temporal-dead-zone hazard §3.4 already documents for sibling
-component classes).
+Because the template declarations are module-scope `const`s and defining an element
+upgrades a server-rendered host *synchronously*, they are emitted ahead of every class.
+A compiled component never defines itself at module scope (it registers on the first
+read of its `.tag`, §3.4), so nothing can render before the module has evaluated.
 
 **What "not a copy" means in practice:** the CSR `Emitter` was *not* refactored into a
 Create/Adopt-parameterized walker (that touches CSR's hot path and risks regressions).
@@ -291,13 +291,23 @@ since those helpers already operate on existing nodes. Only acquisition (the cla
   which renders the requested URL) always matches.
 - **`connectedCallback` branches on `isHydrating() && this.firstChild`** _(implemented)_ —
   a component upgrades — and runs this switch — the instant its class is
-  `customElements.define`d. Route chunks are code-split, so a *route's* components define
-  during the router's `await import()`; but **framework components imported eagerly by the
-  app entry — notably `<Link>`, which `@opentf/afw`'s index bare-imports so its registration
-  survives tree-shaking — are defined while the entry bundle evaluates, before `mountApp`
-  runs.** So the flag cannot merely be turned on inside `mountApp`/`beginHydration`: those
-  eager hosts would already have upgraded with the flag off and taken the *build* arm,
-  silently re-wrapping the server DOM they should have adopted (`<a><a>`).
+  `customElements.define`d.
+  - **Compiled components register on first use** _(implemented, November 2026)_: the
+    class defines itself inside its `static get tag()`, so it is defined when a call site
+    first reads `X.tag`. During first paint that is the adopt walk's
+    `claimElement(cur, X.tag)`: the define upgrades the server host, which adopts its own
+    subtree before the claim returns. No import-time side effect, so a bundler drops unused
+    components. (Earlier, every module ended with `customElements.define(...)` and both
+    toolchain plugins forced `moduleSideEffects: true`, which pulled every component of a
+    library barrel into every page.) A hot (dev) build keeps a plain `static tag`, because
+    `registerHotModule` defines the element itself.
+  - **Framework built-ins still register at import**: `<Link>` (addressed by its literal
+    `afw-link` tag, so `@opentf/afw`'s index bare-imports it) and the hand-written runtime
+    elements (`afw-internal-*`). They are defined while the entry bundle evaluates, before
+    `mountApp` runs. So the flag cannot merely be turned on inside
+    `mountApp`/`beginHydration`: those eager hosts would already have upgraded with the flag
+    off and taken the *build* arm, silently re-wrapping the server DOM they should have
+    adopted (`<a><a>`).
 
   The flag therefore **initializes synchronously at `hydrate.js` module load from the server
   sentinel** (`document.querySelector("[data-afw-hydrate]")`, stamped only when the page

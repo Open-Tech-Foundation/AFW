@@ -130,7 +130,7 @@ pub fn emit_module(
     let mut adopt_bodies: Vec<Option<String>> = Vec::with_capacity(components.len());
     // Static subtrees stamped from a hoisted `<template>` by the CSR build functions
     // embedded in the adopt bodies and page factories below. They are handed to the CSR
-    // module emitter so the declarations land at module scope, ahead of every `define`.
+    // module emitter so the declarations land at module scope, before any component renders.
     let mut templates: Vec<Template> = Vec::new();
     for c in components {
         if c.is_page {
@@ -247,7 +247,8 @@ pub fn emit_module(
 
 /// Import only the hydrate-exclusive claim helpers (the reactive helpers are already
 /// imported by the CSR part). Safe to append after all code — ES imports hoist, so the
-/// bindings are live when `customElements.define` upgrades a server element mid-module.
+/// bindings are live whenever a component's `.tag` defines it and upgrades a server
+/// element.
 /// Whether the component places a `{children}` slot anywhere: in its returned view or in a
 /// JSX value it stores in a local (`const body = <div>{children}</div>`).
 fn uses_children_slot(lowered: &Lowered) -> bool {
@@ -348,7 +349,7 @@ struct Emitter<'a> {
     value_locals: Vec<String>,
     /// Static subtrees the CSR build functions spliced in here stamp from a hoisted
     /// `<template>`. They are handed to `csr::emit_module_with_adopt` so the `const`
-    /// lands at module scope ahead of every `customElements.define`.
+    /// lands at module scope, declared before any component can render.
     templates: Vec<Template>,
 }
 
@@ -856,8 +857,10 @@ impl<'a> Emitter<'a> {
             }
             // A child component: claim its host element and wire any dynamic props onto it,
             // but do NOT recurse into its *own* structure — the component self-adopts that when
-            // it upgrades (its `connectedCallback` runs at `define`, before this walk), so
-            // claiming the host advances the cursor past its whole subtree. Slotted **children**
+            // it upgrades: reading `Child.tag` for the claim defines the element, which
+            // upgrades the server host and runs its `connectedCallback` before the claim
+            // returns (a built-in was defined when its module loaded). So claiming the host
+            // advances the cursor past its whole subtree. Slotted **children**
             // (2.1d) are the exception: they're *this* view's JSX, server-rendered inside the
             // host at the component's `{children}` slot, so we own their reactivity — locate the
             // slot (`hydrateSlot`) and adopt them there.

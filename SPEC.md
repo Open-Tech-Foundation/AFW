@@ -235,8 +235,8 @@ so tags are made collision-free **without cross-module resolution**:
 
 - **Registration tag** (definition site): `afw-<kebab>-<hash>`, where `<hash>` is an
   FNV-1a hash of the component's module id. This is unique per defining module, so
-  same-named components never collide. The class exposes it as `static tag` (and the
-  SSG render fn as `.tag`).
+  same-named components never collide. The class exposes it as `static get tag()` (and
+  the SSG render fn as `.tag`).
 - **Addressing** (call site): a component is referenced through a binding that already
   carries its tag, never a recomputed string — the **imported binding** (`Counter.tag`)
   for a cross-module use, or the **sibling class** (`CounterElement.tag` /
@@ -252,11 +252,20 @@ so tags are made collision-free **without cross-module resolution**:
   `afw-internal-raw-html`). The compiler knows these by identifier and emits the literal
   tag (needed e.g. for `<RawHtml>` injected by the MDX front-end, which has no import to
   reference).
-- **Registration is idempotent** (`if (!customElements.get(Class.tag)) define(…)`) so a
-  tag reused across chunks, or a built-in already defined, never throws.
+- **Registration on first use**: the `tag` getter defines the element the first time it
+  is read (`if (!customElements.get(tag)) customElements.define(tag, Class)`), and every
+  call site reads `.tag` before it creates, claims or server-renders a component. The
+  module has no import-time side effect, so a bundler drops components nothing uses.
+  Idempotent, so a tag reused across chunks, or a built-in already defined, never throws.
+  Two exceptions keep a plain `static tag`: framework built-ins (addressed by literal tag,
+  registered when their module loads) and hot (dev) builds (the refresh runtime defines
+  the element). Consequence: construct a component through its tag
+  (`document.createElement(Counter.tag)`); `new Counter()` before anything has read
+  `Counter.tag` throws `Illegal constructor`.
 
-> Code examples elsewhere in this spec write a simplified `afw-foo` tag for
-> readability; the emitted tag is the namespaced `afw-foo-<hash>` described here.
+> Code examples elsewhere in this spec write a simplified `afw-foo` tag and a
+> module-level `customElements.define` for readability; the emitted tag is the
+> namespaced `afw-foo-<hash>`, registered on first use, as described here.
 
 #### 4.0.1 Member-expression component names are unsupported (by design)
 Dotted/namespaced component names — `<Foo.Bar/>`, the React "compound component"

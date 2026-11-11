@@ -324,13 +324,13 @@ pub(crate) enum ComponentView<'a> {
 }
 
 /// Build a Custom Element class body (everything after the import header). Returns the
-/// class declaration (`default_export` adds `export default <Class>;`) and, separately,
-/// its `customElements.define` statement so the caller controls registration order.
+/// class declaration (`default_export` adds `export default <Class>;`). The class
+/// registers itself on the first read of its `.tag`; there is no module-level define.
 fn component_body_ex<'a>(
     lowered: &'a Lowered,
     default_export: bool,
     view: ComponentView<'_>,
-) -> (Emitter<'a>, String, String) {
+) -> (Emitter<'a>, String) {
     // Tag/class come from the function name (not the export), so `export default
     // function Counter` registers `afw-counter` to match a page's `<Counter/>`.
     let export = lowered.name.clone();
@@ -379,7 +379,27 @@ fn component_body_ex<'a>(
     code.push_str(&format!("export class {class} extends HTMLElement {{\n"));
     // Module-namespaced Custom Element tag (collision-free). Call sites address
     // this component through the binding's `.tag` rather than recomputing it.
-    code.push_str(&format!("  static tag = {};\n", js_string(&tag)));
+    //
+    // The element registers on the first read of `.tag`, not when the module loads:
+    // every place that creates, claims or server-renders a component reads its `.tag`
+    // first, so it is always defined in time, and the module has no import-time side
+    // effect — a bundler drops an unused component like any unused export. Reading it
+    // during hydration (`claimElement(cur, Child.tag)`) defines the element, which
+    // upgrades the server-rendered hosts so the child adopts itself before the parent
+    // wires its props. Idempotent: built-ins (`afw-link`) or a module evaluated in more
+    // than one chunk may have defined the tag already. Two keep a plain field:
+    // - a hot (dev) build: `registerHotModule` reads the tag and defines the element;
+    // - a framework built-in (`Link` → `afw-link`): call sites use its literal tag, never
+    //   `.tag`, so it registers when its module loads (after the class, below).
+    let builtin = tags::builtin_tag(&lowered.name).is_some();
+    if hot || builtin {
+        code.push_str(&format!("  static tag = {};\n", js_string(&tag)));
+    } else {
+        code.push_str(&format!(
+            "  static get tag() {{\n    if (typeof customElements !== \"undefined\" && !customElements.get({t})) customElements.define({t}, {class});\n    return {t};\n  }}\n",
+            t = js_string(&tag)
+        ));
+    }
 
     if !props.is_empty() {
         let attrs = props.iter().map(|p| js_string(&p.attr)).collect::<Vec<_>>().join(", ");
@@ -620,41 +640,30 @@ fn component_body_ex<'a>(
     code.push_str("}\n");
     if default_export {
         // Default-export the class so a consumer's `import Counter from "./Counter"`
-        // resolves (the binding is unused — the component is referenced by tag — but
-        // the import pulls the module in so its `define` runs).
+        // resolves; `<Counter/>` addresses it by `Counter.tag`, which registers it.
         code.push_str(&format!("export default {class};\n"));
+    }
+    if builtin && !hot {
+        code.push_str(&format!(
+            "if (typeof customElements !== \"undefined\" && !customElements.get({class}.tag)) customElements.define({class}.tag, {class});\n"
+        ));
     }
     if lowered.is_named_export && export != "default" {
         // Re-export the class under the source's export name so a consumer's
         // `import { Icon }` resolves and `<Icon/>` addresses it by `Icon.tag`
-        // (the class carries the module-namespaced tag). Importing it also pulls the
-        // module in so its `define` runs. Utility `.jsx` modules (icon sets) can thus
-        // ship several named components from one file.
+        // (the class carries the module-namespaced tag, and reading it registers the
+        // element). Utility `.jsx` modules (icon sets) can thus ship several named
+        // components from one file.
         code.push_str(&format!("export {{ {class} as {export} }};\n"));
     }
 
-    // Idempotent registration: a tag is reused when the same module is evaluated in
-    // more than one chunk, and built-ins (`afw-link`) may already be defined. Returned
-    // *separately* from the class body so a multi-component module can emit every class
-    // declaration before any `define` (see `emit_module`): `customElements.define`
-    // synchronously upgrades any matching pre-rendered (SSR/SSG) element, and that
-    // element's `connectedCallback` may compose a sibling component by `Sibling.tag`. If
-    // the define ran inline, a component declared before a sibling it renders would touch
-    // that sibling's class while it is still in its temporal dead zone — a runtime
-    // `Cannot read properties of undefined (reading 'tag')` on first paint.
-    let define = format!(
-        "if (typeof customElements !== \"undefined\" && !customElements.get({class}.tag)) customElements.define({class}.tag, {class});\n"
-    );
-
-    (e, code, define)
+    (e, code)
 }
 
 /// Single-component module: a Custom Element class with a default export. The lone
 /// component's registration can follow its own class directly (no siblings to outrun).
 fn component_body(lowered: &Lowered) -> (Emitter<'_>, String) {
-    let (e, mut code, define) = component_body_ex(lowered, true, ComponentView::Build);
-    code.push_str(&define);
-    (e, code)
+    component_body_ex(lowered, true, ComponentView::Build)
 }
 
 /// Emit a whole module: any preserved top-level statements (helper data,
@@ -789,7 +798,6 @@ fn emit_module_inner(
     let mut combined = Uses::default();
     let mut errors = Vec::new();
     let mut bodies = Vec::new();
-    let mut defines = Vec::new();
     let mut templates: Vec<Template> = extra_templates.to_vec();
     if !templates.is_empty() {
         combined.template = true;
@@ -826,18 +834,16 @@ fn emit_module_inner(
             bodies.push(body);
         } else {
             // The source's `export default` component re-exports its class as the
-            // module default, so `import Counter from "./Counter"` resolves. The `define`
-            // is collected separately and emitted after every class in the module is
-            // declared, so a component that composes a sibling never registers (and
-            // upgrades a pre-rendered host) while that sibling's class is still in its
-            // temporal dead zone.
+            // module default, so `import Counter from "./Counter"` resolves. Nothing
+            // registers at module scope (`.tag` defines on first read), so a component
+            // that composes a sibling declared later in the module is defined only once
+            // both classes exist.
             let view = views.get(i).copied().unwrap_or(ComponentView::Build);
-            let (e, body, define) = component_body_ex(c, c.is_default_export, view);
+            let (e, body) = component_body_ex(c, c.is_default_export, view);
             combined.merge(&e.uses);
             templates.extend(e.templates);
             errors.extend(e.errors);
             bodies.push(body);
-            defines.push(define);
         }
     }
 
@@ -934,8 +940,6 @@ fn emit_module_inner(
             "registerHotModule(import.meta.hot, [{entries}], {accept}, {});\n",
             js_string(&exports)
         ));
-    } else {
-        for define in defines { code.push_str(&define); }
     }
     if views.iter().any(|v| matches!(v, ComponentView::Hot)) &&
         !components.iter().any(|c| c.is_page && c.ir.id.export == "default") {
@@ -2221,7 +2225,10 @@ mod tests {
             m.code,
             "import { signal, bindText, handleError, enterHost, exitHost } from \"@opentf/afw\";\n\
              export class CounterElement extends HTMLElement {\n  \
-             static tag = \"afw-counter-4e54f4d4\";\n  \
+             static get tag() {\n    \
+             if (typeof customElements !== \"undefined\" && !customElements.get(\"afw-counter-4e54f4d4\")) customElements.define(\"afw-counter-4e54f4d4\", CounterElement);\n    \
+             return \"afw-counter-4e54f4d4\";\n  \
+             }\n  \
              connectedCallback() {\n    \
              this._pendingTeardown = false;\n    \
              if (this._mounted) return;\n    \
@@ -2257,8 +2264,7 @@ mod tests {
              else Promise.resolve().then(__teardown);\n  \
              }\n\
              }\n\
-             export default CounterElement;\n\
-             if (typeof customElements !== \"undefined\" && !customElements.get(CounterElement.tag)) customElements.define(CounterElement.tag, CounterElement);\n"
+             export default CounterElement;\n"
         );
     }
 
@@ -2593,8 +2599,8 @@ mod tests {
         assert!(out.is_complete(), "errors: {:?}", out.errors);
         // The arrow component becomes a Custom Element with its prop.
         assert!(out.code.contains("class IconElement extends HTMLElement"), "icon CE:\n{}", out.code);
-        assert!(out.code.contains("static tag = \"afw-icon-"), "icon tag:\n{}", out.code);
-        assert!(out.code.contains("customElements.define(IconElement.tag, IconElement);"), "icon defined:\n{}", out.code);
+        assert!(out.code.contains("static get tag() {"), "icon tag:\n{}", out.code);
+        assert!(out.code.contains(", IconElement);\n    return \"afw-icon-"), "icon defines on first use:\n{}", out.code);
         assert!(out.code.contains("observedAttributes = [\"size\"]"), "icon prop:\n{}", out.code);
         // No raw JSX survives into the output.
         assert!(!out.code.contains("<svg"), "no raw JSX:\n{}", out.code);
@@ -2685,7 +2691,7 @@ mod tests {
         assert!(out.code.contains("const LABEL = \"hi\";"), "helper kept:\n{}", out.code);
         // The co-located component becomes a Custom Element; the default export the page.
         assert!(out.code.contains("class BadgeElement extends HTMLElement"), "badge CE:\n{}", out.code);
-        assert!(out.code.contains("customElements.define(BadgeElement.tag, BadgeElement);"), "badge defined:\n{}", out.code);
+        assert!(out.code.contains(", BadgeElement);\n    return \"afw-badge-"), "badge defines on first use:\n{}", out.code);
         assert!(out.code.contains("export default function () {"), "page factory:\n{}", out.code);
     }
 
@@ -2711,17 +2717,16 @@ mod tests {
             out.code
         );
         assert!(out.code.contains("export default CounterElement;"), "default is the main class:\n{}", out.code);
-        assert!(out.code.contains("customElements.define(BadgeElement.tag, BadgeElement);"), "badge registered:\n{}", out.code);
+        assert!(out.code.contains(", BadgeElement);\n    return \"afw-badge-"), "badge registers on first use:\n{}", out.code);
     }
 
     #[test]
-    fn registers_every_component_after_all_classes_are_declared() {
-        // Regression: a file with several components where the *first* (a parent) composes
-        // a *later*-declared sibling by tag. `customElements.define` synchronously upgrades
-        // any matching pre-rendered element and runs its `connectedCallback`, which reads
-        // `Icon.tag`. If the parent's define were emitted inline (before `IconElement` is
-        // declared), that upgrade would hit `IconElement` in its temporal dead zone and
-        // throw on first paint. So every class must be declared before any define runs.
+    fn components_register_on_first_use_not_at_module_load() {
+        // A component module has no import-time side effect: each class defines its
+        // element inside its `tag` getter, so a bundler can drop an unused component, and
+        // a parent that composes a *later*-declared sibling (`Toggle` → `Icon`) can never
+        // touch the sibling's class in its temporal dead zone — the sibling registers only
+        // when `Icon.tag` is read at render/claim time, after the module has evaluated.
         let source = "export default function Toggle() { return <button><Icon /></button>; }\n\
              function Icon() { return <svg></svg>; }";
         let sess = ParseSession::new();
@@ -2732,23 +2737,54 @@ mod tests {
         let out = emit_module(&m.components, &m.module_stmts, &m.module_exprs);
         assert!(out.is_complete(), "errors: {:?}", out.errors);
 
-        // Both components register, exactly once each.
-        assert_eq!(
-            out.code.matches("customElements.define(").count(),
-            2,
-            "two registrations:\n{}",
-            out.code
-        );
-
-        // Every class declaration precedes the first registration.
-        let first_define = out.code.find("customElements.define(").expect("a define");
-        let toggle_class = out.code.find("class ToggleElement extends").expect("Toggle class");
-        let icon_class = out.code.find("class IconElement extends").expect("Icon class");
+        // Each component defines itself once, inside its own `tag` getter.
+        assert_eq!(out.code.matches("customElements.define(").count(), 2, "two registrations:\n{}", out.code);
+        for class in ["ToggleElement", "IconElement"] {
+            let body_at = out.code.find(&format!("class {class} extends HTMLElement {{\n  static get tag() {{")).expect(class);
+            let define_at = out.code.find(&format!(", {class});")).expect("its define");
+            assert!(body_at < define_at, "{class} defines inside its class:\n{}", out.code);
+        }
+        // Nothing runs at module scope: no statement starts with a define.
         assert!(
-            toggle_class < first_define && icon_class < first_define,
-            "all classes must be declared before any define:\nToggle@{toggle_class} Icon@{icon_class} firstDefine@{first_define}\n{}",
+            !out.code.lines().any(|l| l.starts_with("if (typeof customElements") || l.starts_with("customElements.define")),
+            "no module-level registration:\n{}",
             out.code
         );
+        // The parent reaches its sibling through the getter.
+        assert!(out.code.contains("document.createElement(IconElement.tag)"), "{}", out.code);
+    }
+
+    #[test]
+    fn a_builtin_registers_when_its_module_loads() {
+        // `<Link>` is addressed by its literal tag (`"afw-link"`), never `Link.tag`, so a
+        // getter would never run: the built-in keeps a plain tag and a module-level define.
+        let source = "export default function Link() { return <a></a>; }";
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("Link.jsx"), source);
+        let m = crate::lower::lower_module("/pkg/components/Link.jsx", &parsed.program, source, false)
+            .expect("a module");
+        let out = emit_module(&m.components, &m.module_stmts, &m.module_exprs);
+        assert!(out.code.contains("static tag = \"afw-link\";"), "{}", out.code);
+        assert!(
+            out.code.contains("\nif (typeof customElements !== \"undefined\" && !customElements.get(LinkElement.tag)) customElements.define(LinkElement.tag, LinkElement);\n"),
+            "{}",
+            out.code
+        );
+    }
+
+    #[test]
+    fn hot_components_keep_a_plain_tag_for_the_refresh_runtime() {
+        // `registerHotModule` reads `.tag` and defines the element itself (wrapping its
+        // callbacks for refresh), so a hot build must not define on read.
+        let source = "export default function Counter() { let n = $state(0); return <button onclick={() => n++}>{n}</button>; }";
+        let sess = ParseSession::new();
+        let parsed = sess.parse(Path::new("Counter.tsx"), source);
+        let m = crate::lower::lower_module("/app/Counter.tsx", &parsed.program, source, false)
+            .expect("a module");
+        let out = emit_hot_module(&m.components, &m.module_stmts, &m.module_exprs);
+        assert!(out.code.contains("static tag = \"afw-counter-"), "plain tag:\n{}", out.code);
+        assert!(!out.code.contains("customElements.define("), "no define in a hot build:\n{}", out.code);
+        assert!(out.code.contains("registerHotModule(import.meta.hot"), "{}", out.code);
     }
 
     #[test]

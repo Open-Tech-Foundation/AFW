@@ -8,7 +8,8 @@
 //! tag scheme must be collision-free *without* cross-module resolution:
 //!
 //! - **User components** register under `afw-<kebab>-<hash(module_id)>`, unique per
-//!   defining module, exposed on the class as `static tag`. A call site addresses
+//!   defining module, exposed on the class as `static get tag()` (which registers the
+//!   element on first read — no import-time side effect). A call site addresses
 //!   them through a binding that already carries the tag — the imported binding for
 //!   a cross-module use, or the sibling class for a same-module use — so the two
 //!   ends agree without recomputing the hash.

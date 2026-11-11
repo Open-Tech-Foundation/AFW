@@ -4,6 +4,24 @@
 
 ### Changed
 
+- **Breaking:** a compiled component registers its Custom Element the first time its
+  `tag` is read, not when its module loads.
+  - The class gets a `static get tag()` that calls `customElements.define` once. There
+    is no longer a module-level `customElements.define(...)`.
+  - Every place that creates, claims (hydration) or server-renders a component reads its
+    `.tag` first, so rendering and hydration work as before.
+  - The module has no import-time side effect, so bundlers drop components that nothing
+    uses. Importing one component from a library barrel no longer bundles the whole
+    library.
+  - Exceptions that keep a plain `static tag`:
+    - framework built-ins (`<Link>`, addressed by its literal `afw-link` tag, still
+      registers on import);
+    - hot (dev) builds, where the refresh runtime defines the element.
+  - Migration: a component used only in plain HTML (never rendered from JSX) must be
+    registered by reading its tag once (`Badge.tag`). Create instances with
+    `document.createElement(Badge.tag)`: `new Badge()` before the tag has been read
+    throws `Illegal constructor`.
+
 - **Breaking:** MDX code fences are no longer syntax-highlighted by the compiler.
   `syntect` is removed.
   - A fence is now plain, escaped code:
