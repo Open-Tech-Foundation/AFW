@@ -73,6 +73,9 @@
 
 ### Fixed
 
+- After a server-rendered first load, navigating to a page without a title keeps the
+  shell's title (from the unmanaged `<title>` or the server's `afw-shell-title`) instead
+  of leaving `document.title` empty.
 - In development, server function calls and loader-data requests retry a connection
   the server refused (for up to 3 seconds), so a call made while esdev restarts the app
   server after an edit no longer fails with `Failed to fetch`. The Vite workflow never

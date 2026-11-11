@@ -9,7 +9,16 @@ export function prepareRouteHead(hydrate) {
   if (canonical) {
     try { baseUrl = new URL(canonical, window.location.href).origin; } catch {}
   }
-  fallbackTitle = hydrate ? "" : document.title;
+  // The title to show for a page without one: the shell's. On a server-rendered page the
+  // shell's title is the unmanaged `<title>`, or — when the page had its own — the
+  // `afw-shell-title` the server kept; a client-rendered load reads the shell directly.
+  if (hydrate) {
+    const kept = document.head.querySelector('meta[name="afw-shell-title"]')?.getAttribute("content");
+    const shell = document.head.querySelector("title:not([data-afw-head])")?.textContent;
+    fallbackTitle = kept ?? shell ?? "";
+  } else {
+    fallbackTitle = document.title;
+  }
 }
 
 /** Replace route SEO while preserving styles, executable scripts and viewport. */
