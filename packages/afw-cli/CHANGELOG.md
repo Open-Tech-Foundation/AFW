@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.36.0] - 2026-11-11
+
 ### Added
 
 - `loadDocsPlugins` adds `@opentf/afw-docs`' `codeHighlightPlugin`, so the prerender

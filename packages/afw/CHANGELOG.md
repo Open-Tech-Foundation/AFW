@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-11-11
+
 ### Internal
 
 - Comments brought up to date; no behavior change.

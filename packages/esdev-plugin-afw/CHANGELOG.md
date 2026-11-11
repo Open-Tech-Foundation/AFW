@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-11
+
 ### Fixed
 
 - A `.tsx` module's compiled output is reported as `ts`, not `js`. afwc lowers the
