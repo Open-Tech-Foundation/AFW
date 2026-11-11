@@ -71,6 +71,24 @@ export default {
   from `_meta.js` and it still appears — just alphabetically, using its frontmatter title or a humanized folder name.
 </Callout>
 
+### Groups with their own page
+
+A folder with child folders is a group in the sidebar. When the folder also has its
+own `page.mdx`, list it as `index` in that folder's `_meta.js`:
+
+```js
+// app/docs/deployment/_meta.js
+export default {
+  index: "Overview",
+  build: "Production Build",
+  server: "Server Setup",
+};
+```
+
+- **The heading stays a label.** "Deployment" is not a link; it only groups its pages.
+- **The folder's page is a child.** It is listed as "Overview", in the declared order, at the folder's URL (`/docs/deployment`).
+- **Without `index`,** the folder's page is the heading's link.
+
 ## Mobile navigation
 
 On screens narrower than **768px** the sidebar doesn't fit beside the content, so it

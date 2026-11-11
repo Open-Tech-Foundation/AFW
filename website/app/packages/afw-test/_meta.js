@@ -1,4 +1,5 @@
 export default {
+  index: "Overview",
   setup: "Setup",
   "writing-tests": "Writing Tests",
   queries: "Queries",
