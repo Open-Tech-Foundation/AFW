@@ -11,6 +11,12 @@
 
 ### Fixed
 
+- The theme no longer imports `@opentf/syntax-highlighter/themes/shared.css` from the
+  package; it ships that stylesheet as `theme/syntax-highlighter.css` and imports it by
+  relative path. A docs site installed with pnpm now builds on esdev without adding
+  `@opentf/syntax-highlighter` as a direct dependency (esdev resolved the nested package
+  import from the app root, where pnpm does not place it).
+
 - Code-fence highlighting returns a source map, so esdev 0.27 no longer warns
   `[SOURCEMAP_BROKEN] … a plugin (afw-docs-highlight) … didn't generate a sourcemap`
   for every docs page.

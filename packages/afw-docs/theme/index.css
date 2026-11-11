@@ -21,8 +21,9 @@
  * Tailwind's own layers (preflight, utilities). */
 /* Code-fence token colors: @opentf/syntax-highlighter's shared selectors (`.sh-*` →
  * `--sh-*`), in the same layer. The `--sh-*` values below are its GitHub Light and
- * GitHub Dark themes, switched with the site's `data-theme`. */
-@import "@opentf/syntax-highlighter/themes/shared.css" layer(afw-docs);
+ * GitHub Dark themes, switched with the site's `data-theme`. A copy shipped with the
+ * theme (see that file), not an import from the package. */
+@import "./syntax-highlighter.css" layer(afw-docs);
 
 @layer afw-docs {
   :root {
