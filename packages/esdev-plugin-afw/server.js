@@ -49,8 +49,11 @@ export function createAfwServer({ appDir = "app", exclude = [], getCompiler, pag
     async load(id, ctx) {
       if (SERVER_VIRTUAL.test(id)) {
         const root = id.slice(SERVER_ID.length + 1);
-        // Drafts and scheduled pages render in the dev loop only.
-        const { code, files } = await serverModule(esdevHost, root, { exclude, listExports, pages, drafts: ctx?.command === "start" });
+        // Drafts and scheduled pages render in the dev loop only. The dev loop's browser
+        // build is CSR (component refresh), which cannot adopt server DOM, so its pages
+        // are server-rendered without the hydration marker and built fresh.
+        const dev = ctx?.command === "start";
+        const { code, files } = await serverModule(esdevHost, root, { exclude, listExports, pages, drafts: dev, hydrate: !dev });
         return { code, type: "js", dependsOn: files };
       }
       if (!SERVER_MODULE_FILE.test(id) || ctx?.platform !== "browser") return null;

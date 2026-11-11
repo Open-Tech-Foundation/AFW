@@ -156,6 +156,9 @@ try {
   await ready(origin);
   const ssr = await (await fetch(`${origin}/todos`, { headers: { accept: "text/html" } })).text();
   assert(ssr.includes("write the server functions") && /id="user"[^>]*>(?:<!--[^>]*-->)*ada/.test(ssr), "the page is server-rendered with its loader's direct server function call");
+  // The dev client is a CSR build (component refresh): it cannot adopt server DOM, so the
+  // dev server must not mark the page for hydration.
+  assert(!ssr.includes("data-afw-hydrate"), "the dev server does not mark pages for hydration");
   const stub = await (await fetch(`${origin}/app/todos/todos.server.js`)).text().catch(() => "");
   assert(!stub.includes("server-only-secret"), "the server module's source is never served");
 
@@ -195,7 +198,9 @@ try {
   await launch(["esdev", "dist/server.js"], { env: { PORT: String(prodPort) } });
   const prod = `http://127.0.0.1:${prodPort}`;
   await ready(`${prod}/`);
-  assert((await (await fetch(`${prod}/todos`, { headers: { accept: "text/html" } })).text()).includes("test them on esdev"), "the built server renders the page");
+  const prodHtml = await (await fetch(`${prod}/todos`, { headers: { accept: "text/html" } })).text();
+  assert(prodHtml.includes("test them on esdev"), "the built server renders the page");
+  assert(prodHtml.includes("data-afw-hydrate"), "the built server marks the page for hydration");
   let answered = 0;
   for (const path of new Set(endpoint)) {
     const res = await fetch(`${prod}${path}`, { method: "POST", headers: { origin: prod, "content-type": "application/json" }, body: '{"v":{"title":"from prod"}}' });

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Under `esdev start`, server-rendered pages (`mode: "ssr"`) are no longer marked for
+  hydration. The dev browser build is CSR, which cannot adopt server DOM, so it
+  rebuilt the page after a failed adoption attempt; it now builds it directly.
+
 ## [0.8.0] - 2026-11-11
 
 ### Fixed
