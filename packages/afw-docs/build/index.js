@@ -10,6 +10,7 @@ import { esdevHost } from "./hosts/esdev.js";
 
 useHost(esdevHost);
 
+export { afwDocsPlugin, loadDocsConfig } from "./afw-docs-plugin.js";
 export { docsNavPlugin } from "./docs-nav-plugin.js";
 export { codeHighlightPlugin } from "./code-highlight-plugin.js";
 export { highlightCodeFences } from "./highlight.js";

@@ -4,6 +4,15 @@
 
 ### Added
 
+- `afwDocsPlugin` in `@opentf/afw-docs/build`: the whole esdev docs toolchain as one
+  `esdev.json` entry. Needs esdev 0.27 or later, which takes a list of plugins from one
+  entry.
+  - It reads `afw.config` and returns the plugins the config enables: navigation for
+    `docs`, the post list for `blog`, and dates for `lastUpdated`. Code-fence
+    highlighting is always on.
+  - It matches what `afwDocs()` does on Vite.
+  - The individual plugins are still exported. `loadDocsConfig(root)` reads the config.
+
 - Code fences are syntax-highlighted with `@opentf/syntax-highlighter`, replacing the
   compiler's syntect highlighting.
   - It runs at build time on each compiled `.md`/`.mdx` page. Prerendered pages and

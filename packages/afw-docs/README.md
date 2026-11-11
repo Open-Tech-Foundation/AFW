@@ -80,24 +80,30 @@ to an existing project, import its stylesheet and register the build plugins:
 {
   "plugins": [
     { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
-    { "module": "@opentf/afw-docs/build", "export": "docsNavPlugin", "options": { "appDir": "app" } },
-    { "module": "@opentf/afw-docs/build", "export": "lastUpdatedPlugin", "options": { "appDir": "app" } },
-    { "module": "@opentf/afw-docs/build", "export": "blogPostsPlugin", "options": { "appDir": "app", "contentDir": "blog" } },
-    { "module": "@opentf/afw-docs/build", "export": "codeHighlightPlugin" }
+    { "module": "@opentf/afw-docs/build", "export": "afwDocsPlugin", "options": { "appDir": "app" } }
   ]
 }
 ```
 
-`codeHighlightPlugin` highlights code fences with
-[`@opentf/syntax-highlighter`](https://syntax-highlighter.opentechf.org):
+`afwDocsPlugin` is the whole docs toolchain in one entry (esdev 0.27 or later). It reads
+`afw.config.js` and enables what the config asks for:
 
-- It runs on each compiled `.md`/`.mdx` page, after the compiler, so prerendered and
-  client-rendered pages carry the same colors.
-- Nothing highlights in the browser.
-- The theme colors tokens with GitHub Light and GitHub Dark, following `data-theme`.
-- The Vite plugin does the same on its own.
+- `docs` → the sidebar navigation (`@opentf/afw-docs/nav`).
+- `blog` → the post list (`@opentf/afw-docs/posts`), from `blog.dir`.
+- `lastUpdated` → the per-page dates and edit links (`@opentf/afw-docs/updated`).
+- Always → code-fence highlighting with
+  [`@opentf/syntax-highlighter`](https://syntax-highlighter.opentechf.org), at build
+  time on each compiled `.md`/`.mdx` page. Prerendered and client-rendered pages carry
+  the same colors; nothing highlights in the browser. The theme colors tokens with
+  GitHub Light and GitHub Dark, following `data-theme`.
 
-`appDir` is resolved from the directory esdev runs in.
+Options:
+
+- `appDir` — the routes folder, resolved from the directory esdev runs in (default `"app"`).
+- `exclude` — folders under it that hold no pages.
+
+The individual plugins (`docsNavPlugin`, `blogPostsPlugin`, `lastUpdatedPlugin`,
+`codeHighlightPlugin`) are still exported for custom setups.
 
 ### With Vite
 
@@ -158,7 +164,7 @@ export default defineDocsConfig({
 | `@opentf/afw-docs` | Every component above, plus `createSearch` |
 | `@opentf/afw-docs/theme` | The default light/dark stylesheet |
 | `@opentf/afw-docs/config` | `defineDocsConfig` and the config types |
-| `@opentf/afw-docs/build` | `docsNavPlugin`, `blogPostsPlugin`, `lastUpdatedPlugin`, `codeHighlightPlugin`, feed and `llms.txt` renderers (esdev) |
+| `@opentf/afw-docs/build` | `afwDocsPlugin` (all of the below as one entry), `docsNavPlugin`, `blogPostsPlugin`, `lastUpdatedPlugin`, `codeHighlightPlugin`, feed and `llms.txt` renderers (esdev) |
 | `@opentf/afw-docs/vite` | `afwDocs()`: the same generators as one Vite plugin |
 | `@opentf/afw-docs/nav`, `/posts`, `/updated` | Generated navigation, post list and last-updated map |
 | `@opentf/afw-docs/search` | Browser search: `createSearch`, `tokenize`, `excerptParts` |
