@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Internal
+
+- Comments brought up to date; no behavior change.
+  - The `CodeFence` element: it renders plain escaped code, which afw-docs highlights
+    at build time (`afw-compiler` no longer uses syntect).
+  - `Link`'s bare import in the package index: it's the one component that still
+    registers on import, since call sites address it by the literal `afw-link` tag.
+  - The hydration flag seeded from the server sentinel: why it's still needed now
+    that compiled components register on first use (`Link` and the `afw-internal-*`
+    elements still register at import).
+- The hydration construct-matrix test creates its element with
+  `document.createElement(Panel.tag)`: a component registers on the first read of its
+  `tag`, and only a registered element can be constructed.
+
 ## [0.36.0] - 2026-11-05
 
 ### Added
