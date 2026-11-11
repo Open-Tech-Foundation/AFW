@@ -74,7 +74,7 @@ export default function Todos() {
 - The import path is the real module, so TypeScript checks each call against the real
   signature (the schema's input type, the function's return type).
 - `listTodos(input, { signal })` — pass an `AbortSignal` to cancel a call.
-- Works with [`resource()`](/docs/data-fetching) as-is: it refetches when its
+- Works with [`resource()`](/docs/data-fetching/resource) as-is: it refetches when its
   arguments change and drops superseded responses.
 
 ## Refetch after an action
@@ -96,7 +96,7 @@ async function save(title) {
 - `invalidate(listTodos, listUsers)` — refetch the live resources that called these
   server functions. Other resources are left alone.
 - `invalidate()` — refetch every live resource and reload the current page's
-  [loader data](/docs/data-fetching) into `router.data`. Use it when a page shows
+  [loader data](/docs/data-fetching/route-loaders) into `router.data`. Use it when a page shows
   loader data, as the starter's todos page does.
 - A resource records the server functions its fetcher calls as it starts
   (`() => listTodos(args)`). For one called after an `await`, name it:

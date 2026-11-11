@@ -120,7 +120,7 @@ Files the toolchain recognizes beyond ordinary components. Extensions `.js`, `.t
 | `layout.jsx` | Wraps every route below it; nests with the folder tree. |
 | `404.jsx` | Rendered when no route matches. |
 | `route.js` | An [API endpoint](/docs/routing/api-routes). The folder is the URL (`app/api/hello/route.js` → `/api/hello`). A folder holds a `page.*` or a `route.*`, never both. |
-| `loader.js` | A [route loader](/docs/data-fetching) sibling to a `page.*`. Runs server-side before the page renders; its return value is `router.data`. Requires a matching `page.*` in the same folder. |
+| `loader.js` | A [route loader](/docs/data-fetching/route-loaders) sibling to a `page.*`. Runs server-side before the page renders; its return value is `router.data`. Requires a matching `page.*` in the same folder. |
 | `_middleware.js` | [Middleware](/docs/routing/middleware) for its folder and everything nested under it (pages, API, loader data, SSR). |
 | `_meta.js` | Docs sidebar order and labels for a folder (`@opentf/afw-docs`). Supports `.js`, `.mjs` and `.json` today. |
 

@@ -1,0 +1,54 @@
+---
+title: Loader Errors & Redirects
+description: What a route loader does when data is missing or access is refused: notFound(), thrown Responses for redirects and refusals, and other errors.
+---
+
+# Loader Errors & Redirects
+
+A [route loader](/docs/data-fetching/route-loaders) can stop a page from rendering with its data:
+
+- **`notFound()`:** the 404 page, with HTTP 404.
+- **A thrown `Response`:** a redirect or a refusal.
+- **Any other error:** a 500 on the server; on the client, the page renders without data.
+
+## Not found
+
+```js
+import { notFound } from "@opentf/afw/server";
+
+export default function loader({ params }) {
+  const post = db.posts.find(params.id);
+  if (!post) notFound(); // → the 404 page, with HTTP 404
+  return post;
+}
+```
+
+## Redirects and refusals
+
+A loader can throw a `Response`, as API routes and server functions can:
+
+```js
+export default async function loader({ params, locals }) {
+  const post = await db.posts.find(params.id);
+  if (post && post.slug !== params.slug) {
+    throw new Response(null, { status: 301, headers: { location: `/posts/${post.id}/${post.slug}` } });
+  }
+  if (post?.private && post.owner !== locals.user?.id) throw new Response(null, { status: 403 });
+  return post;
+}
+```
+
+- On a server render, the thrown `Response` is the page's response.
+- On a client navigation, a redirect navigates to its target, replacing the history
+  entry; another status is reported as a failed data fetch.
+- Use it for decisions that need the loader's data: a canonical URL, a moved record,
+  access to this one item. Sign-in checks for a whole section belong in
+  [middleware](/docs/routing/middleware), once.
+- When middleware redirects a data request (an auth guard), the router loads the page
+  in full, so the server's redirect applies.
+
+## Other errors
+
+Any other thrown error is a 500. On the client, a failed data fetch is reported
+(`phase: "data"`) and the navigation still commits with `router.data`
+undefined — pages should treat "no data" as a valid state.

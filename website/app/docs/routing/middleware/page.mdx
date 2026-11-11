@@ -75,7 +75,7 @@ Middleware runs **before** a route is matched, so there is no `params` or `query
 | Field | Description |
 | --- | --- |
 | `context.url` | Parsed request `URL` |
-| `context.locals` | Mutable per-request bag — shared with API handlers and [loaders](/docs/data-fetching) |
+| `context.locals` | Mutable per-request bag — shared with API handlers and [loaders](/docs/data-fetching/route-loaders) |
 | `context.env` / `context.ctx` | Platform `fetch` extras (Workers bindings, `waitUntil`); `undefined` on Bun/Node |
 
 Stamp auth or validation once in `locals`; read it in every `route.*` handler and
@@ -167,5 +167,5 @@ export default guard;
 
 - [Route guards](/docs/routing/route-guards) — client SPA navigation (not a security boundary)
 - [API routes](/docs/routing/api-routes) — `route.{js,ts}` handlers inside the pipeline
-- [Data fetching](/docs/data-fetching) — loaders read `locals` from middleware
+- [Route Loaders](/docs/data-fetching/route-loaders) — loaders read `locals` from middleware
 - [Server](/docs/deployment/server) — native server entries and adapters

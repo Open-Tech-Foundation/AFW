@@ -90,7 +90,7 @@ component via CSR. The rest of the page stays adopted.
   `localStorage` during render. Gate client-only UI with `onMount` or a post-hydration
   signal.
 - **Loader vs client fetch** — pre-rendered HTML should match what the client paints
-  before its own fetch completes. Use [route loaders](/docs/data-fetching) so SSG/SSR
+  before its own fetch completes. Use [route loaders](/docs/data-fetching/route-loaders) so SSG/SSR
   inline the same data the client reads on hydration.
 - **Different branches server vs client** — avoid `user ? <Dashboard /> : <Login />`
   when `user` is only known in the browser unless the server emits the same branch the
@@ -177,4 +177,4 @@ Wrong title in Slack/Google?
 - [Reactivity](/docs/core-concepts/reactivity) — `$state`, `reactive()`, `$effect`
 - [Hydration](/docs/deployment/hydration) — adopt path and mismatch recovery
 - [Metadata & SEO](/docs/routing/metadata) — titles, OG tags, `site.url`
-- [Data Fetching](/docs/data-fetching) — loaders aligned with pre-rendered HTML
+- [Route Loaders](/docs/data-fetching/route-loaders) — loaders aligned with pre-rendered HTML

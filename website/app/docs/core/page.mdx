@@ -17,7 +17,7 @@ compile to — prefer the macros in components.)
 | `effect(fn)` | Run a reactive side effect; returns a disposer. |
 | `batch(fn)` | Defer dependent effects until the grouped writes complete. |
 | `untracked(fn)` | Read signals without subscribing the current computation. |
-| `resource(...)` | Async data with reactive `data`, `loading`, `error` and `refetch`; see [Data Fetching](/docs/data-fetching). |
+| `resource(...)` | Async data with reactive `data`, `loading`, `error` and `refetch`; see [`resource()`](/docs/data-fetching/resource). |
 | `reactive(init)` | Deep reactive store — mutate nested data in place. |
 | `isReactive(v)` | Whether `v` was created by `reactive()`. |
 | `toRawValue(v)` | Underlying plain object for a reactive store. |

@@ -74,12 +74,12 @@ Fine-grained adoption is implemented for the constructs you use in real apps:
 - **Rich island props** — JSON-safe props serialize into a `<script id="__afw_h">` payload so
   components upgrade with the correct object/array values, not attribute round-trips.
 - **Loader output** — inline loader data in the HTML keeps `router.data` aligned on first paint;
-  see [Data Fetching](/docs/data-fetching).
+  see [Route Loaders](/docs/data-fetching/route-loaders).
 
 <Callout type="warning" title="Keep server and client render aligned">
   Hydration assumes the client would render the same structure the server sent. Avoid
   non-deterministic output during render (`Date.now()`, `Math.random()`, browser-only reads).
-  Put time-varying or per-user data in [loaders](/docs/data-fetching) or fetch after mount.
+  Put time-varying or per-user data in [loaders](/docs/data-fetching/route-loaders) or fetch after mount.
   For client-only UI branches, gate on `onMount` or a post-hydration signal so SSG does not
   emit a different tree than the client.
 </Callout>
@@ -115,6 +115,6 @@ There is no tree-wide reconcile pass.
 
 - [Static Generation](/docs/deployment/static-generation) — pre-render routes at build time.
 - [Server](/docs/deployment/server) — per-request SSR with an app server or adapters.
-- [Data Fetching](/docs/data-fetching) — loaders and `router.data` across SSG, SSR, and SPA nav.
+- [Route Loaders](/docs/data-fetching/route-loaders) — loaders and `router.data` across SSG, SSR, and SPA nav.
 - [Portal](/docs/core-concepts/portal) — relocation deferred until hydration completes.
 - [Navigation](/docs/routing/navigation) — `<Link>` and client-side routing after first paint.

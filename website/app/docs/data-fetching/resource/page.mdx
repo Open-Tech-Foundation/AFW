@@ -1,0 +1,55 @@
+---
+title: resource()
+description: Client-side async data: resource() wraps a fetcher in reactive data, loading and error, with abort, refetch and invalidation.
+---
+
+# `resource()`
+
+For client-side async data, `resource()` formalizes the fetch-into-signals
+pattern — components stay synchronous, and the view renders the resource's
+reactive states:
+
+```jsx
+import { resource, router } from "@opentf/afw";
+
+export default function UserProfile() {
+  const user = resource(
+    () => router.params.id, // reactive source — re-fetches when it changes
+    async (id, { signal }) => {
+      const response = await fetch(`/api/users/${encodeURIComponent(id)}`, { signal });
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+      return response.json();
+    },
+  );
+
+  return (
+    <div>
+      {user.error ? <p>Failed: {user.error.message}</p> :
+       user.loading ? <p>Loading…</p> :
+       user.data ? <h1>{user.data.name}</h1> : <p>No user selected.</p>}
+    </div>
+  );
+}
+```
+
+- `resource(fetcher)` fetches once; `resource(source, fetcher)` re-fetches when
+  the reactive `source` changes; `{ initial }` seeds `data`.
+- Each run aborts the previous run's `AbortController` (the fetcher receives
+  `{ signal }`) and late, out-of-order resolutions are discarded.
+- A rejection sets `error` and keeps the last good `data`; the next success
+  clears it. `refetch()` re-runs manually.
+- A `source` returning `null`/`false` pauses fetching (conditional resources).
+- [`invalidate()`](/docs/server-functions#refetch-after-an-action) refetches every live
+  resource and reloads the page's loader data; `invalidate(listTodos)` only the
+  resources that called that server function.
+- During SSG/SSR nothing fetches and `loading` stays `true`, so the prerendered
+  HTML shows your loading branch and [hydration](/docs/deployment/hydration) stays aligned.
+- A resource created in a component stops when the component is removed: its fetch
+  is aborted and it no longer refetches.
+- `{ errors: "inline" }` keeps failures on `error` only, even inside a
+  [`<Pending>`](/docs/data-fetching/pending).
+
+## Related
+
+- [Loading States](/docs/data-fetching/pending): one loading state for every resource inside a `<Pending>`.
+- [Server functions](/docs/server-functions): typed calls a resource can fetch from.
