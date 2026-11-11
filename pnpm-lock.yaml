@@ -107,6 +107,9 @@ importers:
       '@opentf/afw-compiler':
         specifier: workspace:*
         version: link:../afw-compiler
+      '@opentf/syntax-highlighter':
+        specifier: 0.5.0
+        version: 0.5.0
     devDependencies:
       '@opentf/afw':
         specifier: workspace:*
@@ -1001,6 +1004,9 @@ packages:
   '@opentf/std@0.20.0':
     resolution: {integrity: sha512-CUgFmVWsZzIHZAl6cAkZ4YTCXZl2KgJ5IGoo5ArT6LRCnHT22YQoiwR5gM7CcnGprkZDDpJRpeBnh8XFRd/uHw==}
     engines: {node: '>=20.0.0'}
+
+  '@opentf/syntax-highlighter@0.5.0':
+    resolution: {integrity: sha512-pvi9s9DZjqt3o+ufnp66TK4ZDGpf/Mdax7+29nNmp7g8sr5M3yB80smBYmZ0mGdijpxDNUGT/eY8kfapS02P5Q==}
 
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
@@ -2603,6 +2609,8 @@ snapshots:
   '@opentf/std@0.19.0': {}
 
   '@opentf/std@0.20.0': {}
+
+  '@opentf/syntax-highlighter@0.5.0': {}
 
   '@oxc-project/types@0.156.0': {}
 

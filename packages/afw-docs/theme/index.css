@@ -19,6 +19,11 @@
  * overrides the theme regardless of selector specificity — no `!important` or
  * doubled selectors needed. Imported after Tailwind, the layer still ranks above
  * Tailwind's own layers (preflight, utilities). */
+/* Code-fence token colors: @opentf/syntax-highlighter's shared selectors (`.sh-*` →
+ * `--sh-*`), in the same layer. The `--sh-*` values below are its GitHub Light and
+ * GitHub Dark themes, switched with the site's `data-theme`. */
+@import "@opentf/syntax-highlighter/themes/shared.css" layer(afw-docs);
+
 @layer afw-docs {
   :root {
     --afw-bg: #ffffff;
@@ -33,6 +38,57 @@
     --afw-code-bg: #f1f5f9;
     --afw-code-text: #be4f0c;
     --afw-selection: rgba(255, 133, 27, 0.22);
+
+    /* Code blocks (fences, CodeBlock): chrome, then GitHub Light token colors. */
+    --afw-code-block-bg: #f6f8fa;
+    --afw-code-block-head-bg: #eaeef2;
+    --afw-code-block-head-border: rgba(31, 35, 40, 0.1);
+    --afw-code-block-text: #24292f;
+    --afw-code-block-muted: rgba(31, 35, 40, 0.55);
+    --afw-code-block-name: rgba(31, 35, 40, 0.85);
+    --afw-copy-border: rgba(31, 35, 40, 0.18);
+    --afw-copy-bg: rgba(255, 255, 255, 0.7);
+    --afw-copy-bg-hover: #ffffff;
+    --afw-copy-text: rgba(31, 35, 40, 0.75);
+    --afw-copy-text-hover: #1f2328;
+    --sh-comment: #6e7781;
+    --sh-keyword: #cf222e;
+    --sh-control: #af00db;
+    --sh-string: #0a3069;
+    --sh-number: #0550ae;
+    --sh-regex: #116329;
+    --sh-function: #8250df;
+    --sh-method: #9165e2;
+    --sh-class: #953800;
+    --sh-variable: #24292f;
+    --sh-identifier: #24292f;
+    --sh-constant: #0550ae;
+    --sh-property: #116329;
+    --sh-key: #953800;
+    --sh-parameter: #953800;
+    --sh-operator: #0550ae;
+    --sh-punctuation: #24292f;
+    --sh-decorator: #953800;
+    --sh-boolean: #0550ae;
+    --sh-null: #0550ae;
+    --sh-addition: #1a7f37;
+    --sh-deletion: #cf222e;
+    --sh-hunk: #0550ae;
+    --sh-header: #8250df;
+    --sh-text-bold: #cf222e;
+    --sh-text-italic: #cf222e;
+    --sh-text-underline: #cf222e;
+    --sh-text-strikethrough: #6e7781;
+    --sh-code-inline: #0a3069;
+    --sh-code-block: #0a3069;
+    --sh-markup-heading: #8250df;
+    --sh-markup-quote: #6e7781;
+    --sh-markup-list: #24292f;
+    --sh-markup-link: #0550ae;
+    --sh-markup-image: #0550ae;
+    --sh-syntax-delimiter: #24292f;
+    --sh-syntax-marker: #24292f;
+    --sh-syntax-escape: #0550ae;
 
     --afw-sidebar-width: 17rem;
     --afw-toc-width: 15rem;
@@ -56,6 +112,57 @@
     --afw-code-bg: #0f172a;
     --afw-code-text: #ffb784;
     --afw-selection: rgba(255, 148, 61, 0.3);
+
+    /* Code blocks: chrome, then GitHub Dark token colors. */
+    --afw-code-block-bg: #0d1117;
+    --afw-code-block-head-bg: #161b22;
+    --afw-code-block-head-border: rgba(255, 255, 255, 0.07);
+    --afw-code-block-text: #c9d1d9;
+    --afw-code-block-muted: rgba(255, 255, 255, 0.45);
+    --afw-code-block-name: rgba(255, 255, 255, 0.82);
+    --afw-copy-border: rgba(255, 255, 255, 0.16);
+    --afw-copy-bg: rgba(255, 255, 255, 0.06);
+    --afw-copy-bg-hover: rgba(255, 255, 255, 0.14);
+    --afw-copy-text: rgba(255, 255, 255, 0.78);
+    --afw-copy-text-hover: #ffffff;
+    --sh-comment: #8b949e;
+    --sh-keyword: #ff7b72;
+    --sh-control: #79c0ff;
+    --sh-string: #a5d6ff;
+    --sh-number: #79c0ff;
+    --sh-regex: #7ee787;
+    --sh-function: #d2a8ff;
+    --sh-method: #d7b2ff;
+    --sh-class: #ffa657;
+    --sh-variable: #c9d1d9;
+    --sh-identifier: #c9d1d9;
+    --sh-constant: #79c0ff;
+    --sh-property: #7ee787;
+    --sh-key: #79c0ff;
+    --sh-parameter: #ffa657;
+    --sh-operator: #ff7b72;
+    --sh-punctuation: #c9d1d9;
+    --sh-decorator: #ffa657;
+    --sh-boolean: #79c0ff;
+    --sh-null: #79c0ff;
+    --sh-addition: #3fb950;
+    --sh-deletion: #f85149;
+    --sh-hunk: #58a6ff;
+    --sh-header: #bc8cff;
+    --sh-text-bold: #ff7b72;
+    --sh-text-italic: #ff7b72;
+    --sh-text-underline: #ff7b72;
+    --sh-text-strikethrough: #8b949e;
+    --sh-code-inline: #a5d6ff;
+    --sh-code-block: #a5d6ff;
+    --sh-markup-heading: #ff7b72;
+    --sh-markup-quote: #8b949e;
+    --sh-markup-list: #c9d1d9;
+    --sh-markup-link: #79c0ff;
+    --sh-markup-image: #79c0ff;
+    --sh-syntax-delimiter: #c9d1d9;
+    --sh-syntax-marker: #c9d1d9;
+    --sh-syntax-escape: #79c0ff;
   }
 
   html {
@@ -1099,7 +1206,7 @@
     font-size: 0.85rem;
     line-height: 1.6;
   }
-  /* Build-time highlighted code (syntect) sets its own inline background. */
+  /* Code inside a block takes the block's colors, not inline-code styling. */
   .afwd-prose pre code {
     background: none;
     color: inherit;
@@ -1108,42 +1215,42 @@
   }
   /* Titled code block (built by the MDX front-end): a header bar — language label,
    * optional filename, and a copy button on the right — above the highlighted <pre>.
-   * The wrapper owns the radius and clips the corners of the dark header and code. */
+   * The wrapper owns the radius and clips the corners of the header and code. */
   .afw-code {
     margin: 0 0 1.4rem;
     border: 1px solid var(--afw-border);
     border-radius: var(--afw-radius);
     overflow: hidden;
-    background: #2b303b;
+    background: var(--afw-code-block-bg);
   }
   .afw-code-head {
     display: flex;
     align-items: center;
     gap: 0.55rem;
     padding: 0.4rem 0.5rem 0.4rem 0.95rem;
-    background: #23272f;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    background: var(--afw-code-block-head-bg);
+    border-bottom: 1px solid var(--afw-code-block-head-border);
   }
   .afw-code-lang {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-size: 0.66rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--afw-code-block-muted);
   }
   .afw-code-name {
     font-family: var(--afw-mono);
     font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.82);
+    color: var(--afw-code-block-name);
   }
   .afw-code pre {
     margin: 0;
     border: none;
     border-radius: 0;
-    /* Readable default for blocks without build-time highlighting (e.g. string content
-     * rendered by Tabs via CodeBlock). Fenced blocks carry inline syntect
-     * colors, which override this. */
-    color: #e2e8f0;
+    background: var(--afw-code-block-bg);
+    /* Plain text (unknown languages, CodeBlock strings); highlighted tokens carry
+     * their own `.sh-*` colors. */
+    color: var(--afw-code-block-text);
   }
   .afw-copy {
     margin-left: auto;
@@ -1151,10 +1258,10 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.28rem 0.6rem;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid var(--afw-copy-border);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.78);
+    background: var(--afw-copy-bg);
+    color: var(--afw-copy-text);
     font-family: var(--afw-font);
     font-size: 0.72rem;
     font-weight: 600;
@@ -1163,8 +1270,8 @@
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   .afw-copy:hover {
-    background: rgba(255, 255, 255, 0.14);
-    color: #fff;
+    background: var(--afw-copy-bg-hover);
+    color: var(--afw-copy-text-hover);
   }
   .afw-copy.is-copied {
     background: color-mix(in srgb, #10b981 22%, transparent);

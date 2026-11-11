@@ -82,10 +82,20 @@ to an existing project, import its stylesheet and register the build plugins:
     { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
     { "module": "@opentf/afw-docs/build", "export": "docsNavPlugin", "options": { "appDir": "app" } },
     { "module": "@opentf/afw-docs/build", "export": "lastUpdatedPlugin", "options": { "appDir": "app" } },
-    { "module": "@opentf/afw-docs/build", "export": "blogPostsPlugin", "options": { "appDir": "app", "contentDir": "blog" } }
+    { "module": "@opentf/afw-docs/build", "export": "blogPostsPlugin", "options": { "appDir": "app", "contentDir": "blog" } },
+    { "module": "@opentf/afw-docs/build", "export": "codeHighlightPlugin" }
   ]
 }
 ```
+
+`codeHighlightPlugin` highlights code fences with
+[`@opentf/syntax-highlighter`](https://syntax-highlighter.opentechf.org):
+
+- It runs on each compiled `.md`/`.mdx` page, after the compiler, so prerendered and
+  client-rendered pages carry the same colors.
+- Nothing highlights in the browser.
+- The theme colors tokens with GitHub Light and GitHub Dark, following `data-theme`.
+- The Vite plugin does the same on its own.
 
 `appDir` is resolved from the directory esdev runs in.
 
@@ -148,7 +158,7 @@ export default defineDocsConfig({
 | `@opentf/afw-docs` | Every component above, plus `createSearch` |
 | `@opentf/afw-docs/theme` | The default light/dark stylesheet |
 | `@opentf/afw-docs/config` | `defineDocsConfig` and the config types |
-| `@opentf/afw-docs/build` | `docsNavPlugin`, `blogPostsPlugin`, `lastUpdatedPlugin`, feed and `llms.txt` renderers (esdev) |
+| `@opentf/afw-docs/build` | `docsNavPlugin`, `blogPostsPlugin`, `lastUpdatedPlugin`, `codeHighlightPlugin`, feed and `llms.txt` renderers (esdev) |
 | `@opentf/afw-docs/vite` | `afwDocs()`: the same generators as one Vite plugin |
 | `@opentf/afw-docs/nav`, `/posts`, `/updated` | Generated navigation, post list and last-updated map |
 | `@opentf/afw-docs/search` | Browser search: `createSearch`, `tokenize`, `excerptParts` |

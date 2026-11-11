@@ -85,7 +85,11 @@ describe("afw-docs theme class namespaces", () => {
   test("every theme rule sits inside the afw-docs cascade layer", async () => {
     // Unlayered site CSS must always win over the theme; a rule left outside the
     // layer would silently outrank site overrides with a more specific selector.
-    const css = (await file(THEME).text()).replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    const source = (await file(THEME).text()).replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    // Leading `@import`s (the highlighter's token selectors) must land in the layer too.
+    const imports = source.match(/^(?:@import[^;]*;\s*)*/)[0];
+    for (const rule of imports.match(/@import[^;]*;/g) ?? []) expect(rule.includes("layer(afw-docs)")).toBe(true);
+    const css = source.slice(imports.length);
     expect(css.startsWith("@layer afw-docs {")).toBe(true);
     let depth = 0;
     let closedAt = -1;

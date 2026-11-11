@@ -8,3 +8,4 @@ allowBuilds:
   workerd: true
 minimumReleaseAgeExclude:
   - '@opentf/serialize@0.1.0'
+  - '@opentf/syntax-highlighter@0.5.0'

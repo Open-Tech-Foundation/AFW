@@ -2,7 +2,7 @@
 // an optional language/filename label and a copy button, above a `<pre>`). Use it for
 // code that doesn't come from a Markdown fence — e.g. a code panel inside `Tabs`:
 // `{ label, content: <CodeBlock code="…" /> }`. The text is NOT syntax-highlighted —
-// highlighting is a build-time (syntect) pass that only sees literal Markdown fences,
+// highlighting is a build-time pass (build/highlight.js) over compiled Markdown fences,
 // not a runtime string prop; runtime highlighting here is deferred future work. The
 // copy button owns its own behavior via `onclick` (see `copyWithFeedback`), so it
 // works in any layout — not just the docs shell. The icon glyphs go through `RawHtml`

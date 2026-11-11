@@ -11,6 +11,8 @@ import { esdevHost } from "./hosts/esdev.js";
 useHost(esdevHost);
 
 export { docsNavPlugin } from "./docs-nav-plugin.js";
+export { codeHighlightPlugin } from "./code-highlight-plugin.js";
+export { highlightCodeFences } from "./highlight.js";
 export { blogPostsPlugin, loadPosts } from "./blog-posts-plugin.js";
 export { lastUpdatedPlugin, loadLastUpdated } from "./last-updated-plugin.js";
 export { isUnpublished } from "./publish.js";

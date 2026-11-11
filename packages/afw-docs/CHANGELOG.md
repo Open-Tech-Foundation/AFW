@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Added
+
+- Code fences are syntax-highlighted with `@opentf/syntax-highlighter`, replacing the
+  compiler's syntect highlighting.
+  - It runs at build time on each compiled `.md`/`.mdx` page. Prerendered pages and
+    pages reached by client-side navigation carry the same colors, and no highlighter
+    ships to the browser.
+  - esdev: register `codeHighlightPlugin` from `@opentf/afw-docs/build`. It is a `post`
+    transform, so its place in the plugin list does not matter. `@opentf/afw-cli`'s
+    `loadDocsPlugins` adds it for the prerender.
+  - Vite: `afwDocs()` does it with no extra setup.
+  - `highlightCodeFences(code)` runs the same pass on one compiled module.
+  - An unknown language, or a fence without one, stays plain text.
+
+### Changed
+
+- The theme colors code with GitHub Light and GitHub Dark, following `data-theme`.
+  - Code blocks used to be dark in both modes.
+  - The block chrome (header, label, copy button) follows the theme too.
+  - New variables: `--afw-code-block-*` and `--afw-copy-*` for the chrome, and
+    `--sh-*` for token colors.
+
 ## [0.34.0] - 2026-11-05
 
 _Dependency updates._

@@ -65,6 +65,20 @@ describe("vite build (ssg)", () => {
     assert.match(await read("llms-full.txt"), /quixotic zebra/);
   });
 
+  test("code fences are highlighted in the page, the client bundle and the theme", async () => {
+    const page = await read("docs/index.html");
+    assert.match(page, /<code class="language-js"><span class="sh-keyword">const<\/span>/);
+    const assets = await readdir(join(dist, "assets"));
+    const js = (await Promise.all(assets.filter((f) => f.endsWith(".js")).map((f) => read(`assets/${f}`)))).join("\n");
+    // The client module carries the same markup, so a page reached by client-side
+    // navigation is highlighted too.
+    // (The minifier may re-quote the string, so the quotes are escaped or not.)
+    assert.match(js, /language-js\\?"><span class=\\?"sh-keyword\\?">const/);
+    const css = (await Promise.all(assets.filter((f) => f.endsWith(".css")).map((f) => read(`assets/${f}`)))).join("\n");
+    assert.match(css, /\.sh-keyword/);
+    assert.match(css, /--sh-keyword/);
+  });
+
   test("the search index is written", async () => {
     const files = await readdir(join(dist, "_search"));
     assert.ok(files.includes("manifest.json"), files.join(", "));
@@ -107,6 +121,11 @@ describe("vite dev", () => {
     } finally {
       server.ws.send = send;
     }
+  });
+
+  test("the dev server highlights a page's code fences", async () => {
+    const page = await server.transformRequest("/app/docs/page.mdx");
+    assert.match(page.code, /<span class=\\"sh-keyword\\">const<\/span>/);
   });
 
   test("a docs page compiles for the dev client", async () => {
