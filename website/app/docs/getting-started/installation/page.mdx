@@ -93,7 +93,7 @@ npm create @opentf/afw my-app -- --template=app --render=ssg --server --styling=
 | Template | Purpose |
 | --- | --- |
 | `app` | An app with file-based routing; you choose how pages render and whether it has a server. |
-| `docs` | An MDX docs and blog site (`@opentf/afw-docs`), prerendered, with search and feeds. |
+| `docs` | An MDX docs site (`@opentf/afw-docs`), prerendered, with search; a blog with feeds only if you ask for one. |
 | `library` | A component library published as JSX source, compiled by the apps that use it. |
 
 The choices for `app` are independent:
@@ -106,6 +106,11 @@ The choices for `app` are independent:
 - **Styling** (`--styling`): plain CSS or [Tailwind CSS](/docs/core-concepts/styling#tailwind-css),
   also for `library`.
 - **Language** (`--language`): `ts` (default) or `js`, for every template.
+
+For `docs`:
+
+- **Blog** (`--blog`): posts with RSS and Atom feeds. Off unless you ask for it — the
+  prompt defaults to no, and `--no-interactive` leaves it out.
 
 Scripts:
 
