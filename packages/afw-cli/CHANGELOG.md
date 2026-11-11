@@ -8,6 +8,12 @@
   highlights docs and blog code fences. With an older `@opentf/afw-docs` that lacks it,
   fences stay plain text.
 
+### Changed
+
+- `loadDocsPlugins` takes its plugin set from `@opentf/afw-docs`' `afwDocsPlugin`, so
+  the prerender and an `esdev.json` entry always agree. With an older afw-docs that
+  lacks it, the set is assembled here as before.
+
 ## [1.35.0] - 2026-11-05
 
 _Dependency updates._

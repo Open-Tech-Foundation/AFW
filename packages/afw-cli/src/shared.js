@@ -76,7 +76,10 @@ export async function loadDocsPlugins(root, appDir, config, exclude = new Set())
   if (!docs && !blog) return [];
   try {
     const entry = await resolveFrom("@opentf/afw-docs/build", root);
-    const { docsNavPlugin, blogPostsPlugin, lastUpdatedPlugin, codeHighlightPlugin } = await import(toFileURL(entry).href);
+    const { afwDocsPlugin, docsNavPlugin, blogPostsPlugin, lastUpdatedPlugin, codeHighlightPlugin } = await import(toFileURL(entry).href);
+    // The same set the project's `esdev.json` entry gets: afw-docs decides it from the
+    // config. An older afw-docs has no `afwDocsPlugin`; assemble the set here instead.
+    if (afwDocsPlugin) return await afwDocsPlugin({ appDir, exclude: [...exclude], root, config });
     const plugins = [];
     // Resolves `@opentf/afw-docs/nav` to a section map — one generated tree per top-level
     // folder under app/. Any folder with a DocsLayout becomes a section automatically.
