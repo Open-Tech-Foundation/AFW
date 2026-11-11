@@ -9,22 +9,7 @@
     },
     {
       "module": "@opentf/afw-docs/build",
-      "export": "docsNavPlugin",
-      "options": {
-        "appDir": "app"
-      }
-    },
-    {
-      "module": "@opentf/afw-docs/build",
-      "export": "blogPostsPlugin",
-      "options": {
-        "appDir": "app",
-        "contentDir": "blog"
-      }
-    },
-    {
-      "module": "@opentf/afw-docs/build",
-      "export": "lastUpdatedPlugin",
+      "export": "afwDocsPlugin",
       "options": {
         "appDir": "app"
       }
