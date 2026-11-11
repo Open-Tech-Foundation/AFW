@@ -19,7 +19,7 @@ import { nodeHost } from "./hosts/node.js";
 import { blogPostsModule } from "./blog-posts-plugin.js";
 import { docsNavModule } from "./docs-nav-plugin.js";
 import { blogDir, finishSite, wantsLastUpdated } from "./finish.js";
-import { FENCE_SOURCE, highlightCodeFences } from "./highlight.js";
+import { FENCE_SOURCE, highlightModule } from "./highlight.js";
 import { lastUpdatedModule, loadLastUpdated } from "./last-updated-plugin.js";
 
 useHost(nodeHost);
@@ -120,14 +120,13 @@ export default function afwDocs({ config: given, appDir: appDirOption = "app", e
     },
 
     // Code-fence highlighting (highlight.js): `post`, so it runs on each `.md`/`.mdx`
-    // page after @opentf/vite-plugin-afw has compiled it. The swap stays inside string
-    // literals and adds no lines.
+    // page after @opentf/vite-plugin-afw has compiled it, with a source map for the swap.
     transform: {
       order: "post",
       async handler(code, id) {
-        if (!FENCE_SOURCE.test(id.split("?")[0])) return null;
-        const out = await highlightCodeFences(code);
-        return out === code ? null : { code: out, map: null };
+        const file = id.split("?")[0];
+        if (!FENCE_SOURCE.test(file)) return null;
+        return highlightModule(code, file);
       },
     },
 

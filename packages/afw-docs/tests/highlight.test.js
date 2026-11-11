@@ -9,7 +9,7 @@ import { env, platform } from "runtime:process";
 import { Command } from "runtime:system";
 import { codeHighlightPlugin } from "../build/code-highlight-plugin.js";
 import { closeCompilers, createAfwPlugin } from "../../esdev-plugin-afw/index.js";
-import { decodeJsString, encodeJsString, highlightCodeFences } from "../build/highlight.js";
+import { decodeJsString, encodeJsString, highlightCodeFences, highlightModule } from "../build/highlight.js";
 
 const root = dirname(dirname(dirname(dirname(fromFileURL(import.meta.url)))));
 const binary = env.AFWC_BIN || join(root, "target", "debug", platform === "windows" ? "afwc.exe" : "afwc");
@@ -111,6 +111,70 @@ describe("highlightCodeFences", () => {
   });
 });
 
+/** Decode a v3 `mappings` string to `[[genCol, line, col], …]` per generated line. */
+function decodeMappings(mappings) {
+  const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let line = 0, col = 0;
+  return mappings.split(";").map((group) => {
+    let genCol = 0;
+    return group ? group.split(",").map((segment) => {
+      const values = [];
+      let value = 0, shift = 0;
+      for (const ch of segment) {
+        const digit = B64.indexOf(ch);
+        value += (digit & 31) << shift;
+        if (digit & 32) shift += 5;
+        else { values.push(value & 1 ? -(value >> 1) : value >> 1); value = 0; shift = 0; }
+      }
+      genCol += values[0]; line += values[2]; col += values[3];
+      return [genCol, line, col];
+    }) : [];
+  });
+}
+
+/** Where generated (line, column) maps back to, by its segment (exact token starts). */
+function original(map, genLine, genCol) {
+  const segment = decodeMappings(map.mappings)[genLine].findLast(([c]) => c <= genCol);
+  return segment && { line: segment[1], col: segment[2] + (genCol - segment[0]) };
+}
+
+describe("highlightModule source map", () => {
+  const fence = (lang, text) => `"<pre class=\\"afw-code-pre\\"><code class=\\"language-${lang}\\">${text}</code></pre>"`;
+
+  test("maps every token back to its original position", async () => {
+    const code = [
+      "import { x } from \"y\";",
+      `const a = ${fence("js", "let n = 1;")}, after = 1; const b = ${fence("css", "a { color: red; }")}, tail = 2;`,
+      "export default function Page() { return after + tail; }",
+    ].join("\n");
+    const { code: out, map } = await highlightModule(code, "/app/docs/page.mdx");
+    expect(map.version).toBe(3);
+    expect(map.sources).toEqual(["/app/docs/page.mdx"]);
+    expect(map.sourcesContent).toEqual([code]);
+    const outLines = out.split("\n");
+    const inLines = code.split("\n");
+    expect(outLines.length).toBe(inLines.length);
+    // Tokens after each swapped block, on the same line, point at their originals.
+    for (const token of ["after", "const b", "tail"]) {
+      const at = outLines[1].indexOf(token);
+      expect(original(map, 1, at)).toEqual({ line: 1, col: inLines[1].indexOf(token) });
+    }
+    // Each swapped block starts where the original one did.
+    const second = outLines[1].indexOf('"<pre', outLines[1].indexOf("const b"));
+    expect(original(map, 1, second)).toEqual({ line: 1, col: inLines[1].indexOf('"<pre', inLines[1].indexOf("const b")) });
+    // Lines without a swap are identity, token by token.
+    for (const token of ["export", "Page", "after", "tail"]) {
+      expect(original(map, 2, outLines[2].indexOf(token))).toEqual({ line: 2, col: inLines[2].indexOf(token) });
+    }
+    expect(original(map, 0, outLines[0].indexOf("y"))).toEqual({ line: 0, col: inLines[0].indexOf("y") });
+  });
+
+  test("is null when nothing changes", async () => {
+    expect(await highlightModule("export default 1;", "/a.mdx")).toBe(null);
+    expect(await highlightModule(`x(${fence("nope", "plain")});`, "/a.mdx")).toBe(null);
+  });
+});
+
 describe("JS string literal codec", () => {
   test("decodes the escapes a compiler may write", () => {
     expect(decodeJsString('a\\"b\\\\c\\nd\\te\\u00e9\\x41\\u{1F600}')).toBe('a"b\\c\nd\teéA😀');
@@ -142,6 +206,8 @@ describe("codeHighlightPlugin", () => {
     const result = await plugin.transform.handler(code, "/a/page.mdx", { type: "js" });
     expect(result.type).toBe("js");
     expect(result.code.includes("sh-keyword")).toBe(true);
+    // A source map for the swap, so the bundler's chain stays exact (no SOURCEMAP_BROKEN).
+    expect(result.map.sources).toEqual(["/a/page.mdx"]);
   });
 
   test("returns null when there is nothing to highlight", async () => {

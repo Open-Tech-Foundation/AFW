@@ -86,10 +86,12 @@ describe("one esdev.json entry", () => {
       build: { targets: { web: { entry: "main.js", out: "out.js", platform: "browser" } } },
     }));
     const built = await new Command(env.ESDEV_BIN || "esdev", {
-      args: ["build"], cwd: dir, inheritEnv: true, env: { AFWC_BIN: join(root, "target/debug/afwc") },
+      args: ["build", "--sourcemap"], cwd: dir, inheritEnv: true, env: { AFWC_BIN: join(root, "target/debug/afwc") },
       stdout: "piped", stderr: "piped",
     }).output();
     if (!built.success) throw Error(new TextDecoder().decode(built.stderr));
+    // Every transform, the highlighter included, hands the bundler a source map.
+    expect(new TextDecoder().decode(built.stderr).includes("SOURCEMAP_BROKEN")).toBe(false);
     const out = await file(join(dir, "out.js")).text();
     // The generated navigation (afw-docs-nav) and a highlighted fence (afw-docs-highlight).
     expect(out.includes('"Guide"')).toBe(true);

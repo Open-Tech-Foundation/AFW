@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Code-fence highlighting returns a source map, so esdev 0.27 no longer warns
+  `[SOURCEMAP_BROKEN] … a plugin (afw-docs-highlight) … didn't generate a sourcemap`
+  for every docs page.
+  - The map is exact: positions after a highlighted block on the same line, and on
+    every other line, point to their original columns.
+  - The Vite plugin returns the same map.
+
 ## [0.35.0] - 2026-11-11
 
 ### Added

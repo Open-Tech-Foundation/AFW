@@ -9,7 +9,8 @@
 // hydration adopts the same HTML), with no highlighter shipped to the browser.
 //
 // Toolchain-neutral: no `runtime:`/`node:` imports. `codeHighlightPlugin` (esdev,
-// build/index.js) and the Vite plugin (build/vite.js) both call `highlightCodeFences`.
+// build/index.js) and the Vite plugin (build/vite.js) both call `highlightModule`, which
+// also returns a source map for the swap.
 
 import { highlightCode } from "@opentf/syntax-highlighter";
 
@@ -63,9 +64,24 @@ export function encodeJsString(text) {
  *   there was nothing to highlight).
  */
 export async function highlightCodeFences(code) {
-  if (!code.includes("afw-code-pre")) return code;
+  return (await highlightModule(code, "module.js"))?.code ?? code;
+}
+
+/**
+ * `highlightCodeFences` for a bundler transform: the highlighted module and a source
+ * map from it back to `code`, or `null` when nothing changed. The swaps stay inside
+ * string literals on their own lines (escaped text has no raw newline), so the map is
+ * an identity map whose columns shift after each swapped block — written per token, so
+ * positions in the rest of the line stay exact through the bundler's map chain.
+ *
+ * @param {string} code  The compiled JS of a `.md`/`.mdx` module.
+ * @param {string} id  The module id (the map's source).
+ * @returns {Promise<{ code: string, map: object } | null>}
+ */
+export async function highlightModule(code, id) {
+  if (!code.includes("afw-code-pre")) return null;
   const blocks = [...code.matchAll(FENCE)];
-  if (blocks.length === 0) return code;
+  if (blocks.length === 0) return null;
   // The hydrating build carries each page's HTML twice; highlight each block once.
   const cache = new Map();
   const highlighted = await Promise.all(
@@ -74,13 +90,76 @@ export async function highlightCodeFences(code) {
       return cache.get(block);
     }),
   );
+  const edits = blocks
+    .map((match, i) => ({ start: match.index, end: match.index + match[0].length, text: highlighted[i] }))
+    .filter((edit) => edit.text !== code.slice(edit.start, edit.end));
+  if (edits.length === 0) return null;
+  return applyEdits(code, edits, id);
+}
+
+/** Splice single-line `edits` (sorted, non-overlapping) into `code`, with a source map. */
+function applyEdits(code, edits, source) {
+  const VLQ = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const vlq = (value) => {
+    let n = value < 0 ? (-value << 1) | 1 : value << 1;
+    let out = "";
+    do {
+      let digit = n & 31;
+      n >>>= 5;
+      if (n > 0) digit |= 32;
+      out += VLQ[digit];
+    } while (n > 0);
+    return out;
+  };
+
+  const lines = [];
+  let segments = [];
+  let genCol = 0;
+  let prevGenCol = 0;
+  let prevLine = 0;
+  let prevCol = 0;
+  let line = 0;
+  let col = 0;
+  const mark = () => {
+    segments.push(vlq(genCol - prevGenCol) + "A" + vlq(line - prevLine) + vlq(col - prevCol));
+    prevGenCol = genCol;
+    prevLine = line;
+    prevCol = col;
+  };
+  // Copy original text, marking each token's start so every column maps exactly.
+  const copy = (text) => {
+    for (const [token] of text.matchAll(/\n|[^\S\n]+|\w+|[^\w\s]/g)) {
+      if (token === "\n") {
+        lines.push(segments.join(","));
+        segments = [];
+        genCol = prevGenCol = 0;
+        line++;
+        col = 0;
+        continue;
+      }
+      if (!/^\s/.test(token)) mark();
+      genCol += token.length;
+      col += token.length;
+    }
+  };
+
   let out = "";
   let last = 0;
-  blocks.forEach((match, i) => {
-    out += code.slice(last, match.index) + highlighted[i];
-    last = match.index + match[0].length;
-  });
-  return out + code.slice(last);
+  for (const edit of edits) {
+    copy(code.slice(last, edit.start));
+    mark(); // the swapped block starts where the original one did
+    out += code.slice(last, edit.start) + edit.text;
+    genCol += edit.text.length;
+    col += edit.end - edit.start;
+    last = edit.end;
+  }
+  copy(code.slice(last));
+  out += code.slice(last);
+  lines.push(segments.join(","));
+  return {
+    code: out,
+    map: { version: 3, sources: [source], sourcesContent: [code], names: [], mappings: lines.join(";") },
+  };
 }
 
 async function highlightBlock(block, lang, body) {
