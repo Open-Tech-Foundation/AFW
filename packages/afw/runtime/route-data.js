@@ -12,6 +12,8 @@
 // this route" (no loader, or the loader called `notFound()`) and maps to
 // `undefined` so the page renders its empty state.
 
+import { devFetch } from "./dev-fetch.js";
+
 /** The reserved per-route data filename/URL suffix (`/todos` → `/todos/__data.json`). */
 export const DATA_FILE = "__data.json";
 
@@ -47,7 +49,7 @@ export class RouteRedirect {
  */
 export async function fetchRouteData(pathname, search = "") {
   // "manual": a redirect is not data. Following it would fetch an HTML page.
-  const res = await fetch(dataUrlFor(pathname, search), { redirect: "manual" });
+  const res = await devFetch(dataUrlFor(pathname, search), { redirect: "manual" });
   const location = res.headers.get(REDIRECT_HEADER);
   if (location) return new RouteRedirect(location); // the loader redirected
   // Middleware redirected the data request (an auth guard): the target is hidden

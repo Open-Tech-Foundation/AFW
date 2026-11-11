@@ -73,6 +73,11 @@
 
 ### Fixed
 
+- In development, server function calls and loader-data requests retry a connection
+  the server refused (for up to 3 seconds), so a call made while esdev restarts the app
+  server after an edit no longer fails with `Failed to fetch`. The Vite workflow never
+  restarts its server, so this keeps the two workflows alike. Production is unchanged,
+  and HTTP errors and aborts are never retried.
 - A resource created in a component now stops when the component is removed: its
   fetch is aborted, and it no longer refetches on `invalidate()` or a source change.
 
