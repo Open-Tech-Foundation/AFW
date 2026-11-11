@@ -1,0 +1,108 @@
+---
+title: Roadmap
+description: The everyday features AFW is still missing compared with React, Vue, Svelte and Solid and their ecosystems, what you can use today, and what is planned.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Roadmap
+
+This page tracks what developers coming from React, Vue, Svelte or Solid reach for
+every day that AFW does not have yet: some of it those frameworks build in, the rest
+comes from their package ecosystems. It complements [Comparison](/docs/comparison),
+which compares full-stack framework features.
+
+<Callout type="info" title="Surveyed November 2026">
+  Items are checked off as they land. The detailed engineering roadmap lives in
+  [`docs/roadmap.md`](https://github.com/Open-Tech-Foundation/afw/blob/main/docs/roadmap.md).
+</Callout>
+
+## Framework features
+
+These items need compiler or runtime support, so a third-party package cannot add them.
+
+### Components and rendering
+
+- [ ] **Enter and exit transitions.**
+  - Animate elements as conditionals and lists add or remove them, and animate list reorders.
+  - Others: Vue `<Transition>`, Svelte `transition:` / `animate:`, Framer Motion `AnimatePresence`.
+  - Today: animate a `$ref` with the Web Animations API or Motion; removed nodes leave at once.
+- [ ] **Async pending boundaries.**
+  - Show a fallback while descendant `resource()` calls load, and keep the current UI visible during a refetch.
+  - Others: React and Solid `<Suspense>` and transitions, Svelte `{#await}` and `<svelte:boundary>`.
+  - Today: read each resource's loading state yourself.
+- [ ] **Lazy components.**
+  - Load a component's code only when it first renders, such as a modal, editor or chart.
+  - Others: React `lazy()`, Solid `lazy()`, Vue `defineAsyncComponent`.
+  - Today: pages and layouts are code-split; other components are bundled with the page that imports them.
+- [ ] **Shadow DOM styles.**
+  - Opt-in style isolation per component.
+  - Today: [CSS Modules](/docs/core-concepts/styling) scope class names.
+
+### Routing
+
+- [ ] **Per-route loading and error files.**
+  - Today: one [`<ErrorBoundary>`](/docs/core-concepts/error-boundary) component and a single `404` page.
+- [ ] **Layout loaders.**
+  - Today: loaders run for pages only.
+- [ ] **Route groups and optional segments.**
+- [ ] **Typed routes.**
+  - Check `<Link href>` and `navigate()` paths, and type `params`, against the `app/` folder.
+  - Others: TanStack Router, React Router type generation.
+- [ ] **Validated search params.**
+  - Parse `query` with a schema into typed values, and update one value without building the URL by hand.
+  - Others: TanStack Router `validateSearch`, Nuxt `useRoute().query`.
+  - Today: pages receive `query` as a plain string map.
+- [ ] **Scroll restoration for async pages.**
+  - Save the scroll position per history entry and restore it after the page's data loads.
+  - Today: forward navigation scrolls to the top or the `#anchor`; back and forward rely on the browser, which can restore the position before the content is in place.
+- [ ] **View transitions.**
+  - Wrap client navigations in `document.startViewTransition()`.
+
+### Data and forms
+
+- [ ] **Forms without JavaScript.**
+  - `<form action={addTodo}>` posts to a server action and works before hydration; actions can redirect.
+  - Others: SvelteKit form actions, React Router `<Form>`, Next.js server actions.
+- [ ] **Query caching and single-flight updates.**
+  - Opt-in cache and deduplication for `query()`, and an action response that carries the refreshed data.
+- [ ] **Streaming server rendering.**
+
+### Configuration and tooling
+
+- [ ] **Public environment variables.**
+  - Expose `PUBLIC_*` variables to the browser in both toolchains.
+  - Today: expose browser values explicitly through build configuration.
+- [ ] **Lint rules.**
+  - An ESLint plugin that flags macro misuse (such as `$state` outside a component) in the editor instead of at build time.
+- [ ] **Editor support.**
+  - Complete TSX typings and editor tooling for macros.
+- [ ] **Devtools.**
+  - Inspect components, signals and network activity.
+- [ ] **Image optimization.**
+  - An image component plus a build step for responsive sizes and modern formats.
+
+## Ecosystem bridges
+
+React, Vue and Svelte developers install these from npm. Many libraries publish a
+framework-agnostic core; AFW needs a thin adapter or a tested guide for each.
+
+| Need | What others use | Works in AFW today | Planned |
+| --- | --- | --- | --- |
+| Server-state cache, retries, optimistic updates | TanStack Query, SWR | `@tanstack/query-core` by hand | Signals adapter |
+| Tables and virtual lists | TanStack Table, TanStack Virtual | Their core packages by hand | Signals adapters |
+| Accessible UI primitives: dialog, menu, combobox | Radix, Headless UI, Ark, Bits UI | Web component libraries such as Web Awesome or Material Web; Floating UI for positioning | Tested guide |
+| Persisted state | Zustand `persist`, Pinia plugins | Module-level `signal()` with your own `localStorage` code | Helper for persisted and cross-tab state |
+| Authentication | Auth.js, Better Auth | Fetch-based libraries through [middleware](/docs/routing/middleware) and [cookies](/docs/routing/cookies) | Guide and example |
+| Real-time updates | Socket.IO, server-sent events helpers | Browser `WebSocket` and `EventSource` on the client | Server guide for both toolchains |
+| Animation | Framer Motion, GSAP | Motion or GSAP on a `$ref` | Exit animations (above) |
+| Component workbench | Storybook, Histoire | Not verified | Preset or guide |
+| Offline and installable apps | `vite-plugin-pwa` | Not verified | Guide for both toolchains |
+
+## Already covered
+
+- **First-party packages:** [forms](/packages/afw-form), [i18n](/packages/afw-i18n), [component testing](/packages/afw-test) and the [docs theme](/packages/afw-docs).
+- **Components:** context, portals, error boundaries, CSS Modules and Tailwind.
+- **Server:** middleware, cookies, API routes, and typed server functions with schema validation and same-origin checks on actions.
+- **Content:** page metadata, sitemap, MDX.
+- **Development:** hot reload that keeps component state.

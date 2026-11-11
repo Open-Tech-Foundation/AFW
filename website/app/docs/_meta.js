@@ -11,6 +11,7 @@ export default {
   configuration: "Project Configuration",
   benchmarks: "Benchmarks",
   comparison: "Comparison",
+  roadmap: "Roadmap",
   deployment: "Deployment",
   troubleshooting: "Troubleshooting",
   core: "Runtime API",
