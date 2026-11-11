@@ -17,7 +17,7 @@ export const metadata = {
 
 // Every benchmark caveat lives on /docs/benchmarks; the landing page states the claim in a
 // line and links there, so a figure is never shown without its qualifications a click away.
-const METHOD_LINK = "text-[var(--accent)] font-semibold hover:underline whitespace-nowrap";
+const METHOD_LINK = "text-[var(--accent-text)] font-semibold hover:underline whitespace-nowrap";
 
 // Status marks for the capability lists. Supported items carry no label.
 const STATUS = {
@@ -69,7 +69,7 @@ export default function HomePage() {
               Public alpha
             </div>
             <h1 class="hero-title">
-              The <span class="text-[var(--accent)]">native-first</span> framework for modern web apps.
+              The <span class="text-[var(--accent-text)]">native-first</span> framework for modern web apps.
             </h1>
             <p class="hero-lede">
               JSX compiled to native Web Components, signals instead of a virtual DOM, and typed

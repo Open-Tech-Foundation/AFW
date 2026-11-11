@@ -21,7 +21,7 @@ export default function BlogIndex() {
         These sample posts exist to demonstrate the <code>@opentf/afw-docs</code> blog
         feature — post list, banner, reading time, and TOC. This is not the AFW
         product blog. Setup details are in the{" "}
-        <a href="/packages/afw-docs/blog" className="text-[var(--accent)] underline">
+        <a href="/packages/afw-docs/blog" className="text-[var(--accent-text)] underline">
           afw-docs Blog guide
         </a>
         .

@@ -20,7 +20,7 @@ const CARD =
   "max-w-3xl bg-[var(--bg-main)] border border-[var(--border)] rounded-3xl overflow-hidden shadow-sm my-6";
 const NOTE =
   "max-w-3xl border-l-2 border-[var(--accent)]/40 pl-4 my-6 text-sm text-[var(--text-muted)] leading-relaxed";
-const A = "text-[var(--accent)] underline";
+const A = "text-[var(--accent-text)] underline";
 
 export default function Benchmarks() {
   const resolutionMs = benchmark.resolutionMs.toFixed(1);

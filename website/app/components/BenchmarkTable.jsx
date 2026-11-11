@@ -25,7 +25,7 @@ export default function BenchmarkTable(props) {
   const columns = report.engines.map((engine) => ({
     engine,
     label: label(engine),
-    cls: `${HEAD_CLS} ${isLead(engine) ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`,
+    cls: `${HEAD_CLS} ${isLead(engine) ? "text-[var(--accent-text)]" : "text-[var(--text-muted)]"}`,
   }));
   const rows = report.rows.map((row) => ({
     label: row.label,
@@ -36,7 +36,7 @@ export default function BenchmarkTable(props) {
         `${CELL_CLS} ` +
         (row.best === engine
           ? isLead(engine)
-            ? "font-bold text-[var(--accent)]"
+            ? "font-bold text-[var(--accent-text)]"
             : "font-bold text-[var(--text-main)]"
           : isLead(engine)
             ? "text-[var(--text-main)]"

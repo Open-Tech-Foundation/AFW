@@ -20,7 +20,7 @@ export default function EngineBenchmarkTable(props) {
   const rows = engines.map((engine) => ({
     engine,
     label: label(engine),
-    labelCls: `px-6 py-3 font-medium ${isLead(engine) ? "text-[var(--accent)]" : "text-[var(--text-main)]"}`,
+    labelCls: `px-6 py-3 font-medium ${isLead(engine) ? "text-[var(--accent-text)]" : "text-[var(--text-main)]"}`,
     cells: report.rows.map((row) => ({
       key: row.label,
       text: formatMs(row.values[engine], row.digits),
@@ -28,7 +28,7 @@ export default function EngineBenchmarkTable(props) {
         `${CELL_CLS} ` +
         (row.best === engine
           ? isLead(engine)
-            ? "font-bold text-[var(--accent)]"
+            ? "font-bold text-[var(--accent-text)]"
             : "font-bold text-[var(--text-main)]"
           : isLead(engine)
             ? "text-[var(--text-main)]"

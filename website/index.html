@@ -23,6 +23,11 @@
         } catch (e) {}
       })();
     </script>
+    <!-- Fonts: connect to both hosts early and fetch the font CSS in parallel with the
+         site stylesheet (an @import inside it would chain the two requests). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@400;500&display=swap">
     <link rel="stylesheet" href="./app/global.css">
 </head>
 <body class="bg-white text-slate-900">
