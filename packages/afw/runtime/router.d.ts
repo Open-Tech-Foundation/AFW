@@ -47,6 +47,24 @@ export function registerLoaderRoutes(paths: any): void;
 export function setRouteData(data: any): void;
 /** Layout entries that wrap `route`, outermost (root) first. */
 export function layoutChain(route: any): any[];
+/** The nearest `loading.jsx` / `error.jsx` entry for `route`: its folder, then each parent. */
+export function nearestRouteFile(table: Record<string, unknown>, route: string | null): unknown;
+/** How long a navigation waits before showing `loading.jsx` (milliseconds). */
+export const LOADING_DELAY: number;
+/** Props an `error.jsx` receives. */
+export interface RouteErrorProps {
+  /** What failed. After a server render, `status` is set and the message is generic in production. */
+  error: Error & { status?: number };
+  /** Load the page again: rerun its loader and rebuild it. */
+  retry: () => void;
+  params: Record<string, string | string[]>;
+  query: Record<string, string>;
+}
+/** Props a `loading.jsx` receives. */
+export interface RouteLoadingProps {
+  params: Record<string, string | string[]>;
+  query: Record<string, string>;
+}
 /** Resolve a route entry (module namespace or lazy loader) to its factory. */
 export function resolveFactory(entry: any): Promise<any>;
 /**
@@ -55,10 +73,11 @@ export function resolveFactory(entry: any): Promise<any>;
  * the ordered `nodes` list (page → … → root) so callers can run lifecycle on each.
  * Each factory owns a reactive scope, disposed with its node on navigation.
  */
-export function buildRouteNode(match: any, query?: {}): Promise<{
+export function buildRouteNode(match: any, query?: {}, options?: { error?: unknown; loadingShown?: boolean }): Promise<{
     node: any;
     nodes: any[];
     modules: any[];
+    region: any;
 }>;
 /**
  * Adopt a matched route's server-rendered DOM (docs/HYDRATION.md §3.4, 2.1c) — the hydrate
@@ -70,7 +89,7 @@ export function buildRouteNode(match: any, query?: {}): Promise<{
  * caller then falls back to a clean CSR build. A thrown `HydrationMismatch` propagates up,
  * disposing each layer's partial wiring on the way (each `hydrateAt` has its own guard).
  */
-export function hydrateRouteNode(match: any, query: any, rootEl: any): Promise<{
+export function hydrateRouteNode(match: any, query: any, rootEl: any, options?: { error?: unknown }): Promise<{
     nodes: any[];
 } | null>;
 /** Resolve a route entry (lazy loader or module namespace) to its module. */

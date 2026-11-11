@@ -32,7 +32,7 @@ test("published framework types support strict TS starters and reject invalid JS
       }, include: ["*.tsx"],
     }));
     await write(join(scratch, "pages.tsx"), `
-      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending } from "@opentf/afw";
+      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps } from "@opentf/afw";
       import { registerRoutes, query, action, type StandardSchemaV1 } from "@opentf/afw/server";
       import { fade, fly, slide, type Transition } from "@opentf/afw/transition";
       export function Counter({ initial = 0 }: { initial?: number }) {
@@ -60,6 +60,8 @@ test("published framework types support strict TS starters and reject invalid JS
       const pop: Transition = (el, { direction }) => el.animate([{ opacity: direction === "in" ? 0 : 1 }], 100);
       const animated = <ul><li transition={fade({ duration: 150, initial: true })} /><li in={slide({ axis: "x" })} out={fly({ y: -4 })} /><li transition={pop} /></ul>;
       const feed = resource(async () => [1, 2], { errors: "inline" });
+      const section = <Pending fallback={<p>…</p>} error={(error, retry) => <button onclick={retry}>{String(error)}</button>}><p/></Pending>;
+      const RouteError = ({ error, retry }: RouteErrorProps) => <p onclick={retry}>{error.status ?? 500}: {error.message}</p>;
       const loadingView = <Pending fallback={<p>Loading</p>} refreshing={<i>Updating</i>} refetch="fallback" delay={150}><ul>{feed.data?.length}</ul></Pending>;
       // @ts-expect-error refetch is "keep" or "fallback"
       const badRefetch = <Pending refetch="later"><p/></Pending>;

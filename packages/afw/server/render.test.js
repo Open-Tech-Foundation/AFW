@@ -17,10 +17,42 @@ function page(html) {
 const resetRoutes = () => {
   routes.pages = {};
   routes.layouts = {};
+  routes.loading = {};
+  routes.errors = {};
   routes.notFound = null;
 };
 beforeEach(resetRoutes);
 afterEach(resetRoutes);
+
+describe("error.jsx on the server", () => {
+  test("a failure renders the nearest error.jsx inside the layouts, status 500, with the client marker", async () => {
+    registerRoutes({
+      "/app/layout.jsx": { default: ({ children }) => `<main>${children}</main>` },
+      "/app/error.jsx": { default: ({ error }) => `<p>error ${error.status}: ${error.message}</p>` },
+      "/app/todos/page.jsx": page("<p>todos</p>"),
+    });
+    const result = await renderRoute("/todos", null, "", { error: Object.assign(new Error("db password is hunter2"), { status: 503 }) });
+    expect(result.status).toBe(503);
+    // esdev test runs in development, which shows the real message; production shows a generic one.
+    expect(result.html).toBe("<main><p>error 503: db password is hunter2</p></main>");
+    expect(JSON.parse(result.dataJson).__afwRouteError).toEqual({ status: 503, message: "db password is hunter2" });
+  });
+
+  test("without an error.jsx, the failure is rethrown", async () => {
+    registerRoutes({ "/app/todos/page.jsx": page("<p>todos</p>") });
+    await expect(renderRoute("/todos", null, "", { error: new Error("boom") })).rejects.toThrow("boom");
+  });
+
+  test("loading.jsx and error.jsx are never rendered as pages", async () => {
+    registerRoutes({
+      "/app/loading.jsx": page("<p>loading</p>"),
+      "/app/error.jsx": page("<p>error</p>"),
+      "/app/page.jsx": page("<p>home</p>"),
+    });
+    expect((await collectRoutePaths()).paths.map((p) => p.path)).toEqual(["/"]);
+    expect((await renderRoute("/")).html).toBe("<p>home</p>");
+  });
+});
 
 describe("server render (SSG, string-based)", () => {
   test("a layout reads the page's toc export through router.toc", async () => {

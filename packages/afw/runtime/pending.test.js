@@ -325,6 +325,71 @@ describe("errors", () => {
   });
 });
 
+describe("sections (the dashboard pattern)", () => {
+  test("a page resource read only inside a section holds that section, not the page", async () => {
+    const slow = deferred();
+    const revenue = resource(slow.fetcher); // created by the page, outside any build
+    let section;
+    const page = boundary({ fallback: text("page loading") }, (p) => {
+      p.append(text("header"));
+      section = boundary({ fallback: text("chart loading") }, () => revenue.data, p);
+    });
+    await tick();
+    expect(shown(page)).toEqual(["content"]);
+    expect(shown(section)).toEqual(["fallback"]);
+    slow.last().resolve(42);
+    await tick();
+    expect(shown(section)).toEqual(["content"]);
+  });
+
+  test("`error` shows a failed first load in the section, and retry reloads it", async () => {
+    let attempt = 0;
+    const r = resource(() => (++attempt === 1 ? Promise.reject(new Error("down")) : Promise.resolve("ok")));
+    let retry;
+    const el = boundary({
+      fallback: text("loading"),
+      error: (e, again) => {
+        retry = again;
+        return text(`section failed: ${e.message}`);
+      },
+    }, () => r.data);
+    await tick();
+    expect(shown(el)).toEqual(["error"]);
+    expect(el.querySelector('[slot="error"]').textContent).toBe("section failed: down");
+    retry();
+    expect(el.querySelector('[slot="error"]')).toBe(null);
+    await tick();
+    expect(attempt).toBe(2);
+    expect(r.data).toBe("ok");
+    expect(shown(el)).toEqual(["content"]);
+  });
+
+  test("`error` keeps the failure from reaching an outer ErrorBoundary", async () => {
+    const eb = document.createElement("afw-internal-error-boundary");
+    eb.fallback = () => text("page failed");
+    const r = resource(() => Promise.reject(new Error("down")));
+    boundary({ fallback: text("…"), error: () => text("section failed") }, () => r.data, eb);
+    document.body.appendChild(eb);
+    await tick();
+    expect(eb.textContent).not.toContain("page failed");
+  });
+
+  test("retry after a failed first load shows the fallback again while it reloads", async () => {
+    const d = deferred();
+    const r = resource(d.fetcher);
+    let retry;
+    const el = boundary({ fallback: text("loading"), error: (e, again) => ((retry = again), text("failed")) }, () => r.data);
+    d.last().reject(new Error("down"));
+    await tick();
+    retry();
+    await tick();
+    expect(shown(el)).toEqual(["fallback"]);
+    d.last().resolve(1);
+    await tick();
+    expect(shown(el)).toEqual(["content"]);
+  });
+});
+
 describe("server-rendered boundary", () => {
   test("keeps the server fallback until its children are adopted", async () => {
     const el = document.createElement("afw-internal-pending");

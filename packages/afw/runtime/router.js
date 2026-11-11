@@ -22,7 +22,9 @@ import { prepareRouteHead, updateRouteHead } from "./head.js";
 import { beginHydration, cursor, endHydration, renderedForPath } from "./hydrate.js";
 import { collectHotState, withHotCarry } from "./hot-carry.js";
 import { buildScopedView, runCleanup, runMount } from "./mount.js";
-import { RouteRedirect, fetchRouteData, readInlineRouteData } from "./route-data.js";
+import { RouteRedirect, fetchRouteData, readInlineRouteData, routeErrorFrom } from "./route-data.js";
+import { enterPending, exitPending } from "./pending-scope.js";
+import { setRouteErrorHandler } from "./route-errors.js";
 import { setRouteDataRefresher } from "./invalidate.js";
 import { compareRoutes, compileRoute, decodeParams } from "./route-match.js";
 
@@ -46,7 +48,7 @@ const state = {
   toc: signal([]),
 };
 
-export const routes = { pages: {}, layouts: {}, notFound: null, loaderRoutes: new Set() };
+export const routes = { pages: {}, layouts: {}, loading: {}, errors: {}, notFound: null, loaderRoutes: new Set() };
 let guard = null;
 let rootEl = null;
 
@@ -132,6 +134,17 @@ export function setLocale(locale) {
   state.locale.value = locale;
 }
 let currentNodes = [];
+// The page's part of `currentNodes` — the page node, or the route <Pending> around it —
+// and the matched route pattern: where an error no <ErrorBoundary> caught may be
+// replaced by the route's `error.jsx` (see `showRouteError`).
+let currentRegion = null;
+let currentRoute = null;
+
+/** How long a navigation waits before showing `loading.jsx`: a fast one never flashes it. */
+export const LOADING_DELAY = 150;
+
+const factoryOf = (module) => module?.default ?? module;
+const currentLocation = () => window.location.pathname + window.location.search + window.location.hash;
 
 function routeValue(key) {
   const route = getRenderContext()?.route;
@@ -172,7 +185,7 @@ export const router = {
 function routeFromPath(filePath) {
   const r = filePath
     .replace(/^.*\/app(?=\/)/, "")
-    .replace(/\/(page|layout|404)\.(jsx|tsx|mdx|md)$/, "");
+    .replace(/\/(page|layout|404|loading|error)\.(jsx|tsx|mdx|md)$/, "");
   return r === "" ? "/" : r;
 }
 
@@ -180,7 +193,9 @@ function routeFromPath(filePath) {
  * Register routes from a `{ path: entry }` map. Each `entry` is either a module
  * namespace (eager) or a `() => import(...)` loader (lazy, code-split) — both
  * resolve to a default-export factory at navigation time. `layout.jsx` files
- * register as layouts (wrapping nested pages), `404.jsx` as the fallback.
+ * register as layouts (wrapping nested pages), `404.jsx` as the fallback, and
+ * `loading.jsx` / `error.jsx` as the loading and error views of the pages beneath
+ * their folder.
  */
 export function registerRoutes(modules) {
   // Validate before changing the table: an unsupported fallback otherwise
@@ -189,11 +204,17 @@ export function registerRoutes(modules) {
     if (/\/404\.(mdx|md)$/.test(file)) {
       throw new Error(`Unsupported Markdown 404 route: ${file}. Use 404.jsx or 404.tsx instead.`);
     }
+    const special = /\/(loading|error)\.(mdx|md)$/.exec(file);
+    if (special) {
+      throw new Error(`Unsupported Markdown ${special[1]} file: ${file}. Use ${special[1]}.jsx or ${special[1]}.tsx instead.`);
+    }
   }
   for (const file in modules) {
     const entry = modules[file];
     if (/\/404\.(jsx|tsx)$/.test(file)) routes.notFound = entry;
     else if (/\/layout\.(jsx|tsx)$/.test(file)) routes.layouts[routeFromPath(file)] = entry;
+    else if (/\/loading\.(jsx|tsx)$/.test(file)) routes.loading[routeFromPath(file)] = entry;
+    else if (/\/error\.(jsx|tsx)$/.test(file)) routes.errors[routeFromPath(file)] = entry;
     else routes.pages[routeFromPath(file)] = entry;
   }
 }
@@ -230,6 +251,20 @@ export function layoutChain(route) {
   return chain;
 }
 
+/**
+ * The nearest `loading.jsx` / `error.jsx` entry for `route` (`table` is
+ * `routes.loading` or `routes.errors`): the route's own folder first, then each
+ * parent up to the app root. The 404 fallback (`route` null) uses the root's.
+ */
+export function nearestRouteFile(table, route) {
+  let p = route || "/";
+  while (true) {
+    if (table[p]) return table[p];
+    if (p === "/") return null;
+    p = p.slice(0, p.lastIndexOf("/")) || "/";
+  }
+}
+
 /** Resolve a route entry (module namespace or lazy loader) to its factory. */
 export async function resolveFactory(entry) {
   const mod = await resolveModule(entry);
@@ -264,20 +299,61 @@ async function resolveAll(entries, resolve) {
  * the ordered `nodes` list (page → … → root) so callers can run lifecycle on each.
  * Each factory owns a reactive scope, disposed with its node on navigation.
  */
-export async function buildRouteNode(match, query = {}) {
+export async function buildRouteNode(match, query = {}, { error = null, loadingShown = false } = {}) {
   const props = { params: match.params, query };
   const chain = layoutChain(match.route);
-  const [pageModule, ...layoutModules] = await resolveAll(
-    [match.entry, ...chain],
+  // The nearest `loading.jsx` wraps the page in a <Pending>; the nearest `error.jsx`
+  // replaces it when the loader failed (`error`) or the page throws while building.
+  const loadingEntry = error ? null : nearestRouteFile(routes.loading, match.route);
+  const errorEntry = nearestRouteFile(routes.errors, match.route);
+  const [pageModule, ...rest] = await resolveAll(
+    [match.entry, ...chain, loadingEntry, errorEntry],
     resolveModule,
   );
+  const layoutModules = rest.slice(0, chain.length);
+  const [loadingModule, errorModule] = rest.slice(chain.length);
   const namespace = module => typeof module === "function" ? { default: module } : module;
   const modules = [...layoutModules, pageModule].map(namespace);
   const pageFactory = pageModule?.default ?? pageModule;
   const layoutFactories = layoutModules.map(module => module?.default ?? module);
   setRouteToc(pageModule);
-  let node = buildScopedView(() => pageFactory(props));
-  const nodes = [node];
+  const errorView = (e) => {
+    const view = factoryOf(errorModule);
+    return buildScopedView(() => view({ ...props, error: e, retry: () => navigate(currentLocation(), true) }));
+  };
+  let node;
+  const nodes = [];
+  if (error) {
+    if (!errorModule) throw error;
+    node = errorView(error);
+    nodes.push(node);
+  } else {
+    const loading = factoryOf(loadingModule);
+    let pending = loading ? routePending(loading, props, loadingShown) : null;
+    let page;
+    try {
+      if (pending) enterPending(pending);
+      try {
+        page = buildScopedView(() => pageFactory(props));
+      } finally {
+        if (pending) exitPending();
+      }
+    } catch (e) {
+      if (!errorModule) throw e;
+      reportError(e, { phase: "render" });
+      if (pending) runCleanup(pending);
+      pending = null;
+      page = errorView(e);
+    }
+    nodes.push(page);
+    node = page;
+    if (pending) {
+      pending.append(page);
+      nodes.push(pending);
+      node = pending;
+    }
+  }
+  const region = node;
   try {
     for (let i = chain.length - 1; i >= 0; i--) {
       node = buildScopedView(() => layoutFactories[i]({ ...props, children: node }));
@@ -287,7 +363,99 @@ export async function buildRouteNode(match, query = {}) {
     for (const n of nodes) runCleanup(n);
     throw error;
   }
-  return { node, nodes, modules };
+  return { node, nodes, modules, region };
+}
+
+/**
+ * The route-level <Pending> a page with a `loading.jsx` is built inside: the loading
+ * view is its fallback, held back by {@link LOADING_DELAY} unless the navigation is
+ * already showing it (`immediate`).
+ */
+function routePending(loading, props, immediate) {
+  const pending = document.createElement("afw-internal-pending");
+  const view = buildScopedView(() => loading(props));
+  pending.fallback = view;
+  pending.delay = immediate ? 0 : LOADING_DELAY;
+  pending.__lifecycle = { mounts: [() => runMount(view)], cleanups: [() => runCleanup(view)] };
+  return pending;
+}
+
+/**
+ * Show the route's `loading.jsx` inside its layouts if the navigation is still waiting
+ * (on loader data or route chunks) after {@link LOADING_DELAY}. Returns
+ * `{ cancel, shown }`; the navigation's own commit replaces the loading view.
+ */
+function scheduleRouteLoading(match, query, seq, entry) {
+  const status = { shown: false, cancelled: false, timer: null };
+  status.timer = setTimeout(async () => {
+    try {
+      const chain = layoutChain(match.route);
+      const [loadingModule, ...layoutModules] = await resolveAll([entry, ...chain], resolveModule);
+      if (status.cancelled || seq !== navSeq) return;
+      const props = { params: match.params, query };
+      let node = buildScopedView(() => factoryOf(loadingModule)(props));
+      const nodes = [node];
+      for (let i = chain.length - 1; i >= 0; i--) {
+        const inner = node;
+        node = buildScopedView(() => factoryOf(layoutModules[i])({ ...props, children: inner }));
+        nodes.push(node);
+      }
+      for (const n of currentNodes) runCleanup(n);
+      currentRegion = null;
+      rootEl.replaceChildren(node);
+      for (const n of nodes) runMount(n);
+      currentNodes = nodes;
+      status.shown = true;
+    } catch (e) {
+      reportError(e, { phase: "route" });
+    }
+  }, LOADING_DELAY);
+  return {
+    cancel() {
+      status.cancelled = true;
+      clearTimeout(status.timer);
+    },
+    get shown() {
+      return status.shown;
+    },
+  };
+}
+
+/**
+ * An error no <ErrorBoundary> caught (a component throwing, a resource's first load
+ * failing). Inside the current page, replace the page with its nearest `error.jsx`,
+ * inside the same layouts; retry navigates to the page again. First error wins.
+ */
+function showRouteError(el, error) {
+  const region = currentRegion;
+  if (!region || !el) return;
+  const inPage = viewNodes(region).some((n) => n === el || (n.contains && n.contains(el)));
+  if (!inPage) return;
+  const entry = nearestRouteFile(routes.errors, currentRoute);
+  if (!entry) return;
+  currentRegion = null; // first error wins; the error view itself is not re-handled
+  const seq = navSeq;
+  // Deferred: never swap the tree in the middle of the connectedCallback that threw.
+  queueMicrotask(async () => {
+    try {
+      const module = await resolveModule(entry);
+      if (seq !== navSeq) return;
+      const index = currentNodes.indexOf(region);
+      const old = viewNodes(region);
+      const parent = old[0]?.parentNode;
+      if (index < 0 || !parent) return;
+      const props = { params: state.params.value, query: Object.fromEntries(state.searchParams.value) };
+      const view = buildScopedView(() =>
+        factoryOf(module)({ ...props, error, retry: () => navigate(currentLocation(), true) }));
+      parent.insertBefore(view, old[0]);
+      for (const n of old) n.remove();
+      for (let i = 0; i <= index; i++) runCleanup(currentNodes[i]);
+      currentNodes = [view, ...currentNodes.slice(index + 1)];
+      runMount(view);
+    } catch (e) {
+      reportError(e, { phase: "fallback" });
+    }
+  });
 }
 
 /**
@@ -300,14 +468,19 @@ export async function buildRouteNode(match, query = {}) {
  * caller then falls back to a clean CSR build. A thrown `HydrationMismatch` propagates up,
  * disposing each layer's partial wiring on the way (each `hydrateAt` has its own guard).
  */
-export async function hydrateRouteNode(match, query, rootEl) {
-  const props = { params: match.params, query };
+export async function hydrateRouteNode(match, query, rootEl, { error = null } = {}) {
+  // A page the server rendered with its `error.jsx` (a failed loader) adopts that view.
+  const errorEntry = error ? nearestRouteFile(routes.errors, match.route) : null;
+  if (error && !errorEntry) return null;
+  const props = error
+    ? { params: match.params, query, error, retry: () => navigate(currentLocation(), true) }
+    : { params: match.params, query };
   const chain = layoutChain(match.route);
   // Page + layout chunks download concurrently (see `resolveAll`). Adoptability is
   // checked after they all land rather than short-circuiting on the page: bailing
   // early would only skip imports the CSR fallback below is about to need anyway.
-  const [pageMod, ...layoutMods] = await resolveAll([match.entry, ...chain], resolveModule);
-  setRouteToc(pageMod);
+  const [pageMod, ...layoutMods] = await resolveAll([errorEntry ?? match.entry, ...chain], resolveModule);
+  if (!error) setRouteToc(pageMod);
   if (!pageMod || typeof pageMod.hydrateAt !== "function") return null;
   // The whole chain must be adoptable — one non-adoptable layout means a clean CSR build.
   if (layoutMods.some((m) => !m || typeof m.hydrateAt !== "function")) return null;
@@ -626,17 +799,31 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
   // DOM swap, mirroring the guard's "settle before commit" flow. First paint over
   // server HTML reads the inlined payload; every other navigation (SPA nav, dev/CSR
   // first load, popstate) fetches the `<path>/__data.json` endpoint. A failed fetch
-  // is reported and the navigation commits with `data === undefined`.
+  // is reported; with an `error.jsx` the page shows it, otherwise the navigation
+  // commits with `data === undefined`.
+  //
+  // A route with a `loading.jsx` shows it inside its layouts when the navigation is
+  // still waiting (data, route chunks) after LOADING_DELAY.
+  const loadingEntry = !hydrate && match?.route ? nearestRouteFile(routes.loading, match.route) : null;
+  const loading = loadingEntry && isBrowser
+    ? scheduleRouteLoading(match, Object.fromEntries(url.searchParams), seq, loadingEntry)
+    : null;
+  try {
   let data;
+  let dataError = null;
   if (match && match.route && routes.loaderRoutes.has(match.route)) {
     if (hydrate) {
       data = readInlineRouteData();
+      // The server rendered this page's `error.jsx` (its loader failed).
+      dataError = routeErrorFrom(data);
+      if (dataError) data = undefined;
     } else {
       try {
         const warmed = takePrefetched(url.pathname + url.search);
         data = warmed ? await warmed.catch(() => fetchRouteData(url.pathname, url.search)) : await fetchRouteData(url.pathname, url.search);
       } catch (e) {
         reportError(e, { phase: "data", path: url.pathname });
+        if (nearestRouteFile(routes.errors, match.route)) dataError = e;
       }
       if (seq !== navSeq) return; // a newer navigation superseded this one
       if (data instanceof RouteRedirect) return followRedirect(data);
@@ -671,9 +858,11 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
     beginHydration();
     try {
       const query = Object.fromEntries(url.searchParams);
-      const adopted = await hydrateRouteNode(match, query, rootEl);
+      const adopted = await hydrateRouteNode(match, query, rootEl, { error: dataError });
       if (adopted) {
         currentNodes = adopted.nodes;
+        currentRegion = dataError ? null : adopted.nodes[0];
+        currentRoute = match.route;
         for (const n of adopted.nodes) runMount(n); // onMount for page + every layout
         clearError({ phase: "route" });
         clearChunkReloadFlag();
@@ -690,17 +879,22 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
   // Resolve (and lazily load) the page + its layout chain before tearing down the
   // current view, so a slow/failed import doesn't leave a blank page.
   let nodes = null;
+  let region = null;
   let metadata = {};
   if (match) {
     let built;
     try {
-      built = await buildRouteNode(match, Object.fromEntries(url.searchParams));
+      built = await buildRouteNode(match, Object.fromEntries(url.searchParams), {
+        error: dataError,
+        loadingShown: loading?.shown ?? false,
+      });
       metadata = await resolveMetadataModules(built.modules, { params: match.params, query: Object.fromEntries(url.searchParams) });
       if (seq !== navSeq) {
         for (const node of built.nodes) runCleanup(node);
         return;
       }
       nodes = built.nodes;
+      region = built.region;
     } catch (e) {
       if (built) for (const node of built.nodes) runCleanup(node);
       if (seq !== navSeq) return;
@@ -721,7 +915,11 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
   rootEl.replaceChildren();
   updateRouteHead(metadata, url.pathname);
 
+  loading?.cancel();
   if (nodes) {
+    // Set before inserting: a component that throws as it connects reports into it.
+    currentRegion = region;
+    currentRoute = match.route;
     rootEl.appendChild(nodes[nodes.length - 1]); // outermost node
     for (const n of nodes) runMount(n); // run onMount for page + every layout
     currentNodes = nodes;
@@ -738,6 +936,10 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
   } else {
     rootEl.innerHTML = "<h1>404 — Not Found</h1>";
     currentNodes = [];
+    currentRegion = null;
+  }
+  } finally {
+    loading?.cancel();
   }
 }
 
@@ -855,6 +1057,7 @@ export function mountApp({ pages, target, guard: g, i18n, nav, loaders } = {}) {
   if (loaders) registerLoaderRoutes(loaders);
   guard = g || null;
   setRouteDataRefresher(refreshRouteData);
+  setRouteErrorHandler(showRouteError);
   prefetched.clear(); // a fresh app starts with nothing warmed
   // In MPA mode the browser owns navigation (full loads push real history entries),
   // so there is no client-side history to react to — only wire popstate for SPA.

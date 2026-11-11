@@ -15,6 +15,7 @@
 // effect/event errors still go to global reporting (as with React boundaries).
 
 import { reportError } from "../core/errors.js";
+import { routeErrorHandler } from "./route-errors.js";
 
 /**
  * Report a caught render/mount error and route it to the nearest enclosing
@@ -32,6 +33,8 @@ export function handleError(el, error, context = {}) {
     const portal = node.closest ? node.closest("[data-afw-portal]") : null;
     node = portal ? portal.__portalHost : null;
   }
+  // No boundary: the router's `error.jsx` is the boundary of last resort.
+  routeErrorHandler()?.(el, error, context);
 }
 
 // A self-contained fallback (inline-styled so it reads fine without any app CSS).

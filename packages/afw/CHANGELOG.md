@@ -34,6 +34,34 @@
   `<Pending>`.
 - `<ErrorBoundary>` retry also runs retry callbacks passed with a caught error, so a
   resource created outside the boundary is refetched.
+- `loading.jsx` and `error.jsx` route files. The nearest of each, from the page's
+  folder up, applies to the page inside its layouts.
+  - `loading.jsx` shows when a navigation waits more than 150 ms (`LOADING_DELAY`) for
+    loader data or route code, and is the `<Pending>` fallback for the resources the
+    page reads.
+  - `error.jsx` gets `{ error, retry, params, query }`. It replaces the page when the
+    loader fails, the page throws while it builds, or an error inside the page reaches
+    no `<ErrorBoundary>` (including a resource's failed first load). `retry` navigates
+    to the page again.
+  - A page the server rendered with its `error.jsx` (a failed loader) hydrates that
+    view; the inline data carries `{ "__afwRouteError": { status, message } }`.
+  - On the server, `renderRoute(path, params, search, { error })` renders the nearest
+    `error.jsx` in place of the page with the error's status (500 by default) and a
+    generic message in production.
+  - `RouteErrorProps` and `RouteLoadingProps` types.
+- `<Pending error={(error, retry) => view}>` shows a failed first load in the
+  boundary itself; `retry` refetches what failed and shows the fallback while it
+  reloads.
+
+### Changed
+
+- A resource created outside a component (in a page or module) registers with a
+  `<Pending>` only where it is read while that boundary's children build, so a page
+  resource read only inside a section holds that section, not the page.
+- A resource counts as loaded for `<Pending>` only after it succeeds, so retrying a
+  failed first load shows the fallback again.
+- A `<Pending>` that is not yet in the document holds a resource failure until it
+  connects, so the failure reaches the boundary above it.
 
 ### Fixed
 

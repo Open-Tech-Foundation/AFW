@@ -8,7 +8,8 @@
 // Resources register with their nearest boundary (pending-scope.js). The boundary
 // shows `fallback` until each has settled once, then its children. A later refetch
 // keeps the children and shows `refreshing` beside them (or the fallback again with
-// `refetch="fallback"`). A first-load failure goes to the nearest <ErrorBoundary>.
+// `refetch="fallback"`). A first-load failure shows `error(error, retry)` when given,
+// and otherwise goes to the nearest <ErrorBoundary> (or the route's error.jsx).
 //
 // The children are built and connected the whole time, so their fetches start at
 // once; a shadow root decides what is displayed — a `<slot>` for the children, or a
@@ -30,6 +31,10 @@ function slotNamed(name) {
 
 export class PendingElement extends HTMLElement {
   #tracked = signal([]);
+  /** A first-load failure this boundary shows itself (`error` prop): `{ error, retries }`. */
+  #failure = signal(null);
+  #error = null;
+  #held = null;
   #fallback = null;
   #refreshing = null;
   #refetchMode = "keep";
@@ -38,7 +43,7 @@ export class PendingElement extends HTMLElement {
   #slots = null;
   #dispose = null;
   #timer = null;
-  /** What the shadow root displays: null (nothing), "fallback", "refreshing" or "content". */
+  /** What the shadow root displays: null (nothing), "fallback", "refreshing", "error" or "content". */
   #shown = null;
   /** Has the content been displayed once (later waits are refetches)? */
   #revealed = false;
@@ -59,6 +64,13 @@ export class PendingElement extends HTMLElement {
   }
   get refreshing() {
     return this.#refreshing;
+  }
+  /** `(error, retry) => view`: show a failed first load here instead of passing it up. */
+  set error(fn) {
+    this.#error = typeof fn === "function" ? fn : null;
+  }
+  get error() {
+    return this.#error;
   }
   /** `"keep"` (default): content stays during a refetch. `"fallback"`: show the fallback again. */
   set refetch(value) {
@@ -87,9 +99,44 @@ export class PendingElement extends HTMLElement {
     this.#built = true;
     this.#start();
   }
-  /** A tracked resource failed its first load: hand it to the nearest <ErrorBoundary>. */
+  /**
+   * A tracked resource failed its first load. With an `error` prop, show it here (one
+   * view for every failure until retry); otherwise hand it to the nearest boundary.
+   */
   __fail(error, handle) {
-    handleError(this, error, { phase: "resource", retry: () => handle.refetch() });
+    // Built but not yet in the document (a page still being assembled): no boundary
+    // above can be found yet, so hold the failure until it connects.
+    if (!this.isConnected) {
+      (this.#held ??= []).push([error, handle]);
+      return;
+    }
+    if (!this.#error) {
+      handleError(this, error, { phase: "resource", retry: () => handle.refetch() });
+      return;
+    }
+    const current = this.#failure.value;
+    if (current) {
+      current.retries.add(handle);
+      return;
+    }
+    const retries = new Set([handle]);
+    this.#failure.value = { error, retries };
+    let view = null;
+    try {
+      view = this.#error(error, () => this.#retry());
+    } catch (e) {
+      handleError(this, e, { phase: "fallback" });
+    }
+    this.#place("error", view);
+  }
+
+  /** Clear the error view and refetch what failed; the fallback shows while it reloads. */
+  #retry() {
+    const failure = this.#failure.value;
+    if (!failure) return;
+    this.#failure.value = null;
+    this.#place("error", null);
+    for (const handle of failure.retries) handle.refetch();
   }
 
   connectedCallback() {
@@ -104,9 +151,12 @@ export class PendingElement extends HTMLElement {
       this.#root = server ?? this.attachShadow({ mode: "open" });
       const style = document.createElement("style");
       style.textContent = ":host{display:contents}";
-      this.#slots = { style, fallback: slotNamed("fallback"), refreshing: slotNamed("refreshing"), content: slotNamed("") };
+      this.#slots = { style, fallback: slotNamed("fallback"), refreshing: slotNamed("refreshing"), error: slotNamed("error"), content: slotNamed("") };
       this.#render(this.#shown);
     }
+    const held = this.#held;
+    this.#held = null;
+    if (held) for (const [error, handle] of held) this.__fail(error, handle);
     this.#start();
   }
 
@@ -119,6 +169,10 @@ export class PendingElement extends HTMLElement {
     queueMicrotask(() => {
       if (!this.isConnected || this.#dispose) return;
       this.#dispose = effect(() => {
+        if (this.#failure.value) {
+          untracked(() => this.#update("error"));
+          return;
+        }
         let waiting = false;
         let busy = false;
         for (const handle of this.#tracked.value) {
@@ -144,7 +198,7 @@ export class PendingElement extends HTMLElement {
   #update(target) {
     clearTimeout(this.#timer);
     this.#timer = null;
-    if (target === "content" || target === this.#shown || this.#delay === 0 || this.#shown === "fallback") {
+    if (target === "content" || target === "error" || target === this.#shown || this.#delay === 0 || this.#shown === "fallback") {
       this.#show(target);
       return;
     }
@@ -167,8 +221,9 @@ export class PendingElement extends HTMLElement {
   }
 
   #render(state) {
-    const { style, fallback, refreshing, content } = this.#slots;
-    if (state === "fallback") this.#root.replaceChildren(style, fallback);
+    const { style, fallback, refreshing, error, content } = this.#slots;
+    if (state === "error") this.#root.replaceChildren(style, error);
+    else if (state === "fallback") this.#root.replaceChildren(style, fallback);
     else if (state === "refreshing") this.#root.replaceChildren(style, refreshing, content);
     else if (state === "content") this.#root.replaceChildren(style, content);
     else this.#root.replaceChildren(style);

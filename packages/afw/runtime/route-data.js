@@ -66,6 +66,24 @@ export async function fetchRouteData(pathname, search = "") {
 let _read = false;
 let _value;
 
+const ROUTE_ERROR = "__afwRouteError";
+
+/**
+ * The inline-data payload marking a page the server rendered with its `error.jsx`
+ * (a failed loader): `{ "__afwRouteError": { status, message } }`, script-safe.
+ */
+export function routeErrorPayload(error) {
+  const marker = { [ROUTE_ERROR]: { status: error.status ?? 500, message: String(error.message ?? "") } };
+  return JSON.stringify(marker).replace(/</g, "\\u003c");
+}
+
+/** The error a {@link routeErrorPayload} carries, as an `Error` with `status`, or null. */
+export function routeErrorFrom(data) {
+  const marker = data && typeof data === "object" ? data[ROUTE_ERROR] : null;
+  if (!marker) return null;
+  return Object.assign(new Error(marker.message), { status: marker.status });
+}
+
 /** The loader data inlined by the server for the current document, or `undefined`. */
 export function readInlineRouteData() {
   if (!_read) {

@@ -7,9 +7,12 @@
 // client router; here we resolve a route's page + layout chain to string
 // renderers and concatenate them, passing `children` as an HTML string.
 
+import { DEV } from "../core/dev.js";
+import { routeErrorPayload } from "../runtime/route-data.js";
 import {
   layoutChain,
   matchRoute,
+  nearestRouteFile,
   resolveModule,
   routes,
   setRouteState,
@@ -30,23 +33,45 @@ import { withRenderContext } from "./render-context.js";
  * prerender own the loader bundle) and is exposed to the page as `router.data`.
  * Returns `null` if there's no match and no 404 page.
  */
-export async function renderRoute(pathname, params = null, search = "", { data } = {}) {
+export async function renderRoute(pathname, params = null, search = "", { data, error } = {}) {
   return withRenderContext({ route: {}, hydration: null }, () =>
-    renderInContext(pathname, params, search, data));
+    renderInContext(pathname, params, search, data, error));
 }
 
-async function renderInContext(pathname, params, search, data) {
+/**
+ * The error a page's `error.jsx` receives after a server-side failure. Production
+ * shows a generic message, so a loader's internals (a query, a hostname) never reach
+ * the page; development shows the real one.
+ */
+function publicError(error) {
+  const status = Number.isInteger(error?.status) && error.status >= 400 ? error.status : 500;
+  const message = DEV && error?.message ? String(error.message) : "Something went wrong";
+  return Object.assign(new Error(message), { status });
+}
+
+async function renderInContext(pathname, params, search, data, failure) {
   const real = matchRoute(pathname);
-  const match =
+  let match =
     real || (routes.notFound ? { entry: routes.notFound, params: {}, route: null } : null);
   if (!match) return null;
   if (params) match.params = params;
+  // A failed loader renders the route's nearest `error.jsx` in place of the page,
+  // inside the same layouts, with status 500. No error file: the caller's error stands.
+  let error = null;
+  if (failure !== undefined) {
+    const entry = nearestRouteFile(routes.errors, match.route);
+    if (!entry) throw failure;
+    error = publicError(failure);
+    match = { ...match, entry };
+  }
 
   // Let a page reading `router.params`/`pathname`/`query`/`data` resolve to this route.
   setRouteState({ pathname, search, params: match.params, data });
 
   const query = Object.fromEntries(new URLSearchParams(search));
-  const props = { params: match.params, query };
+  const props = error
+    ? { params: match.params, query, error, retry: () => {} }
+    : { params: match.params, query };
 
   // Import modules before collecting: module-level JSX must keep its inline
   // props rather than capture hydration ids belonging to just the first request.
@@ -86,6 +111,11 @@ async function renderInContext(pathname, params, search, data) {
   });
   // `route` is the matched *pattern* ("/docs/[slug]", null for the 404 fallback) — the
   // toolchain keys its per-route chunk manifest by it to emit `<link rel="modulepreload">`.
+  if (error) {
+    // The client reads this marker from the inline data and shows the same error view.
+    const dataJson = routeErrorPayload(error);
+    return { html, metadata, status: error.status, hydration, route: match.route, dataJson, error };
+  }
   return { html, metadata, status: real ? 200 : 404, hydration, route: match.route };
 }
 

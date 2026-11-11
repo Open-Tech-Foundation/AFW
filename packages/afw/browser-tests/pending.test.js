@@ -60,3 +60,27 @@ test('a failed first load shows the ErrorBoundary, and retry loads it again', as
   expect(visible(getByTestId('bio'))).toBe(true);
   unmount();
 });
+
+import SectionsDemo from './fixtures/SectionsDemo.jsx';
+
+test('a section with `error` shows its own failure while the other section loads normally', async () => {
+  const { getByTestId, queryByTestId, unmount } = render(SectionsDemo);
+  await tick();
+  window.__revenue.reject('revenue down');
+  window.__orders.resolve('12 orders');
+  await tick();
+  expect(visible(getByTestId('revenue-retry'))).toBe(true);
+  expect(getByTestId('revenue-retry').textContent).toBe('revenue down');
+  expect(visible(getByTestId('orders'))).toBe(true);
+  expect(getByTestId('orders').textContent).toBe('12 orders');
+
+  getByTestId('revenue-retry').click();
+  await tick();
+  expect(queryByTestId('revenue-retry')).toBe(null);
+  expect(visible(getByTestId('revenue-skeleton'))).toBe(true);
+  window.__revenue.resolve('$1,000');
+  await tick();
+  expect(visible(getByTestId('revenue'))).toBe(true);
+  expect(getByTestId('revenue').textContent).toBe('$1,000');
+  unmount();
+});

@@ -67,8 +67,9 @@ export function resource(source, fetcher, options = {}) {
   const data = signal(options.initial);
   const error = signal(undefined);
   const loading = signal(true); // a fetch is intended; the server leaves it true
-  // Has a run finished (resolved or failed) at least once? A `<Pending>` shows its
-  // fallback only while a resource it waits on has never settled.
+  // Has a run succeeded at least once? A `<Pending>` shows its fallback while a
+  // resource it waits on is loading and has never loaded, so retrying a failed first
+  // load shows the fallback again.
   const settled = signal(false);
   let token = 0;
   let controller = null;
@@ -110,7 +111,6 @@ export function resource(source, fetcher, options = {}) {
           batch(() => {
             error.value = e;
             loading.value = false;
-            settled.value = true;
           });
           failed(e, first);
         },
@@ -142,8 +142,11 @@ export function resource(source, fetcher, options = {}) {
   }
 
   if (!isServer()) {
+    // In a component, the boundary around its host. A page or module resource
+    // registers where it is read instead (`reading`), so a page resource read only
+    // inside a section's <Pending> holds that section, not the page.
     const host = getCurrentInstance();
-    track(host ? closestPending(host) : buildingPending());
+    if (host) track(closestPending(host));
     // Runs its cleanup only when the owning scope is disposed (no tracked reads).
     const disposeTracking = effect(() => () => {
       disposed = true;
