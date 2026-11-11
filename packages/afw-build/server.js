@@ -116,12 +116,14 @@ export function serverConflicts(host, dir, files) {
  * exports `render` (the render API static generation needs) and
  * `createPageRenderer({ shell, baseUrl })`, a `renderPage` step built on
  * `renderDocument`. `drafts: false` leaves unpublished Markdown pages out.
+ * `hydrate: false` serves rendered pages without the `data-afw-hydrate` marker, for a
+ * dev loop whose browser build cannot adopt server DOM.
  *
  * @param {{ exclude?: string[], i18n?: { locales: string[], defaultLocale?: string } | null,
- *           pages?: boolean, drafts?: boolean }} [options]
+ *           pages?: boolean, drafts?: boolean, hydrate?: boolean }} [options]
  * @returns {Promise<{ code: string, files: string[] }>}
  */
-export async function serverModule(host, root, { exclude = [], i18n = null, pages = false, drafts = true, listExports } = {}) {
+export async function serverModule(host, root, { exclude = [], i18n = null, pages = false, drafts = true, hydrate = true, listExports } = {}) {
   const files = await discoverServerFiles(host, root, { exclude });
   const problems = serverConflicts(host, root, files);
   if (problems.length) throw new Error(`AFW server routes:\n  ${problems.join("\n  ")}`);
@@ -148,7 +150,9 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
       `export const render = { renderRoute, renderHead, collectRoutePaths, resolveMetadata };\n` +
       `/** A \`renderPage\` step: server-render page requests (\`GET\`/\`HEAD\`) into \`shell\`, the client's index.html. */\n` +
       `export function createPageRenderer({ shell: html, baseUrl = "" }) {\n` +
-      `  const shell = stampHydrateSentinel(html);\n` +
+      // Without `hydrate` (a dev loop whose client is a CSR build) the page is still
+      // server-rendered, but not marked for adoption: the client builds it fresh.
+      `  const shell = ${hydrate ? "stampHydrateSentinel(html)" : "html"};\n` +
       `  return async (request, { locals = {} } = {}) => {\n` +
       `    const method = request.method.toUpperCase();\n` +
       `    if (method !== "GET" && method !== "HEAD") return null;\n` +

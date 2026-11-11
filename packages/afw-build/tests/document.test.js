@@ -1,6 +1,7 @@
 import { describe, expect, test } from "runtime:test";
 
 import { alternateLinks, localizePath, renderDocument, renderNotFound, splitLocale, stampHydrateSentinel } from "../index.js";
+import { injectHead } from "../document.js";
 
 const SHELL = `<!doctype html><html><head><title>Shell</title></head><body><div id="app"></div></body></html>`;
 
@@ -101,6 +102,18 @@ describe("renderDocument", () => {
     expect(await renderDocument(fakeRender({ notFoundPage: false }), { shell: SHELL, url: "/missing" })).toBe(null);
     expect(await renderNotFound(fakeRender({ notFoundPage: false }), { shell: SHELL })).toBe(null);
   });
+});
+
+test("a page title replaces the shell's, which is kept for the client as afw-shell-title", () => {
+  const shell = '<html><head><title>My "App"</title></head><body></body></html>';
+  const titled = injectHead(shell, '<title data-afw-head="">Todos</title>');
+  expect(titled).not.toContain("<title>My");
+  expect(titled).toContain('<meta name="afw-shell-title" content="My &quot;App&quot;">');
+  expect(titled).toContain('<title data-afw-head="">Todos</title>');
+  // A page without a title keeps the shell's title itself, and needs no copy.
+  const untitled = injectHead(shell, '<link data-afw-head="" rel="canonical" href="/">');
+  expect(untitled).toContain('<title>My "App"</title>');
+  expect(untitled).not.toContain("afw-shell-title");
 });
 
 test("locale path helpers", () => {

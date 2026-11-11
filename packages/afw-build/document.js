@@ -84,7 +84,12 @@ export function stampRenderedPath(shellHtml, path) {
 export function injectHead(shellHtml, headHtml) {
   if (!headHtml) return shellHtml;
   let out = stripRouteHead(shellHtml);
-  if (/<title[\s>]/i.test(headHtml)) out = out.replace(/<title>[\s\S]*?<\/title>\s*/i, "");
+  if (/<title[\s>]/i.test(headHtml)) {
+    // The page's title replaces the shell's. Keep the shell's as the client's fallback
+    // for a later page without a title (runtime/head.js `prepareRouteHead`).
+    out = out.replace(/<title>([\s\S]*?)<\/title>\s*/i, (_, text) =>
+      text.trim() ? `<meta name="afw-shell-title" content="${text.trim().replace(/"/g, "&quot;")}">\n` : "");
+  }
   // Function replacer so `$` in `headHtml` (e.g. a price in a meta description) is literal.
   return out.replace(/<\/head>/i, () => `${headHtml}\n</head>`);
 }

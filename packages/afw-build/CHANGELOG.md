@@ -12,6 +12,14 @@
   default, `"throw"`, keeps static generation reporting the path as failed.
 - The generated server's `createPageRenderer` uses `errors: "render"`, so a request
   server sends a failed loader's page as its `error.jsx`.
+- `serverModule({ hydrate: false })` renders pages without the `data-afw-hydrate`
+  marker, for a dev loop whose browser build cannot adopt server DOM.
+
+### Fixed
+
+- When a page's own `<title>` replaces the shell's, the shell's title is kept as
+  `<meta name="afw-shell-title">`, so the client can fall back to it on a later page
+  without a title.
 
 ## [0.3.0] - 2026-11-05
 
