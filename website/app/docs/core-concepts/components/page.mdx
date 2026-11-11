@@ -92,14 +92,31 @@ list-scroll, and media-control patterns.
 
 ## Native interop
 
-Because each component is a real `HTMLElement`, it works in plain HTML once your bundle
-has loaded and registered it. The **registry tag** includes a module hash — it is not the
-bare `web-<name>` you might guess from the component identifier:
+Because each component is a real `HTMLElement`, it works in plain HTML once it is
+registered. The **registry tag** includes a module hash — it is not the bare
+`web-<name>` you might guess from the component identifier:
 
 ```html
-<!-- After your bundle registers Badge -->
+<!-- After Badge is registered -->
 <afw-badge-4e54f4d4 label="Beta"></afw-badge-4e54f4d4>
 ```
+
+How registration works:
+
+- A component registers the first time its `tag` is read. Every `<Badge>` in JSX reads
+  it, so components you render never need anything extra.
+- Importing a module does not register its components. That is what lets a bundler drop
+  the components a page doesn't use.
+- For a component you use **only** in plain HTML, read its tag once in your entry:
+
+```js
+import Badge from "./Badge.jsx";
+
+Badge.tag; // registers <afw-badge-…>; plain-HTML instances upgrade now
+```
+
+- To create one from JavaScript, use `document.createElement(Badge.tag)`. Calling
+  `new Badge()` before the tag has been read throws `Illegal constructor`.
 
 Read the exact tag from the exported class (`Badge.tag`) or from DevTools after a build.
 For **host styling**, the compiler also stamps a stable class hook on every instance
