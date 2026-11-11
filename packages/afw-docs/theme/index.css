@@ -33,10 +33,14 @@
     --afw-text-muted: #64748b;
     --afw-border: #e2e8f0;
     --afw-accent: #ff851b;
+    /* The accent as text (links, active items): the brand orange is too light on
+     * white, so text takes a darker shade of it that meets WCAG AA (4.5:1) on the
+     * light backgrounds. Borders and fills keep --afw-accent. */
+    --afw-accent-text: #ad5100;
     --afw-accent-contrast: #ffffff;
     --afw-accent-soft: rgba(255, 133, 27, 0.12);
     --afw-code-bg: #f1f5f9;
-    --afw-code-text: #be4f0c;
+    --afw-code-text: #b0480b;
     --afw-selection: rgba(255, 133, 27, 0.22);
 
     /* Code blocks (fences, CodeBlock): chrome, then GitHub Light token colors. */
@@ -107,6 +111,7 @@
     --afw-text-muted: #94a3b8;
     --afw-border: #1e293b;
     --afw-accent: #ff943d;
+    --afw-accent-text: #ff943d;
     --afw-accent-contrast: #0b1220;
     --afw-accent-soft: rgba(255, 148, 61, 0.16);
     --afw-code-bg: #0f172a;
@@ -517,7 +522,7 @@
     color: var(--afw-text);
   }
   .afwd-theme-item.is-active {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     font-weight: 600;
   }
 
@@ -570,7 +575,7 @@
     font-size: 0.82rem;
   }
   .afwd-search-trigger:hover {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     border-color: var(--afw-accent);
   }
   .afwd-search-kbd {
@@ -718,7 +723,7 @@
   }
   .afwd-search-result-section::before {
     content: "#";
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     font-weight: 700;
   }
   .afwd-search-result-excerpt {
@@ -730,7 +735,7 @@
   }
   .afwd-search-result-excerpt mark {
     background: var(--afw-accent-soft);
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     border-radius: 0.2rem;
     padding: 0 0.1rem;
   }
@@ -1004,7 +1009,7 @@
     opacity: 0.6;
   }
   .afwd-sidebar-link.afwd-active {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     background: var(--afw-accent-soft);
     font-weight: 600;
   }
@@ -1087,7 +1092,7 @@
     opacity: 1;
   }
   .afw-heading-anchor:hover {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
   }
   .afwd-prose p,
   .afwd-prose ul,
@@ -1178,7 +1183,7 @@
     border-color: var(--afw-accent);
   }
   .afwd-prose a {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     text-decoration: none;
     font-weight: 500;
   }
@@ -1372,7 +1377,7 @@
     color: var(--afw-text);
   }
   .afwd-toc-link.afwd-active {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     border-left-color: var(--afw-accent);
     font-weight: 600;
   }
@@ -1400,7 +1405,7 @@
     text-decoration: none;
   }
   .afwd-crumb-link:hover {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
   }
 
   /* ── Page meta (last updated · edit link) ──────────────────────────────────── */
@@ -1435,7 +1440,7 @@
     text-decoration: none;
   }
   .afwd-edit-page:hover {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
   }
   .afwd-page-meta + .afwd-pagination {
     margin-top: 1.5rem;
@@ -1596,7 +1601,7 @@
   }
   .afwd-tab.afwd-active {
     background: var(--afw-bg);
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   }
   .afwd-tabs-panels {
@@ -1654,7 +1659,7 @@
   .afwd-steps > h3:hover::before,
   .afwd-steps > h4:hover::before {
     border-color: var(--afw-accent);
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
   }
 
   /* ── Table wrapper ─────────────────────────────────────────────────────────── */
@@ -1773,7 +1778,7 @@
   }
   .afwd-feed-link:hover,
   .afwd-feed-link:focus-visible {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
     border-color: var(--afw-accent);
   }
   .afwd-feed-icon {
@@ -1787,7 +1792,7 @@
     color: var(--afw-text-muted);
   }
   .afwd-feed-inline a {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
   }
 
   .afwd-blog-back {
@@ -1886,7 +1891,7 @@
     transition: opacity 0.15s;
   }
   .afwd-post-card:hover .afwd-post-card-title {
-    color: var(--afw-accent);
+    color: var(--afw-accent-text);
   }
   .afwd-post-card .afwd-post-meta {
     margin-top: 0.75rem;

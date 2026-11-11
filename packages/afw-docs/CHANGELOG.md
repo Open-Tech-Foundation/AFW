@@ -32,6 +32,16 @@
     URL. It is now left out of the BreadcrumbList JSON-LD.
   - Positions count only the listed pages, so they stay 1, 2, 3…
   - The visible trail is unchanged.
+- Accent-colored text meets WCAG AA contrast (4.5:1) in the light theme.
+  - The brand orange was 2.4:1 as text on white. This covers prose links, the active
+    sidebar and "On this page" links, search highlights and tab labels.
+  - Text now uses `--afw-accent-text` (`#ad5100` light, the brand orange dark).
+  - Borders and fills keep `--afw-accent`.
+  - Inline code text is darkened slightly, `#be4f0c` → `#b0480b`, from 4.44:1 to 5.07:1.
+- The navbar search button's accessible name is its visible text ("Search Ctrl K"),
+  not "Search docs", which failed Lighthouse's "label in name" check.
+  - The shortcut is announced with `aria-keyshortcuts`.
+  - The icon is hidden from assistive tech.
 
 ## [0.34.0] - 2026-11-05
 
