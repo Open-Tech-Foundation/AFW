@@ -9,6 +9,12 @@ export interface ResourceOptions<T> {
   initial?: T;
   /** Server functions whose `invalidate()` refetches this resource, beyond those its fetcher calls as it starts. */
   invalidatedBy?: Array<(...args: any[]) => unknown>;
+  /**
+   * `"inline"` keeps failures on `error` only. By default, a resource a `<Pending>`
+   * waits on sends a first-load failure to the nearest `<ErrorBoundary>` and reports
+   * a failed refetch.
+   */
+  errors?: "inline";
 }
 export function resource<T>(fetcher: (value: true, context: { signal: AbortSignal | undefined }) => T | Promise<T>, options?: ResourceOptions<T>): Resource<T>;
 export function resource<S, T>(source: () => S, fetcher: (value: NonNullable<Exclude<S, false>>, context: { signal: AbortSignal | undefined }) => T | Promise<T>, options?: ResourceOptions<T>): Resource<T>;

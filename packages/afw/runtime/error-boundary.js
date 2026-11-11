@@ -78,7 +78,11 @@ export class ErrorBoundaryElement extends HTMLElement {
 
   // Invoked by handleError when a descendant throws during render/mount. Deferred
   // to a microtask so we never mutate the tree mid-connectedCallback (re-entrancy).
-  catch(error) {
+  // `context.retry` (a failed `<Pending>` resource) is called on reset, after the
+  // subtree is back: a resource created outside the boundary is not rebuilt with it,
+  // so it has to be refetched explicitly.
+  catch(error, context = {}) {
+    if (typeof context.retry === "function") (this._retries ??= []).push(context.retry);
     if (this._failed) return; // first error wins; ignore the cascade
     this._failed = true;
     queueMicrotask(() => this.#renderFallback(error));
@@ -111,6 +115,9 @@ export class ErrorBoundaryElement extends HTMLElement {
       // now reading whatever props it currently holds — it may throw again
       // (→ catch) or render cleanly if the cause is gone.
       this.replaceChildren(...this._blueprint);
+      const retries = this._retries ?? [];
+      this._retries = [];
+      for (const retry of retries) retry();
     });
   }
 }

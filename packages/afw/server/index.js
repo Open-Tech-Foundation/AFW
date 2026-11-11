@@ -12,7 +12,7 @@ export { resource } from "../runtime/resource.js";
 export { invalidate } from "../runtime/invalidate.js";
 export { ServerFunctionError, serverFunction } from "../runtime/server-function.js";
 export { copyText, copyWithFeedback } from "../runtime/clipboard.js";
-export { Link, ContextProvider, Portal, ErrorBoundary, RawHtml, CodeFence } from "./builtins.js";
+export { Link, ContextProvider, Portal, ErrorBoundary, Pending, RawHtml, CodeFence } from "./builtins.js";
 export * from "./head.js";
 export * from "./render.js";
 // Share registration and request-scoped route state without loading Custom Elements.

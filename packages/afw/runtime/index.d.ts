@@ -10,6 +10,8 @@ export { invalidate } from "./invalidate.js";
 export { ServerFunctionError, serverFunction } from "./server-function.js";
 export * from "./context.js";
 export * from "./error-boundary.js";
+export * from "./pending.js";
+export { enterPending, exitPending } from "./pending-scope.js";
 export * from "./portal.js";
 export * from "./raw-html.js";
 export * from "./code-block.js";

@@ -21,8 +21,11 @@
 // the client's first paint renders before its own fetch resolves, keeping
 // hydration adoption aligned.
 
+import { getCurrentInstance } from "../core/context.js";
+import { reportError } from "../core/errors.js";
 import { batch, effect, signal, untracked } from "../core/signals.js";
 import { endpointOf, registerResource, unregisterResource, withTracking } from "./invalidate.js";
+import { buildingPending, closestPending } from "./pending-scope.js";
 
 // Test override: the DOM suites run in esdev's `--dom` realm (a `document`
 // always exists), so server behavior is opted into explicitly.
@@ -45,10 +48,11 @@ const isServer = () => serverOverride ?? typeof document === "undefined";
  * @param {Function} source  reactive source read inside the tracking effect; its
  *        value is passed to the fetcher.
  * @param {Function} fetcher  `(sourceValue, { signal }) => data | Promise<data>`.
- * @param {{ initial?: unknown, invalidatedBy?: Function[] }} [options]  `initial`
- *        seeds `data` before the first resolution. `invalidatedBy` names server
- *        functions whose `invalidate()` refetches this resource, beyond those its
- *        fetcher calls as it starts (which are recorded automatically).
+ * @param {{ initial?: unknown, invalidatedBy?: Function[], errors?: "inline" }} [options]
+ *        `initial` seeds `data` before the first resolution. `invalidatedBy` names
+ *        server functions whose `invalidate()` refetches this resource, beyond those
+ *        its fetcher calls as it starts (which are recorded automatically).
+ *        `errors: "inline"` keeps failures on `error` only, even under `<Pending>`.
  * @returns {{ data: unknown, loading: boolean, error: unknown,
  *             refetch: () => Promise<unknown> | undefined }}  reactive getters —
  *        read them inside bindings/effects to subscribe.
@@ -63,6 +67,9 @@ export function resource(source, fetcher, options = {}) {
   const data = signal(options.initial);
   const error = signal(undefined);
   const loading = signal(true); // a fetch is intended; the server leaves it true
+  // Has a run finished (resolved or failed) at least once? A `<Pending>` shows its
+  // fallback only while a resource it waits on has never settled.
+  const settled = signal(false);
   let token = 0;
   let controller = null;
   // This resource in the `invalidate()` registry (runtime/invalidate.js).
@@ -92,22 +99,58 @@ export function resource(source, fetcher, options = {}) {
           batch(() => {
             data.value = v;
             loading.value = false;
+            settled.value = true;
           });
           return v;
         },
         (e) => {
           if (t !== token) return;
           // Keep the last good `data` (stale-while-error); only `error` flips.
+          const first = !settled.value;
           batch(() => {
             error.value = e;
             loading.value = false;
+            settled.value = true;
           });
+          failed(e, first);
         },
       );
   }
 
+  // --- `<Pending>` boundaries (pending.js) ------------------------------------
+  const inline = options.errors === "inline";
+  const boundaries = new Set();
+  let disposed = false;
+  // What a boundary sees of this resource.
+  const handle = {
+    loading: () => loading.value,
+    settled: () => settled.value,
+    refetch: () => (disposed ? undefined : refetch()),
+  };
+  function track(boundary) {
+    if (!boundary || boundaries.has(boundary)) return;
+    boundaries.add(boundary);
+    boundary.__track(handle);
+  }
+  // A first-load failure under a boundary goes to the nearest <ErrorBoundary> (through
+  // the boundary, so its retry refetches). A failed refetch keeps the stale data and is
+  // reported. `errors: "inline"` and resources outside any boundary only set `error`.
+  function failed(e, first) {
+    if (inline || boundaries.size === 0) return;
+    if (first) for (const boundary of boundaries) boundary.__fail(e, handle);
+    else reportError(e, { phase: "resource" });
+  }
+
   if (!isServer()) {
-    effect(() => {
+    const host = getCurrentInstance();
+    track(host ? closestPending(host) : buildingPending());
+    // Runs its cleanup only when the owning scope is disposed (no tracked reads).
+    const disposeTracking = effect(() => () => {
+      disposed = true;
+      for (const boundary of boundaries) boundary.__untrack(handle);
+      boundaries.clear();
+    });
+    const disposeFetching = effect(() => {
       const value = src(); // the effect's ONLY tracked read
       if (value == null || value === false) {
         // Paused: cancel anything in flight and settle as "not loading".
@@ -129,6 +172,10 @@ export function resource(source, fetcher, options = {}) {
         unregisterResource(entry);
       };
     });
+    // A component body runs outside any scope; its host tears down `_cleanups` on
+    // disconnect. Stop with it, so an unmounted component's fetch is aborted and a
+    // boundary stops waiting on it.
+    if (host && Array.isArray(host._cleanups)) host._cleanups.push(disposeTracking, disposeFetching);
   }
 
   function refetch() {
@@ -137,14 +184,24 @@ export function resource(source, fetcher, options = {}) {
     return run(value);
   }
 
+  // A read while a boundary's children are being built makes that boundary wait on
+  // this resource too (a page resource passed down as props).
+  const reading = () => {
+    const boundary = buildingPending();
+    if (boundary) track(boundary);
+  };
+
   return {
     get data() {
+      reading();
       return data.value;
     },
     get loading() {
+      reading();
       return loading.value;
     },
     get error() {
+      reading();
       return error.value;
     },
     /** Re-run the fetcher with the current source value (no-op while paused). */

@@ -418,7 +418,7 @@ function htmlToNodes(html) {
 /** Flatten a reactive child value into DOM nodes: nodes pass through, arrays
  * recurse, nullish/booleans render nothing, `{__html}` markers are parsed back into
  * the nodes the server rendered, and primitives become text nodes. */
-function toNodes(value) {
+export function toNodes(value) {
   if (value == null || typeof value === "boolean") return [];
   if (Array.isArray(value)) {
     const out = [];

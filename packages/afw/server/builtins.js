@@ -2,7 +2,7 @@
 //! hand-written Custom Elements, not compiled). Registered on import so the SSG
 //! bundle can render `<Link>`, `<ContextProvider>`, `<Portal>`, `<ErrorBoundary>`.
 
-import { attr, defineSSG } from "./ssg-runtime.js";
+import { attr, defineSSG, ssgText } from "./ssg-runtime.js";
 import { localizePath } from "../runtime/router.js";
 
 // Passthrough: their effect is structural/client-side; SSG renders children inline.
@@ -35,6 +35,16 @@ ContextProvider.hostAttrs = (props) =>
   props && props.context && props.context.id ? ` data-afw-ctx="${props.context.id}"` : "";
 export const Portal = passthrough("afw-internal-portal");
 export const ErrorBoundary = passthrough("afw-internal-error-boundary");
+// Pending: resources don't fetch on the server, so the boundary is still waiting — render
+// the fallback through a declarative shadow root (the client's PendingElement reuses it),
+// with the children in the light DOM, hidden until the client's resources settle.
+export const Pending = register("afw-internal-pending", (props, children) => {
+  const fallback = props && props.fallback != null
+    ? `<span slot="fallback" style="display:contents">${ssgText(props.fallback)}</span>`
+    : "";
+  return '<template shadowrootmode="open"><style>:host{display:contents}</style><slot name="fallback"></slot></template>' +
+    fallback + slot("afw-internal-pending", children);
+});
 // RawHtml: emit the trusted HTML string inline (MDX highlighted code blocks).
 export const RawHtml = register("afw-internal-raw-html", (props) => (props && props.html != null ? String(props.html) : ""));
 // CodeFence: same inline HTML as RawHtml; the copy button wires up on the client

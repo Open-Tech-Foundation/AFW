@@ -17,6 +17,28 @@
   - A custom transition is a function returning keyframes, a running animation
     (Motion) or any thenable (GSAP).
   - Apps without transitions load none of this code.
+- `<Pending>`: one loading state for every resource inside it.
+  - `fallback` shows until each resource has loaded once; the content is then
+    revealed together.
+  - It waits on resources created by components inside it, and on resources read
+    while its children are built (a page resource passed down as a prop).
+  - A refetch keeps the content and shows `refreshing` beside it, with a
+    `data-pending` attribute for styling. `refetch="fallback"` shows the fallback
+    again instead.
+  - `delay` holds back the fallback and `refreshing`, so a fast load shows neither.
+  - A first-load failure goes to the nearest `<ErrorBoundary>`, whose retry refetches
+    it. A failed refetch keeps the last data and is reported.
+  - The server renders the fallback through a declarative shadow root; hydration
+    adopts it and reveals the content when the resources settle.
+- `resource(fetcher, { errors: "inline" })` keeps failures on `error` only, even under
+  `<Pending>`.
+- `<ErrorBoundary>` retry also runs retry callbacks passed with a caught error, so a
+  resource created outside the boundary is refetched.
+
+### Fixed
+
+- A resource created in a component now stops when the component is removed: its
+  fetch is aborted, and it no longer refetches on `invalidate()` or a source change.
 
 ## [0.37.0] - 2026-11-11
 

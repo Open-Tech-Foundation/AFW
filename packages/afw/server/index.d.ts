@@ -24,6 +24,7 @@ export const Link: ServerComponent;
 export const ContextProvider: ServerComponent;
 export const Portal: ServerComponent;
 export const ErrorBoundary: ServerComponent;
+export const Pending: ServerComponent;
 export const RawHtml: ServerComponent;
 export const CodeFence: ServerComponent;
 export function shouldInterceptNav(): boolean;

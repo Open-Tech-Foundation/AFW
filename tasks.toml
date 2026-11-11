@@ -70,7 +70,7 @@ run = "esdev test --config=esdev.test.json packages/afw-cli/tests packages/afw-c
 # needs it too — without a `document` the resource thinks it is server-side.
 [tasks.test-esdev-dom]
 deps = ["build-compiler"]
-run = "esdev test --config=esdev.test.json --dom packages/afw/core/errors.test.js packages/afw/runtime/lifecycle.test.js packages/afw/runtime/resource.test.js packages/afw/runtime/clsx.test.js packages/afw/runtime/dom.test.js packages/afw/runtime/transition.test.js packages/afw/runtime/router.test.js packages/afw/runtime/router-data.test.js packages/afw/runtime/router-hydrate.test.js packages/afw/runtime/router-hot.test.js packages/afw/runtime/hydratable.test.js packages/afw/runtime/router-nav.test.js packages/afw/runtime/invalidate.test.js packages/afw/runtime/prefetch.test.js packages/afw/runtime/hydrate.e2e.test.js"
+run = "esdev test --config=esdev.test.json --dom packages/afw/core/errors.test.js packages/afw/runtime/lifecycle.test.js packages/afw/runtime/resource.test.js packages/afw/runtime/clsx.test.js packages/afw/runtime/dom.test.js packages/afw/runtime/transition.test.js packages/afw/runtime/pending.test.js packages/afw/runtime/router.test.js packages/afw/runtime/router-data.test.js packages/afw/runtime/router-hydrate.test.js packages/afw/runtime/router-hot.test.js packages/afw/runtime/hydratable.test.js packages/afw/runtime/router-nav.test.js packages/afw/runtime/invalidate.test.js packages/afw/runtime/prefetch.test.js packages/afw/runtime/hydrate.e2e.test.js"
 
 # The Vite + Node workflow's Node-side code (`node-tests/` folders, kept apart from
 # the esdev suites' `tests/`), on Node's built-in runner.
@@ -169,8 +169,9 @@ deps = ["test-e2e-docs-drawer", "test-e2e-docs-sidebar", "test-e2e-docs-hydratio
 deps = ["build-compiler"]
 run = "esdev test --config=esdev.test.json --browser --setup=@opentf/afw-test/setup packages/afw-test/tests/browser"
 
-# Enter/exit transitions on the Web Animations API, in a real browser.
-[tasks.test-e2e-transitions]
+# Runtime behavior only a real browser shows: transitions on the Web Animations API,
+# and what <Pending> actually displays through shadow DOM slots.
+[tasks.test-e2e-afw-browser]
 deps = ["build-compiler"]
 run = "esdev test --config=esdev.test.json --browser --setup=@opentf/afw-test/setup packages/afw/browser-tests"
 
@@ -202,7 +203,7 @@ deps = ["build-compiler"]
 run = "esdev scripts/verify-server-functions.mjs"
 
 [tasks.test-e2e]
-deps = ["test-e2e-docs", "test-e2e-afw-test", "test-e2e-transitions", "test-e2e-benchmark-runner", "test-e2e-hmr", "test-e2e-esdev-fns", "test-e2e-vite"]
+deps = ["test-e2e-docs", "test-e2e-afw-test", "test-e2e-afw-browser", "test-e2e-benchmark-runner", "test-e2e-hmr", "test-e2e-esdev-fns", "test-e2e-vite"]
 
 # Local convenience — CI runs the fast and browser tiers as separate parallel jobs, so this
 # is the "use my cores" path on a dev machine. `build-compiler` is de-duplicated to one run.

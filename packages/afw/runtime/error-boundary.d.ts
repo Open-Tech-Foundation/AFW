@@ -10,7 +10,7 @@ export class ErrorBoundaryElement extends HTMLElement {
     connectedCallback(): void;
     _mounted: boolean | undefined;
     _blueprint: ChildNode[] | undefined;
-    catch(error: any): void;
+    catch(error: any, context?: { retry?: () => unknown }): void;
     _failed: boolean | undefined;
     reset(): void;
     #private;
