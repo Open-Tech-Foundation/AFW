@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- `loading.{jsx,tsx}` and `error.{jsx,tsx}` route files are discovered alongside pages,
+  layouts and 404, and compile to route factories (`isRouteModule`). A Markdown
+  `loading` or `error` file is an error.
+- `renderDocument({ errors: "render" })` renders the route's nearest `error.jsx` with
+  status 500 when a loader fails, and inlines the error marker for the client. The
+  default, `"throw"`, keeps static generation reporting the path as failed.
+- The generated server's `createPageRenderer` uses `errors: "render"`, so a request
+  server sends a failed loader's page as its `error.jsx`.
+
 ## [0.3.0] - 2026-11-05
 
 ### Added

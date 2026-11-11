@@ -24,6 +24,15 @@ describe("discoverPages", () => {
     await expect(discoverPages(app({ "404.md": "" }), "/site/app")).rejects.toThrow("Unsupported Markdown 404 route");
   });
 
+  test("finds loading and error files; Markdown ones are errors", async () => {
+    const host = app({ "page.jsx": "", "error.jsx": "", "dash/loading.tsx": "", "dash/page.jsx": "" });
+    expect(await discoverPages(host, "/site/app")).toEqual([
+      "/site/app/dash/loading.tsx", "/site/app/dash/page.jsx", "/site/app/error.jsx", "/site/app/page.jsx",
+    ]);
+    await expect(discoverPages(app({ "loading.mdx": "" }), "/site/app")).rejects.toThrow("Use loading.jsx or loading.tsx");
+    await expect(discoverPages(app({ "x/error.md": "" }), "/site/app")).rejects.toThrow("Use error.jsx or error.tsx");
+  });
+
   test("drafts and scheduled pages drop out without `drafts`", async () => {
     const host = app({
       "a/page.md": "---\ndraft: true\n---\n# A", "b/page.md": "---\ndate: 2999-01-01\n---\n# B",

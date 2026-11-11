@@ -10,7 +10,7 @@
 /** The specifier entries import. */
 export const ROUTES_ID = "@afw/routes";
 
-const PAGE_FILE = /^(page|layout|404)\.(mdx|md|jsx|tsx)$/;
+const PAGE_FILE = /^(page|layout|404|loading|error)\.(mdx|md|jsx|tsx)$/;
 const LOADER_FILE = /^loader\.(js|ts)$/;
 
 /**
@@ -83,9 +83,9 @@ async function walk(host, dir, pattern, exclude) {
 }
 
 /**
- * Page, layout and 404 files under `dir`, as absolute paths. A Markdown 404 is an
- * error (the runtime has no Markdown fallback route). Without `drafts`,
- * unpublished Markdown pages are left out.
+ * Page, layout, 404, loading and error files under `dir`, as absolute paths. A
+ * Markdown 404, loading or error file is an error (each is a component the router
+ * renders with props). Without `drafts`, unpublished Markdown pages are left out.
  */
 export async function discoverPages(host, dir, { exclude = [], drafts = true } = {}) {
   const out = [];
@@ -93,6 +93,10 @@ export async function discoverPages(host, dir, { exclude = [], drafts = true } =
     const abs = host.path.join(dir, rel);
     if (/(^|\/)404\.(mdx|md)$/.test(rel)) {
       throw new Error(`Unsupported Markdown 404 route: ${abs}. Use 404.jsx or 404.tsx instead.`);
+    }
+    const special = /(?:^|\/)(loading|error)\.(?:mdx|md)$/.exec(rel);
+    if (special) {
+      throw new Error(`Unsupported Markdown ${special[1]} file: ${abs}. Use ${special[1]}.jsx or ${special[1]}.tsx instead.`);
     }
     if (!drafts && (await isUnpublishedPage(host, abs))) continue;
     out.push(abs);

@@ -39,10 +39,10 @@ export function usesServerEntry({ target, server = false } = {}) {
 /** The framework specifiers that resolve to `@opentf/afw/server` in a server build. */
 export const FRAMEWORK_IMPORT = /^@opentf\/afw(?:\/runtime)?$/;
 
-/** Page, layout and 404 modules compile to route factories; the rest to components. */
+/** Page, layout, 404, loading and error modules compile to route factories; the rest to components. */
 export function isRouteModule(id) {
   const base = id.split(/[\\/]/).pop().replace(SOURCE_FILTER, "");
-  return base === "page" || base === "layout" || base === "404";
+  return base === "page" || base === "layout" || base === "404" || base === "loading" || base === "error";
 }
 
 /** A module that shows the compile error in place of the page or component. */

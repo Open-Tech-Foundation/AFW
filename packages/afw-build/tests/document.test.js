@@ -9,8 +9,12 @@ function fakeRender({ notFoundPage = true } = {}) {
   const calls = [];
   return {
     calls,
-    async renderRoute(url, params, search, { data } = {}) {
-      calls.push({ url, params, search, data });
+    async renderRoute(url, params, search, { data, error } = {}) {
+      calls.push({ url, params, search, data, error });
+      if (error) {
+        return { html: `<p>error: ${error.message}</p>`, metadata: { title: "Error" }, hydration: "", status: 500,
+          dataJson: '{"__afwRouteError":{"status":500,"message":"Something went wrong"}}' };
+      }
       if (url === "/__afw_404__" || url.startsWith("/missing")) {
         return notFoundPage ? { html: "<h1>Not found</h1>", metadata: { title: "404" }, hydration: "", status: 404 } : null;
       }
@@ -28,6 +32,8 @@ function fakeLoaders(result) {
     match: (url) => (url.startsWith("/todos") ? { route: "/todos" } : null),
     async loadSerialized(m, ctx) {
       if (result === "notFound") throw Object.assign(new Error("nf"), { afwNotFound: true });
+      if (result === "fail") throw new Error("db down");
+      if (result === "redirect") throw new Response(null, { status: 302, headers: { location: "/login" } });
       return { data: { ...result, ctx: Object.keys(ctx) }, json: JSON.stringify(result) };
     },
   };
@@ -62,6 +68,26 @@ describe("renderDocument", () => {
     expect(doc.status).toBe(404);
     expect(doc.html).toContain("Not found");
     await expect(renderDocument(fakeRender(), { shell: SHELL, url: "/todos", loaders: fakeLoaders("notFound"), notFound: "throw" })).rejects.toThrow("nf");
+  });
+
+  test('a failed loader renders the error page with status 500 under errors: "render"', async () => {
+    const render = fakeRender();
+    const doc = await renderDocument(render, { shell: SHELL, url: "/todos", loaders: fakeLoaders("fail"), errors: "render" });
+    expect(doc.status).toBe(500);
+    expect(render.calls[0].error.message).toBe("db down");
+    expect(doc.html).toContain("<p>error: db down</p>");
+    expect(doc.html).toContain('<script type="application/json" id="__afw_data">{"__afwRouteError":');
+  });
+
+  test("a failed loader throws by default (static generation) and for a thrown Response", async () => {
+    await expect(renderDocument(fakeRender(), { shell: SHELL, url: "/todos", loaders: fakeLoaders("fail") })).rejects.toThrow("db down");
+    let thrown;
+    try {
+      await renderDocument(fakeRender(), { shell: SHELL, url: "/todos", loaders: fakeLoaders("redirect"), errors: "render" });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown instanceof Response).toBe(true);
   });
 
   test("localized URLs get lang and hreflang alternates", async () => {

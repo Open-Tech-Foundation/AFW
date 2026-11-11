@@ -29,6 +29,8 @@ describe("targets", () => {
     expect(isRouteModule("/a/page.mdx")).toBe(true);
     expect(isRouteModule("C:\\a\\layout.tsx")).toBe(true);
     expect(isRouteModule("/a/Button.jsx")).toBe(false);
+    expect(isRouteModule("/a/dash/loading.jsx")).toBe(true);
+    expect(isRouteModule("/a/error.tsx")).toBe(true);
   });
 });
 

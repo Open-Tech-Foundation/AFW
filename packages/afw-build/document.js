@@ -187,28 +187,38 @@ export function alternateLinks(path, i18n) {
  * `modifiedTime` adds `article:modified_time` on article pages. `notFound`: what a
  * loader's `notFound()` does — `"render"` the 404 page (a request server), or
  * `"throw"` it to the caller (static generation, which reports the path as failed).
+ * `errors`: what any other loader failure does — `"throw"` it (the default: static
+ * generation reports the path as failed), or `"render"` the route's nearest
+ * `error.jsx` with status 500 (a request server). Thrown `Response`s always throw.
  *
  * @returns {Promise<{ status: number, html: string, dataJson: string, loaded: boolean, metadata: object } | null>}
  *   `null` when no page and no 404 page match.
  */
 export async function renderDocument(render, {
   shell, url, params = null, search = "", loaders = null, loaderContext = {}, baseUrl = "", i18n = null,
-  preload = "", modifiedTime = null, notFound = "render",
+  preload = "", modifiedTime = null, notFound = "render", errors = "throw",
 } = {}) {
   const { locale, path } = splitLocale(url, i18n);
   const match = loaders?.match(url);
   let data;
   let dataJson = "";
+  let failure;
   if (match) {
     try {
       ({ data, json: dataJson } = await loaders.loadSerialized(match, { query: {}, ...loaderContext }));
     } catch (e) {
-      if (e?.afwNotFound !== true || notFound === "throw") throw e;
-      return renderNotFound(render, { shell, baseUrl, preload });
+      if (e?.afwNotFound === true && notFound !== "throw") return renderNotFound(render, { shell, baseUrl, preload });
+      // A request server renders the route's `error.jsx` (status 500); a redirect or
+      // refusal (`throw new Response`), a build, or a route without one keeps the throw.
+      if (errors !== "render" || e?.afwNotFound === true || e instanceof Response) throw e;
+      failure = e;
     }
   }
-  const result = await render.renderRoute(url, params, search, { data });
+  const result = failure === undefined
+    ? await render.renderRoute(url, params, search, { data })
+    : await render.renderRoute(url, params, search, { error: failure });
   if (!result) return null;
+  if (result.dataJson) dataJson = result.dataJson;
   const { html, metadata = {}, hydration = "", status = 200 } = result;
   const alternates = alternateLinks(path, i18n);
   const meta = alternates.length ? { ...metadata, links: [...(metadata.links || []), ...alternates] } : metadata;

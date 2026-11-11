@@ -104,7 +104,7 @@ export function moduleType(id) {
 
 /**
  * Bundler plugin: compile `.jsx`/`.tsx` through the `afwc` IR compiler. Page /
- * layout / 404 modules become factories; everything else a Custom Element. On a
+ * layout / 404 / loading / error modules become factories; everything else a Custom Element. On a
  * compile error it emits a diagnostic stub (so one bad route doesn't sink the
  * build) unless `failOnError` is set (production builds should fail loudly).
  * `onResult(id, diagnosticOrNull)` is called per module so the driver can push

@@ -156,7 +156,7 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
       `    let doc;\n` +
       `    try {\n` +
       `      doc = await renderDocument(render, {\n` +
-      `        shell, url: url.pathname, search: url.search, loaders, baseUrl, i18n: options.i18n ?? null,\n` +
+      `        shell, url: url.pathname, search: url.search, loaders, baseUrl, i18n: options.i18n ?? null, errors: "render",\n` +
       `        loaderContext: { request, query: Object.fromEntries(url.searchParams), locals },\n` +
       `      });\n` +
       `    } catch (e) {\n` +
