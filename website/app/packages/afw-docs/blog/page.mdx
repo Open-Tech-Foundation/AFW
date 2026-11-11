@@ -36,20 +36,21 @@ export default defineDocsConfig({
 });
 ```
 
-This supplies the blog settings. Add `blogPostsPlugin` explicitly to the top-level
-`plugins` array in `esdev.json`:
+This supplies the blog settings. With the `afwDocsPlugin` entry in `esdev.json` (see
+[Configuration → Build plugins](/packages/afw-docs/configuration#build-plugins)), a
+`blog` block turns the post list on — nothing else to register:
 
 ```json
-{ "module": "@opentf/afw-docs/build", "export": "blogPostsPlugin",
-  "options": { "appDir": "app", "contentDir": "blog" } }
+{ "module": "@opentf/afw-docs/build", "export": "afwDocsPlugin",
+  "options": { "appDir": "app" } }
 ```
 
-The plugin scans `app/<contentDir>` and resolves `@opentf/afw-docs/posts` to your
+It scans `app/<blog.dir>` and resolves `@opentf/afw-docs/posts` to your
 post list, sorted newest-first with reading time computed at build time.
 Automatic post lists and feeds omit parameterized folders such as `[slug]` and
 `[...path]`. Use concrete post folders for entries that should appear in the blog
 index and RSS/Atom feeds.
-Keep `contentDir` aligned with `blog.dir`. Use the
+Use the
 [SSG output setup](/docs/deployment/static-generation) for search and feeds.
 
 ### Write a post

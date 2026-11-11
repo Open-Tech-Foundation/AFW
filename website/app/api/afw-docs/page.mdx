@@ -55,6 +55,8 @@ The callable helpers support custom prerender/output scripts:
 
 | Export | Purpose |
 | --- | --- |
+| `afwDocsPlugin({ appDir?, exclude? })` | The whole esdev docs toolchain as one `esdev.json` entry (esdev 0.27+): reads afw.config and returns the plugins below that it enables, plus code highlighting. |
+| `loadDocsConfig(root)` | Reads `afw.config.{json,js,mjs}` from `root`, or `{}`. |
 | `docsNavPlugin` | Resolves `@opentf/afw-docs/nav` to the section map (one tree per top-level folder). |
 | `blogPostsPlugin` / `loadPosts` | Resolves `@opentf/afw-docs/posts`; `loadPosts` is the callable scan. |
 | `lastUpdatedPlugin` / `loadLastUpdated` | Resolves `@opentf/afw-docs/updated` (git/frontmatter dates + edit paths). |

@@ -26,7 +26,7 @@ export default defineDocsConfig({
     version: "v0.16.0",
     logo: "/logo.png",
     github: "https://github.com/Open-Tech-Foundation/afw",
-    // Source repo — edit links also need lastUpdatedPlugin's source-path data.
+    // Source repo — edit links also need lastUpdated's source-path data.
     repoUrl: "https://github.com/Open-Tech-Foundation/afw",
     nav: [
       { label: "Home", href: "/" },
@@ -40,7 +40,8 @@ export default defineDocsConfig({
 
 ## The sidebar tree
 
-Register `docsNavPlugin` as described below to generate the sidebar data.
+The `afwDocsPlugin` build plugin (see [Build plugins](#build-plugins)) generates the
+sidebar data from a `docs` block.
 
 The sidebar is generated from the folder tree under your docs directory. A folder
 with a `page.*` becomes a link; a folder **without** one becomes a group subheading
@@ -129,8 +130,8 @@ export default defineDocsConfig({
 });
 ```
 
-Register `lastUpdatedPlugin` to emit the dates and per-route source paths. The
-`lastUpdated` config flag alone does not register it. Edit links require the
+With `lastUpdated: true`, the `afwDocsPlugin` build plugin emits the dates and
+per-route source paths. Edit links require the
 generated source path and `repoUrl`; they can still appear when a page's timestamp
 is hidden with `lastUpdated: false`.
 
@@ -149,29 +150,30 @@ only when it was edited *after* its publish date, so a fresh post stays clean.
 
 ## Build plugins
 
-Add these entries to the top-level `plugins` array in your existing `esdev.json`,
-alongside the AFW compiler/routes and site-output plugins:
+Add one entry to the top-level `plugins` array in your existing `esdev.json`,
+alongside the AFW compiler/routes and site-output plugins (esdev 0.27 or later):
 
 ```json
 {
   "plugins": [
     { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
-    { "module": "@opentf/afw-docs/build", "export": "docsNavPlugin",
-      "options": { "appDir": "app" } },
-    { "module": "@opentf/afw-docs/build", "export": "lastUpdatedPlugin",
-      "options": { "appDir": "app" } },
-    { "module": "@opentf/afw-docs/build", "export": "codeHighlightPlugin" }
+    { "module": "@opentf/afw-docs/build", "export": "afwDocsPlugin",
+      "options": { "appDir": "app" } }
   ]
 }
 ```
 
-- `codeHighlightPlugin` highlights the code fences of compiled `.md`/`.mdx` pages.
-- It runs after the compiler whatever its place in the list.
-- Without it, fences render as plain text.
+`afwDocsPlugin` reads `afw.config.js` and enables what it asks for:
+
+- `docs` → the sidebar navigation.
+- `blog` → the post list, from `blog.dir`.
+- `lastUpdated` → the per-page dates and edit links.
+- Always → code-fence highlighting of compiled `.md`/`.mdx` pages.
 
 Keep your build targets and `siteOutputPlugin` entry from
-[Static Generation](/docs/deployment/static-generation). A blog also needs
-`blogPostsPlugin`, with `appDir: "app"` and a `contentDir` matching `blog.dir`.
+[Static Generation](/docs/deployment/static-generation). The individual plugins
+(`docsNavPlugin`, `blogPostsPlugin`, `lastUpdatedPlugin`, `codeHighlightPlugin`) are
+still exported for custom setups.
 
 ### With Vite
 
