@@ -187,3 +187,102 @@ export default function UserProfile() {
   resources that called that server function.
 - During SSG/SSR nothing fetches and `loading` stays `true`, so the prerendered
   HTML shows your loading branch and [hydration](/docs/deployment/hydration) stays aligned.
+- A resource created in a component stops when the component is removed: its fetch
+  is aborted and it no longer refetches.
+- `{ errors: "inline" }` keeps failures on `error` only, even inside a
+  [`<Pending>`](#loading-states-with-pending).
+
+## Loading states with `<Pending>`
+
+`<Pending>` shows one loading state for every resource inside it, instead of one
+spinner per component.
+
+```jsx
+import { ErrorBoundary, Pending, resource } from "@opentf/afw";
+
+function UserList() {
+  const users = resource(() => fetch("/api/users").then((r) => r.json()));
+  return <ul>{users.data?.map((u) => <li key={u.id}>{u.name}</li>)}</ul>;
+}
+
+function Stats() {
+  const stats = resource(() => fetch("/api/stats").then((r) => r.json()));
+  return <p>{stats.data?.total} users</p>;
+}
+
+export default function Dashboard() {
+  return (
+    <ErrorBoundary fallback={(error, retry) => <button onclick={retry}>Retry: {error.message}</button>}>
+      <Pending fallback={<Skeleton />} refreshing={<TopProgress />} delay={200}>
+        <UserList />
+        <Stats />
+      </Pending>
+    </ErrorBoundary>
+  );
+}
+```
+
+### What it waits on
+
+- **Resources created by components inside it**, at any depth.
+- **Resources read while its children are built.** A page resource passed down as a prop counts:
+
+```jsx
+export default function Profile() {
+  const user = resource(() => router.params.id, (id) => getUser(id));
+  return (
+    <Pending fallback={<ProfileSkeleton />}>
+      <Header name={user.data?.name} />
+      <Activity items={user.data?.activity} />
+    </Pending>
+  );
+}
+```
+
+- **Only its nearest boundary.** A nested `<Pending>` waits for its own resources, so an inner section can reveal later than the page around it.
+- **Paused resources don't count.** A resource whose source is `null` or `false` doesn't hold the fallback.
+
+### First load and refetch
+
+| Prop | Default | What it does |
+| --- | --- | --- |
+| `fallback` | none | Shown until every resource inside has loaded once. |
+| `refreshing` | none | Shown above the content while a resource inside refetches. |
+| `refetch` | `"keep"` | `"keep"`: the content stays during a refetch. `"fallback"`: show the fallback again. |
+| `delay` | `0` | Milliseconds before `fallback` or `refreshing` appear. A faster load shows neither. |
+
+- **Revealed together:** the content appears once every resource has settled, not one widget at a time.
+- **During a `delay` on first load,** nothing is shown; during a refetch, the content stays.
+- **Inline indicators still work:** `resource.loading` is `true` during a refetch, for a spinner on one widget.
+- **Styling a refetch:** the boundary has a `data-pending` attribute while its refetch state is showing:
+
+```css
+afw-internal-pending[data-pending] > :not([slot]) {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+```
+
+### Errors
+
+| Situation | What happens |
+| --- | --- |
+| First load fails | The error goes to the nearest `<ErrorBoundary>`. Its retry refetches the failed resources, including a page resource outside the boundary. |
+| A refetch fails | The last data stays on screen, `resource.error` is set, and the error is reported (dev overlay, `onError`). |
+| No `<ErrorBoundary>` above | The error is reported and the content shows, so the component can read `resource.error`. |
+| `{ errors: "inline" }` | Only `resource.error` is set; nothing is reported or routed. |
+
+- **Outside any `<Pending>`,** a failure only sets `resource.error`, as before.
+
+### How it displays
+
+- **Children are built at once.** They're connected from the start, so every fetch starts immediately; they're only hidden until the resources settle.
+- **Hidden means not rendered.** A child measuring itself in `onMount` while the fallback shows gets zero sizes.
+- **Page CSS applies to both.** The fallback and the children stay in the page DOM; a shadow root picks which one is displayed.
+- **Layout:** the boundary itself has no box (`display: contents`).
+
+### Server rendering
+
+- **The server renders the fallback.** Resources don't fetch on the server, so the HTML shows the fallback, with the children's markup present but hidden.
+- **Hydration adopts both.** The browser shows the server fallback on first paint, adopts it without rebuilding, and reveals the content when the resources settle.
+- **For data in the server HTML,** use a [route loader](#route-loaders).

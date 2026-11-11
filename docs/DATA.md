@@ -137,6 +137,21 @@ aborts in-flight work. On the server no effect is created and `loading` stays
 `true`, so SSG renders the loading branch — identical to the client's first
 paint, keeping hydration adoption aligned.
 
+### `<Pending>` boundaries
+
+`runtime/pending.js` (element) and `runtime/pending-scope.js` (registration).
+
+* **Registration.** A resource registers with a boundary in two ways:
+  * At creation in a component body: the nearest `afw-internal-pending` ancestor of the host (`closestPending`, hopping portals).
+  * On a read while a boundary's children are built: the compiler brackets that build, and hydration's adoption of it, with `enterPending(el)` / `exitPending()`.
+* **State.** A handle exposes `loading()` and `settled()` (has a run finished once).
+  * The boundary shows `fallback` while any tracked resource is loading and never settled.
+  * Otherwise it shows `refreshing` plus the content while any is loading (or the fallback with `refetch="fallback"`), and the content when none is.
+* **Display.** A shadow root holds a `<slot name="fallback">`, `<slot name="refreshing">` and a default `<slot>`, swapped per state. The fallback and refreshing views sit in the light DOM in `span[slot]` wrappers (`display: contents`).
+* **Errors.** A first-load failure calls `handleError(boundary, error, { retry })`; `ErrorBoundary.reset()` runs the retries after reinserting its subtree. A failed refetch is `reportError(…, { phase: "resource" })`. `errors: "inline"` opts out.
+* **Server.** The SSG renderer emits `<template shadowrootmode="open">` showing the fallback slot. A server-rendered boundary changes nothing until `exitPending` reports its children adopted.
+* **Lifetime.** A component's resource pushes its effect disposers onto the host's `_cleanups`, so it stops (and unregisters) when the component is torn down.
+
 ## 4. Toolchain
 
 - The project build can call `emitLoaderBundle` from `@opentf/afw-cli/ssg` before

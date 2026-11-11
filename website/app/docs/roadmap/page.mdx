@@ -29,10 +29,12 @@ These items need compiler or runtime support, so a third-party package cannot ad
 - [ ] **List reorder animation and out-in mode.**
   - Animate items that move within a list, and let the old element finish leaving before the new one enters.
   - Others: Svelte `animate:flip`, Vue `<TransitionGroup>` and `mode="out-in"`.
-- [ ] **Async pending boundaries.**
-  - Show a fallback while descendant `resource()` calls load, and keep the current UI visible during a refetch.
+- [x] **Async pending boundaries.**
+  - [`<Pending>`](/docs/data-fetching#loading-states-with-pending) shows one fallback while the resources inside load, keeps the content during a refetch, and sends a failed first load to the nearest `<ErrorBoundary>`. In the next release.
   - Others: React and Solid `<Suspense>` and transitions, Svelte `{#await}` and `<svelte:boundary>`.
-  - Today: read each resource's loading state yourself.
+- [ ] **Typed data after loading.**
+  - Inside `<Pending>`, `resource.data` is still typed `T | undefined`.
+  - Others: React `use()`, TanStack `useSuspenseQuery`.
 - [ ] **Lazy components.**
   - Load a component's code only when it first renders, such as a modal, editor or chart.
   - Others: React `lazy()`, Solid `lazy()`, Vue `defineAsyncComponent`.
