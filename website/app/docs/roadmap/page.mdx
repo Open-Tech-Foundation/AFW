@@ -59,11 +59,10 @@ These items need compiler or runtime support, so a third-party package cannot ad
   - Parse `query` with a schema into typed values, and update one value without building the URL by hand.
   - Others: TanStack Router `validateSearch`, Nuxt `useRoute().query`.
   - Today: pages receive `query` as a plain string map.
-- [ ] **Scroll restoration for async pages.**
-  - Save the scroll position per history entry and restore it after the page's data loads.
-  - Today: forward navigation scrolls to the top or the `#anchor`; back and forward rely on the browser, which can restore the position before the content is in place.
-- [ ] **View transitions.**
-  - Wrap client navigations in `document.startViewTransition()`.
+- [x] **Scroll restoration for async pages.**
+  - Each history entry's position is restored after the page renders, retrying while it grows: [Navigation](/docs/routing/navigation#scroll-position), in the next release.
+- [x] **View transitions.**
+  - `mountApp({ viewTransitions: true })`: [Navigation](/docs/routing/navigation#view-transitions), in the next release.
 
 ### Data and forms
 

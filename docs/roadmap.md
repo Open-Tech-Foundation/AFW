@@ -69,8 +69,8 @@ Features React, Vue, Svelte and Solid developers expect, built in or from their 
 * [x] Per-route `loading.jsx` / `error.jsx` (nearest file; navigation delay; loader, page and unhandled errors; SSR status 500) and `<Pending error>` for sections.
 * [ ] Layout errors caught by `error.jsx`; layout loaders, route groups, optional segments.
 * [ ] Typed routes (`<Link href>`, `navigate()`, `params`) and schema-validated search params.
-* [ ] Scroll restoration saved per history entry, applied after async page data loads.
-* [ ] View transitions on client navigation.
+* [x] Scroll restoration saved per history entry, applied after async page data loads (retries while the page grows).
+* [x] View transitions on client navigation (`mountApp({ viewTransitions: true })`).
 * [ ] `PUBLIC_*` env vars in both toolchains (SPEC.md §env and docs/API.md §7 disagree today).
 * [ ] ESLint plugin for macro misuse; editor tooling; devtools; image optimization.
 * [ ] Ecosystem bridges: signals adapters for TanStack Query/Table/Virtual; guides for web-component UI kits, Auth.js/Better Auth, realtime (WebSocket/SSE), Storybook, PWA; persisted/cross-tab state helper.

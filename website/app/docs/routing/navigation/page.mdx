@@ -65,6 +65,42 @@ import { router } from "@opentf/afw";
   the UI automatically when the route changes.
 </Callout>
 
+## Scroll position
+
+The router manages scrolling for client navigation:
+
+| Navigation | Where the page lands |
+| --- | --- |
+| A link, `router.push`, `router.replace` | At its `#anchor`, or the top |
+| Back and forward | Where you left that page |
+| A reload | Where you were, then its `#anchor` if none was saved |
+
+- **Restored after the page renders.** The browser's own restoration runs before an async page has its data, so the router takes over (`history.scrollRestoration = "manual"`).
+- **Pages that grow.** When the page is still too short (data or resources loading), the router keeps scrolling as it grows, and stops once it fits, when you scroll, or after 2 seconds.
+- **Per entry.** Each history entry keeps its own position, also across a reload (stored in `sessionStorage`).
+- **MPA mode** (`nav: "mpa"`) leaves scrolling to the browser.
+
+## View transitions
+
+Animate client navigations with the browser's [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API):
+
+```js entry.js
+mountApp({ pages, target: document.getElementById("app"), viewTransitions: true });
+```
+
+```css
+/* A cross-fade is the default; customize it with the view-transition pseudo-elements. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+}
+```
+
+- **Every client navigation** swaps the page inside `document.startViewTransition()`, including the switch to a [`loading.jsx`](/docs/routing/loading-and-errors).
+- **Skipped** on the first paint, when the user prefers reduced motion, and in browsers without the API; navigation works the same without it.
+- **Shared elements:** give an element the same `view-transition-name` on both pages to morph it between them.
+- **Off by default.** For element enter and exit animations within a page, see [Transitions](/docs/core-concepts/transitions).
+
 ## Localized navigation
 
 When i18n is enabled, the locale lives in the URL path and `<Link>` automatically keeps
