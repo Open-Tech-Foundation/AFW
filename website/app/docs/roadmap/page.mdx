@@ -23,10 +23,12 @@ These items need compiler or runtime support, so a third-party package cannot ad
 
 ### Components and rendering
 
-- [ ] **Enter and exit transitions.**
-  - Animate elements as conditionals and lists add or remove them, and animate list reorders.
-  - Others: Vue `<Transition>`, Svelte `transition:` / `animate:`, Framer Motion `AnimatePresence`.
-  - Today: animate a `$ref` with the Web Animations API or Motion; removed nodes leave at once.
+- [x] **Enter and exit transitions.**
+  - Animate elements as conditionals and lists add or remove them: [Transitions](/docs/core-concepts/transitions), in the next release.
+  - Others: Vue `<Transition>`, Svelte `transition:`, Framer Motion `AnimatePresence`.
+- [ ] **List reorder animation and out-in mode.**
+  - Animate items that move within a list, and let the old element finish leaving before the new one enters.
+  - Others: Svelte `animate:flip`, Vue `<TransitionGroup>` and `mode="out-in"`.
 - [ ] **Async pending boundaries.**
   - Show a fallback while descendant `resource()` calls load, and keep the current UI visible during a refetch.
   - Others: React and Solid `<Suspense>` and transitions, Svelte `{#await}` and `<svelte:boundary>`.
@@ -95,7 +97,7 @@ framework-agnostic core; AFW needs a thin adapter or a tested guide for each.
 | Persisted state | Zustand `persist`, Pinia plugins | Module-level `signal()` with your own `localStorage` code | Helper for persisted and cross-tab state |
 | Authentication | Auth.js, Better Auth | Fetch-based libraries through [middleware](/docs/routing/middleware) and [cookies](/docs/routing/cookies) | Guide and example |
 | Real-time updates | Socket.IO, server-sent events helpers | Browser `WebSocket` and `EventSource` on the client | Server guide for both toolchains |
-| Animation | Framer Motion, GSAP | Motion or GSAP on a `$ref` | Exit animations (above) |
+| Animation | Framer Motion, GSAP | Motion or GSAP on a `$ref`, or returned from a [custom transition](/docs/core-concepts/transitions#custom-transitions) | Reorder animation (above) |
 | Component workbench | Storybook, Histoire | Not verified | Preset or guide |
 | Offline and installable apps | `vite-plugin-pwa` | Not verified | Guide for both toolchains |
 

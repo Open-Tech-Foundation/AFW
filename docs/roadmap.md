@@ -61,7 +61,8 @@ Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE
 
 ## Everyday gaps — tracked on the site at /docs/roadmap
 Features React, Vue, Svelte and Solid developers expect, built in or from their ecosystems (surveyed 2026-11).
-* [ ] Enter/exit transitions for conditionals and lists; list reorder animation.
+* [x] Enter/exit transitions for conditionals and lists (`transition`/`in`/`out`, `@opentf/afw/transition`).
+* [ ] List reorder animation (`flip`) and an out-in mode.
 * [ ] Async pending boundaries over `resource()` (fallback while loading, keep UI during refetch).
 * [ ] Component-level `lazy()` outside routes.
 * [ ] Per-route loading/error files, layout loaders, route groups, optional segments.

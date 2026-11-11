@@ -1,0 +1,136 @@
+---
+title: Transitions
+description: Animate elements as conditionals and lists add and remove them, with the transition, in and out props and the built-in fade, scale, fly and slide.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Transitions
+
+The `transition` prop animates an element as a conditional or a list adds and removes it.
+
+```jsx
+import { fade } from "@opentf/afw/transition";
+
+export default function Notice() {
+  let open = $state(false);
+  return (
+    <div>
+      <button onclick={() => (open = !open)}>Toggle</button>
+      {open && <p transition={fade()}>Saved.</p>}
+    </div>
+  );
+}
+```
+
+- **Entering:** the element animates from hidden to shown when it is inserted.
+- **Leaving:** the element stays in place, plays the animation in reverse, and is removed when it ends.
+- **No runtime cost when unused:** apps without transitions load none of the transition code.
+
+<Callout type="info" title="New in the next release">
+  Transitions ship in the `@opentf/afw` and `@opentf/afw-compiler` releases after 0.37.0 and 0.24.0.
+</Callout>
+
+## The props
+
+| Prop | Animates |
+| --- | --- |
+| `transition={…}` | Entering and leaving, with the same transition. |
+| `in={…}` | Entering only; the element is removed at once. |
+| `out={…}` | Leaving only; the element appears at once. |
+
+```jsx
+<li in={slide()} out={fade({ duration: 120 })}>{item.name}</li>
+```
+
+- **HTML elements only.** On a component, `transition`, `in` and `out` are ordinary props the component may define.
+- **SVG filter inputs.** `<feBlend in="SourceGraphic">` keeps `in` as an attribute.
+- **Expressions only.** `transition="fade"` is a compile error; write `transition={fade()}`.
+- **No transition.** A `null`, `undefined` or `false` value turns it off, for example `transition={reduced ? null : fade()}`.
+
+## Built-in transitions
+
+Import them from `@opentf/afw/transition`.
+
+| Transition | Hidden state | Extra options |
+| --- | --- | --- |
+| `fade()` | `opacity: 0` | |
+| `scale()` | Scaled to `start` and faded | `start` (default `0.95`), `opacity` (default `0`) |
+| `fly()` | Offset by `x`, `y` pixels and faded | `x` (default `0`), `y` (default `8`), `opacity` (default `0`) |
+| `slide()` | Zero height, padding, margin and border | `axis`: `"y"` (default) or `"x"` for width |
+
+Every built-in takes these options:
+
+- `duration`: milliseconds; default `200`.
+- `delay`: milliseconds before it starts; default `0`.
+- `easing`: any CSS easing; default `"ease-out"`. Leaving plays it in reverse.
+- `initial`: also play on the first render; default `false`.
+
+## Lists
+
+Give list items a `key` so each item keeps its own element.
+
+```jsx
+import { slide } from "@opentf/afw/transition";
+
+<ul>
+  {todos.map((todo) => (
+    <li key={todo.id} transition={slide()}>{todo.title}</li>
+  ))}
+</ul>
+```
+
+- **Added items** slide in; items that stay do not animate.
+- **Removed items** slide out in place while the rest keep their order.
+- **A re-added key** gets a new element while the old one finishes leaving.
+- **Reordering** moves elements without animating them.
+
+## When transitions play
+
+- **Directly added or removed elements only.** A transition plays on the element a conditional or list adds or removes. Elements nested inside it don't animate when the parent goes.
+- **Not on the first render.** The items a list or conditional shows when it first renders don't animate. Set `initial: true` to animate them too.
+- **Not on hydration.** Server-rendered elements are adopted without animating. Later changes animate as usual.
+- **Leaving mid-enter.** The running animation reverses from where it is.
+- **Toggling quickly.** The new element is inserted while the old one is still leaving, so the two overlap briefly.
+- **While leaving.** The element is `inert`: it can't be clicked or focused, and screen readers skip it. Its bindings have stopped updating.
+- **Reduced motion.** With `prefers-reduced-motion: reduce`, transitions don't play and elements appear and disappear at once.
+- **Without the Web Animations API** (some test DOMs), built-in transitions don't play.
+
+## Custom transitions
+
+A transition is a function that receives the element and the direction, and returns one of:
+
+- **Keyframes** describing entering, from hidden to shown. Leaving plays them in reverse.
+- **A running animation** with a `finished` promise, such as a Web Animation or a Motion animation. The element is removed when it settles.
+- **Any thenable**, such as a GSAP tween.
+- **`null`** to skip the animation.
+
+```jsx
+// Keyframes: the runtime plays them, forwards to enter and reversed to leave.
+const blur = () => ({
+  keyframes: [{ filter: "blur(8px)", opacity: 0 }, { filter: "none", opacity: 1 }],
+  duration: 250,
+});
+
+// An animation you start yourself: handle both directions.
+const spin = (el, { direction }) =>
+  el.animate(
+    [{ transform: "rotate(-90deg)", opacity: 0 }, { transform: "none", opacity: 1 }],
+    { duration: 200, direction: direction === "in" ? "normal" : "reverse", fill: "forwards" },
+  );
+
+{open && <div transition={blur}>…</div>}
+```
+
+- **Play on first render:** set `initial = true` on the function, for example `blur.initial = true`.
+- **Errors:** a transition that throws is reported with phase `"transition"`, and the element is added or removed without animating.
+
+## TypeScript
+
+```ts
+import type { Transition } from "@opentf/afw/transition";
+
+const pop: Transition = (el) => ({ keyframes: [{ transform: "scale(0.8)" }, { transform: "none" }] });
+```
+
+- `transition`, `in` and `out` are typed on every HTML element as `Transition | null | false`.
