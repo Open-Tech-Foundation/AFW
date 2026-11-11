@@ -59,6 +59,19 @@ Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE
 * [ ] Streamed SSR. Today `renderRoute()` returns one complete HTML string and loaders block rendering.
 * [ ] Evaluate [Declarative Partial Updates](https://github.com/WICG/declarative-partial-updates/blob/main/patching-explainer.md) (`<?start>`/`<?marker>` placeholders filled by `<template for>`) for out-of-order streaming. A WICG proposal shipping in one browser so far; the hydration walk would need to adopt content the parser moves into place.
 
+## Everyday gaps — tracked on the site at /docs/roadmap
+Features React, Vue, Svelte and Solid developers expect, built in or from their ecosystems (surveyed 2026-11).
+* [ ] Enter/exit transitions for conditionals and lists; list reorder animation.
+* [ ] Async pending boundaries over `resource()` (fallback while loading, keep UI during refetch).
+* [ ] Component-level `lazy()` outside routes.
+* [ ] Per-route loading/error files, layout loaders, route groups, optional segments.
+* [ ] Typed routes (`<Link href>`, `navigate()`, `params`) and schema-validated search params.
+* [ ] Scroll restoration saved per history entry, applied after async page data loads.
+* [ ] View transitions on client navigation.
+* [ ] `PUBLIC_*` env vars in both toolchains (SPEC.md §env and docs/API.md §7 disagree today).
+* [ ] ESLint plugin for macro misuse; editor tooling; devtools; image optimization.
+* [ ] Ecosystem bridges: signals adapters for TanStack Query/Table/Virtual; guides for web-component UI kits, Auth.js/Better Auth, realtime (WebSocket/SSE), Storybook, PWA; persisted/cross-tab state helper.
+
 ## Known issues
 Open items carried over from the 2026-10 site and HMR audits.
 * [x] SSG omits spread attributes and multi-node (fragment) roots. Both now render on the server.
