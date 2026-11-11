@@ -66,7 +66,7 @@ export default function HomePage() {
           <div class="hero-copy">
             <div class="hero-badge">
               <span class="hero-badge-dot" aria-hidden="true"></span>
-              Public alpha
+              Alpha
             </div>
             <h1 class="hero-title">
               The <span class="text-[var(--accent-text)]">native-first</span> framework for modern web apps.
