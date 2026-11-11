@@ -5,8 +5,7 @@
 ### Changed
 
 - `T` is a plain re-export (no bare side-effect import). It registers on first use like
-  every compiled component. Needs an `@opentf/afw-compiler` with registration on first
-  use.
+  every compiled component (or, with an older `@opentf/afw-compiler`, at import as before).
 
 ## [1.31.0] - 2026-11-05
 

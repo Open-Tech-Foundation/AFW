@@ -22,7 +22,8 @@
   for its side effect.
   - A page bundles only the components it renders. A navbar-only page drops from all 37
     components to 14 (about half the bytes); a Callout-only page to 1.
-  - Needs an `@opentf/afw-compiler` with registration on first use.
+  - The size win needs the updated `@opentf/afw-compiler` and toolchain plugin. With
+    older ones every component is still bundled, as before; nothing breaks.
 
 - The theme colors code with GitHub Light and GitHub Dark, following `data-theme`.
   - Code blocks used to be dark in both modes.

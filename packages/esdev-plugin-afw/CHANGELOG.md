@@ -14,8 +14,9 @@
 - Compiled modules are no longer marked `moduleSideEffects: true`.
   - Components register on first use (see `@opentf/afw-compiler`), so the bundler's own
     side-effect analysis is correct and unused components are dropped.
-  - Needs an `@opentf/afw-compiler` with registration on first use. With an older one,
-    the components a module registers at import could be dropped.
+  - Safe with an older `@opentf/afw-compiler`: its module-level `customElements.define`
+    is itself a side effect the bundler keeps, so nothing is dropped (and nothing
+    shrinks) until the compiler is updated too.
 
 ## [0.7.1] - 2026-11-05
 

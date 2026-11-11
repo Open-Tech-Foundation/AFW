@@ -7,7 +7,8 @@
 - Compiled modules are no longer marked `moduleSideEffects: true`.
   - Components register on first use (see `@opentf/afw-compiler`), so Vite's own
     side-effect analysis is correct and unused components are dropped.
-  - Needs an `@opentf/afw-compiler` with registration on first use.
+  - Safe with an older `@opentf/afw-compiler` (its module-level define keeps its modules);
+    the size win needs both updated.
 
 ## [0.4.0] - 2026-11-05
 
