@@ -56,7 +56,7 @@ test("published framework types support strict TS starters and reject invalid JS
       const asyncValue = resource(async () => 42); const result: number | undefined = asyncValue.data;
       const ref = signal<HTMLHeadingElement | null>(null);
       const heading = <h1 ref={ref} class={{ active: true }}>Hello</h1>;
-      registerRoutes({}); mountApp({ pages: {}, loaders: ["/"], i18n: { locales: ["en"], defaultLocale: "en" } });
+      registerRoutes({}); mountApp({ pages: {}, loaders: ["/"], i18n: { locales: ["en"], defaultLocale: "en" }, viewTransitions: true });
       const pop: Transition = (el, { direction }) => el.animate([{ opacity: direction === "in" ? 0 : 1 }], 100);
       const animated = <ul><li transition={fade({ duration: 150, initial: true })} /><li in={slide({ axis: "x" })} out={fly({ y: -4 })} /><li transition={pop} /></ul>;
       const feed = resource(async () => [1, 2], { errors: "inline" });

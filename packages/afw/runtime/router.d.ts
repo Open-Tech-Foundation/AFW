@@ -142,17 +142,24 @@ export function refreshHotRoute(factory: any): Promise<void>;
  * @param {string[]} [opts.loaders]  route patterns that have a server loader
  *   (docs/DATA.md) — navigation fetches `<path>/__data.json` for these.
  */
-export function mountApp({ pages, target, guard: g, i18n, nav, loaders }?: {
+export function mountApp({ pages, target, guard: g, i18n, nav, loaders, viewTransitions }?: {
     i18n?: { locales: string[]; defaultLocale?: string };
     pages: Object;
     target?: Element | undefined;
     guard?: Function | undefined;
     nav?: "spa" | "mpa" | undefined;
     loaders?: string[] | undefined;
+    /**
+     * Run client navigations inside `document.startViewTransition()`. Skipped on the
+     * first paint, with `prefers-reduced-motion: reduce`, and where unsupported. Default false.
+     */
+    viewTransitions?: boolean | undefined;
 }): Promise<void>;
 export namespace routes {
     let pages: {};
     let layouts: {};
+    let loading: {};
+    let errors: {};
     let notFound: null;
     let loaderRoutes: Set<any>;
 }

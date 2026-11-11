@@ -25,6 +25,7 @@ import { buildScopedView, runCleanup, runMount } from "./mount.js";
 import { RouteRedirect, fetchRouteData, readInlineRouteData, routeErrorFrom } from "./route-data.js";
 import { enterPending, exitPending } from "./pending-scope.js";
 import { setRouteErrorHandler } from "./route-errors.js";
+import { enterEntry, manageScroll, rememberScroll, restoreScroll } from "./scroll.js";
 import { setRouteDataRefresher } from "./invalidate.js";
 import { compareRoutes, compileRoute, decodeParams } from "./route-match.js";
 
@@ -139,6 +140,58 @@ let currentNodes = [];
 // replaced by the route's `error.jsx` (see `showRouteError`).
 let currentRegion = null;
 let currentRoute = null;
+
+/** Opt-in `document.startViewTransition()` around client navigations (`mountApp`). */
+let viewTransitions = false;
+/** Has this app committed a page yet (the first paint is never a transition)? */
+let committed = false;
+
+/**
+ * Run `update` (a synchronous DOM swap) inside a view transition when they are on,
+ * supported, `animate` allows it (never the first paint) and the user hasn't asked
+ * for reduced motion; otherwise run it directly. An error thrown by `update` is
+ * rethrown either way.
+ */
+async function swapView(update, animate = true) {
+  const supported = isBrowser && typeof document.startViewTransition === "function";
+  const reduced = isBrowser && typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!viewTransitions || !animate || !supported || reduced) {
+    update();
+    return;
+  }
+  let failure = null;
+  const transition = document.startViewTransition(() => {
+    try {
+      update();
+    } catch (error) {
+      failure = error;
+    }
+  });
+  // A navigation during a running transition skips it: `ready` and `finished` then
+  // reject (AbortError), which is expected, not an app error.
+  transition.ready?.catch(() => {});
+  transition.finished?.catch(() => {});
+  await transition.updateCallbackDone.catch(() => {});
+  if (failure) throw failure;
+}
+
+/** Scroll a forward navigation: to its `#anchor`, or the top. */
+function scrollToTarget(url) {
+  const anchor = url.hash ? document.getElementById(decodeURIComponent(url.hash.slice(1))) : null;
+  if (anchor) anchor.scrollIntoView();
+  else window.scrollTo(0, 0);
+}
+
+/**
+ * Where a committed navigation leaves the scroll: back/forward and a reload restore
+ * the position saved for the entry (falling back to its `#anchor`, else unchanged);
+ * a forward navigation goes to its anchor or the top.
+ */
+function landScroll(url, isPop, entry) {
+  if (!isPop) return scrollToTarget(url);
+  if (restoreScroll(entry)) return;
+  if (url.hash) scrollToTarget(url);
+}
 
 /** How long a navigation waits before showing `loading.jsx`: a fast one never flashes it. */
 export const LOADING_DELAY = 150;
@@ -400,12 +453,19 @@ function scheduleRouteLoading(match, query, seq, entry) {
         node = buildScopedView(() => factoryOf(layoutModules[i])({ ...props, children: inner }));
         nodes.push(node);
       }
-      for (const n of currentNodes) runCleanup(n);
-      currentRegion = null;
-      rootEl.replaceChildren(node);
-      for (const n of nodes) runMount(n);
-      currentNodes = nodes;
-      status.shown = true;
+      await swapView(() => {
+        // A transition runs this later: the page may have committed meanwhile.
+        if (status.cancelled || seq !== navSeq) {
+          for (const n of nodes) runCleanup(n);
+          return;
+        }
+        for (const n of currentNodes) runCleanup(n);
+        currentRegion = null;
+        rootEl.replaceChildren(node);
+        for (const n of nodes) runMount(n);
+        currentNodes = nodes;
+        status.shown = true;
+      });
     } catch (e) {
       reportError(e, { phase: "route" });
     }
@@ -744,6 +804,10 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
   if (!path || !rootEl) return;
   const seq = ++navSeq;
   const url = new URL(path, window.location.origin);
+  // SPA mode restores scroll itself (scroll.js): save where the page being left was,
+  // before anything (a loading view, the new page) replaces it.
+  const spa = isBrowser && navMode === "spa";
+  if (spa) rememberScroll();
 
   if (guard) {
     let redirected = false;
@@ -836,7 +900,11 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
   state.locale.value = resolveLocale(url.pathname).locale;
   state.data.value = data;
 
-  if (!isPop) {
+  // The history entry this navigation lands on; back/forward and the first load keep
+  // the one already there. Its key finds the scroll position saved for it.
+  let entry = null;
+  if (spa) entry = enterEntry(path, isPop ? "pop" : replace ? "replace" : "push");
+  else if (!isPop) {
     if (replace) window.history.replaceState({}, "", path);
     else window.history.pushState({}, "", path);
   }
@@ -863,6 +931,8 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
         currentNodes = adopted.nodes;
         currentRegion = dataError ? null : adopted.nodes[0];
         currentRoute = match.route;
+        if (spa) landScroll(url, true, entry); // a reload of a server-rendered page
+        committed = true;
         for (const n of adopted.nodes) runMount(n); // onMount for page + every layout
         clearError({ phase: "route" });
         clearChunkReloadFlag();
@@ -911,33 +981,34 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
     }
   }
 
-  for (const n of currentNodes) runCleanup(n);
-  rootEl.replaceChildren();
-  updateRouteHead(metadata, url.pathname);
-
   loading?.cancel();
-  if (nodes) {
-    // Set before inserting: a component that throws as it connects reports into it.
-    currentRegion = region;
-    currentRoute = match.route;
-    rootEl.appendChild(nodes[nodes.length - 1]); // outermost node
-    for (const n of nodes) runMount(n); // run onMount for page + every layout
-    currentNodes = nodes;
-    clearError({ phase: "route" }); // a good render dismisses a prior error overlay
-    clearChunkReloadFlag(); // a successful render means the reload (if any) recovered
-    // A forward navigation lands at the top of the new page (or at the targeted
-    // anchor); back/forward (`isPop`) keeps the browser's restored scroll position.
-    if (!isPop && isBrowser) {
-      const anchor = url.hash ? document.getElementById(decodeURIComponent(url.hash.slice(1))) : null;
-      if (anchor) anchor.scrollIntoView();
-      else window.scrollTo(0, 0);
+  // The swap itself: one synchronous update, so a view transition (when enabled)
+  // snapshots the old page before it and animates to the new one after it.
+  const commit = () => {
+    for (const n of currentNodes) runCleanup(n);
+    rootEl.replaceChildren();
+    updateRouteHead(metadata, url.pathname);
+    if (nodes) {
+      // Set before inserting: a component that throws as it connects reports into it.
+      currentRegion = region;
+      currentRoute = match.route;
+      rootEl.appendChild(nodes[nodes.length - 1]); // outermost node
+      for (const n of nodes) runMount(n); // run onMount for page + every layout
+      currentNodes = nodes;
+      clearError({ phase: "route" }); // a good render dismisses a prior error overlay
+      clearChunkReloadFlag(); // a successful render means the reload (if any) recovered
+      if (spa) landScroll(url, isPop, entry);
+      else if (!isPop && isBrowser) scrollToTarget(url);
+      if (isBrowser) focusRouteContent(rootEl);
+    } else {
+      rootEl.innerHTML = "<h1>404 — Not Found</h1>";
+      currentNodes = [];
+      currentRegion = null;
     }
-    if (isBrowser) focusRouteContent(rootEl);
-  } else {
-    rootEl.innerHTML = "<h1>404 — Not Found</h1>";
-    currentNodes = [];
-    currentRegion = null;
-  }
+  };
+  // Never on the first paint: there is no previous page to transition from.
+  await swapView(commit, committed);
+  committed = true;
   } finally {
     loading?.cancel();
   }
@@ -1049,9 +1120,12 @@ function focusRouteContent(container) {
  * @param {string[]} [opts.loaders]  route patterns that have a server loader
  *   (docs/DATA.md) — navigation fetches `<path>/__data.json` for these.
  */
-export function mountApp({ pages, target, guard: g, i18n, nav, loaders } = {}) {
+export function mountApp({ pages, target, guard: g, i18n, nav, loaders, viewTransitions: vt = false } = {}) {
   rootEl = target || (isBrowser ? document.getElementById("app") : null);
   navMode = nav === "mpa" ? "mpa" : "spa";
+  viewTransitions = Boolean(vt) && navMode === "spa";
+  committed = false;
+  if (isBrowser && navMode === "spa") manageScroll();
   if (i18n) configureI18n(i18n);
   if (pages) registerRoutes(pages);
   if (loaders) registerLoaderRoutes(loaders);

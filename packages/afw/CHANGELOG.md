@@ -49,6 +49,14 @@
     `error.jsx` in place of the page with the error's status (500 by default) and a
     generic message in production.
   - `RouteErrorProps` and `RouteLoadingProps` types.
+- Scroll restoration for client navigation (SPA mode). Each history entry keeps its
+  scroll position (in `sessionStorage`, so a reload restores it too); back, forward and
+  reload restore it after the page renders, and keep retrying while an async page grows,
+  until it fits, the user scrolls, or 2 seconds pass. The router sets
+  `history.scrollRestoration = "manual"`; MPA mode is unchanged.
+- `mountApp({ viewTransitions: true })` runs client navigations inside
+  `document.startViewTransition()`, skipped on the first paint, with reduced motion,
+  and where unsupported.
 - `<Pending error={(error, retry) => view}>` shows a failed first load in the
   boundary itself; `retry` refetches what failed and shows the fallback while it
   reloads.
