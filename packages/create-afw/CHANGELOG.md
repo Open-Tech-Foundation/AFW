@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-11
+
 ### Changed
 
 - The `docs` template no longer includes a blog by default.

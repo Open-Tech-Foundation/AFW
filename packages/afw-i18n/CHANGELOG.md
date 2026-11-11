@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-11-11
+
 ### Changed
 
 - `T` is a plain re-export (no bare side-effect import). It registers on first use like

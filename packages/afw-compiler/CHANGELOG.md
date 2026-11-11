@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-11
+
 ### Changed
 
 - **Breaking:** a compiled component registers its Custom Element the first time its

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-11-11
+
 ### Added
 
 - `afwDocsPlugin` in `@opentf/afw-docs/build`: the whole esdev docs toolchain as one
