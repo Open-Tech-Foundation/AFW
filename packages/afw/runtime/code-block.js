@@ -1,11 +1,12 @@
-//! Code block — a built-in that renders a (build-time syntax-highlighted) code block
+//! Code block — a built-in that renders a code block (plain, or highlighted at build time)
 //! and **owns its copy behavior**.
 //
 //   <CodeFence html={"<div class='afw-code'>…<button class='afw-copy'>…</button><pre>…</pre></div>"} />
 //
 // The MDX front-end emits this for fenced code (compiles to `afw-internal-code-block`,
-// like `<RawHtml>` → `afw-internal-raw-html`). The highlighted markup is a trusted
-// string from the compiler, so it's assigned to `innerHTML`; the difference from
+// like `<RawHtml>` → `afw-internal-raw-html`). The markup — escaped code, which
+// afw-docs' build plugin highlights — is a trusted string from the build, so it's
+// assigned to `innerHTML`; the difference from
 // `RawHtml` is that on connect this element wires its own `.afw-copy` button to copy
 // the `<pre>` text. That keeps copy working wherever a code block is rendered (docs,
 // blog, anywhere) — no delegated listener in a layout. SSG renders the string inline

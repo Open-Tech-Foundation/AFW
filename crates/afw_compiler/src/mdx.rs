@@ -5,17 +5,15 @@
 //! afwc rejects by design (SPEC §4.0.1) and which raw `@mdx-js` output would use.
 //!
 //! Markdown is parsed by the `markdown` crate (markdown-rs) to an mdast tree;
-//! fenced code is highlighted at build time with `syntect`; YAML frontmatter
-//! becomes `export const metadata = {…}` (consumed by the SSG `<head>` pass).
+//! fenced code is emitted as plain, escaped `<code class="language-…">` markup for
+//! a highlighter downstream (`@opentf/afw-docs` highlights it after compile); YAML
+//! frontmatter becomes `export const metadata = {…}` (consumed by the SSG `<head>`
+//! pass).
 
 use std::collections::HashMap;
-use std::sync::OnceLock;
 
 use markdown::mdast::{AttributeContent, AttributeValue, Node};
 use markdown::{to_mdast, MdxSignal, ParseOptions};
-use syntect::highlighting::{Theme, ThemeSet};
-use syntect::html::highlighted_html_for_string;
-use syntect::parsing::SyntaxSet;
 
 /// Lower MDX/Markdown `source` (from `file`, used for the component name) to a JSX
 /// module string. The default export is a factory returning a fragment, named after
@@ -339,22 +337,6 @@ fn expression(value: &str) -> String {
     format!("{{{value}}}")
 }
 
-/// Map a fenced-code language token to a grammar token syntect's *default* set
-/// actually ships. The bundled Sublime grammars have no `jsx`/`tsx`/`ts`/`mdx`
-/// entries, so those tokens silently fall back to plain text (no highlighting) —
-/// which is most of our examples. Alias them to the closest available grammar
-/// (`js`, `md`, `bash`) so they highlight. An unknown token is returned as-is.
-fn highlight_token(lang: &str) -> &str {
-    match lang.trim().to_ascii_lowercase().as_str() {
-        "jsx" | "tsx" | "ts" | "typescript" | "javascript" | "mjs" | "cjs" => "js",
-        "mdx" | "markdown" => "md",
-        "sh" | "shell" | "zsh" | "console" | "shellscript" => "bash",
-        "yml" => "yaml",
-        "rs" => "rust",
-        _ => lang,
-    }
-}
-
 /// SVGs for the copy button rendered into each code block's header. Both ship in the
 /// markup; CSS swaps the clipboard glyph for the green check when `.is-copied` is set
 /// (toggled at runtime by the docs layout's delegated click handler).
@@ -385,30 +367,20 @@ fn display_lang(lang: &str) -> Option<String> {
     Some(label.to_string())
 }
 
-/// Build-time syntax highlighting → a `<RawHtml>` node wrapping a titled code block:
-/// a header (language label, optional filename from the fence info string, and a copy
-/// button) above the highlighted `<pre>`. On a highlighting failure, falls back to a
-/// plain escaped `<pre>`.
+/// A titled code block: a header (language label, optional filename from the fence
+/// info string, and a copy button) above a plain `<pre class="afw-code-pre">`. The
+/// code is HTML-escaped, unhighlighted text in a `<code class="language-…">` (the
+/// fence language, lowercased; no class without one), so any highlighter that knows
+/// the `language-*` convention can color it — `@opentf/afw-docs` does so after
+/// compile, and an app without it shows readable plain code.
 fn emit_code(code: &str, lang: &str, meta: Option<&str>) -> String {
-    static SYNTAXES: OnceLock<SyntaxSet> = OnceLock::new();
-    static THEME: OnceLock<Theme> = OnceLock::new();
-    let ss = SYNTAXES.get_or_init(SyntaxSet::load_defaults_newlines);
-    let theme = THEME.get_or_init(|| {
-        let mut themes = ThemeSet::load_defaults();
-        themes
-            .themes
-            .remove("base16-ocean.dark")
-            .expect("syntect default theme")
-    });
-
-    let token = highlight_token(lang);
-    let syntax = ss
-        .find_syntax_by_token(token)
-        // Fall back to the original token before giving up on plain text.
-        .or_else(|| ss.find_syntax_by_token(lang))
-        .unwrap_or_else(|| ss.find_syntax_plain_text());
-    let pre = highlighted_html_for_string(code, ss, syntax, theme)
-        .unwrap_or_else(|_| format!("<pre><code>{}</code></pre>", html_escape(code)));
+    let token = lang.trim().to_ascii_lowercase();
+    let class = if token.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"language-{}\"", html_attr_escape(&token))
+    };
+    let pre = format!("<pre class=\"afw-code-pre\"><code{class}>{}</code></pre>", html_escape(code));
 
     // The fence info string after the language is treated as a filename/title, e.g.
     // ```json package.json. A line-range meta (`{1,3}`) is not a filename.
@@ -596,9 +568,14 @@ fn attr_escape(s: &str) -> String {
         .replace('<', "&lt;")
 }
 
-/// Plain HTML text escape (fallback code rendering).
+/// Plain HTML text escape (code block contents).
 fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// HTML escape for a double-quoted attribute value.
+fn html_attr_escape(s: &str) -> String {
+    html_escape(s).replace('"', "&quot;")
 }
 
 /// A JS double-quoted string literal for an arbitrary value.
@@ -706,7 +683,7 @@ mod tests {
     }
 
     #[test]
-    fn fenced_code_is_highlighted_into_a_code_fence() {
+    fn fenced_code_becomes_a_code_fence() {
         let out = mdx_to_jsx("```js\nconst x = 1;\n```", "doc.mdx").unwrap();
         // The self-wiring code-block built-in, not a plain RawHtml (so its copy
         // button works without a delegated listener in the layout).
@@ -734,22 +711,28 @@ mod tests {
     }
 
     #[test]
-    fn jsx_token_highlights_via_the_js_grammar() {
-        // `jsx` has no grammar in syntect's default set; without the alias it would
-        // render as plain text (no colored spans).
-        let out = mdx_to_jsx("```jsx\nconst x = 1;\n```", "doc.mdx").unwrap();
-        assert!(out.contains("<span style=\\\"color:"), "expected colored spans: {out}");
+    fn fenced_code_is_plain_escaped_text_with_a_language_class() {
+        let out = mdx_to_jsx("```JSX\nconst a = \"<b>\" && x;\n```", "doc.mdx").unwrap();
+        // Unhighlighted: the code is escaped text in a `language-*` code element,
+        // the language lowercased, for the highlighter downstream.
+        assert!(
+            out.contains("<pre class=\\\"afw-code-pre\\\"><code class=\\\"language-jsx\\\">const a = \\\"&lt;b&gt;\\\" &amp;&amp; x;</code></pre>"),
+            "{out}"
+        );
+        assert!(!out.contains("style=\\\"color"), "no inline colors: {out}");
     }
 
     #[test]
-    fn highlight_token_aliases_cover_common_doc_languages() {
-        assert_eq!(highlight_token("jsx"), "js");
-        assert_eq!(highlight_token("tsx"), "js");
-        assert_eq!(highlight_token("ts"), "js");
-        assert_eq!(highlight_token("mdx"), "md");
-        assert_eq!(highlight_token("shell"), "bash");
-        assert_eq!(highlight_token("rs"), "rust");
-        assert_eq!(highlight_token("python"), "python");
+    fn fence_without_a_language_has_no_language_class() {
+        let out = mdx_to_jsx("```\nplain\n```", "doc.mdx").unwrap();
+        assert!(out.contains("<pre class=\\\"afw-code-pre\\\"><code>plain"), "{out}");
+        assert!(!out.contains("language-"), "{out}");
+    }
+
+    #[test]
+    fn fence_language_is_attribute_escaped() {
+        let out = mdx_to_jsx("```a\"b\nx\n```", "doc.mdx").unwrap();
+        assert!(out.contains("language-a&quot;b"), "{out}");
     }
 
     #[test]

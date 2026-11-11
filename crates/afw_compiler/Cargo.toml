@@ -13,4 +13,3 @@ description = "AFW — compiler stages: AST -> Semantic Model -> IRs -> codegen.
 markdown = { package = "afw_markdown", path = "../afw_markdown" }
 afw_ir = { workspace = true }
 oxc = { workspace = true }
-syntect = { version = "5", default-features = false, features = ["default-fancy"] }

@@ -47,7 +47,8 @@ all — it is the standard hand-rolled `renderToString` + prerender pattern,
 included as a floor for "what does the underlying toolchain cost".
 
 Two smaller asymmetries: AFW and Astro syntax-highlight the code blocks at build
-time (AFW with `syntect`, Astro with Shiki by default) while Next.js, TanStack Start,
+time (AFW with `syntect` in the compiler as of these results — since removed, so a
+plain AFW app now emits unhighlighted fences; Astro with Shiki by default) while Next.js, TanStack Start,
 Vite and Bun produce no highlight markup, and Next.js inlines an RSC payload the others have no
 equivalent of.
 

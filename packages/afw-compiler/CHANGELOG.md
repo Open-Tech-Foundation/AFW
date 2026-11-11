@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** MDX code fences are no longer syntax-highlighted by the compiler.
+  `syntect` is removed.
+  - A fence is now plain, escaped code:
+    `<pre class="afw-code-pre"><code class="language-…">…</code></pre>`. The language is
+    lowercased, and there is no class without one.
+  - The `.afw-code` header and copy button are unchanged.
+  - Docs sites get highlighting from `@opentf/afw-docs`.
+  - Any other app can color fences with a highlighter that reads `language-*` classes.
+
 ## [0.23.0] - 2026-11-04
 
 ### Added
