@@ -47,8 +47,38 @@ Checks run for this verification:
 
 Use esdev 0.26 or newer for the browser tier (`esdev upgrade`).
 
+## Open upstream esdev issues (esdev 0.27.0, 2026-11-11)
+
+Found by scaffolding every AFW template with `esdev create` (spa, fullstack, docs with
+and without blog, library; JS and TS; CSS and Tailwind; pnpm, plus npm for docs) and
+running each project's `build`, `test`, `typecheck`, `esdev start` and `preview`/`start`
+in headless Chrome.
+
+| Issue | Effect | Workaround |
+| --- | --- | --- |
+| Tailwind `@import` of a package stylesheet resolves a nested `@import` from the project root, not from the importing stylesheet's package | Under pnpm (isolated `node_modules`), the `docs` template fails `esdev build` and `esdev start`: `cannot find the stylesheet "@opentf/syntax-highlighter/themes/shared.css"` (imported by `@opentf/afw-docs/theme`). npm's hoisted layout works | Add `@opentf/syntax-highlighter` as a direct dependency (this site does) |
+| `esdev start` reports "ready" after a target fails to build, then answers every route with 404 | The error is only in the terminal; the browser shows a blank 404, with no overlay | Read the terminal |
+| After restarting a server target, esdev sends every page `{"type":"reload"}`, even when the browser build is unchanged (intermittent) | Editing a `.server.js` function reloads the page in the esdev workflow; the Vite workflow keeps it | None; `tsr test-e2e-esdev-fns` reports it as known |
+| A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | A request in that window is refused (`Failed to fetch`) | The framework retries its own requests in development (`runtime/dev-fetch.js`) |
+| `esdev preview` serves `.xml` files as `application/octet-stream` | `rss.xml`, `atom.xml` and `sitemap.xml` download instead of displaying; feed readers may reject them | Production hosts set their own types |
+
+## Open esdev template issues (templates are baked into esdev 0.27.0)
+
+| Template | Issue |
+| --- | --- |
+| `docs` | Missing the `@opentf/syntax-highlighter` dependency, so it does not build under pnpm (see above). |
+| `docs` | Wires `docsNavPlugin` (and `blogPostsPlugin` with `--blog`) one by one; the afw-docs README recommends the single `afwDocsPlugin` entry (esdev 0.27+), which also adds last-updated dates. |
+| `fullstack` | The `start` script grants `--allow-listen=3000`, but `server.js` listens on `PORT`: `PORT=8080 npm start` fails with "0.0.0.0:8080 is not an allowed address". |
+| `fullstack` | `server.js` treats a directory under `dist/` (e.g. `/assets/`) as a file: streaming it throws "Is a directory" and the request gets no response, instead of a 404. |
+| `fullstack` | No `@opentf/afw-test` dependency or `test.setup`, unlike `spa` and `library`, though it has a `test` script. |
+| `library` | `peerDependencies` pins `@opentf/afw` to an exact version (`"0.37.0"`); a published library needs a range. |
+
 ## Framework follow-ups
 
+- Fullstack (`mode: "ssr"`) under `esdev start`: the dev server renders pages and stamps
+  `data-afw-hydrate`, but the dev client is a CSR build, so it rebuilds the page instead of
+  adopting it, and the rebuild leaves `document.title` empty. Production adopts correctly.
+  The Vite dev server renders on the client only.
 - Original Markdown/MDX source maps (current maps target generated JSX).
 - MDX 404 routes are rejected; use `404.jsx`/`404.tsx`.
 - Benchmarks: the published tables predate the migration. Re-run all four engines
