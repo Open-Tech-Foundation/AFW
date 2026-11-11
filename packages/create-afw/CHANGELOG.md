@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The `docs` template no longer includes a blog by default.
+  - You're asked "Add a blog?" (default no).
+  - `--blog` / `--no-blog` set it from the command line.
+  - `--no-interactive` leaves it out.
+  - Without a blog, the site has no `app/blog/`, no `blog` config, no Blog nav link and
+    no feeds.
+
 ## [0.4.0] - 2026-11-05
 
 ### Internal

@@ -46,7 +46,8 @@ function startServer(root) {
   return { child, origin };
 }
 
-// Every rendering × server combination of the app, both stylings, docs and library.
+// Every rendering × server combination of the app, both stylings, docs with and
+// without a blog, and library.
 const CASES = [
   { template: "app", render: "spa", server: false, styling: "css" },
   { template: "app", render: "spa", server: false, styling: "tailwind" },
@@ -55,10 +56,11 @@ const CASES = [
   { template: "app", render: "ssg", server: false, styling: "css" },
   { template: "app", render: "ssg", server: true, styling: "tailwind" },
   { template: "docs" },
+  { template: "docs", blog: true },
   { template: "library", styling: "css" },
   { template: "library", styling: "tailwind" },
 ];
-const label = (c) => [c.template, c.render, c.server && "server", c.styling].filter(Boolean).join("-");
+const label = (c) => [c.template, c.render, c.server && "server", c.blog && "blog", c.styling].filter(Boolean).join("-");
 
 async function builtCss(dir) {
   const assets = join(dir, "assets");
@@ -67,7 +69,7 @@ async function builtCss(dir) {
 
 for (const language of ["ts", "js"]) {
   for (const options of CASES) {
-    const { template, render, server, styling } = options;
+    const { template, render, server, styling, blog } = options;
     const name = `${label(options)}-${language}`;
     describe(`${name}`, () => {
       const root = join(scratch, name);
@@ -82,7 +84,16 @@ for (const language of ["ts", "js"]) {
         assert.equal(files.includes(`app/api/hello/route.${language}`), !!server);
         assert.equal(files.includes(`app/todos/todos.server.${language}`), !!server);
         assert.equal("tailwindcss" in manifest.devDependencies, styling === "tailwind");
-        if (template === "docs") assert.ok(manifest.dependencies["@opentf/afw-docs"]);
+        if (template === "docs") {
+          assert.ok(manifest.dependencies["@opentf/afw-docs"]);
+          // The blog only when asked for: its pages, its config and its nav link.
+          assert.equal(files.includes("app/blog/hello-world/page.mdx"), !!blog);
+          assert.equal(files.includes(`app/blog/layout.${language}x`), !!blog);
+          const config = await readFile(join(root, "afw.config.js"), "utf8");
+          assert.equal(/\bblog:/.test(config), !!blog);
+          assert.equal(config.includes('href: "/blog"'), !!blog);
+          assert.equal((await readFile(join(root, `app/page.${language}x`), "utf8")).includes("/blog"), !!blog);
+        }
         if (template === "library") {
           assert.deepEqual(manifest.files, [`index.${language}`, "src"]);
           assert.equal(manifest.private, undefined, "a library is publishable");
@@ -92,7 +103,8 @@ for (const language of ["ts", "js"]) {
       test("its tests pass under Vitest", async () => {
         const result = await runTests(root);
         assert.deepEqual(result.errors, []);
-        assert.deepEqual(result.states, [template === "docs" ? "the home page links to the docs and the blog: pass" : "counts clicks: pass"]);
+        const docsTest = `the home page links to the docs${blog ? " and the blog" : ""}: pass`;
+        assert.deepEqual(result.states, [template === "docs" ? docsTest : "counts clicks: pass"]);
       });
 
       if (language === "ts") {
@@ -115,7 +127,8 @@ for (const language of ["ts", "js"]) {
         if (template === "docs") {
           assert.match(await readFile(join(dist, "docs", "index.html"), "utf8"), /Introduction/);
           assert.match(await readFile(join(dist, "docs", "guides", "writing-pages", "index.html"), "utf8"), /Writing Pages/);
-          assert.match(await readFile(join(dist, "blog", "rss.xml"), "utf8"), /Hello, world/);
+          if (blog) assert.match(await readFile(join(dist, "blog", "rss.xml"), "utf8"), /Hello, world/);
+          else assert.ok(!(await exists(join(dist, "blog"))), "no blog unless asked for");
           assert.ok(await exists(join(dist, "_search", "manifest.json")), "the search index");
           assert.ok(await exists(join(dist, "llms.txt")));
           return;
@@ -166,7 +179,7 @@ async function fakeNpm(code = 0) {
 describe("command line", () => {
   test("parses options, including template-language names, and rejects bad ones", () => {
     assert.deepEqual(parseArgs(["my-app", "--template", "app-js", "--render", "ssg", "--server", "--tailwind", "--overwrite", "--no-interactive"]), {
-      directory: "my-app", template: "app", render: "ssg", server: true, styling: "tailwind", language: "js",
+      directory: "my-app", template: "app", render: "ssg", server: true, styling: "tailwind", blog: undefined, language: "js",
       overwrite: true, install: true, interactive: false, help: false,
     });
     assert.deepEqual(parseArgs(["-t", "library", "-s", "css"]).styling, "css");
@@ -182,6 +195,11 @@ describe("command line", () => {
     assert.throws(() => parseArgs(["-t", "docs", "--render", "ssr"]), /applies to the app template/);
     assert.throws(() => parseArgs(["-t", "library", "--server"]), /applies to the app template/);
     assert.throws(() => parseArgs(["-t", "docs", "--tailwind"]), /afw-docs theme/);
+    assert.equal(parseArgs(["-t", "docs"]).blog, undefined);
+    assert.equal(parseArgs(["-t", "docs", "--blog"]).blog, true);
+    assert.equal(parseArgs(["-t", "docs", "--no-blog"]).blog, false);
+    assert.throws(() => parseArgs(["-t", "app", "--blog"]), /--blog applies to the docs template, not app/);
+    assert.throws(() => parseArgs(["-t", "library", "--no-blog"]), /--no-blog applies to the docs template/);
     assert.throws(() => parseArgs(["--render", "isr"]), /Unknown rendering/);
     assert.throws(() => parseArgs(["--styling", "sass"]), /Unknown styling/);
     assert.equal(parseArgs(["--no-install"]).install, false);
@@ -225,6 +243,17 @@ describe("command line", () => {
     assert.match(stdout, /Scaffolding app \(spa, server, Tailwind CSS, JavaScript\)/);
     assert.match(stdout, /pnpm install\s+pnpm dev/);
     assert.ok(await exists(join(dir, "app", "api", "hello", "route.js")));
+  });
+
+  test("a non-interactive docs site has no blog unless --blog is given", async () => {
+    const run = (dir, ...flags) => promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--template", "docs", ...flags, "--no-interactive", "--no-install"]);
+    const plain = join(scratch, "docs-plain");
+    await run(plain);
+    assert.ok(!(await exists(join(plain, "app", "blog"))));
+    const withBlog = join(scratch, "docs-blog");
+    const { stdout } = await run(withBlog, "--blog");
+    assert.match(stdout, /Scaffolding docs \(blog, TypeScript\)/);
+    assert.ok(await exists(join(withBlog, "app", "blog", "hello-world", "page.mdx")));
   });
 
   test("without --overwrite, a non-interactive run refuses a non-empty directory", async () => {
@@ -348,17 +377,19 @@ describe("interactive prompts", { skip: !hasScript && "needs util-linux script" 
     assert.ok(!(await exists(join(cwd, "My App", "app", "api"))), "no server by default");
   });
 
-  test("the docs template asks only for the language", async () => {
+  test("the docs template asks for a blog (default no) and the language", async () => {
     const cwd = join(scratch, "tty-docs");
     await mkdir(cwd, { recursive: true });
     const tty = terminal(cwd, (await fakeNpm(0)).env);
     await tty.until("Project name:"); tty.type(`my-docs${KEY.enter}`);
     await tty.until("Select a template:"); tty.type(`${KEY.down}${KEY.enter}`); // docs
+    await tty.until("Add a blog?"); tty.type(KEY.enter); // the default: no
     await tty.until("Select a language:"); tty.type(KEY.enter);
     await tty.until("Done. Now run:");
     await tty.exited();
     assert.doesNotMatch(tty.plain(), /Howshouldpagesrender|Addaserver|Selectastyling/);
     assert.ok(await exists(join(cwd, "my-docs", "afw.config.js")));
+    assert.ok(!(await exists(join(cwd, "my-docs", "app", "blog"))), "no blog by default");
   });
 
   test("Ctrl+C cancels without writing anything", async () => {

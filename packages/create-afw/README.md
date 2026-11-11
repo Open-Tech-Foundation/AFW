@@ -16,13 +16,14 @@ dev server is shown. Nothing is started for you.
 | Rendering | `app` | `spa` (in the browser), `ssr` (per request, hydrated), `ssg` (prerendered) |
 | Server | `app`, unless `ssr` | API routes, middleware, loaders and server functions on Node: yes or no |
 | Styling | `app`, `library` | CSS, or Tailwind CSS |
+| Blog | `docs` | Posts with RSS and Atom feeds: yes or no (default) |
 | Language | every project | TypeScript (default), JavaScript |
 
 Or pass the choices:
 
 ```sh
 npm create @opentf/afw@latest my-app -- --template app --render ssg --server --tailwind
-npm create @opentf/afw@latest my-docs -- --template docs-js
+npm create @opentf/afw@latest my-docs -- --template docs-js --blog
 ```
 
 | Option | Values |
@@ -31,6 +32,7 @@ npm create @opentf/afw@latest my-docs -- --template docs-js
 | `-r`, `--render` | `spa` (default), `ssr`, `ssg` — `app` only |
 | `--server`, `--no-server` | Add a Node server, or not (default) — `app` only; `ssr` always has one |
 | `-s`, `--styling` | `css` (default) or `tailwind`; `--tailwind` for short — `app` and `library` |
+| `--blog`, `--no-blog` | Add a blog, or not (default) — `docs` only |
 | `-l`, `--language` | `ts` (default) or `js` |
 | `--overwrite` | Remove the files in a non-empty target directory first |
 | `--no-install` | Skip installing dependencies |
@@ -39,7 +41,7 @@ npm create @opentf/afw@latest my-docs -- --template docs-js
 | Template | What you get |
 | --- | --- |
 | `app` | File-based pages and a component test; with a server, an API route, middleware, a loader and server functions |
-| `docs` | An [`@opentf/afw-docs`](https://afw.opentechf.org/packages/afw-docs) site: MDX docs and a blog, prerendered, with search, RSS/Atom feeds, `sitemap.xml` and `llms.txt` |
+| `docs` | An [`@opentf/afw-docs`](https://afw.opentechf.org/packages/afw-docs) site: MDX docs, prerendered, with search, `sitemap.xml` and `llms.txt`; with `--blog`, a blog with RSS/Atom feeds |
 | `library` | Components published as JSX source (`index.js` and `src/`), `@opentf/afw` as a peer dependency, a preview app and a test |
 
 The names of earlier releases still work: `spa`, `fullstack` (`app --server`), `ssr`

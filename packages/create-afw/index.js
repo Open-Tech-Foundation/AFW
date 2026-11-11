@@ -35,6 +35,8 @@ Options:
       --server            app: add ${SERVER_HINT}
       --no-server         app: no server (not with --render ssr, which always has one)
   -s, --styling <name>    app and library: ${Object.keys(STYLINGS).join(", ")} (--tailwind for short)
+      --blog              docs: add a blog, with RSS and Atom feeds
+      --no-blog           docs: no blog (the default)
   -l, --language <lang>   ts or js
       --overwrite         Remove the files in a non-empty target directory first
       --no-install        Skip installing dependencies
@@ -54,7 +56,7 @@ For the esdev + ES-Runtime workflow, use \`esdev create\`.`;
 /** Parse the command line. Throws on an unknown option or value, or conflicting ones. */
 export function parseArgs(args) {
   const options = {
-    directory: undefined, template: undefined, render: undefined, server: undefined, styling: undefined,
+    directory: undefined, template: undefined, render: undefined, server: undefined, styling: undefined, blog: undefined,
     language: undefined, overwrite: false, install: true, interactive: undefined, help: false,
   };
   const value = (i, flag) => {
@@ -72,6 +74,8 @@ export function parseArgs(args) {
     else if (flag === "--no-server") options.server = false;
     else if (flag === "-s" || flag === "--styling") options.styling = inline ?? value(i++, flag);
     else if (flag === "--tailwind") options.styling = "tailwind";
+    else if (flag === "--blog") options.blog = true;
+    else if (flag === "--no-blog") options.blog = false;
     else if (flag === "-l" || flag === "--language") options.language = inline ?? value(i++, flag);
     else if (flag === "--ts" || flag === "--typescript") options.language = "ts";
     else if (flag === "--js") options.language = "js";
@@ -118,6 +122,9 @@ export function parseArgs(args) {
     if (options.render !== undefined) throw new Error(`--render applies to the app template, not ${options.template}`);
     if (options.server !== undefined) throw new Error(`--server applies to the app template, not ${options.template}`);
   }
+  if (options.template && options.template !== "docs" && options.blog !== undefined) {
+    throw new Error(`--${options.blog ? "" : "no-"}blog applies to the docs template, not ${options.template}`);
+  }
   if (options.template === "docs" && options.styling !== undefined) {
     throw new Error("--styling applies to the app and library templates; the docs template uses the afw-docs theme");
   }
@@ -155,7 +162,7 @@ async function emptyDir(dir) {
  * (default), `"remove"` its files first, or `"ignore"` and write beside them.
  */
 export async function create({
-  directory = DEFAULT_DIRECTORY, template = "app", render = "spa", server = false, styling = "css", language = "ts",
+  directory = DEFAULT_DIRECTORY, template = "app", render = "spa", server = false, blog = false, styling = "css", language = "ts",
   packageName, existing = "error", cwd: base = cwd(),
 } = {}) {
   const target = resolve(base, directory);
@@ -165,7 +172,7 @@ export async function create({
     if (existing === "remove") await emptyDir(target);
     else if (existing !== "ignore") throw new Error(`${target} is not empty. Use --overwrite to remove its files.`);
   }
-  const files = projectFiles({ name, template, render, server, styling, typescript: language === "ts", versions: await afwVersions() });
+  const files = projectFiles({ name, template, render, server, blog, styling, typescript: language === "ts", versions: await afwVersions() });
   for (const [path, contents] of Object.entries(files)) {
     const file = join(target, path);
     await mkdir(dirname(file), { recursive: true });
@@ -277,6 +284,10 @@ export async function main(args = argv.slice(2)) {
   const server = isApp && (render === "ssr" || (options.server ?? (interactive
     ? await ask(prompts.confirm({ message: `Add a server? (${SERVER_HINT})`, initialValue: false }))
     : false)));
+  // A docs site has no blog unless asked for one.
+  const blog = template === "docs" && (options.blog ?? (interactive
+    ? await ask(prompts.confirm({ message: "Add a blog? (posts with RSS and Atom feeds)", initialValue: false }))
+    : false));
   const styling = template === "docs" ? undefined : (options.styling ?? (interactive
     ? await ask(prompts.select({ message: "Select a styling:", options: Object.entries(STYLINGS).map(([value, label]) => ({ value, label })) }))
     : "css"));
@@ -288,10 +299,10 @@ export async function main(args = argv.slice(2)) {
     : "ts");
 
   const where = relative(cwd(), target) || ".";
-  const summary = [isApp && render, server && "server", styling && STYLINGS[styling], LANGUAGES[language]].filter(Boolean).join(", ");
+  const summary = [isApp && render, server && "server", blog && "blog", styling && STYLINGS[styling], LANGUAGES[language]].filter(Boolean).join(", ");
   prompts.log.step(`Scaffolding ${template} (${summary}) in ${styleText("cyan", target)}`);
   try {
-    await create({ directory: target, template, render, server, styling, language, packageName, existing });
+    await create({ directory: target, template, render, server, blog, styling, language, packageName, existing });
   } catch (error) {
     prompts.cancel(error.message);
     exit(1);

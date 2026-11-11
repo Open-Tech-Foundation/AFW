@@ -4,14 +4,15 @@
 // Choices are independent where the framework allows it:
 //   app      — rendering (spa / ssr / ssg) × server (API routes, middleware, loaders,
 //              server functions) × styling (css / tailwind). SSR always has a server.
-//   docs     — an afw-docs site: MDX docs and a blog, prerendered, with search and feeds.
+//   docs     — an afw-docs site: MDX docs, prerendered, with search; a blog with feeds
+//              only when asked for.
 //   library  — a package of components published as JSX source, with a dev preview.
 
 import { escapeHTML } from "@opentf/std";
 
 export const TEMPLATES = {
   app: "An app: choose how pages render and whether it has a server",
-  docs: "A documentation site with a blog, search and feeds (afw-docs)",
+  docs: "A documentation site with search, and optionally a blog (afw-docs)",
   library: "A component library published as JSX source",
 };
 
@@ -48,7 +49,7 @@ export const TOOL_VERSIONS = {
  * @param {{ name: string, template: keyof TEMPLATES, render?: keyof RENDERINGS, server?: boolean,
  *           styling?: keyof STYLINGS, typescript: boolean, versions: Record<string, string> }} options
  */
-export function projectFiles({ name, template, render = "spa", server = false, styling = "css", typescript, versions }) {
+export function projectFiles({ name, template, render = "spa", server = false, blog = false, styling = "css", typescript, versions }) {
   if (!TEMPLATES[template]) throw new Error(`Unknown template "${template}". Choose one of: ${Object.keys(TEMPLATES).join(", ")}`);
   if (!RENDERINGS[render]) throw new Error(`Unknown rendering "${render}". Choose one of: ${Object.keys(RENDERINGS).join(", ")}`);
   if (!STYLINGS[styling]) throw new Error(`Unknown styling "${styling}". Choose one of: ${Object.keys(STYLINGS).join(", ")}`);
@@ -56,7 +57,7 @@ export function projectFiles({ name, template, render = "spa", server = false, s
     name, versions, ts: typescript, js: typescript ? "ts" : "js", jsx: typescript ? "tsx" : "jsx",
     tailwind: styling === "tailwind",
   };
-  if (template === "docs") return docsFiles(ctx);
+  if (template === "docs") return docsFiles({ ...ctx, blog });
   if (template === "library") return libraryFiles(ctx);
   return appFiles({ ...ctx, render, server: render === "ssr" || server });
 }
@@ -393,7 +394,7 @@ export default function Todos() {
 // ---------------------------------------------------------------------------- docs
 
 function docsFiles(ctx) {
-  const { ts, js, jsx } = ctx;
+  const { ts, js, jsx, blog } = ctx;
   const files = {};
   files["package.json"] = json({
     name: ctx.name, private: true, type: "module", scripts: scripts(ctx, { server: false }),
@@ -408,17 +409,17 @@ function docsFiles(ctx) {
   files["afw.config.js"] = `import { defineDocsConfig } from "@opentf/afw-docs/config";
 
 export default defineDocsConfig({
-  // Your site's URL: canonical links, sitemap.xml, feeds and llms.txt use it.
+  // Your site's URL: canonical links, sitemap.xml${blog ? ", feeds" : ""} and llms.txt use it.
   site: { url: "https://example.com" },
   docs: {
     title: "${escapeJs(ctx.name)}",
     nav: [
-      { label: "Docs", href: "/docs" },
-      { label: "Blog", href: "/blog" },
+      { label: "Docs", href: "/docs" },${blog ? `
+      { label: "Blog", href: "/blog" },` : ""}
     ],
     search: { provider: "afw" },
-  },
-  blog: { dir: "blog", title: "${escapeJs(ctx.name)} Blog" },
+  },${blog ? `
+  blog: { dir: "blog", title: "${escapeJs(ctx.name)} Blog" },` : ""}
 });
 `;
   files["index.html"] = indexHtml(ctx, { title: ctx.name, css: false });
@@ -431,15 +432,15 @@ export default defineDocsConfig({
 `;
   files[`app/page.${jsx}`] = `import { Link } from "@opentf/afw";
 
-export const metadata = { title: "${escapeJs(ctx.name)}", description: "Documentation and blog." };
+export const metadata = { title: "${escapeJs(ctx.name)}", description: "${blog ? "Documentation and blog." : "Documentation."}" };
 
 export default function Home() {
   return (
     <main class="afwd-prose">
       <h1>${escapeHTML(ctx.name)}</h1>
-      <p>Documentation and a blog, written in MDX.</p>
+      <p>${blog ? "Documentation and a blog" : "Documentation"}, written in MDX.</p>
       <p>
-        <Link href="/docs">Read the docs</Link> · <Link href="/blog">Visit the blog</Link>
+        <Link href="/docs">Read the docs</Link>${blog ? ` · <Link href="/blog">Visit the blog</Link>` : ""}
       </p>
     </main>
   );
@@ -506,6 +507,35 @@ Markdown with components, like this list of steps.
 
 </Steps>
 `;
+  if (blog) Object.assign(files, blogFiles(ctx));
+  files[`tests/Home.test.${js}`] = `import { expect, test } from "vitest";
+import { render } from "@opentf/afw-test";
+import Home from "../app/page.${jsx}";
+
+test("the home page links to the docs${blog ? " and the blog" : ""}", () => {
+  const { getByRole } = render(Home);
+  expect(getByRole("heading", { level: 1 }).textContent).toBe("${escapeJs(ctx.name)}");
+  expect(getByRole("link", { name: "Read the docs" }).getAttribute("href")).toBe("/docs");${blog ? `
+  expect(getByRole("link", { name: "Visit the blog" }).getAttribute("href")).toBe("/blog");` : ""}
+});
+`;
+  files[".gitignore"] = "node_modules\ndist\n";
+  files["README.md"] = readme(ctx, {
+    summary: `A documentation site${blog ? " and blog" : ""} built with [AFW](https://afw.opentechf.org) and \`@opentf/afw-docs\` on Vite.`,
+    commands: commandRows(ctx, { server: false }),
+    notes: [
+      `Docs pages live in \`app/docs/\`${blog ? ", posts in \`app/blog/\`" : ""}; \`app/docs/_meta.js\` orders the sidebar.`,
+      `\`npm run build\` prerenders every page and writes the search index, \`sitemap.xml\`${blog ? ", RSS and Atom feeds" : ""} and \`llms.txt\`.`,
+      "Set your site's URL in `afw.config.js`.",
+    ],
+  });
+  return files;
+}
+
+/** The blog of a docs site: its layout, the post list and a first post. */
+function blogFiles(ctx) {
+  const { ts, jsx } = ctx;
+  const files = {};
   files[`app/blog/layout.${jsx}`] = `import { BlogLayout } from "@opentf/afw-docs";
 import { posts } from "@opentf/afw-docs/posts";
 import config from "../../afw.config.js";
@@ -539,26 +569,6 @@ author: ${escapeHTML(ctx.name)}
 
 Posts live in \`app/blog/\`; each one appears in the post list and the RSS and Atom feeds.
 `;
-  files[`tests/Home.test.${js}`] = `import { expect, test } from "vitest";
-import { render } from "@opentf/afw-test";
-import Home from "../app/page.${jsx}";
-
-test("the home page links to the docs and the blog", () => {
-  const { getByRole } = render(Home);
-  expect(getByRole("heading", { level: 1 }).textContent).toBe("${escapeJs(ctx.name)}");
-  expect(getByRole("link", { name: "Read the docs" }).getAttribute("href")).toBe("/docs");
-});
-`;
-  files[".gitignore"] = "node_modules\ndist\n";
-  files["README.md"] = readme(ctx, {
-    summary: "A documentation site and blog built with [AFW](https://afw.opentechf.org) and `@opentf/afw-docs` on Vite.",
-    commands: commandRows(ctx, { server: false }),
-    notes: [
-      "Docs pages live in `app/docs/`, posts in `app/blog/`; `app/docs/_meta.js` orders the sidebar.",
-      "`npm run build` prerenders every page and writes the search index, `sitemap.xml`, RSS and Atom feeds and `llms.txt`.",
-      "Set your site's URL in `afw.config.js`.",
-    ],
-  });
   return files;
 }
 
