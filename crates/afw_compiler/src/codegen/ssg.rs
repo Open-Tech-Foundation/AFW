@@ -16,7 +16,7 @@
 use std::collections::BTreeSet;
 
 use afw_ir::reactivity::SignalKind;
-use afw_ir::view::{Prop, PropValue, ViewNode};
+use afw_ir::view::{transition_kind, Prop, PropValue, ViewNode};
 use afw_ir::ExpressionId;
 
 use crate::codegen::{static_tree, tags};
@@ -429,7 +429,7 @@ impl<'a> Emitter<'a> {
             return self.finish_element(tag, open, dyn_attrs, children);
         }
         for p in props {
-            if p.name == "ref" || is_event(&p.name) {
+            if p.name == "ref" || is_event(&p.name) || transition_kind(&p.name).is_some() {
                 continue;
             }
             match &p.value {
@@ -456,7 +456,7 @@ impl<'a> Emitter<'a> {
     fn attr_entries(&mut self, props: &[Prop]) -> String {
         let mut entries: Vec<String> = Vec::new();
         for p in props {
-            if p.name == "ref" || is_event(&p.name) {
+            if p.name == "ref" || is_event(&p.name) || transition_kind(&p.name).is_some() {
                 continue;
             }
             let value = match &p.value {

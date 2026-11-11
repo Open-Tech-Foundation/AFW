@@ -39,7 +39,7 @@
 //! `ComponentView::RebuildIfServerChildren`.
 
 use afw_ir::reactivity::SignalKind;
-use afw_ir::view::{Prop, PropValue, ViewNode};
+use afw_ir::view::{transition_kind, Prop, PropValue, ViewNode};
 use afw_ir::ExpressionId;
 
 use crate::codegen::csr::{
@@ -1222,6 +1222,13 @@ impl<'a> Emitter<'a> {
         if prop.name == "ref" {
             if let PropValue::Dynamic(expr) = &prop.value {
                 self.line(format!("{}.value = {el};", self.code(*expr)));
+            }
+            return;
+        }
+        // `setTransition` is imported by the CSR half, which builds the same view.
+        if let Some(kind) = transition_kind(&prop.name) {
+            if let PropValue::Dynamic(expr) = &prop.value {
+                self.line(format!("setTransition({el}, \"{kind}\", ({}));", self.code(*expr)));
             }
             return;
         }

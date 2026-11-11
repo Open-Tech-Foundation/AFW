@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `transition`, `in` and `out` expression props on HTML elements compile to
+  `setTransition` on the client and hydrate targets, and are left out of the server
+  HTML. On components they stay ordinary props; SVG filter primitives keep `in` as an
+  attribute.
+- A string-valued transition prop on an HTML element (`transition="fade"`) fails with a
+  located error that shows the expression form.
+
 ## [0.24.0] - 2026-11-11
 
 ### Changed

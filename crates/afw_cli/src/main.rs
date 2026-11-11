@@ -221,6 +221,11 @@ fn compile_module(
         return Err(located(at as usize, 3, msg));
     }
 
+    // `transition="fade"` on an HTML element: a transition is a function, not a string.
+    if let Some((at, msg)) = afw_compiler::lower::transition_prop_diagnostic(&parsed.program) {
+        return Err(located(at as usize, 1, msg));
+    }
+
     // A `return` ahead of the view is evaluated once and discarded — fail rather than
     // silently render the other branch.
     if let Some((at, msg)) = afw_compiler::lower::early_return_diagnostic(&parsed.program) {

@@ -64,6 +64,21 @@ pub enum ViewNode {
     Fragment(Vec<ViewNode>),
 }
 
+/// The kind (`"both"`, `"in"`, `"out"`) of a lowered transition prop, or `None`.
+///
+/// Lowering renames `transition={…}`, `in={…}` and `out={…}` on an HTML element to
+/// these reserved names, which JSX source cannot spell, so the backends can tell a
+/// transition from an attribute of the same name (SVG filter primitives have an `in`
+/// attribute). They never reach the DOM or the server HTML.
+pub fn transition_kind(name: &str) -> Option<&'static str> {
+    match name {
+        "#transition" => Some("both"),
+        "#in" => Some("in"),
+        "#out" => Some("out"),
+        _ => None,
+    }
+}
+
 /// A property/attribute on an element or component.
 ///
 /// `value` distinguishes static literals from dynamic expressions so a backend

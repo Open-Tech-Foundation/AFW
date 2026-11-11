@@ -17,7 +17,7 @@
 //! value has no tag to resolve (SPEC §4.0.1). It is reported as a diagnostic.
 
 use afw_ir::reactivity::SignalKind;
-use afw_ir::view::{Prop, PropValue, ViewNode};
+use afw_ir::view::{transition_kind, Prop, PropValue, ViewNode};
 use afw_ir::ExpressionId;
 
 use crate::codegen::static_tree;
@@ -95,6 +95,8 @@ struct Uses {
     /// target only; a CSR `Build` component reads attributes as before).
     hydration_props: bool,
     hot: bool,
+    /// An element declares an enter/exit transition (`setTransition`).
+    transition: bool,
 }
 
 impl Uses {
@@ -120,6 +122,7 @@ impl Uses {
         self.slot_children |= o.slot_children;
         self.hydration_props |= o.hydration_props;
         self.hot |= o.hot;
+        self.transition |= o.transition;
     }
 }
 
@@ -184,6 +187,9 @@ fn import_header(uses: &Uses, runtime_imports: &[String]) -> String {
     }
     if uses.hydration_props {
         names.push("hydrationProps");
+    }
+    if uses.transition {
+        names.push("setTransition");
     }
     let mut merged: Vec<String> = names.into_iter().map(str::to_string).collect();
     for name in runtime_imports {
@@ -1818,6 +1824,14 @@ impl<'a> Emitter<'a> {
     fn emit_element_prop(&mut self, el: &str, prop: &Prop) {
         if prop.name == "ref" {
             self.emit_ref(el, prop);
+            return;
+        }
+        if let Some(kind) = transition_kind(&prop.name) {
+            if let PropValue::Dynamic(expr) = &prop.value {
+                let code = self.lowered.exprs.code(*expr).unwrap_or("null").to_string();
+                self.uses.transition = true;
+                self.line(format!("setTransition({el}, \"{kind}\", ({code}));"));
+            }
             return;
         }
         if prop.name.is_empty() {

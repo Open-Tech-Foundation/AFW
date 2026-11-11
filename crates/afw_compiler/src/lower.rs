@@ -24,7 +24,7 @@ use oxc::ast::ast::{
     ForOfStatement, ForStatementLeft, Function, FunctionBody, IdentifierReference,
     ImportDeclarationSpecifier, JSXAttribute,
     JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName,
-    JSXExpression, JSXFragment, ObjectProperty, Program, SimpleAssignmentTarget,
+    JSXExpression, JSXFragment, JSXOpeningElement, ObjectProperty, Program, SimpleAssignmentTarget,
     StaticMemberExpression, Statement, TSType, TSTypeName, UnaryExpression, UpdateExpression,
     VariableDeclaration, VariableDeclarator,
 };
@@ -2400,7 +2400,10 @@ impl<'a, 'r> Lowerer<'a, 'r> {
     fn lower_element(&mut self, el: &'a JSXElement<'a>) -> ViewNode {
         let name = self.element_name(&el.opening_element.name);
         let is_component = is_component_name(&name);
-        let props = self.lower_attrs(el, is_component);
+        let mut props = self.lower_attrs(el, is_component);
+        if !is_component {
+            mark_transition_props(&name, &mut props);
+        }
         let children = self.lower_children(&el.children);
         if is_component {
             ViewNode::Component { name, props, children }
@@ -2675,6 +2678,70 @@ impl<'a, 'r> Lowerer<'a, 'r> {
 
 /// A name is a component (vs a host element) when it is capitalized or a member
 /// expression (`Foo`, `Foo.Bar`); host elements are lowercase (`div`).
+/// Rename an HTML element's `transition` / `in` / `out` expression props to the
+/// reserved names [`afw_ir::view::transition_kind`] recognizes. SVG filter
+/// primitives (`<feBlend in="…">`) keep `in` as the attribute it is there; static
+/// values are rejected up front by [`transition_prop_diagnostic`].
+fn mark_transition_props(tag: &str, props: &mut [Prop]) {
+    if is_svg_filter_primitive(tag) {
+        return;
+    }
+    for prop in props.iter_mut() {
+        if matches!(prop.name.as_str(), "transition" | "in" | "out")
+            && matches!(prop.value, PropValue::Dynamic(_))
+        {
+            prop.name = format!("#{}", prop.name);
+        }
+    }
+}
+
+/// `feBlend`, `feComposite`, …: the SVG elements whose `in` / `in2` attributes name
+/// filter inputs.
+fn is_svg_filter_primitive(tag: &str) -> bool {
+    tag.strip_prefix("fe").is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_uppercase()))
+}
+
+/// A **string-valued transition prop** on an HTML element (`transition="fade"`,
+/// `<div in>`) has no meaning: a transition is a function such as `fade()`. Points
+/// at the first one with the expression form. Components are left alone — a
+/// component's `transition` / `in` / `out` are ordinary props it may define.
+pub fn transition_prop_diagnostic(program: &Program) -> Option<(u32, String)> {
+    struct Finder {
+        found: Option<(u32, String)>,
+    }
+    impl<'a> Visit<'a> for Finder {
+        fn visit_jsx_opening_element(&mut self, el: &JSXOpeningElement<'a>) {
+            let tag = match &el.name {
+                JSXElementName::Identifier(id) => Some(id.name.as_str()),
+                _ => None,
+            };
+            if let Some(tag) = tag
+                && !is_svg_filter_primitive(tag)
+            {
+                for item in &el.attributes {
+                    if let JSXAttributeItem::Attribute(attr) = item
+                        && let JSXAttributeName::Identifier(id) = &attr.name
+                        && matches!(id.name.as_str(), "transition" | "in" | "out")
+                        && !matches!(attr.value, Some(JSXAttributeValue::ExpressionContainer(_)))
+                    {
+                        self.found.get_or_insert((attr.span.start, id.name.to_string()));
+                    }
+                }
+            }
+            walk::walk_jsx_opening_element(self, el);
+        }
+    }
+    let mut f = Finder { found: None };
+    f.visit_program(program);
+    f.found.map(|(offset, name)| {
+        (offset, format!(
+            "`{name}` on an HTML element expects a transition expression, not a string: \
+             `import {{ fade }} from \"@opentf/afw/transition\"`, then `{name}={{fade()}}`. \
+             See https://afw.opentechf.org/docs/core-concepts/transitions."
+        ))
+    })
+}
+
 fn is_component_name(name: &str) -> bool {
     name.contains('.') || name.chars().next().is_some_and(|c| c.is_uppercase())
 }
