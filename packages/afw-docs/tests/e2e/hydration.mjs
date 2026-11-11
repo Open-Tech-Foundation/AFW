@@ -458,11 +458,14 @@ async function buildCase(kase, i) {
   const clientEntry = `${TMP}/${name}.client-entry.js`;
   await write(
     clientEntry,
-    `import "${harness}";
+    `import Harness from "${harness}";
      import { beginHydration, endHydration } from "@opentf/afw";
-     // Mirror the router's first-paint bracket: the flag must be set before the server hosts
-     // upgrade at define, and cleared once they have.
+     // Mirror the router's first paint: inside the hydration bracket, claim the root the way
+     // a page's hydrate factory does — reading \`Harness.tag\` registers the element, which
+     // upgrades the server host (and it adopts its subtree, claiming its children by their
+     // \`.tag\` in turn). Components register on first use, not at import.
      beginHydration();
+     void Harness.tag;
      queueMicrotask(() => { endHydration(); window.__hydrated = true; });`,
   );
   const clientBundle = await bundle("hydrate", clientEntry, "browser");

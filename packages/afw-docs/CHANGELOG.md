@@ -18,6 +18,12 @@
 
 ### Changed
 
+- The `@opentf/afw-docs` barrel is tree-shakable: it no longer imports every component
+  for its side effect.
+  - A page bundles only the components it renders. A navbar-only page drops from all 37
+    components to 14 (about half the bytes); a Callout-only page to 1.
+  - Needs an `@opentf/afw-compiler` with registration on first use.
+
 - The theme colors code with GitHub Light and GitHub Dark, following `data-theme`.
   - Code blocks used to be dark in both modes.
   - The block chrome (header, label, copy button) follows the theme too.

@@ -1,40 +1,10 @@
 // Public barrel for @opentf/afw-docs.
 //
 // Components are shipped as JSX source and compiled by the consuming app's pipeline
-// (the `@opentf/afw` Link.jsx model) — each becomes a `web-*` Custom Element with
-// CSR + SSG renderers for free. afwc compiles JSX tags to element *strings*
-// (`afw-callout`), so the JS import of a component would be tree-shaken; the bare
-// `import "./components/X.jsx"` retains its `customElements.define` side effect
-// (the compiled modules are marked side-effectful), and the re-export lets authors
-// pull a component in by name (`import { Callout } from "@opentf/afw-docs"`).
-
-import "./components/DocsLayout.jsx";
-import "./components/Navbar.jsx";
-import "./components/Sidebar.jsx";
-import "./components/SidebarNode.jsx";
-import "./components/Toc.jsx";
-import "./components/Footer.jsx";
-import "./components/Breadcrumbs.jsx";
-import "./components/Pagination.jsx";
-import "./components/LastUpdated.jsx";
-import "./components/ThemeToggle.jsx";
-import "./components/SearchTrigger.jsx";
-import "./components/Search.jsx";
-import "./components/Callout.jsx";
-import "./components/CodeBlock.jsx";
-import "./components/Tabs.jsx";
-import "./components/Steps.jsx";
-import "./components/Table.jsx";
-import "./components/Cards.jsx";
-import "./components/Card.jsx";
-import "./components/Tooltip.jsx";
-import "./components/BlogLayout.jsx";
-import "./components/PostList.jsx";
-import "./components/PostCard.jsx";
-import "./components/PostBanner.jsx";
-import "./components/PostMeta.jsx";
-import "./components/ReadingTime.jsx";
-import "./components/FeedLinks.jsx";
+// (the `@opentf/afw` Link.jsx model) — each becomes a Custom Element with CSR + SSG
+// renderers. Plain re-exports are enough: a component registers on the first read of
+// its `.tag`, which every place that renders it does, so importing `{ Navbar }` pulls
+// in the Navbar and what it uses — and a bundler drops every component you don't.
 
 export { createSearch } from "./search.js";
 
