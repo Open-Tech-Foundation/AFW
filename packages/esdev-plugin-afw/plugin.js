@@ -87,13 +87,14 @@ function serverImports(target) {
 // longer JSX — saying so keeps the bundler from parsing a `.jsx` id as JSX a second
 // time. A `.tsx` source keeps its TypeScript (afwc lowers JSX, not types), so it is
 // `ts`, which the bundler strips; called `js`, its first annotation is a parse
-// error. Side effects (e.g. customElements.define) must survive bundling.
+// error. No side-effect flag: a compiled component registers on the first read of
+// its `.tag`, so the bundler's own analysis is right and drops unused components.
 async function compileModule(server, code, id, { target, failOnError, onResult, quiet, ctx }) {
   const { code: out, map } = await compileWith(server, code, id, {
     target, hot: !!ctx?.hot, failOnError, onResult, quiet,
     error: ctx?.error ? (message) => ctx.error(message) : undefined,
   });
-  return { code: out, ...(map ? { map } : {}), type: moduleType(id), moduleSideEffects: true };
+  return { code: out, ...(map ? { map } : {}), type: moduleType(id) };
 }
 
 /** What a compiled module is: TypeScript for a `.tsx` source, JavaScript otherwise. */

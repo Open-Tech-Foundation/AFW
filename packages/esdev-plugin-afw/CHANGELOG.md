@@ -9,6 +9,14 @@
   `as` cast in a page a parse error in both browser and server builds; the bundler
   now strips the types.
 
+### Changed
+
+- Compiled modules are no longer marked `moduleSideEffects: true`.
+  - Components register on first use (see `@opentf/afw-compiler`), so the bundler's own
+    side-effect analysis is correct and unused components are dropped.
+  - Needs an `@opentf/afw-compiler` with registration on first use. With an older one,
+    the components a module registers at import could be dropped.
+
 ## [0.7.1] - 2026-11-05
 
 _Dependency updates._

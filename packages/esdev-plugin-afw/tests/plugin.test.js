@@ -60,7 +60,8 @@ for (const [label, context, expected] of [
     const plugin = afwPlugin({ mode: "ssr" });
     const result = await plugin.transform.handler(source, "/app/page.jsx", context);
     expect(result.type).toBe("js");
-    expect(result.moduleSideEffects).toBe(true);
+    // No forced side-effect flag: components register on first use of `.tag`.
+    expect("moduleSideEffects" in result).toBe(false);
     expect(result.code.includes("@opentf/afw/server")).toBe(expected === "ssg");
     expect(result.code.includes("export function hydrate")).toBe(expected === "hydrate");
   });

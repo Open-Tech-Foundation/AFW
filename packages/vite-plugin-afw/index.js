@@ -412,7 +412,9 @@ export default function afw({
           hot: command === "serve" && !serverBuild && !testing,
           failOnError: true,
         });
-        return { code: viteHot(out.code), map: out.map, moduleType: file.endsWith(".tsx") ? "ts" : "js", moduleSideEffects: true };
+        // No side-effect flag: a compiled component registers on the first read of its
+        // `.tag`, so Vite's own analysis is right and drops unused components.
+        return { code: viteHot(out.code), map: out.map, moduleType: file.endsWith(".tsx") ? "ts" : "js" };
       } catch (e) {
         // Report through Vite, so the dev overlay and build output show the
         // compiler's position and code frame.
