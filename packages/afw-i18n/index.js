@@ -9,7 +9,6 @@
 export { createI18n, getLocale, loadLocale, locales, setCatalog, t } from "./i18n.js";
 export { fmt } from "./format.js";
 
-// `<T>` is a pure JSX component (compiled by the app's pipeline). The bare import
-// retains its Custom Element registration side effect; the re-export exposes it.
-import "./T.jsx";
+// `<T>` is a pure JSX component (compiled by the app's pipeline); it registers on the
+// first read of `T.tag`, which every `<T>` does.
 export { default as T } from "./T.jsx";

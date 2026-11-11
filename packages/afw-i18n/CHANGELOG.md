@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `T` is a plain re-export (no bare side-effect import). It registers on first use like
+  every compiled component. Needs an `@opentf/afw-compiler` with registration on first
+  use.
+
 ## [1.31.0] - 2026-11-05
 
 _Dependency updates._
