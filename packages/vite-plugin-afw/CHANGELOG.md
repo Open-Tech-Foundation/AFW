@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Edits to `loading.jsx` and `error.jsx` files regenerate the route modules, like
+  pages and layouts.
+
 ## [0.5.0] - 2026-11-11
 
 ### Changed

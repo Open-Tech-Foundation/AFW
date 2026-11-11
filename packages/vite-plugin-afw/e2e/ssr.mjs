@@ -50,6 +50,25 @@ export default function PendingPage() {
   );
 }
 `);
+  // loading.jsx / error.jsx: a loader that fails, one that is slow, and links to both.
+  const page = async (path, source) => {
+    await mkdir(join(dir, "app", path, ".."), { recursive: true });
+    await writeFile(join(dir, "app", path), source);
+  };
+  await page("broken/loader.js", `export default function loader() { throw new Error("db password is hunter2"); }\n`);
+  await page("broken/page.jsx", `export default function Broken() { return <p id="broken-page">never</p>; }\n`);
+  await page("broken/error.jsx", `export default function BrokenError({ error, retry }) {
+  return <p id="route-error" data-status={error.status} onclick={retry}>{error.message}</p>;
+}
+`);
+  await page("slow/loader.js", `export default async function loader() { await new Promise((r) => setTimeout(r, 900)); return { ok: "loaded" }; }\n`);
+  await page("slow/loading.jsx", `export default function SlowLoading() { return <p id="slow-loading">Loading slow…</p>; }\n`);
+  await page("slow/page.jsx", `import { router } from "@opentf/afw";
+export default function Slow() { return <p id="slow-page">{router.data?.ok}</p>; }
+`);
+  await page("links/page.jsx", `import { Link } from "@opentf/afw";
+export default function Links() { return <nav><Link href="/slow">slow</Link> <Link href="/broken">broken</Link></nav>; }
+`);
   await writeFile(join(dir, "vite.config.js"), 'import afw from "@opentf/vite-plugin-afw";\nexport default { plugins: [afw({ mode: "ssr" })] };\n');
   await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw({ mode: "ssr" })] })).buildApp();
   server = spawn(process.execPath, ["dist/server/index.js"], { cwd: dir, env: { ...process.env, PORT: "0", HOST: "127.0.0.1" } });
@@ -113,6 +132,25 @@ export default function PendingPage() {
   check(await until(`document.readyState === 'complete' && ${shows("skeleton")} && !${shows("status")}`), "the server fallback is displayed while the resource loads");
   check(await until(`${shows("status")} && document.getElementById('status').textContent === 'ready' && !${shows("skeleton")}`), "the content is revealed once the resource resolves");
   check((await evaluate("JSON.stringify(window.__removed)")) === "[]", `the <Pending> page adopts the server DOM, fallback included (removed: ${await evaluate("JSON.stringify(window.__removed)")})`);
+
+  // error.jsx on the server: a failed loader renders it with status 500, without the
+  // loader's message (production), and the client adopts it.
+  const broken = await fetch(`${origin}/broken`);
+  const brokenHtml = await broken.text();
+  check(broken.status === 500 && brokenHtml.includes('id="route-error"'), `a failed loader renders error.jsx with status 500 (got ${broken.status})`);
+  check(brokenHtml.includes("Something went wrong") && !brokenHtml.includes("hunter2"), "the server error page hides the loader's message");
+  await send("Page.navigate", { url: `${origin}/broken` });
+  check(await until("document.readyState === 'complete' && document.getElementById('route-error')?.dataset.status === '500'"), "the error page shows in the browser");
+  await delay(300);
+  check((await evaluate("JSON.stringify(window.__removed)")) === "[]", "the error page adopts the server DOM");
+
+  // loading.jsx on a client navigation to a slow loader, then the page.
+  await send("Page.navigate", { url: `${origin}/links` });
+  check(await until("document.readyState === 'complete' && !!document.querySelector('a[href=\"/slow\"]')"), "the links page loads");
+  await delay(200);
+  await evaluate(`document.querySelector('a[href="/slow"]').click()`);
+  check(await until(shows("slow-loading"), 800), "a slow navigation shows loading.jsx");
+  check(await until(`document.getElementById('slow-page')?.textContent === 'loaded' && ${shows("slow-page")} && !${shows("slow-loading")}`), "the page replaces loading.jsx once its data arrives");
 
   check(errors.length === 0, `no browser errors or warnings: ${JSON.stringify(errors)}`);
 } catch (error) {

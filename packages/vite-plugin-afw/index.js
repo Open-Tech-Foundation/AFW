@@ -35,7 +35,7 @@ const VIRTUAL_PREFIX = `\0${ROUTES_ID}:`;
 const SERVER_PREFIX = `\0${SERVER_ID}:`;
 // The built server's entry: starts the Node server around `@afw/server`.
 const NODE_SERVER_ID = "@afw/node-server";
-const ROUTE_FILE = /(?:^|\/)(?:(?:page|layout|404)\.(?:mdx|md|jsx|tsx)|loader\.(?:js|ts)|routeGuard\.(?:js|ts))$/;
+const ROUTE_FILE = /(?:^|\/)(?:(?:page|layout|404|loading|error)\.(?:mdx|md|jsx|tsx)|loader\.(?:js|ts)|routeGuard\.(?:js|ts))$/;
 const SERVER_FILE = /(?:^|\/)(?:route\.(?:jsx?|tsx?)|_middleware\.(?:jsx?|tsx?)|loader\.(?:js|ts)|page\.(?:mdx|md|jsx|tsx)|[^/]+\.server\.(?:[cm]?js|[cm]?ts))$/;
 // The dev server's fallback: nothing on the app's server answered, so Vite serves it.
 const PASS_HEADER = "x-afw-vite-pass";
