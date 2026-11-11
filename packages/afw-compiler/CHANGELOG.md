@@ -10,6 +10,9 @@
   attribute.
 - A string-valued transition prop on an HTML element (`transition="fade"`) fails with a
   located error that shows the expression form.
+- `<Pending>` compiles to the `afw-internal-pending` built-in. The build and the
+  hydration adoption of its children are bracketed by `enterPending`/`exitPending`, so
+  a resource read there makes the boundary wait on it.
 
 ## [0.24.0] - 2026-11-11
 

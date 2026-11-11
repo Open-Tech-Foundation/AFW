@@ -97,6 +97,8 @@ struct Uses {
     hot: bool,
     /// An element declares an enter/exit transition (`setTransition`).
     transition: bool,
+    /// A `<Pending>` brackets the build of its children (`enterPending`/`exitPending`).
+    pending: bool,
 }
 
 impl Uses {
@@ -123,6 +125,7 @@ impl Uses {
         self.hydration_props |= o.hydration_props;
         self.hot |= o.hot;
         self.transition |= o.transition;
+        self.pending |= o.pending;
     }
 }
 
@@ -190,6 +193,10 @@ fn import_header(uses: &Uses, runtime_imports: &[String]) -> String {
     }
     if uses.transition {
         names.push("setTransition");
+    }
+    if uses.pending {
+        names.push("enterPending");
+        names.push("exitPending");
     }
     let mut merged: Vec<String> = names.into_iter().map(str::to_string).collect();
     for name in runtime_imports {
@@ -1715,8 +1722,19 @@ impl<'a> Emitter<'a> {
         }
         // Children are appended as light DOM; the component captures them at
         // connect and places them at its `{children}` slot (SPEC §4.5).
+        // A `<Pending>` is marked while its children build: a resource read there (a
+        // page resource passed down as a prop) makes this boundary wait on it.
+        let pending = name == "Pending";
+        if pending {
+            self.uses.pending = true;
+            self.line(format!("enterPending({var});"));
+            self.line("try {".to_string());
+        }
         for child in children {
             self.emit_append(&var, child);
+        }
+        if pending {
+            self.line("} finally { exitPending(); }".to_string());
         }
         var
     }

@@ -885,7 +885,16 @@ impl<'a> Emitter<'a> {
                     self.emit_component_prop(&var, prop, builtin || after_spread);
                     after_spread |= prop.name.is_empty();
                 }
-                if !children.is_empty() {
+                if name == "Pending" {
+                    // Marked while its children are adopted, as in the build path; the
+                    // boundary also waits for this before revealing server-rendered content.
+                    self.line(format!("enterPending({var});"));
+                    self.line("try {".to_string());
+                    if !children.is_empty() {
+                        self.emit_slotted_children(&var, children);
+                    }
+                    self.line("} finally { exitPending(); }".to_string());
+                } else if !children.is_empty() {
                     self.emit_slotted_children(&var, children);
                 }
                 var

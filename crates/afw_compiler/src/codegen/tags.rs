@@ -29,6 +29,7 @@ pub fn builtin_tag(name: &str) -> Option<&'static str> {
         "RawHtml" => "afw-internal-raw-html",
         "CodeFence" => "afw-internal-code-block",
         "ErrorBoundary" => "afw-internal-error-boundary",
+        "Pending" => "afw-internal-pending",
         "ContextProvider" => "afw-internal-context-provider",
         _ => return None,
     })
