@@ -5,7 +5,7 @@ import CodeShowcase from "./components/CodeShowcase.jsx";
 import InstallCommand from "./components/InstallCommand.jsx";
 import RenderPipeline from "./components/RenderPipeline.jsx";
 import { benchmark, capabilities, fullstack, fullstackTable, reasons, workflows } from "./home-data.js";
-import { highlightedSamples } from "./components/highlight.js";
+import { heroSamples } from "./components/highlight.js";
 
 export const metadata = {
   // Absolute: the homepage keeps its full title instead of the "%s — AFW" template.
@@ -89,7 +89,7 @@ export default function HomePage() {
             <InstallCommand />
           </div>
           <div class="hero-code">
-            <CodeShowcase samples={highlightedSamples} />
+            <CodeShowcase samples={heroSamples} />
           </div>
         </div>
       </section>
