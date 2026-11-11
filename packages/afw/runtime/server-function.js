@@ -3,7 +3,6 @@
 // is an async function with the server function's signature that calls its endpoint.
 
 import { CONTENT_TYPE, decode, encode } from "../core/fn-codec.js";
-import { devFetch } from "./dev-fetch.js";
 import { trackServerCall } from "./invalidate.js";
 
 // Queries go by GET while the encoded arguments fit comfortably in a URL.
@@ -31,8 +30,8 @@ export function serverFunction(endpoint, kind) {
     const args = encode(input);
     const init = { signal, credentials: "same-origin", redirect: "manual", headers: { accept: CONTENT_TYPE } };
     const response = kind === "query" && args.length <= MAX_GET_ARGS
-      ? await devFetch(`${endpoint}?a=${encodeURIComponent(args)}`, init)
-      : await devFetch(endpoint, { ...init, method: "POST", headers: { ...init.headers, "content-type": CONTENT_TYPE }, body: args });
+      ? await fetch(`${endpoint}?a=${encodeURIComponent(args)}`, init)
+      : await fetch(endpoint, { ...init, method: "POST", headers: { ...init.headers, "content-type": CONTENT_TYPE }, body: args });
     // A redirect (an auth guard sending to a login page, say) is not data: the caller decides.
     if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
       throw new ServerFunctionError("The server redirected the call", { status: response.status || 302, redirected: true });

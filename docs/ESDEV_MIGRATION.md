@@ -54,19 +54,19 @@ and without blog, library; JS and TS; CSS and Tailwind; pnpm, plus npm for docs)
 running each project's `build`, `test`, `typecheck`, `esdev start` and `preview`/`start`
 in headless Chrome.
 
-| Issue | Effect | Workaround |
+| Issue | Effect | Status |
 | --- | --- | --- |
-| Tailwind `@import` of a package stylesheet resolves a nested `@import` from the project root, not from the importing stylesheet's package | Under pnpm (isolated `node_modules`), the `docs` template fails `esdev build` and `esdev start`: `cannot find the stylesheet "@opentf/syntax-highlighter/themes/shared.css"` (imported by `@opentf/afw-docs/theme`). npm's hoisted layout works | afw-docs (next release) ships that stylesheet inside its theme; with afw-docs 0.35, add `@opentf/syntax-highlighter` as a direct dependency (this site does) |
-| `esdev start` reports "ready" after a target fails to build, then answers every route with 404 | The error is only in the terminal; the browser shows a blank 404, with no overlay | Read the terminal |
-| After restarting a server target, esdev sends every page `{"type":"reload"}`, even when the browser build is unchanged (intermittent) | Editing a `.server.js` function reloads the page in the esdev workflow; the Vite workflow keeps it | None; `tsr test-e2e-esdev-fns` reports it as known |
-| A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | A request in that window is refused (`Failed to fetch`) | The framework retries its own requests in development (`runtime/dev-fetch.js`) |
-| `esdev preview` serves `.xml` files as `application/octet-stream` | `rss.xml`, `atom.xml` and `sitemap.xml` download instead of displaying; feed readers may reject them | Production hosts set their own types |
+| Tailwind `@import` of a package stylesheet resolves a nested `@import` from the project root, not from the importing stylesheet's package | Under pnpm (isolated `node_modules`), the `docs` template fails `esdev build` and `esdev start`: `cannot find the stylesheet "@opentf/syntax-highlighter/themes/shared.css"` (imported by `@opentf/afw-docs/theme`). npm's hoisted layout works | Waiting for esdev. This site lists `@opentf/syntax-highlighter` as a direct dependency |
+| `esdev start` reports "ready" after a target fails to build, then answers every route with 404 | The error is only in the terminal; the browser shows a blank 404, with no overlay | Waiting for esdev |
+| After restarting a server target, esdev sends every page `{"type":"reload"}`, even when the browser build is unchanged (intermittent) | Editing a `.server.js` function reloads the page in the esdev workflow; the Vite workflow keeps it | Waiting for esdev; `tsr test-e2e-esdev-fns` fails when it happens |
+| A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | A request in that window is refused (`Failed to fetch`); the Vite workflow never restarts its server | Waiting for esdev; `tsr test-e2e-esdev-fns` fails when it happens |
+| `esdev preview` serves `.xml` files as `application/octet-stream` | `rss.xml`, `atom.xml` and `sitemap.xml` download instead of displaying; feed readers may reject them | Waiting for esdev |
 
 ## Open esdev template issues (templates are baked into esdev 0.27.0)
 
 | Template | Issue |
 | --- | --- |
-| `docs` | Missing the `@opentf/syntax-highlighter` dependency, so it does not build under pnpm with afw-docs 0.35 (see above); unnecessary from the next afw-docs release. |
+| `docs` | Does not build under pnpm because of the `@import` resolution bug above. |
 | `docs` | Wires `docsNavPlugin` (and `blogPostsPlugin` with `--blog`) one by one; the afw-docs README recommends the single `afwDocsPlugin` entry (esdev 0.27+), which also adds last-updated dates. |
 | `fullstack` | The `start` script grants `--allow-listen=3000`, but `server.js` listens on `PORT`: `PORT=8080 npm start` fails with "0.0.0.0:8080 is not an allowed address". |
 | `fullstack` | `server.js` treats a directory under `dist/` (e.g. `/assets/`) as a file: streaming it throws "Is a directory" and the request gets no response, instead of a 404. |
