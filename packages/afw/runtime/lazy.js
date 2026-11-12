@@ -98,10 +98,14 @@ export function lazyComponent(loader, tag) {
       if (this.#inner || !this.isConnected) return;
       const inner = document.createElement(component.tag);
       for (const [name, value] of this.#props) setProp(inner, name, value);
-      // `on*` callback props are assigned to a component directly (`el.onpicked = fn`),
-      // so they sit on this placeholder as own properties: hand them over too.
-      for (const key of Object.keys(this)) {
-        if (/^on[A-Za-z]/.test(key) && typeof this[key] === "function") setProp(inner, key, this[key]);
+      // `on*` callback props are assigned to a component directly (`el.onpicked = fn`):
+      // on this placeholder they are own properties, or — for a name the DOM already
+      // has, like `onchange` — its built-in handler property. Hand both over.
+      for (const key in this) {
+        if (/^on[A-Za-z]/.test(key) && typeof this[key] === "function") {
+          setProp(inner, key, this[key]);
+          this[key] = null; // the component owns it now; don't also fire on the placeholder
+        }
       }
       inner.append(...this.childNodes);
       this.#inner = inner;

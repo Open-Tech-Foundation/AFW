@@ -77,9 +77,14 @@ describe("lazy components", () => {
     const el = document.createElement(Chart.tag);
     const picked = () => "picked";
     el["onpicked"] = picked; // how the compiler passes `onpicked={…}` to a component
+    const changed = () => "changed";
+    el["onchange"] = changed; // a name the DOM has: lands on the built-in handler property
     document.body.append(el);
     await tick();
-    expect(el.querySelector(Fake.tag).onpicked).toBe(picked);
+    const inner = el.querySelector(Fake.tag);
+    expect(inner.onpicked).toBe(picked);
+    expect(inner.onchange).toBe(changed);
+    expect(el.onchange).toBe(null); // not left on the placeholder too
   });
 
   test("every instance shares one download; calling the loader preloads it", async () => {
