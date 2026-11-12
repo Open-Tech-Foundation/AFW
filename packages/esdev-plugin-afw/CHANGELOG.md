@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `esdev start` with `mode: "ssr"`: pages are rendered with the hydration marker and the
+  browser build adopts them (compiler `hydrate-hot` target), as in production. Component,
+  page and layout edits still refresh in place and keep their state.
+
 ## [0.9.0] - 2026-11-12
 
 ### Fixed

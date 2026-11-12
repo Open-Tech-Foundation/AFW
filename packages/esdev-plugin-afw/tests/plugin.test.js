@@ -52,7 +52,8 @@ for (const [label, context, expected] of [
   ["server release", { command: "build", platform: "server", target: "server" }, "ssg"],
   ["server dev", { command: "start", platform: "server", target: "server" }, "ssg"],
   ["browser release", { command: "build", platform: "browser", target: "web" }, "hydrate"],
-  ["browser dev", { command: "start", platform: "browser", hot: true }, "csr"],
+  // The dev server renders pages first, so the dev browser build adopts them too.
+  ["browser dev", { command: "start", platform: "browser", hot: true }, "hydrate"],
   ["DOM test", { command: "test", platform: "browser" }, "csr"],
   ["server script", { command: "run", platform: "server" }, "ssg"],
 ]) {
@@ -64,8 +65,19 @@ for (const [label, context, expected] of [
     expect("moduleSideEffects" in result).toBe(false);
     expect(result.code.includes("@opentf/afw/server")).toBe(expected === "ssg");
     expect(result.code.includes("export function hydrate")).toBe(expected === "hydrate");
+    expect(result.code.includes("registerHotHydrate")).toBe(label === "browser dev");
   });
 }
+
+test("SPA and SSG dev servers render on the client, with component refresh", async () => {
+  for (const mode of ["spa", "ssg"]) {
+    const result = await afwPlugin({ mode }).transform.handler(source, "/app/page.jsx", {
+      command: "start", platform: "browser", hot: true,
+    });
+    expect(result.code.includes("export function hydrate")).toBe(false);
+    expect(result.code).toContain("registerHotRoute");
+  }
+});
 
 test("explicit compiler targets still override mode and hook context", async () => {
   const plugin = createAfwPlugin({ target: "ssg", mode: "ssr" });

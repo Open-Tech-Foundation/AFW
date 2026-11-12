@@ -27,7 +27,8 @@ function renderingTarget(mode, ctx) {
   return chooseTarget({
     mode,
     server: ctx?.platform === "server",
-    dev: ctx?.command === "test" || ctx?.command === "start",
+    dev: ctx?.command === "start",
+    test: ctx?.command === "test",
   });
 }
 
