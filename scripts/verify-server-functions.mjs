@@ -1,5 +1,6 @@
 // Real-browser check of server functions in the esdev workflow (`tsr test-e2e-esdev-fns`),
-// plus `PUBLIC_*` env vars rendered on the server and hydrated in the browser:
+// plus `PUBLIC_*` env vars rendered on the server and hydrated in the browser, and
+// `esdev start` adopting its server-rendered pages with component refresh on top:
 // an installed-style project whose server target is the generated `@afw/server`
 // (`mode: "ssr"`), run by `esdev start` and driven in headless Chrome, then built with
 // `esdev build` and run as a production server.
@@ -151,6 +152,7 @@ try {
   const evaluate = async (expression) => { const r = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true }); if (r.exceptionDetails) throw Error(r.exceptionDetails.exception?.description); return r.result.value; };
   async function until(expression) { for (let i = 0; i < 150; i++) { if (await evaluate(expression)) return true; await delay(100); } throw Error(`Browser timeout: ${expression}`); }
   await send("Runtime.enable");
+  await send("Page.enable");
 
   // ------------------------------------------------------------------ esdev start
   const devServer = await launch(["esdev", "start", `--port=${appPort}`]);
@@ -158,13 +160,19 @@ try {
   await ready(origin);
   const ssr = await (await fetch(`${origin}/todos`, { headers: { accept: "text/html" } })).text();
   assert(ssr.includes("write the server functions") && /id="user"[^>]*>(?:<!--[^>]*-->)*ada/.test(ssr), "the page is server-rendered with its loader's direct server function call");
-  // The dev client is a CSR build (component refresh): it cannot adopt server DOM, so the
-  // dev server must not mark the page for hydration.
-  assert(!ssr.includes("data-afw-hydrate"), "the dev server does not mark pages for hydration");
+  // The dev client is the hydrate target with component refresh, so dev pages are marked
+  // for adoption as in production.
+  assert(ssr.includes('data-afw-hydrate="/todos"'), "the dev server marks pages for hydration");
   const stub = await (await fetch(`${origin}/app/todos/todos.server.js`)).text().catch(() => "");
   assert(!stub.includes("server-only-secret"), "the server module's source is never served");
 
-  await send("Page.addScriptToEvaluateOnNewDocument", { source: "window.__doc = crypto.randomUUID();" });
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: `window.__doc = crypto.randomUUID();
+    window.__removed = [];
+    new MutationObserver((records) => {
+      for (const r of records) for (const n of r.removedNodes) {
+        if (n.nodeType === 1 && r.target.closest?.("#app")) window.__removed.push(n.outerHTML.slice(0, 60));
+      }
+    }).observe(document, { childList: true, subtree: true });` });
   await send("Page.navigate", { url: `${origin}/todos` });
   await until("document.querySelectorAll('#list li').length === 2 && !!window.__fns");
   const doc = await evaluate("window.__doc");
@@ -187,6 +195,18 @@ try {
   await evaluate("document.getElementById('env-greeting').click()");
   await until("document.getElementById('env-greeting').textContent === 'hello-from-env 1'");
   assert(true, "the browser component reads PUBLIC_* under esdev start");
+  assert((await evaluate("JSON.stringify(window.__removed)")) === "[]", "esdev start's client adopts the server-rendered page");
+  // Refresh on adopted views: a component edit and a page edit keep their state.
+  const envDoc = await evaluate("window.__doc");
+  const greeting = `${project}/app/env/EnvGreeting.jsx`;
+  await write(greeting, (await file(greeting).text()).replace("{clicks}</button>", "clicks {clicks}</button>"));
+  await until("document.getElementById('env-greeting').textContent === 'hello-from-env clicks 1'");
+  assert((await evaluate("window.__doc")) === envDoc, "an adopted component's edit refreshes in place, keeping its state");
+  const envPage = `${project}/app/env/page.jsx`;
+  await write(envPage, (await file(envPage).text()).replace('<p id="env-mode">', '<p id="env-mode" data-edited="yes">'));
+  await until("document.getElementById('env-mode')?.dataset.edited === 'yes'");
+  assert((await evaluate("window.__doc")) === envDoc && (await evaluate("document.getElementById('env-greeting').textContent")) === "hello-from-env clicks 1",
+    "an adopted page's edit refreshes in place, keeping its components' state");
   const failures = errors.filter((e) => e && !e.includes("favicon") && !e.includes("400"));
   assert(failures.length === 0, "no browser errors: " + JSON.stringify(failures));
   // Stop the dev server only; the browser stays for the production checks.
@@ -215,14 +235,15 @@ try {
   }
   assert(answered >= 1, "the built server answers its server functions under the middleware");
   assert(client.includes("hello-from-env") && !client.includes("do-not-ship-me"), "the client bundle carries PUBLIC_* and no other variable");
+  // The dev section above edited the greeting, so production renders the edited text.
   const envProd = (await (await fetch(`${prod}/env`, { headers: { accept: "text/html" } })).text()).replace(/<!--[\s\S]*?-->/g, "");
-  assert(envProd.includes(">hello-from-env 0</button>") && envProd.includes(">production</p>") && envProd.includes("[none]"), "the built server renders PUBLIC_* and MODE");
+  assert(envProd.includes(">hello-from-env clicks 0</button>") && envProd.includes(">production</p>") && envProd.includes("[none]"), "the built server renders PUBLIC_* and MODE");
   assert(!(await file(`${project}/dist/server.js`).text()).includes("do-not-ship-me"), "the server bundle has no non-public variable compiled in");
   await send("Page.navigate", { url: `${prod}/env` });
-  await until("document.readyState === 'complete' && document.getElementById('env-greeting')?.textContent === 'hello-from-env 0'");
+  await until("document.readyState === 'complete' && document.getElementById('env-greeting')?.textContent === 'hello-from-env clicks 0'");
   await delay(300);
   await evaluate("document.getElementById('env-greeting').click()");
-  await until("document.getElementById('env-greeting').textContent === 'hello-from-env 1'");
+  await until("document.getElementById('env-greeting').textContent === 'hello-from-env clicks 1'");
   assert(true, "the hydrated component keeps the PUBLIC_ value in production");
   passed = true;
 } finally {
