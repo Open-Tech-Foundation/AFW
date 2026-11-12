@@ -5,6 +5,7 @@ export default {
   templating: "Templating",
   lifecycle: "Lifecycle",
   context: "Context",
+  "lazy-components": "Lazy Components",
   "imperative-api": "Imperative API",
   styling: "Styling",
   transitions: "Transitions",

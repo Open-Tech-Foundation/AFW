@@ -35,10 +35,12 @@ These items need compiler or runtime support, so a third-party package cannot ad
 - [ ] **Typed data after loading.**
   - Inside `<Pending>`, `resource.data` is still typed `T | undefined`.
   - Others: React `use()`, TanStack `useSuspenseQuery`.
-- [ ] **Lazy components.**
-  - Load a component's code only when it first renders, such as a modal, editor or chart.
+- [x] **Lazy components.**
+  - [`const Chart = () => import("./Chart.jsx")`](/docs/core-concepts/lazy-components), in the next release.
   - Others: React `lazy()`, Solid `lazy()`, Vue `defineAsyncComponent`.
-  - Today: pages and layouts are code-split; other components are bundled with the page that imports them.
+- [ ] **Deferred hydration.**
+  - Send a component's HTML with the page and load its JavaScript later: after hydration, when it scrolls into view, or when the browser is idle.
+  - Others: Astro `client:visible` / `client:idle`, Qwik.
 - [ ] **Shadow DOM styles.**
   - Opt-in style isolation per component.
   - Today: [CSS Modules](/docs/core-concepts/styling) scope class names.

@@ -1,0 +1,99 @@
+---
+title: Lazy Components
+description: Load a component's code only when it first renders — const Chart = () => import("./Chart.jsx") — with <Pending> for the loading state and one shared download.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Lazy Components
+
+Declare a component as a dynamic import, and its code downloads only when it first renders:
+
+```jsx
+import { Pending } from "@opentf/afw";
+
+const Chart = () => import("./Chart.jsx");
+
+export default function Dashboard() {
+  let show = $state(false);
+  return (
+    <>
+      <button onclick={() => (show = true)} onmouseenter={Chart}>Show chart</button>
+      {show && (
+        <Pending fallback={<ChartSkeleton />}>
+          <Chart data={points} onselect={pick} />
+        </Pending>
+      )}
+    </>
+  );
+}
+```
+
+- **Use it like any component:** props, children, `on*` callbacks, custom events and `ref`.
+- **Its own chunk:** the bundler splits `Chart.jsx` out of the page, in both the esdev and the Vite workflow.
+- **Downloaded once:** every `<Chart>` on the page shares one download.
+
+<Callout type="info" title="New in the next release">
+  Lazy components ship in the next releases of `@opentf/afw` and `@opentf/afw-compiler`.
+</Callout>
+
+## The shape the compiler recognizes
+
+| Declaration | Lazy component? |
+| --- | --- |
+| `const Chart = () => import("./Chart.jsx")` | Yes: the module's default export |
+| `const Line = () => import("./charts.jsx").then((m) => m.LineChart)` | Yes: a named export |
+| `export const Chart = () => import("./Chart.jsx")` | Yes: importable from other modules |
+| `const chart = () => import("./Chart.jsx")` | No: the name must start with a capital letter |
+| `const Chart = (name) => import(pathFor(name))` | No: the loader takes no parameters and imports a literal path |
+| `let Chart = …`, `async () => …` | No: a `const` arrow that returns the `import()` directly |
+
+- **At module level,** in a `.jsx` or `.tsx` module that defines a component. A declaration inside a component body is ordinary code.
+- **Anything else stays ordinary JavaScript.** Only the exact shape above becomes a lazy component.
+
+## Loading and errors
+
+- **Inside a `<Pending>`,** its fallback shows until the code arrives, like a [resource](/docs/data-fetching/pending).
+- **Outside one,** nothing shows until the code arrives.
+- **A failed download** goes where other errors go: the `<Pending error>`, the nearest `<ErrorBoundary>`, or the page's [`error.jsx`](/docs/routing/loading-and-errors).
+- **Retry reloads the page.** A browser keeps a failed `import()` failed for the page's lifetime, so the code can only be fetched again by a reload.
+
+## Preloading
+
+Calling the loader starts the download early:
+
+```jsx
+<button onmouseenter={Chart} onclick={() => (show = true)}>Show chart</button>
+```
+
+- **`Chart()`** returns a promise that resolves when the code has loaded; rendering `<Chart>` afterwards is immediate.
+
+## Refs and `$expose`
+
+- **A `ref` points at the placeholder element** that stands in for the component.
+- **Exposed methods are forwarded** once the code has loaded: `chart.value.zoomIn()` works after the component renders. Before that, the method is not there yet.
+
+## Server rendering
+
+- **Rendered in the browser only.** The point of a lazy component is to keep its code out of the first load, so the server sends its empty placeholder (or the `<Pending>` fallback around it).
+- **For content in the server HTML,** import the component normally.
+
+## TypeScript
+
+```tsx
+import type ChartComponent from "./Chart.jsx";
+import type { Lazy } from "@opentf/afw";
+
+const Chart = () => import("./Chart.jsx");                                 // inferred
+const Typed: Lazy<typeof ChartComponent> = () => import("./Chart.jsx");    // written out
+
+<Chart data={[1, 2]} />; // props are checked against Chart's own
+```
+
+- **No annotation needed:** TypeScript infers the module type, and JSX takes the props from the component the loader loads.
+- **`Lazy<C>`** is available to write the type out.
+
+## Related
+
+- [Loading States](/docs/data-fetching/pending)
+- [Components](/docs/core-concepts/components)

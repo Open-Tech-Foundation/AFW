@@ -49,7 +49,7 @@ export const capabilities = [
       { name: "File-based router", status: "supported", desc: "Directory routing with client-side navigation." },
       { name: "Nested layouts", status: "supported", desc: "Shared layouts composed around matching routes." },
       { name: "Route guards", status: "supported", desc: "Client navigation checks and redirects; server auth uses middleware." },
-      { name: "Code splitting", status: "supported", desc: "Dynamic route imports bundled and split by esdev." },
+      { name: "Code splitting", status: "supported", desc: "Every route is its own chunk, in both toolchains." },
       { name: "Link prefetching", status: "supported", desc: "<Link> warms a route's chunks and loader data on hover, focus or in view." },
     ],
   },

@@ -65,7 +65,8 @@ Features React, Vue, Svelte and Solid developers expect, built in or from their 
 * [ ] List reorder animation (`flip`) and an out-in mode.
 * [x] Async pending boundaries over `resource()`: `<Pending>` (fallback, `refreshing`, `refetch`, `delay`; first-load failures to `<ErrorBoundary>`).
 * [ ] `resource.data` typed as present inside `<Pending>`.
-* [ ] Component-level `lazy()` outside routes.
+* [x] Lazy components: `const Chart = () => import("./Chart.jsx")` (compiler-recognized, `<Pending>`-aware, browser-only render).
+* [ ] Deferred hydration: server HTML with the component's JavaScript loaded later (after hydration, visible, idle).
 * [x] Per-route `loading.jsx` / `error.jsx` (nearest file; navigation delay; loader, page and unhandled errors; SSR status 500) and `<Pending error>` for sections.
 * [x] Layout errors: a broken layout shows the `error.jsx` above it (build, unhandled component errors, failed layout loader; SSR status 500).
 * [x] Layout loaders: `layout.loader.{js,ts}`, merged into `router.data` (layouts first, page on top), run in parallel, one `__data.json`.

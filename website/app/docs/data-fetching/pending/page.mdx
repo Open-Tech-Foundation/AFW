@@ -53,6 +53,7 @@ export default function Profile() {
 - **Only its nearest boundary.** A nested `<Pending>` waits for its own resources, so an inner section can reveal later than the page around it.
 - **A page resource counts where it's read.** Read only inside a section's `<Pending>`, it holds that section, not an outer boundary or the page's [`loading.jsx`](/docs/routing/loading-and-errors).
 - **Paused resources don't count.** A resource whose source is `null` or `false` doesn't hold the fallback.
+- **Lazy components count too.** A [lazy component](/docs/core-concepts/lazy-components) holds the fallback until its code has loaded.
 
 ## First load and refetch
 
