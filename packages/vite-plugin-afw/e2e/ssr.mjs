@@ -103,6 +103,22 @@ export default function ShopShell({ children }) { return <div id="shop-shell"><L
   await page("(shop)/catalog/page.jsx", `export default function Catalog() { return <p id="catalog">catalog</p>; }\n`);
   await page("(shop)/cart/page.jsx", `export default function Cart() { return <p id="cart">cart</p>; }\n`);
   await page("[[lang]]/guide/page.jsx", `export default function Guide({ params }) { return <p id="guide">guide {params.lang ?? "en"}</p>; }\n`);
+  // A lazy component: shown on demand, inline when server-rendered.
+  await page("lazy/LazyMap.jsx", `export default function LazyMap({ city }) { return <p id="lazy-map">map of {city}</p>; }\n`);
+  await page("lazy/page.jsx", `import { Pending } from "@opentf/afw";
+const LazyMap = () => import("./LazyMap.jsx");
+const Inline = () => import("./LazyMap.jsx").then((m) => m.default);
+export default function LazyPage() {
+  let open = $state(false);
+  return (
+    <div>
+      <button id="open-map" onclick={() => (open = true)}>Open</button>
+      <div id="inline-wrap"><Inline city="Lyon" /></div>
+      {open && <Pending fallback={<p id="map-loading">Loading…</p>}><LazyMap city="Paris" /></Pending>}
+    </div>
+  );
+}
+`);
   await page("browse/[[...filters]]/page.jsx", `export default function Browse({ params }) { return <p id="browse">{(params.filters ?? ["all"]).join("+")}</p>; }\n`);
   await writeFile(join(dir, "vite.config.js"), 'import afw from "@opentf/vite-plugin-afw";\nexport default { plugins: [afw({ mode: "ssr" })] };\n');
   await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw({ mode: "ssr" })] })).buildApp();
@@ -224,6 +240,18 @@ export default function ShopShell({ children }) { return <div id="shop-shell"><L
   check((await text("/fr/guide")).includes("guide fr"), "[[lang]] matches with the segment");
   check((await text("/browse")).includes(">all<"), "[[...filters]] matches with no segments");
   check((await text("/browse/red/large")).includes(">red+large<"), "[[...filters]] matches several segments");
+
+  // Lazy components: the server sends the placeholder; the chunk loads when needed.
+  const lazyHtml = await (await fetch(`${origin}/lazy`)).text();
+  check(/<afw-lazy-inline-[0-9a-f]{8}[^>]*><template shadowrootmode="open">/.test(lazyHtml) && !lazyHtml.includes("map of"), "the server sends a lazy component's placeholder, not its content");
+  await send("Page.navigate", { url: `${origin}/lazy` });
+  check(await until("document.readyState === 'complete' && document.getElementById('lazy-map')?.textContent === 'map of Lyon'"), "a lazy component rendered on the page loads and renders after hydration");
+  await delay(300);
+  const chunks = () => evaluate("performance.getEntriesByType('resource').filter((e) => /LazyMap/.test(e.name)).length");
+  check((await chunks()) === 1, "its code is a separate chunk, fetched once");
+  await evaluate("document.getElementById('open-map').click()");
+  check(await until("document.querySelectorAll('#lazy-map').length === 2"), "a second use renders from the same chunk");
+  check((await chunks()) === 1, "no second download");
 
   check(errors.length === 0, `no browser errors or warnings: ${JSON.stringify(errors)}`);
 } catch (error) {
