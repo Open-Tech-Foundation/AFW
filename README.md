@@ -174,7 +174,7 @@ Requires esdev 0.17+, a Rust toolchain, pnpm and [tsr](https://tsr.opentechf.org
 Install once with `pnpm install` at the repository root, then:
 
 ```sh
-tsr dev          # playground dev server
+tsr play         # playground dev server (prints its URL)
 tsr site         # documentation site dev server
 tsr test         # Rust, runtime, package and site tests
 tsr test-e2e     # browser tests (Chrome + matching ChromeDriver)

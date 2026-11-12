@@ -23,9 +23,10 @@ members = ["packages/*", "playground", "benchmarks/*", "website"]
 # The playground is the framework's own scratch app, on its own config
 # (esdev.playground.json — root-level so plugin modules resolve inside the repo
 # jail; pnpm symlinks a per-app config's node_modules outside its own root).
-# One afw target, CSR like the old CLI dev.
-[tasks.dev]
-run = "esdev start --config=esdev.playground.json --port=3005"
+# One afw target, CSR. No fixed port: esdev takes its default, or a free one when
+# that is taken, and prints the URL.
+[tasks.play]
+run = "esdev start --config=esdev.playground.json"
 
 # The website is its own pnpm project on the published packages (website/pnpm-lock.yaml),
 # so it builds exactly what users install. Site tasks run from website/, where its

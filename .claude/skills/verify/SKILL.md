@@ -17,8 +17,7 @@ The playground uses workspace deps (`@opentf/afw`, `@opentf/afw-cli`), so runtim
 are picked up directly. Point the CLI at the locally built compiler with `AFWC_BIN`:
 
 ```bash
-cd playground
-AFWC_BIN=$REPO/target/debug/afwc bun run dev   # port 3005
+tsr play   # from the repo root; esdev prints the URL (no fixed port)
 ```
 
 Gotchas:

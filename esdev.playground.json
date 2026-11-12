@@ -15,10 +15,5 @@
         "outdir": "playground/dist"
       }
     }
-  },
-  "dev": {
-    "server": {
-      "port": 3005
-    }
   }
 }
