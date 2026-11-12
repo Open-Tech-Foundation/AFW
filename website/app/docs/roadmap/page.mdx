@@ -38,6 +38,10 @@ These items need compiler or runtime support, so a third-party package cannot ad
 - [x] **Lazy components.**
   - [`const Chart = () => import("./Chart.jsx")`](/docs/core-concepts/lazy-components), in the next release.
   - Others: React `lazy()`, Solid `lazy()`, Vue `defineAsyncComponent`.
+- [x] **Server-rendered pages in development.**
+  - With `mode: "ssr"`, `esdev start` and the Vite dev server render pages on the server and the client [adopts them](/docs/deployment/hydration#in-development), in the next release; edits still refresh in place.
+  - Left: the same for `mode: "ssg"`, which renders on the client in development.
+  - Others: Next.js, SvelteKit, Nuxt, React Router and SolidStart render on the server in development.
 - [ ] **Deferred hydration.**
   - Send a component's HTML with the page and load its JavaScript later: after hydration, when it scrolls into view, or when the browser is idle.
   - Others: Astro `client:visible` / `client:idle`, Qwik.

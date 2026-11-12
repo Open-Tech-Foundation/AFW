@@ -84,6 +84,18 @@ Fine-grained adoption is implemented for the constructs you use in real apps:
   emit a different tree than the client.
 </Callout>
 
+## In development
+
+- With `mode: "ssr"`, both dev servers (`esdev start` and Vite) render pages on the server
+  and the client adopts them, as in production. Mismatches show up while you work, not
+  after a release build.
+- Component, page and layout edits still refresh in place and keep their state, including
+  views the client adopted.
+- `mode: "spa"` and `mode: "ssg"` dev servers render on the client. Static generation's
+  output is checked by building it.
+- Only page navigations (requests that accept HTML) are rendered; a URL that matches no
+  page gets the app shell, and the client shows its 404 page.
+
 ## SPA navigation after hydration
 
 After first paint the hydration flag clears. `<Link>` navigations load a route chunk and
@@ -104,6 +116,11 @@ per component, not a whole-page bail-out.
 Routes or layouts the compiler cannot yet adopt fall back to a clean CSR build for that
 subtree (the app still works; you may see a brief flash). Multi-root fragment route outputs
 are the main remaining gap on the adopt path.
+
+- The compiler prints a warning for each component or route it cannot adopt.
+- In development, the browser console also warns
+  (`[afw:hydrate] <path>: the page or one of its layouts cannot adopt…`) when a whole route
+  is rebuilt this way.
 
 ## Compared to other frameworks
 

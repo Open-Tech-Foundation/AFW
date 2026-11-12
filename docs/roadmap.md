@@ -51,7 +51,8 @@ Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE
 * [x] `@opentf/afw-docs/vite`: navigation, posts, last-updated, search index, feeds, `llms.txt`.
 * [x] Native addons in server routes (tested with `sharp` in dev and production).
 * [ ] Vite prerender: `<link rel="modulepreload">` hints per route (esdev's prerender emits them).
-* [ ] Server-rendered pages in the dev server (both workflows render pages on the client in dev).
+* [x] Server-rendered pages in the dev server for `mode: "ssr"` in both workflows: the client adopts them (compiler `hydrate-hot` target) and component/page/layout refresh keeps working on adopted views.
+* [ ] Dev-server rendering for `mode: "ssg"` (render each page on request, as the prerender would); today ssg dev renders on the client.
 * [ ] `@opentf/afw-docs/vite` finishing steps under `mode: "ssr"` (today: `ssg` only).
 * [ ] `afw-cli`'s server entry (`apiEntrySource`, `serverEntrySource`) on `afw-build`'s `serverModule`.
 

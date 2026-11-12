@@ -76,9 +76,11 @@ in headless Chrome.
 
 ## Framework follow-ups
 
-- Adopting server-rendered pages under `esdev start` (`mode: "ssr"`). The dev client is a
-  CSR build (component refresh), so dev pages are server-rendered without the hydration
-  marker and built fresh; production adopts. The Vite dev server renders on the client.
+- Done: `esdev start` and the Vite dev server (`mode: "ssr"`) render pages on the server
+  and the client adopts them; the dev browser build is the compiler's `hydrate-hot` target.
+- Editing a `*.server.js` file under `esdev start` reloads the page (the Vite dev server
+  does not). Not yet investigated; `scripts/verify-server-functions.mjs` asserts no reload
+  and fails on it.
 - Original Markdown/MDX source maps (current maps target generated JSX).
 - MDX 404 routes are rejected; use `404.jsx`/`404.tsx`.
 - Benchmarks: the published tables predate the migration. Re-run all four engines
