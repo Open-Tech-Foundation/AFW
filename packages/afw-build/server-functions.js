@@ -27,8 +27,10 @@ const relativeTo = (root, file) => (file.startsWith(`${root}/`) ? file.slice(roo
 export function serverFunctionEndpoint(root, file, name) {
   const rel = relativeTo(root, file);
   if (rel === null) throw new Error(`${file}: server modules must be inside the app directory (${root})`);
-  const folder = rel.includes("/") ? `/${rel.slice(0, rel.lastIndexOf("/"))}` : "";
-  return `${folder}/__fn/${fnv1a64(`${rel}#${name}`)}`;
+  // The URL of the folder: route groups (`(app)`) are not part of it. The hash keeps
+  // the full path, so two groups' modules never share an endpoint.
+  const folder = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")).split("/").filter((s) => !/^\(.+\)$/.test(s)).join("/") : "";
+  return `${folder ? `/${folder}` : ""}/__fn/${fnv1a64(`${rel}#${name}`)}`;
 }
 
 /** Every `*.server` module under `dir`, sorted, skipping dot folders, node_modules and `exclude`. */
@@ -88,20 +90,23 @@ export function serverFunctionStub(root, file, exports) {
  * The server side: for each server module, its import and the endpoint table entries.
  * `listExports(file)` returns the module's exports (see `serverExports`).
  *
- * @returns {Promise<{ imports: string, table: string, files: string[] }>}
+ * @returns {Promise<{ imports: string, table: string, files: string[], endpoints: Array<[string, string]> }>}
  */
 export async function serverFunctionTable(host, root, { exclude = [], listExports }) {
   const files = await discoverServerModules(host, root, { exclude });
   const imports = [];
   const entries = [];
+  const endpoints = []; // [file, endpoint]
   for (const [i, file] of files.entries()) {
     const exports = await listExports(file);
     const fns = exports.filter((e) => e.kind);
     if (!fns.length) continue;
     imports.push(`import * as sf${i} from ${JSON.stringify(file)};`);
     for (const { name } of fns) {
-      entries.push(`  [${JSON.stringify(serverFunctionEndpoint(root, file, name))}]: sf${i}[${JSON.stringify(name)}],`);
+      const endpoint = serverFunctionEndpoint(root, file, name);
+      endpoints.push([file, endpoint]);
+      entries.push(`  [${JSON.stringify(endpoint)}]: sf${i}[${JSON.stringify(name)}],`);
     }
   }
-  return { imports: imports.join("\n"), table: entries.join("\n"), files };
+  return { imports: imports.join("\n"), table: entries.join("\n"), files, endpoints };
 }

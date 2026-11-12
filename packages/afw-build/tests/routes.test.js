@@ -52,6 +52,18 @@ describe("discoverLoaders", () => {
   });
 });
 
+describe("route groups", () => {
+  test("two groups holding the same page path fail the routes module", async () => {
+    await expect(routesModule(app({ "(a)/about/page.jsx": "", "(b)/about/page.mdx": "" }), "/site/app")).rejects.toThrow("Two pages answer /about");
+  });
+
+  test("grouped pages keep their folder keys, so layouts still resolve by folder", async () => {
+    const { code } = await routesModule(app({ "(marketing)/layout.jsx": "", "(marketing)/pricing/page.jsx": "" }), "/site/app");
+    expect(code).toContain('["/app/(marketing)/pricing/page.jsx"]');
+    expect(code).toContain('["/app/(marketing)/layout.jsx"]');
+  });
+});
+
 describe("layout loaders", () => {
   test("discovers layout.loader files by folder", async () => {
     expect(await discoverLoaders(app({ "layout.loader.js": "", "dash/layout.loader.ts": "", "dash/loader.js": "" }), "/site/app", { layout: true })).toEqual([

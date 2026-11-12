@@ -72,3 +72,10 @@ test("serverExports parses the compiler's answer", async () => {
   const compiler = { compile: async (id, source, component, target) => ({ code: JSON.stringify({ exports: [{ name: target, kind: "query" }] }), map: null }) };
   expect(await serverExports(compiler, "/a.server.js", "")).toEqual([{ name: "server-exports", kind: "query" }]);
 });
+
+test("an endpoint is the module folder's URL: route groups drop out, the hash keeps the full path", () => {
+  const grouped = serverFunctionEndpoint("/site/app", "/site/app/(app)/todos/todos.server.js", "listTodos");
+  expect(grouped).toMatch(/^\/todos\/__fn\/[0-9a-f]{16}$/);
+  expect(grouped).not.toBe(serverFunctionEndpoint("/site/app", "/site/app/todos/todos.server.js", "listTodos"));
+  expect(serverFunctionEndpoint("/site/app", "/site/app/(app)/x.server.js", "f")).toMatch(/^\/__fn\//);
+});

@@ -34,6 +34,27 @@ describe("serverConflicts", () => {
   });
 });
 
+describe("route groups on the server", () => {
+  test("routes in different groups that answer the same URL are a build error", async () => {
+    const host = app({ "(a)/about/page.jsx": "", "(b)/about/page.jsx": "", "(a)/api/x/route.js": "", "(b)/api/x/route.ts": "", "(c)/ok/page.jsx": "" });
+    const problems = serverConflicts(host, "/site/app", await discoverServerFiles(host, "/site/app"));
+    expect(problems.filter((p) => p.startsWith("two routes answer")).map((p) => p.split(":")[0])).toEqual(["two routes answer /about", "two routes answer /api/x"]);
+  });
+
+  test("a grouped middleware gets the group's page and API folders and its function endpoints", async () => {
+    const host = app({
+      "(app)/_middleware.js": "", "(app)/dashboard/page.jsx": "", "(app)/api/me/route.js": "", "(app)/dashboard/data.server.js": "",
+      "(marketing)/pricing/page.jsx": "", "_middleware.js": "",
+    });
+    const listExports = async (file) => (file.endsWith("data.server.js") ? [{ name: "stats", kind: "query" }] : []);
+    const { code } = await serverModule(host, "/site/app", { listExports });
+    const options = JSON.parse(code.match(/const options = (\{.*\});/)[1]);
+    expect(Object.keys(options.groupScopes)).toEqual(["/(app)"]);
+    expect(options.groupScopes["/(app)"].scopes).toEqual(["/(app)/api/me", "/(app)/dashboard"]);
+    expect(options.groupScopes["/(app)"].paths).toEqual([expect.stringMatching(/^\/dashboard\/__fn\/[0-9a-f]{16}$/)]);
+  });
+});
+
 describe("layout loaders on the server", () => {
   test("a layout loader needs a sibling layout", async () => {
     const host = app({ "dash/layout.jsx": "", "dash/layout.loader.js": "", "dash/page.jsx": "", "lonely/layout.loader.ts": "", "lonely/page.jsx": "" });

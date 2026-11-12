@@ -189,6 +189,14 @@ export async function routesModule(host, root, { exclude = [], drafts = true } =
   const loaders = await discoverLoaders(host, root, { exclude });
   const layoutLoaders = await discoverLoaders(host, root, { exclude, layout: true });
   const guard = await findGuard(host, root);
+  // Route groups drop out of the URL: two groups holding the same page path collide.
+  const byUrl = new Map();
+  for (const file of pages.filter((p) => /\/page\.[^/]+$/.test(p))) {
+    const route = pageRoute(file, root);
+    const url = `/${route.split("/").filter((s) => s && !/^\(.+\)$/.test(s)).join("/")}`;
+    if (byUrl.has(url)) throw new Error(`Two pages answer ${url}: ${byUrl.get(url)} and ${file}. Move one to another path.`);
+    byUrl.set(url, file);
+  }
   const loaderRoutes = loaderPageRoutes({
     pages: pages.filter((p) => /\/page\.[^/]+$/.test(p)).map((p) => pageRoute(p, root)),
     pageLoaders: loaders.map(([route]) => route),

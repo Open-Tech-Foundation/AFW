@@ -16,6 +16,13 @@
   imported into the server module, and checked to sit beside a `layout.*`. The loader
   registry gets every page route (`pageRoutes`), and `loaderRoutes` (client and server)
   lists every page beneath a layout loader (`loaderPageRoutes`).
+- Route groups:
+  - Pages or API routes in different groups that answer the same URL are a build error,
+    in the server module and the client routes module.
+  - Each middleware folder inside a group gets its scope in `options.groupScopes`: the
+    folders of the group's pages and API routes, and its server functions' endpoints.
+  - Server function endpoints drop group folders from their URL; the hash still uses
+    the full path.
 - `serverModule({ hydrate: false })` renders pages without the `data-afw-hydrate`
   marker, for a dev loop whose browser build cannot adopt server DOM.
 

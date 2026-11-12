@@ -81,6 +81,15 @@ export function hasServerFiles({ routes, middleware, loaders, layoutLoaders = []
   return routes.length + middleware.length + loaders.length + layoutLoaders.length > 0;
 }
 
+/** Is `segment` a route group, `(name)` (a folder that is not part of the URL)? */
+const isGroupSegment = (segment) => /^\(.+\)$/.test(segment);
+
+/** The URL a folder answers (`dashboard` → `/dashboard`, `(app)/x` → `/x`, "" → `/`). */
+export const folderUrl = (folder) => `/${folder.split("/").filter((s) => s && !isGroupSegment(s)).join("/")}`;
+
+/** Is `folder` the group folder `group`, or inside it? (Relative folders, "" = root.) */
+const within = (group, folder) => group === "" || folder === group || folder.startsWith(`${group}/`);
+
 const folderOf = (host, dir, file) => {
   const parent = host.path.dirname(file);
   return parent === dir ? "" : parent.slice(dir.length + 1);
@@ -99,6 +108,15 @@ export function serverConflicts(host, dir, files) {
     if (files.pages.has(folder)) {
       problems.push(`a page and an API route answer /${folder}: ${files.pages.get(folder)} and ${route}. Move one to another folder.`);
     }
+  }
+  // Route groups drop out of the URL, so files in different groups can answer the same one.
+  const byUrl = new Map();
+  const answers = [...[...files.pages].map(([folder, file]) => [folder, file]), ...files.routes.map((file) => [folderOf(host, dir, file), file])];
+  for (const [folder, file] of answers) {
+    const url = folderUrl(folder);
+    const other = byUrl.get(url);
+    if (other && other.folder !== folder) problems.push(`two routes answer ${url}: ${other.file} and ${file}. Move one to another path.`);
+    else byUrl.set(url, { folder, file });
   }
   for (const loader of files.loaders) {
     const folder = folderOf(host, dir, loader);
@@ -149,7 +167,19 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
   const pageFiles = pages ? await discoverPages(host, root, { exclude, drafts }) : [];
   // Server functions (docs/SERVER_FUNCTIONS.md): `listExports(file)` asks the compiler
   // which exports of a `.server` module are query()/action().
-  const fns = listExports ? await serverFunctionTable(host, root, { exclude, listExports }) : { imports: "", table: "", files: [] };
+  const fns = listExports ? await serverFunctionTable(host, root, { exclude, listExports }) : { imports: "", table: "", files: [], endpoints: [] };
+  // A middleware folder inside a route group covers what the group holds — its pages'
+  // and API routes' folders, and its server functions' endpoints — not a URL prefix.
+  const groupScopes = {};
+  for (const file of files.middleware) {
+    const folder = folderOf(host, root, file);
+    if (!folder.split("/").some(isGroupSegment)) continue;
+    const scopes = [...files.pages.keys(), ...files.routes.map((f) => folderOf(host, root, f))]
+      .filter((f) => within(folder, f)).map((f) => `/${f}`);
+    const paths = fns.endpoints.filter(([f]) => within(folder, folderOf(host, root, f))).map(([, endpoint]) => endpoint);
+    groupScopes[`/${folder}`] = { scopes: [...new Set(scopes)].sort(), paths: paths.sort() };
+  }
+  if (Object.keys(groupScopes).length) options.groupScopes = groupScopes;
   const p = group(pageFiles, "p");
   const renderPart = pages
     ? `import { collectRoutePaths, configureI18n, registerRoutes, renderHead, renderRoute, resolveMetadata } from "@opentf/afw/server";\n` +
