@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `PUBLIC_*` environment variables reach components as `import.meta.env.PUBLIC_*`,
+  the same names as the esdev workflow.
+  - The plugin sets Vite's `envPrefix` to `PUBLIC_`, so `VITE_*` variables are no
+    longer exposed. An app that sets `envPrefix` itself keeps its own value.
+  - The server render (SSG/SSR) and the client bundle get the same values, so
+    hydration matches; every other variable stays out of both.
+
 ## [0.6.0] - 2026-11-12
 
 ### Added

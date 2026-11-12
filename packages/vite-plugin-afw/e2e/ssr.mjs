@@ -6,7 +6,7 @@
 // Run with Node: `node packages/vite-plugin-afw/e2e/ssr.mjs`.
 
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -120,6 +120,19 @@ export default function LazyPage() {
 }
 `);
   await page("browse/[[...filters]]/page.jsx", `export default function Browse({ params }) { return <p id="browse">{(params.filters ?? ["all"]).join("+")}</p>; }\n`);
+  // PUBLIC_* env: the server render and the hydrated component read the same value;
+  // a secret from the same .env never reaches either.
+  await writeFile(join(dir, ".env"), "PUBLIC_GREETING=hello-from-env\nSECRET_TOKEN=do-not-ship-me\n");
+  await page("env/EnvGreeting.jsx", `export default function EnvGreeting() {
+  let clicks = $state(0);
+  return <button id="env-greeting" onclick={() => clicks++}>{import.meta.env.PUBLIC_GREETING} {clicks}</button>;
+}
+`);
+  await page("env/page.jsx", `import EnvGreeting from "./EnvGreeting.jsx";
+export default function EnvPage() {
+  return <div><EnvGreeting /><p id="env-secret">[{import.meta.env.SECRET_TOKEN ?? "none"}]</p></div>;
+}
+`);
   await writeFile(join(dir, "vite.config.js"), 'import afw from "@opentf/vite-plugin-afw";\nexport default { plugins: [afw({ mode: "ssr" })] };\n');
   await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw({ mode: "ssr" })] })).buildApp();
   server = spawn(process.execPath, ["dist/server/index.js"], { cwd: dir, env: { ...process.env, PORT: "0", HOST: "127.0.0.1" } });
@@ -252,6 +265,18 @@ export default function LazyPage() {
   await evaluate("document.getElementById('open-map').click()");
   check(await until("document.querySelectorAll('#lazy-map').length === 2"), "a second use renders from the same chunk");
   check((await chunks()) === 1, "no second download");
+
+  // PUBLIC_* env vars, rendered on the server and adopted by the client.
+  const envHtml = await text("/env");
+  check(envHtml.includes(">hello-from-env 0</button>") && envHtml.includes("[none]") && !envHtml.includes("do-not-ship-me"), "the server renders PUBLIC_* and not other variables");
+  await send("Page.navigate", { url: `${origin}/env` });
+  check(await until("document.readyState === 'complete' && document.getElementById('env-greeting')?.textContent === 'hello-from-env 0'"), "the env page loads with the PUBLIC_ value");
+  await delay(300);
+  check((await evaluate("JSON.stringify(window.__removed)")) === "[]", "the env page adopts the server DOM");
+  await evaluate("document.getElementById('env-greeting').click()");
+  check(await until("document.getElementById('env-greeting').textContent === 'hello-from-env 1'"), "the hydrated component keeps the PUBLIC_ value");
+  const clientJs = await Promise.all((await readdir(join(dir, "dist", "client", "assets"))).filter((f) => f.endsWith(".js")).map((f) => readFile(join(dir, "dist", "client", "assets", f), "utf8")));
+  check(clientJs.some((js) => js.includes("hello-from-env")) && !clientJs.some((js) => js.includes("do-not-ship-me")), "the client bundle carries PUBLIC_* and no other variable");
 
   check(errors.length === 0, `no browser errors or warnings: ${JSON.stringify(errors)}`);
 } catch (error) {

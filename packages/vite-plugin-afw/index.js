@@ -207,6 +207,10 @@ export default function afw({
         // AFW's own server code and AFW source packages are bundled into dist/server;
         // the app's other npm dependencies stay external and load from node_modules.
         ssr: { noExternal: [/^@opentf\/afw/, /^@opentf\/vite-plugin-afw/, ...libraries] },
+        // `PUBLIC_*` reaches `import.meta.env` in both toolchains (esdev's own
+        // prefix), so one component reads the same name under either. An app that
+        // sets `envPrefix` itself keeps its own.
+        ...(userConfig.envPrefix === undefined ? { envPrefix: "PUBLIC_" } : {}),
       };
       if (env.mode === "test") {
         // AFW packages ship JSX sources (afw-docs components); Vitest must run them

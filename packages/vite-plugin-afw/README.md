@@ -95,6 +95,8 @@ export async function POST(request) {
   dependency that declares `@opentf/afw` is kept out of pre-bundling, bundled into
   server builds and inlined for Vitest.
 - Works with Tailwind CSS 4: add `tailwindcss()` from `@tailwindcss/vite` after `afw()`.
+- Exposes `PUBLIC_*` environment variables as `import.meta.env.PUBLIC_*` (sets Vite's
+  `envPrefix` to `PUBLIC_` unless you set your own), matching the esdev workflow.
 - Replaces `*.server.js` modules with fetch stubs in browser code; the server answers
   them under their folder's middleware.
 - Generates `@afw/routes` from `app/`: pages (lazy, code-split), loader route patterns
