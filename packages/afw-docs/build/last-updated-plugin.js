@@ -8,6 +8,7 @@
 // The same map is needed by the SSG step for the `article:modified_time` SEO tag, so
 // the scan is exposed as a callable (`loadLastUpdated`) too.
 
+import { childRoute } from "./route-url.js";
 import { cwd, join, readEntries, relative, resolve, runOut } from "./host.js";
 import { readFrontmatter } from "./frontmatter.js";
 import { resolveLastUpdated } from "./last-updated.js";
@@ -105,7 +106,7 @@ async function walk(dir, route, exclude, onPage) {
       if (entry.name.startsWith(".") || entry.name.startsWith("_") || exclude.has(entry.name)) {
         continue;
       }
-      await walk(join(dir, entry.name), `${route}/${entry.name}`, exclude, onPage);
+      await walk(join(dir, entry.name), childRoute(route, entry.name), exclude, onPage);
     } else if (PAGE_RE.test(entry.name)) {
       await onPage(join(dir, entry.name), route || "/");
     }

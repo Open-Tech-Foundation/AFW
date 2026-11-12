@@ -10,6 +10,7 @@
 // Tree node shape: `{ title, path?, order?, items?: Node[] }`. A node with `path`
 // is a link; a node with `items` is a (possibly also linked) group.
 
+import { childRoute } from "./route-url.js";
 import { exists, join, readEntries, readNames, readText, toFileUrl } from "./host.js";
 import { readFrontmatter } from "./frontmatter.js";
 import { isUnpublished, showsUnpublished } from "./publish.js";
@@ -111,7 +112,7 @@ async function pageFile(dir) {
 }
 
 function humanize(seg) {
-  return seg.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return seg.replace(/^\((.+)\)$/, "$1").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** Order child keys: those named in `_meta` first (in declared order), rest A→Z. */
@@ -173,7 +174,8 @@ async function buildSection(dir, route, ctx, withIndex = false, exclude = new Se
       );
       continue;
     }
-    const node = await buildNode(join(dir, key), `${route}/${key}`, key, meta, ctx, exclude);
+    // A route-group folder `(guides)` is a sidebar group, but not part of the URL.
+    const node = await buildNode(join(dir, key), childRoute(route, key), key, meta, ctx, exclude);
     if (node) items.push(node);
   }
   return items;

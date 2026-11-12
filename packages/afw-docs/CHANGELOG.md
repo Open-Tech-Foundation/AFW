@@ -8,6 +8,9 @@
   label and lists the folder's own page as a child entry under that label (for example
   `index: "Overview"`), at the folder's URL. Without `index`, the folder's page is still
   the heading's link.
+- Route-group folders (`(guides)/`) are sidebar headings over their pages, labelled from
+  `_meta` or the folder name without parentheses. Links, breadcrumbs, last-updated
+  dates, blog posts, feeds and `llms.txt` use URLs without the group.
 
 ### Fixed
 

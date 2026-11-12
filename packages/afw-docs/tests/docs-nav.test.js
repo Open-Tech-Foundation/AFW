@@ -58,6 +58,21 @@ test("a group whose _meta lists index keeps a plain heading and lists its page a
   ]);
 });
 
+test("a route-group folder is a sidebar group whose pages keep URLs without the group", async () => {
+  const { tree } = await navigation({
+    "app/docs/page.mdx": page("Docs"),
+    "app/docs/_meta.json": JSON.stringify({ index: "Introduction", "(guides)": "Guides" }),
+    "app/docs/(guides)/install/page.mdx": page("Install"),
+    "app/docs/(guides)/deploy/page.mdx": page("Deploy"),
+    "app/docs/(reference)/api/page.mdx": page("API"),
+  });
+  expect(tree["/docs"]).toEqual([
+    { title: "Introduction", path: "/docs" },
+    { title: "Guides", items: [{ title: "Deploy", path: "/docs/deploy" }, { title: "Install", path: "/docs/install" }] },
+    { title: "Reference", items: [{ title: "API", path: "/docs/api" }] },
+  ]);
+});
+
 test("dynamic top-level sections and catch-all branches never appear in navigation", async () => {
   const { tree } = await navigation({
     "app/[locale]/docs/page.mdx": page("Localized docs"),

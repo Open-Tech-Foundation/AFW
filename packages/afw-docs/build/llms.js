@@ -1,3 +1,4 @@
+import { isGroupSegment } from "./route-url.js";
 import { dirname, relative } from "./host.js";
 
 import { exists, readText } from "./host.js";
@@ -20,7 +21,7 @@ function routePath(appDir, file) {
   if (segments.some((seg) => seg.startsWith("_") || seg.startsWith(".") || seg.includes("["))) {
     return null;
   }
-  return "/" + segments.join("/");
+  return "/" + segments.filter((seg) => !isGroupSegment(seg)).join("/");
 }
 
 function humanize(seg) {

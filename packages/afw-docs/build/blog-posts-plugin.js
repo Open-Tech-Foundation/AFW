@@ -9,6 +9,7 @@
 // overrides. Drafts and future-dated posts are left out except under `esdev start`
 // (see publish.js).
 
+import { isGroupSegment } from "./route-url.js";
 import { exists, join, readEntries, readNames, readText } from "./host.js";
 
 import { readFrontmatter } from "./frontmatter.js";
@@ -95,6 +96,11 @@ async function collectPosts(root, base, exclude, watch, drafts) {
       continue;
     }
     const dir = join(root, entry.name);
+    // A route group `(2024)` holds posts without being part of their URL.
+    if (isGroupSegment(entry.name)) {
+      posts.push(...(await collectPosts(dir, base, exclude, watch, drafts)));
+      continue;
+    }
     const page = (await readNames(dir)).find((n) => PAGE_RE.test(n));
     if (!page) continue;
 
