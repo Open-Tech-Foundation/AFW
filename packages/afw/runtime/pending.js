@@ -87,12 +87,17 @@ export class PendingElement extends HTMLElement {
     return this.#delay;
   }
 
-  /** A resource this boundary waits on (called by resource.js). */
+  /**
+   * A resource (or lazy component) this boundary waits on. Read untracked: these run
+   * from inside other effects — a component connecting while a conditional region
+   * inserts it — which must not start depending on this boundary's list (the write
+   * that follows would re-run them, forever).
+   */
   __track(handle) {
-    this.#tracked.value = [...this.#tracked.value, handle];
+    untracked(() => (this.#tracked.value = [...this.#tracked.value, handle]));
   }
   __untrack(handle) {
-    this.#tracked.value = this.#tracked.value.filter((h) => h !== handle);
+    untracked(() => (this.#tracked.value = this.#tracked.value.filter((h) => h !== handle)));
   }
   /** The compiler finished building (or adopting) this boundary's children. */
   __built() {
@@ -114,7 +119,7 @@ export class PendingElement extends HTMLElement {
       handleError(this, error, { phase: "resource", retry: () => handle.refetch() });
       return;
     }
-    const current = this.#failure.value;
+    const current = untracked(() => this.#failure.value);
     if (current) {
       current.retries.add(handle);
       return;
@@ -132,7 +137,7 @@ export class PendingElement extends HTMLElement {
 
   /** Clear the error view and refetch what failed; the fallback shows while it reloads. */
   #retry() {
-    const failure = this.#failure.value;
+    const failure = untracked(() => this.#failure.value);
     if (!failure) return;
     this.#failure.value = null;
     this.#place("error", null);

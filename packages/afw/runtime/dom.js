@@ -234,6 +234,8 @@ export function setProp(el, name, value) {
   // first so the property setter exists; it's a no-op for already-upgraded or non-custom
   // elements. (A client CSR build creates already-upgraded instances, so this never fires
   // there.)
+  // A lazy component's placeholder keeps every prop for the component it loads.
+  if (el.__afwLazy) return el.__afwLazy.set(name, value);
   if (
     !(name in el) &&
     el.tagName &&
@@ -256,7 +258,8 @@ export function setProp(el, name, value) {
 export function spread(el, obj, asProps) {
   if (!obj) return;
   for (const k in obj) {
-    if (asProps) el[k] = obj[k];
+    if (asProps && el.__afwLazy) el.__afwLazy.set(k, obj[k]);
+    else if (asProps) el[k] = obj[k];
     else setAttr(el, k, obj[k]);
   }
 }

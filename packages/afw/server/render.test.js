@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "runtime:test";
 
 import { configureI18n, localizePath, matchRoute, registerRoutes, router, routes, setRouteState } from "../runtime/router.js";
 import { defineSSG, ssgComponent } from "./ssg-runtime.js";
+import { lazyComponent } from "./builtins.js";
 import { collectRoutePaths, renderRoute, renderToString } from "./render.js";
 
 // An SSG page render fn (what the SSG backend emits): returns an HTML string.
@@ -23,6 +24,15 @@ const resetRoutes = () => {
 };
 beforeEach(resetRoutes);
 afterEach(resetRoutes);
+
+describe("lazy components on the server", () => {
+  test("render their placeholder: nothing displayed, children kept for hydration", () => {
+    const Chart = lazyComponent(() => import("./never-loaded-on-the-server.js"), "afw-lazy-chart-test");
+    expect(Chart.tag).toBe("afw-lazy-chart-test");
+    const html = ssgComponent(Chart.tag, {}, "<b>kid</b>");
+    expect(html).toBe('<afw-lazy-chart-test><template shadowrootmode="open"><style>:host{display:contents}</style></template><!--c[afw-lazy-chart-test--><b>kid</b><!--c]afw-lazy-chart-test--></afw-lazy-chart-test>');
+  });
+});
 
 describe("route groups and optional segments on the server", () => {
   test("a grouped page renders at its URL inside its group's layout", async () => {

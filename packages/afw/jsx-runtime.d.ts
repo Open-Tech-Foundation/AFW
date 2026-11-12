@@ -4,6 +4,17 @@ import type { Transition } from "./runtime/transition.js";
 export namespace JSX {
   type Element = Node;
   interface ElementChildrenAttribute { children: unknown }
+
+  /** A lazy component's loader, `() => import("./Chart.jsx")`, used as a JSX tag. */
+  type LazyLoader = () => Promise<unknown>;
+  type LazyTarget<L> = L extends () => Promise<infer M> ? (M extends { default: infer C } ? C : M) : never;
+  type PropsOf<C> = C extends (props: infer P, ...rest: any[]) => unknown ? P
+    : C extends new (props: infer P, ...rest: any[]) => unknown ? P
+    : {};
+  /** What a tag can be: an element name, a component (function or class), or a lazy loader. */
+  type ElementType = string | ((props: any, ...rest: any[]) => unknown) | (new (props: any, ...rest: any[]) => unknown) | LazyLoader;
+  /** A lazy loader's props are the props of the component it loads. */
+  type LibraryManagedAttributes<C, P> = C extends LazyLoader ? PropsOf<LazyTarget<C>> : P;
   interface IntrinsicAttributes { key?: string | number }
 
   type Handler<E, T extends Event> = (event: T & { currentTarget: E }) => void;

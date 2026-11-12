@@ -45,6 +45,24 @@ export const Pending = register("afw-internal-pending", (props, children) => {
   return '<template shadowrootmode="open"><style>:host{display:contents}</style><slot name="fallback"></slot></template>' +
     fallback + slot("afw-internal-pending", children);
 });
+/**
+ * Server half of `lazyComponent` (runtime/lazy.js). A lazy component renders in the
+ * browser only, so the server sends its placeholder: a declarative shadow root that
+ * displays nothing, with the children in the light DOM (hidden), marked so hydration
+ * adopts them. The props travel in the hydration payload like any island's.
+ */
+export function lazyComponent(loader, tag) {
+  const lazy = () => loader();
+  Object.defineProperty(lazy, "tag", { value: tag });
+  if (!registered.has(tag)) {
+    registered.add(tag);
+    register(tag, (_props, children) =>
+      '<template shadowrootmode="open"><style>:host{display:contents}</style></template>' + slot(tag, children));
+  }
+  return lazy;
+}
+const registered = new Set();
+
 // RawHtml: emit the trusted HTML string inline (MDX highlighted code blocks).
 export const RawHtml = register("afw-internal-raw-html", (props) => (props && props.html != null ? String(props.html) : ""));
 // CodeFence: same inline HTML as RawHtml; the copy button wires up on the client

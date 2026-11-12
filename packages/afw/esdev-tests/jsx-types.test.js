@@ -32,7 +32,7 @@ test("published framework types support strict TS starters and reject invalid JS
       }, include: ["*.tsx"],
     }));
     await write(join(scratch, "pages.tsx"), `
-      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps } from "@opentf/afw";
+      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps, type Lazy } from "@opentf/afw";
       import { registerRoutes, query, action, type StandardSchemaV1 } from "@opentf/afw/server";
       import { fade, fly, slide, type Transition } from "@opentf/afw/transition";
       export function Counter({ initial = 0 }: { initial?: number }) {
@@ -59,6 +59,16 @@ test("published framework types support strict TS starters and reject invalid JS
       registerRoutes({}); mountApp({ pages: {}, loaders: ["/"], i18n: { locales: ["en"], defaultLocale: "en" }, viewTransitions: true });
       const pop: Transition = (el, { direction }) => el.animate([{ opacity: direction === "in" ? 0 : 1 }], 100);
       const animated = <ul><li transition={fade({ duration: 150, initial: true })} /><li in={slide({ axis: "x" })} out={fly({ y: -4 })} /><li transition={pop} /></ul>;
+      // Lazy components: a loader is a tag whose props are its component's.
+      function Chart({ data, title }: { data: number[]; title?: string }) { return <p>{title}{data.length}</p>; }
+      const LazyChart = () => Promise.resolve({ default: Chart });
+      const Annotated: Lazy<typeof Chart> = () => Promise.resolve({ default: Chart });
+      const Named = () => Promise.resolve({ Chart }).then((m) => m.Chart);
+      const lazyOk = <div><LazyChart data={[1]} /><Annotated data={[2]} title="t" /><Named data={[3]} /></div>;
+      // @ts-expect-error a lazy component's required props are checked
+      const lazyMissing = <LazyChart />;
+      // @ts-expect-error and their types
+      const lazyWrong = <Annotated data="x" />;
       const feed = resource(async () => [1, 2], { errors: "inline" });
       const section = <Pending fallback={<p>…</p>} error={(error, retry) => <button onclick={retry}>{String(error)}</button>}><p/></Pending>;
       const RouteError = ({ error, retry }: RouteErrorProps) => <p onclick={retry}>{error.status ?? 500}: {error.message}</p>;

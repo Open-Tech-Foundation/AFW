@@ -25,6 +25,8 @@ export const ContextProvider: ServerComponent;
 export const Portal: ServerComponent;
 export const ErrorBoundary: ServerComponent;
 export const Pending: ServerComponent;
+/** Compiler-emitted: a lazy component's loader with its placeholder tag (renders the empty placeholder on the server). */
+export function lazyComponent<L extends () => Promise<unknown>>(loader: L, tag: string): L & { readonly tag: string };
 export const RawHtml: ServerComponent;
 export const CodeFence: ServerComponent;
 export function shouldInterceptNav(): boolean;

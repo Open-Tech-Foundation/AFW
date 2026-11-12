@@ -7,6 +7,8 @@ import "./error-boundary.js";
 import "./pending.js";
 import { enterPending, exitPending } from "./pending-scope.js";
 import { resource } from "./resource.js";
+import { bindChild } from "./dom.js";
+import { signal } from "../core/signals.js";
 
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -387,6 +389,32 @@ describe("sections (the dashboard pattern)", () => {
     d.last().resolve(1);
     await tick();
     expect(shown(el)).toEqual(["content"]);
+  });
+});
+
+describe("registering during a reactive update", () => {
+  test("a child that registers as a conditional region inserts it does not re-run the region", async () => {
+    // A component connecting inside the region's effect registers with the boundary;
+    // that must not make the region depend on the boundary's own list.
+    class Registers extends HTMLElement {
+      connectedCallback() {
+        this.closest("afw-internal-pending").__track({ loading: () => false, settled: () => true, refetch() {} });
+      }
+    }
+    customElements.define("afw-test-registers", Registers);
+    const show = signal(false);
+    const parent = document.body.appendChild(document.createElement("div"));
+    const anchor = parent.appendChild(document.createComment(""));
+    let builds = 0;
+    bindChild(anchor, () => {
+      if (!show.value) return null;
+      builds++;
+      const el = boundary({ fallback: text("…") }, (b) => b.append(document.createElement("afw-test-registers")), document.createElement("div"));
+      return el;
+    });
+    show.value = true;
+    await tick();
+    expect(builds).toBe(1);
   });
 });
 

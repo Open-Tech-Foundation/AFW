@@ -71,6 +71,16 @@
   500 and hydrates at the same site. The root layout has nothing above it, so its errors
   are reported, not caught.
   - `routeErrorSite`, `layoutFolders` and `layoutWraps` are exported from the router.
+- Lazy components: `const Chart = () => import("./Chart.jsx")` at module level (or
+  `.then((m) => m.Name)` for a named export) is a component whose code downloads when
+  it first renders. The compiler turns it into `lazyComponent(loader, tag)`.
+  - Its placeholder keeps props (including spread and `on*` callbacks) and children,
+    loads once for every instance, then hands them to the component and forwards later
+    updates and its `$expose`d methods to a `ref`.
+  - It holds the nearest `<Pending>`'s fallback while loading; a failed download goes
+    to `<Pending error>`, an `<ErrorBoundary>` or `error.jsx`, and retry reloads the page.
+  - Calling the loader preloads it. Server rendering sends the empty placeholder.
+  - `Lazy<C>` types a loader; JSX takes a loader's props from the component it loads.
 - Route groups: a folder in parentheses, `(name)/`, is not part of the URL. Its
   layouts, `loading.jsx`, `error.jsx` and layout loaders apply to the pages inside it.
   - `_middleware.js` in a group covers exactly the group's pages, loader data, API routes
@@ -98,6 +108,9 @@
 
 ### Fixed
 
+- `<Pending>` no longer loops when something registers with it from inside another
+  effect (a component connecting while a conditional region inserts it): it reads its
+  own list untracked, so the region no longer depends on it.
 - After a server-rendered first load, navigating to a page without a title keeps the
   shell's title (from the unmanaged `<title>` or the server's `afw-shell-title`) instead
   of leaving `document.title` empty.
