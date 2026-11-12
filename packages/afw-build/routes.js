@@ -184,7 +184,7 @@ export async function resolveAppRoot(host, appDir, importer) {
  *
  * @returns {Promise<{ code: string, files: string[] }>}
  */
-export async function routesModule(host, root, { exclude = [], drafts = true } = {}) {
+export async function routesModule(host, root, { exclude = [], drafts = true, clientFiles = new Set() } = {}) {
   const pages = await discoverPages(host, root, { exclude, drafts });
   const loaders = await discoverLoaders(host, root, { exclude });
   const layoutLoaders = await discoverLoaders(host, root, { exclude, layout: true });
@@ -202,10 +202,12 @@ export async function routesModule(host, root, { exclude = [], drafts = true } =
     pageLoaders: loaders.map(([route]) => route),
     layoutLoaders: layoutLoaders.map(([route]) => route),
   });
-  const map = pages
-    .map((p) => `  [${JSON.stringify(routeKey(p, root))}]: () => import(${JSON.stringify(p)}),`)
-    .join("\n");
+  // Entries that render in the browser (`_config.js` → `client`) are marked, so a page
+  // server-rendered around them adopts its layouts and builds the rest.
+  const entry = (p) => (clientFiles.has(p) ? `clientRoute(() => import(${JSON.stringify(p)}))` : `() => import(${JSON.stringify(p)})`);
+  const map = pages.map((p) => `  [${JSON.stringify(routeKey(p, root))}]: ${entry(p)},`).join("\n");
   const code =
+    (pages.some((p) => clientFiles.has(p)) ? `import { clientRoute } from "@opentf/afw";\n` : "") +
     `export const pages = {\n${map}\n};\n` +
     `export const loaderRoutes = ${JSON.stringify(loaderRoutes)};\n` +
     (guard ? `export { default as guard } from ${JSON.stringify(guard)};\n` : `export const guard = undefined;\n`);

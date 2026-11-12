@@ -41,6 +41,8 @@ export function robotsTxt(baseUrl, hasSitemap) {
  * (marked for hydration by the caller when the client hydrates). `loaders` is the
  * loader registry, run at build time with no request and an empty query. A
  * `public/sitemap.xml` or `public/robots.txt` in `publicDir` wins over the generated one.
+ * `routes` (a Set of route patterns) limits the prerender to those routes and skips the
+ * 404 page, sitemap and robots.txt — a server app's static routes.
  *
  * @returns {Promise<{ count: number, skipped: string[], failed: string[], siteDescription: string, paths: string[] }>}
  *   `siteDescription` is the site's own description (home route, else the root
@@ -48,12 +50,16 @@ export function robotsTxt(baseUrl, hasSitemap) {
  */
 export async function prerender(host, {
   render, shellHtml, outDir, publicDir, baseUrl = "", lastUpdated = {}, i18n = null, loaders = null,
-  chunkManifest = null, onRender,
+  chunkManifest = null, onRender, routes = null,
 }) {
   const settings = i18nSettings(i18n);
   const locales = settings ? settings.locales : [null];
   const defaultLocale = settings?.defaultLocale ?? null;
-  const { paths, skipped } = await render.collectRoutePaths();
+  // `routes`: only these route patterns, as a Set (a server app prerenders just its
+  // static routes; no 404 page, sitemap or robots.txt then).
+  const collected = await render.collectRoutePaths();
+  const paths = routes ? collected.paths.filter((p) => routes.has(p.route)) : collected.paths;
+  const skipped = routes ? collected.skipped.filter((r) => routes.has(r)) : collected.skipped;
   const preloadFor = (route) => modulepreloadTags(chunkManifest?.routes?.[route]);
 
   const failed = [];
@@ -88,6 +94,10 @@ export async function prerender(host, {
       }
     }
   }
+
+  // A partial prerender (a server app's static routes) stops here: its server answers
+  // unknown paths and serves no sitemap of its own yet.
+  if (routes) return { count: rendered.length, skipped, failed, siteDescription, paths: rendered };
 
   // Any unmatched path is served the 404 page by static hosts.
   try {

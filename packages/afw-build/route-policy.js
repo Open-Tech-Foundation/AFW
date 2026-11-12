@@ -14,6 +14,7 @@ export const RENDERS = ["server", "static", "client"];
 export const RENDER_OF_MODE = { spa: "client", ssg: "static", ssr: "server" };
 
 const PAGE = /^page\.(mdx|md|[jt]sx)$/;
+const LAYOUT = /^layout\.[jt]sx$/;
 
 /** Folder of a `/`-separated relative path ("" for the app root). */
 const folderOf = (rel) => (rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "");
@@ -138,13 +139,34 @@ export function resolveRoutePolicies({ root, pages, configs, mode }) {
   }
 
   const routes = [];
+  const layoutFolders = pages.map((abs) => relative(root, abs)).filter((rel) => LAYOUT.test(rel.split("/").pop())).map(folderOf);
   for (const abs of pages) {
     const rel = relative(root, abs);
     if (!PAGE.test(rel.split("/").pop())) continue;
     const folder = folderOf(rel);
-    routes.push({ route: folderRoute(folder), folder, file: abs, ...policyOf(folder) });
+    const policy = policyOf(folder);
+    // The server cannot render inside a layout it never loads.
+    if (policy.render !== "client") {
+      const client = ancestry(folder).find((f) => layoutFolders.includes(f) && policyOf(f).render === "client");
+      if (client !== undefined) {
+        throw new Error(
+          `${abs} renders "${policy.render}", but the layout in app/${client ? `${client}/` : ""} renders "client": ` +
+          `the server cannot render a page inside a layout that renders in the browser. Make this folder "client" too, or move the page out of it.`,
+        );
+      }
+    }
+    routes.push({ route: folderRoute(folder), folder, file: abs, ...policy });
   }
   routes.sort((a, b) => (a.route < b.route ? -1 : a.route > b.route ? 1 : a.folder < b.folder ? -1 : 1));
+
+  // `paths` lists the pages of the dynamic route in its own folder; it is not inherited.
+  for (const [folder, c] of configs) {
+    if (!c.paths) continue;
+    const own = routes.find((r) => r.folder === folder);
+    if (!own || !own.route.includes("[")) {
+      throw new Error(`${c.file}: \`paths\` lists the pages of a dynamic route, but this folder has no dynamic page (like [slug]/page.jsx). Move it to that page's folder.`);
+    }
+  }
 
   const warnings = [];
   for (const [folder, c] of configs) {
@@ -153,6 +175,25 @@ export function resolveRoutePolicies({ root, pages, configs, mode }) {
     }
   }
   return { defaultRender, routes, policyOf, warnings };
+}
+
+/**
+ * The route files (from `discoverPages`: pages, layouts, 404, loading and error files)
+ * that render in the browser: those in a folder whose policy is `client`. The generated
+ * route tables mark them with `clientRoute`, and the server bundle leaves them out.
+ */
+export function clientRouteFiles({ policyOf }, root, files) {
+  return new Set(files.filter((abs) => policyOf(folderOf(relative(root, abs))).render === "client"));
+}
+
+/** The configs that declare `paths`, as `[routePattern, configFile]` for the server module. */
+export function staticPathConfigs({ routes }, configs) {
+  return routes.filter((r) => configs.get(r.folder)?.paths).map((r) => [r.folder ? `/${r.folder}` : "/", configs.get(r.folder).file]);
+}
+
+/** Each route's strategy keyed by its route-table pattern (`/`, `/(legal)/privacy`), for the server module. */
+export function routeRenders({ routes }) {
+  return Object.fromEntries(routes.map((r) => [r.folder ? `/${r.folder}` : "/", r.render]));
 }
 
 /** The resolved policies as the build prints them: route, render, and the file that decided it. */

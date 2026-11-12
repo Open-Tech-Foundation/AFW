@@ -123,3 +123,17 @@ test("isUnpublishedSource reads draft and date frontmatter", () => {
   expect(isUnpublishedSource("---\ntitle: x\n---")).toBe(false);
   expect(isUnpublishedSource("# no frontmatter")).toBe(false);
 });
+
+describe("client route entries", () => {
+  test("files that render in the browser are marked clientRoute, and the import added once", async () => {
+    const { code } = await routesModule(app({ "page.jsx": "", "admin/layout.jsx": "", "admin/page.jsx": "" }), "/site/app", {
+      clientFiles: new Set(["/site/app/admin/layout.jsx", "/site/app/admin/page.jsx"]),
+    });
+    expect(code.startsWith('import { clientRoute } from "@opentf/afw";\n')).toBe(true);
+    expect(code).toContain('["/app/admin/page.jsx"]: clientRoute(() => import("/site/app/admin/page.jsx")),');
+    expect(code).toContain('["/app/admin/layout.jsx"]: clientRoute(() => import("/site/app/admin/layout.jsx")),');
+    expect(code).toContain('["/app/page.jsx"]: () => import("/site/app/page.jsx"),');
+    const plain = await routesModule(app({ "page.jsx": "" }), "/site/app");
+    expect(plain.code).not.toContain("clientRoute");
+  });
+});

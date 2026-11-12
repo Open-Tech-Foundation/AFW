@@ -99,7 +99,7 @@ describe("serverModule", () => {
     expect(code).toContain('["/app/layout.jsx"]: p1,');
     expect(code).not.toContain("blog/page.md");
     expect(code).toContain("configureI18n(options.i18n);");
-    expect(code).toContain("export function createPageRenderer({ shell: html, baseUrl = \"\" })");
+    expect(code).toContain("export function createPageRenderer({ shell: html, baseUrl = \"\", readStatic = null })");
     expect(code).toContain("const shell = stampHydrateSentinel(html);");
     expect(code).toContain('import { renderDocument, stampHydrateSentinel } from "@opentf/afw-build/document";');
     expect(files).toContain("/site/app/page.jsx");
@@ -114,5 +114,33 @@ describe("serverModule", () => {
 
   test("a layout conflict is an error", async () => {
     await expect(serverModule(app({ "page.jsx": "", "route.js": "" }), "/site/app")).rejects.toThrow("a page and an API route answer /:");
+  });
+});
+
+describe("serverModule with route policies", () => {
+  const files = { "page.jsx": "", "layout.jsx": "", "admin/page.jsx": "", "admin/editor/page.jsx": "", "posts/[slug]/page.jsx": "", "posts/[slug]/_config.js": "" };
+
+  test("client files stay out of the bundle and register as clientRoute()", async () => {
+    const { code, files: watched } = await serverModule(app(files), "/site/app", {
+      pages: true, clientFiles: new Set(["/site/app/admin/page.jsx", "/site/app/admin/editor/page.jsx"]),
+    });
+    expect(code).not.toContain('from "/site/app/admin/page.jsx"');
+    expect(code).not.toContain('from "/site/app/admin/editor/page.jsx"');
+    expect(code).toContain('["/app/admin/page.jsx"]: clientRoute(),');
+    expect(code).toContain('["/app/admin/editor/page.jsx"]: clientRoute(),');
+    expect(code).toMatch(/\["\/app\/page\.jsx"\]: p\d+,/);
+    expect(watched).not.toContain("/site/app/admin/page.jsx");
+  });
+
+  test("the renderer labels responses with their policy and serves prebuilt static pages", async () => {
+    const { code } = await serverModule(app(files), "/site/app", {
+      pages: true, renders: { "/": "server", "/posts/[slug]": "static" }, staticPaths: [["/posts/[slug]", "/site/app/posts/[slug]/_config.js"]],
+    });
+    expect(code).toContain('import sp0 from "/site/app/posts/[slug]/_config.js";');
+    expect(code).toContain('registerStaticPaths({\n  ["/posts/[slug]"]: sp0.paths,\n});');
+    expect(code).toContain('const renders = {"/":"server","/posts/[slug]":"static"};');
+    expect(code).toContain("export function createPageRenderer({ shell: html, baseUrl = \"\", readStatic = null })");
+    expect(code).toContain('if (readStatic && renders[matchRoute(url.pathname)?.route] === "static") {');
+    expect(code).toContain('"x-afw-render": renders[doc.route]');
   });
 });

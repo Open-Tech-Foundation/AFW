@@ -242,7 +242,7 @@ export async function renderDocument(render, {
     ),
     dataJson,
   );
-  return { status, html: document, dataJson, loaded: !!match, metadata };
+  return { status, html: document, dataJson, loaded: !!match, metadata, route: result.route ?? null };
 }
 
 /** The 404 page as a document (`noindex`), or `null` when the app has none. */

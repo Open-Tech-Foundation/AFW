@@ -93,3 +93,23 @@ describe("prerender", () => {
     expect(result.siteDescription).toBe("Site desc");
   });
 });
+
+describe("partial prerender", () => {
+  test("only the given routes are written, without 404, sitemap or robots", async () => {
+    const host = memoryHost({});
+    const result = await prerender(host, {
+      render: fakeRender({
+        paths: [{ path: "/", params: {}, route: "/" }, { path: "/about", params: {}, route: "/about" }, { path: "/terms", params: {}, route: "/(legal)/terms" }],
+        skipped: ["/posts/[slug]", "/admin/[id]"],
+      }),
+      shellHtml: SHELL, outDir: "/out", publicDir: "/public", baseUrl: "https://x.test",
+      routes: new Set(["/about", "/(legal)/terms", "/posts/[slug]"]),
+    });
+    expect(result.paths).toEqual(["/about", "/terms"]);
+    expect(result.skipped).toEqual(["/posts/[slug]"]);
+    expect(host.files.has("/out/index.html")).toBe(false);
+    expect(host.files.has("/out/about/index.html")).toBe(true);
+    expect(host.files.has("/out/terms/index.html")).toBe(true);
+    for (const f of ["/out/404.html", "/out/sitemap.xml", "/out/robots.txt"]) expect(host.files.has(f)).toBe(false);
+  });
+});

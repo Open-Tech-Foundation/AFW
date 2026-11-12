@@ -1,7 +1,8 @@
 import { describe, expect, test } from "runtime:test";
 
 import {
-  discoverRouteConfigs, folderRoute, formatRouteTable, readRouteConfigs, resolveRoutePolicies, routeManifest,
+  clientRouteFiles, discoverRouteConfigs, folderRoute, formatRouteTable, readRouteConfigs, resolveRoutePolicies, routeManifest,
+  routeRenders, staticPathConfigs,
 } from "../index.js";
 import { memoryHost } from "./memory-host.js";
 
@@ -134,5 +135,37 @@ describe("route policies", () => {
     expect(manifest.default).toBe("server");
     expect(manifest.routes[1]).toEqual({ route: "/admin", render: "client", data: "client", page: "app/admin/page.jsx", from: "app/admin/_config.ts" });
     expect(manifest.routes[0]).toEqual({ route: "/", render: "server", page: "app/page.jsx", from: "app/_config.js" });
+  });
+});
+
+describe("route policies and the bundles", () => {
+  test("a server or static page inside a client layout is an error", async () => {
+    const files = { "page.jsx": "", "admin/_config.js": "", "admin/layout.jsx": "", "admin/public/_config.js": "", "admin/public/page.jsx": "" };
+    await expect(resolveApp(files, { "admin/_config.js": { render: "client" }, "admin/public/_config.js": { render: "server" } }, { mode: "ssr" }))
+      .rejects.toThrow('renders "server", but the layout in app/admin/ renders "client"');
+    // Without a layout of its own, the client folder only governs pages: no conflict.
+    const ok = await resolveApp({ "page.jsx": "", "admin/_config.js": "", "admin/public/_config.js": "", "admin/public/page.jsx": "" },
+      { "admin/_config.js": { render: "client" }, "admin/public/_config.js": { render: "server" } }, { mode: "ssr" });
+    expect(ok.routes.find((r) => r.route === "/admin/public").render).toBe("server");
+  });
+
+  test("paths belongs to the dynamic page in its own folder", async () => {
+    await expect(resolveApp({ "_config.js": "", "posts/[slug]/page.jsx": "" }, { "_config.js": { render: "static", paths: true } }))
+      .rejects.toThrow("this folder has no dynamic page");
+    const resolved = await resolveApp({ "_config.js": "", "posts/[slug]/_config.js": "", "posts/[slug]/page.jsx": "" },
+      { "_config.js": { render: "static" }, "posts/[slug]/_config.js": { paths: true } });
+    const host = memoryHost({ [at("posts/[slug]/_config.js")]: "" });
+    const configs = await readRouteConfigs(host, compilerFor({ [at("posts/[slug]/_config.js")]: { paths: true } }), new Map([["posts/[slug]", at("posts/[slug]/_config.js")]]));
+    expect(staticPathConfigs(resolved, configs)).toEqual([["/posts/[slug]", at("posts/[slug]/_config.js")]]);
+  });
+
+  test("the client files, and each route's strategy by route-table pattern", async () => {
+    const resolved = await resolveApp(SITE, SITE_CONFIG);
+    const all = Object.keys(SITE).filter((rel) => /(^|\/)(page|layout|404)\.[a-z]+$/.test(rel)).map(at);
+    expect([...clientRouteFiles(resolved, ROOT, all)].sort()).toEqual([at("admin/editor/page.jsx"), at("admin/layout.jsx"), at("admin/page.jsx")]);
+    const renders = routeRenders(resolved);
+    expect(renders["/"]).toBe("server");
+    expect(renders["/(legal)/privacy"]).toBe("static");
+    expect(renders["/admin/editor"]).toBe("client");
   });
 });

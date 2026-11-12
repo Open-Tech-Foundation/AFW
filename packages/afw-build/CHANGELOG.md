@@ -16,6 +16,16 @@
   shorthand. Errors for a default set in two places, two config files in one folder,
   `paths` outside a static folder and `data` outside a client folder; a warning for a
   config that governs no page. `formatRouteTable` and `routeManifest` report the result.
+  - A server or static page inside a layout whose folder renders `client` is an error, and
+    `paths` must sit beside the dynamic page it lists.
+  - `clientRouteFiles`, `routeRenders` and `staticPathConfigs` feed the generated modules.
+- `routesModule({ clientFiles })` marks browser-rendered entries with `clientRoute`;
+  `serverModule({ clientFiles, renders, staticPaths })` leaves them out of the server bundle,
+  registers `_config.js` `paths`, labels page responses with `x-afw-render`, and its
+  `createPageRenderer({ readStatic })` serves a static route's prerendered HTML inside the
+  middleware chain.
+- `prerender({ routes })` prerenders only those route patterns (a server app's static
+  routes), without a 404 page, sitemap or robots.txt.
 - `compilerTarget(target, hot)`: the backend token for a target, with `hot` selecting
   `csr-hot` or `hydrate-hot`. `compileModule` uses it, so `hot` now applies to the hydrate
   target too.

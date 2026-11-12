@@ -17,7 +17,7 @@ export {
 } from "./routes.js";
 export {
   CONFIG_FILE, RENDERS, RENDER_OF_MODE,
-  discoverRouteConfigs, folderRoute, formatRouteTable, readRouteConfigs, resolveRoutePolicies, routeManifest,
+  clientRouteFiles, discoverRouteConfigs, folderRoute, formatRouteTable, readRouteConfigs, resolveRoutePolicies, routeManifest, routeRenders, staticPathConfigs,
 } from "./route-policy.js";
 export { SERVER_ID, discoverServerFiles, hasServerFiles, serverConflicts, serverModule } from "./server.js";
 export {

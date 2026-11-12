@@ -149,7 +149,7 @@ export function serverConflicts(host, dir, files) {
  *           pages?: boolean, drafts?: boolean, hydrate?: boolean }} [options]
  * @returns {Promise<{ code: string, files: string[] }>}
  */
-export async function serverModule(host, root, { exclude = [], i18n = null, pages = false, drafts = true, hydrate = true, listExports } = {}) {
+export async function serverModule(host, root, { exclude = [], i18n = null, pages = false, drafts = true, hydrate = true, listExports, clientFiles = new Set(), renders = null, staticPaths = [] } = {}) {
   const files = await discoverServerFiles(host, root, { exclude });
   const problems = serverConflicts(host, root, files);
   if (problems.length) throw new Error(`AFW server routes:\n  ${problems.join("\n  ")}`);
@@ -180,16 +180,32 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     groupScopes[`/${folder}`] = { scopes: [...new Set(scopes)].sort(), paths: paths.sort() };
   }
   if (Object.keys(groupScopes).length) options.groupScopes = groupScopes;
-  const p = group(pageFiles, "p");
+  // Route files that render in the browser stay out of the server bundle: they register
+  // as `clientRoute()` entries, and the server render leaves their region empty.
+  const serverPageFiles = pageFiles.filter((f) => !clientFiles.has(f));
+  const p = group(serverPageFiles, "p");
+  const registered = pageFiles.map((f) => {
+    const key = JSON.stringify(routeKey(f, root));
+    return clientFiles.has(f) ? `  [${key}]: clientRoute(),` : `  [${key}]: p${serverPageFiles.indexOf(f)},`;
+  });
   const renderPart = pages
-    ? `import { collectRoutePaths, configureI18n, registerRoutes, renderHead, renderRoute, resolveMetadata } from "@opentf/afw/server";\n` +
+    ? `import { clientRoute, collectRoutePaths, configureI18n, matchRoute, registerRoutes, registerStaticPaths, renderHead, renderRoute, resolveMetadata } from "@opentf/afw/server";\n` +
+      staticPaths.map(([, file], i) => `import sp${i} from ${JSON.stringify(file)};\n`).join("") +
       `import { renderDocument, stampHydrateSentinel } from "@opentf/afw-build/document";\n` +
       (p.imports ? `${p.imports}\n` : "") +
       (options.i18n ? `configureI18n(options.i18n);\n` : "") +
-      `registerRoutes({\n${pageFiles.map((f, i) => `  [${JSON.stringify(routeKey(f, root))}]: p${i},`).join("\n")}\n});\n` +
+      `registerRoutes({\n${registered.join("\n")}\n});\n` +
+      (staticPaths.length ? `registerStaticPaths({\n${staticPaths.map(([route], i) => `  [${JSON.stringify(route)}]: sp${i}.paths,`).join("\n")}\n});\n` : "") +
       `export const render = { renderRoute, renderHead, collectRoutePaths, resolveMetadata };\n` +
-      `/** A \`renderPage\` step: server-render page requests (\`GET\`/\`HEAD\`) into \`shell\`, the client's index.html. */\n` +
-      `export function createPageRenderer({ shell: html, baseUrl = "" }) {\n` +
+      // Each route's resolved render policy (route pattern → strategy), for the response's
+      // `x-afw-render` header: what decided how this page was produced.
+      `const renders = ${JSON.stringify(renders ?? {})};\n` +
+      `/**\n` +
+      ` * A \`renderPage\` step: server-render page requests (\`GET\`/\`HEAD\`) into \`shell\`, the client's index.html.\n` +
+      ` * \`readStatic(pathname)\` returns the HTML the build prerendered for a static route (or null), which is\n` +
+      ` * served instead of rendering; a static route's unlisted page renders per request.\n` +
+      ` */\n` +
+      `export function createPageRenderer({ shell: html, baseUrl = "", readStatic = null }) {\n` +
       // Without `hydrate` (a browser build compiled for `csr`) the page is still
       // server-rendered, but not marked for adoption: the client builds it fresh.
       `  const shell = ${hydrate ? "stampHydrateSentinel(html)" : "html"};\n` +
@@ -197,6 +213,12 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
       `    const method = request.method.toUpperCase();\n` +
       `    if (method !== "GET" && method !== "HEAD") return null;\n` +
       `    const url = new URL(request.url);\n` +
+      `    if (readStatic && renders[matchRoute(url.pathname)?.route] === "static") {\n` +
+      `      const built = await readStatic(url.pathname);\n` +
+      `      if (built != null) return new Response(method === "HEAD" ? null : built, {\n` +
+      `        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache", "x-afw-render": "static" },\n` +
+      `      });\n` +
+      `    }\n` +
       `    let doc;\n` +
       `    try {\n` +
       `      doc = await renderDocument(render, {\n` +
@@ -209,7 +231,7 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
       `    }\n` +
       `    if (!doc) return null;\n` +
       `    return new Response(method === "HEAD" ? null : doc.html, {\n` +
-      `      status: doc.status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" },\n` +
+      `      status: doc.status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache", ...(renders[doc.route] ? { "x-afw-render": renders[doc.route] } : {}) },\n` +
       `    });\n` +
       `  };\n` +
       `}\n`
@@ -248,7 +270,7 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     `  };\n` +
     `  return createFetchHandler(terminal, { middleware, fallback });\n` +
     `}\n`;
-  return { code, files: [...files.routes, ...files.middleware, ...files.loaders, ...files.layoutLoaders, ...pageFiles, ...fns.files] };
+  return { code, files: [...files.routes, ...files.middleware, ...files.loaders, ...files.layoutLoaders, ...serverPageFiles, ...fns.files] };
 }
 
 function loaderRoutePatterns(host, root, loaders) {
