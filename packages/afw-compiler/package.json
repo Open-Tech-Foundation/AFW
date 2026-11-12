@@ -1,6 +1,6 @@
 {
   "name": "@opentf/afw-compiler",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "afwc, the AFW compiler and docs indexer, as one native binary.",
   "type": "module",
   "scripts": {

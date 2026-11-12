@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-12
+
 ### Added
 
 - Enter and exit transitions for elements that conditionals and lists add and remove.
