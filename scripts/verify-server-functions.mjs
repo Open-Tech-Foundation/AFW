@@ -175,7 +175,8 @@ try {
   assert((await evaluate("window.__fns.addTodo({}).catch((e) => e.name + ' ' + e.status)")) === "ServerFunctionError 400", "a refused call rejects with ServerFunctionError and its status");
   const source = `${project}/app/todos/todos.server.js`;
   await write(source, (await file(source).text()).replace('version: "A"', 'version: "B"'));
-  await until("window.__fns.listTodos().then((r) => r.version === 'B')");
+  // The restart leaves a brief gap with no server; a call that lands in it is "not yet".
+  await until("window.__fns.listTodos().then((r) => r.version === 'B', () => false)");
   assert((await evaluate("window.__doc")) === doc, "an edited server function answers after the restart, without a page reload");
   const plain = async (url) => (await (await fetch(url, { headers: { accept: "text/html" } })).text()).replace(/<!--[\s\S]*?-->/g, "");
   const envDev = await plain(`${origin}/env`);
