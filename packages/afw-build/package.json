@@ -17,6 +17,7 @@
     "compile.js",
     "resolve-compiler.js",
     "routes.js",
+    "route-policy.js",
     "server.js",
     "document.js",
     "prerender.js",
