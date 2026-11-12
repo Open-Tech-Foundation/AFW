@@ -103,7 +103,7 @@ describe("serverModule", () => {
     expect(code).toContain("const shell = stampHydrateSentinel(html);");
     expect(code).toContain('import { renderDocument, stampHydrateSentinel } from "@opentf/afw-build/document";');
     expect(files).toContain("/site/app/page.jsx");
-    // A dev loop whose browser build is CSR renders pages without the adoption marker.
+    // A browser build compiled for csr gets pages without the adoption marker.
     const dev = await serverModule(host, "/site/app", { pages: true, hydrate: false });
     expect(dev.code).toContain("const shell = html;");
     expect(dev.code).toContain("export function createPageRenderer");

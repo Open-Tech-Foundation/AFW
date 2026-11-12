@@ -20,15 +20,26 @@ export function validateOptions({ mode = "spa", target } = {}) {
 
 /**
  * The compiler target for one module. `server` — the module is bundled for the
- * server (string renderers). `dev` — a dev server or test run, which always renders
- * on the client. Otherwise a release browser build: CSR for an SPA, the hydrating
- * dual module when the server renders first.
+ * server (string renderers). `test` — a test run, which renders on the client.
+ * `dev` — a dev server's browser build: the hydrating dual module for `ssr`, whose
+ * dev server renders pages first as production does; CSR otherwise. Otherwise a
+ * release browser build: CSR for an SPA, the hydrating dual module when the server
+ * renders first.
  */
-export function chooseTarget({ mode = "spa", target, server = false, dev = false } = {}) {
+export function chooseTarget({ mode = "spa", target, server = false, dev = false, test = false } = {}) {
   if (target) return target;
   if (server) return "ssg";
-  if (dev) return "csr";
+  if (test) return "csr";
+  if (dev) return mode === "ssr" ? "hydrate" : "csr";
   return mode === "spa" ? "csr" : "hydrate";
+}
+
+/** The compiler backend token for `target`, with `hot` selecting its refresh build. */
+export function compilerTarget(target, hot = false) {
+  if (!hot) return target;
+  if (target === "csr") return "csr-hot";
+  if (target === "hydrate") return "hydrate-hot";
+  return target;
 }
 
 /** Whether framework imports in this build resolve to the DOM-free server entry. */
@@ -57,7 +68,7 @@ export function errorStub(text) {
 
 /**
  * Compile one module. `server` is a compiler client (compiler-client.js). `hot`
- * requests the refresh-instrumented CSR build. On failure, `failOnError` throws the
+ * requests the refresh-instrumented build of the target (CSR or hydrate). On failure, `failOnError` throws the
  * diagnostic (after `error(message)` when the toolchain reports through its own
  * channel); otherwise it logs and returns the stub, so one broken file does not
  * stop a dev server.
@@ -68,7 +79,7 @@ export async function compileModule(server, code, id, {
   target, hot = false, failOnError = false, onResult, quiet = () => {}, error,
 } = {}) {
   try {
-    const out = await server.compile(id, code, !isRouteModule(id), hot && target === "csr" ? "csr-hot" : target);
+    const out = await server.compile(id, code, !isRouteModule(id), compilerTarget(target, hot));
     onResult?.(id, null);
     return typeof out === "string" ? { code: out, map: null } : { code: out.code, map: out.map ?? null };
   } catch (e) {

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `chooseTarget` picks the hydrate target for a dev server's browser build in `mode: "ssr"`,
+  whose pages the dev server renders first; `spa` and `ssg` dev stay on CSR. A new `test`
+  flag keeps test runs on CSR.
+
+### Added
+
+- `compilerTarget(target, hot)`: the backend token for a target, with `hot` selecting
+  `csr-hot` or `hydrate-hot`. `compileModule` uses it, so `hot` now applies to the hydrate
+  target too.
+
 ## [0.4.0] - 2026-11-12
 
 ### Added

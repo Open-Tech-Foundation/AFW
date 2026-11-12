@@ -143,7 +143,7 @@ export function serverConflicts(host, dir, files) {
  * `createPageRenderer({ shell, baseUrl })`, a `renderPage` step built on
  * `renderDocument`. `drafts: false` leaves unpublished Markdown pages out.
  * `hydrate: false` serves rendered pages without the `data-afw-hydrate` marker, for a
- * dev loop whose browser build cannot adopt server DOM.
+ * browser build that cannot adopt server DOM (one compiled with the `csr` target).
  *
  * @param {{ exclude?: string[], i18n?: { locales: string[], defaultLocale?: string } | null,
  *           pages?: boolean, drafts?: boolean, hydrate?: boolean }} [options]
@@ -190,7 +190,7 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
       `export const render = { renderRoute, renderHead, collectRoutePaths, resolveMetadata };\n` +
       `/** A \`renderPage\` step: server-render page requests (\`GET\`/\`HEAD\`) into \`shell\`, the client's index.html. */\n` +
       `export function createPageRenderer({ shell: html, baseUrl = "" }) {\n` +
-      // Without `hydrate` (a dev loop whose client is a CSR build) the page is still
+      // Without `hydrate` (a browser build compiled for `csr`) the page is still
       // server-rendered, but not marked for adoption: the client builds it fresh.
       `  const shell = ${hydrate ? "stampHydrateSentinel(html)" : "html"};\n` +
       `  return async (request, { locals = {} } = {}) => {\n` +

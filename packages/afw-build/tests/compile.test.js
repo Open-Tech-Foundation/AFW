@@ -1,14 +1,20 @@
 import { describe, expect, test } from "runtime:test";
 
 import {
-  chooseTarget, compileModule, isRouteModule, resolveCompiler, startCompilerServer, usesServerEntry, validateOptions,
+  chooseTarget, compileModule, compilerTarget, isRouteModule, resolveCompiler, startCompilerServer, usesServerEntry, validateOptions,
 } from "../index.js";
 import { memoryHost } from "./memory-host.js";
 
 describe("targets", () => {
-  test("server builds render strings, dev renders on the client, releases follow the mode", () => {
+  test("server builds render strings, dev and releases follow the mode, tests render on the client", () => {
     expect(chooseTarget({ mode: "ssr", server: true })).toBe("ssg");
-    expect(chooseTarget({ mode: "ssr", dev: true })).toBe("csr");
+    // The ssr dev server renders pages first, so its browser build adopts them.
+    expect(chooseTarget({ mode: "ssr", dev: true })).toBe("hydrate");
+    expect(chooseTarget({ mode: "ssg", dev: true })).toBe("csr");
+    expect(chooseTarget({ mode: "spa", dev: true })).toBe("csr");
+    expect(chooseTarget({ mode: "ssr", test: true })).toBe("csr");
+    expect(chooseTarget({ mode: "ssr", dev: true, test: true })).toBe("csr");
+    expect(chooseTarget({ mode: "ssr", dev: true, target: "csr" })).toBe("csr");
     expect(chooseTarget({ mode: "spa" })).toBe("csr");
     expect(chooseTarget({ mode: "ssg" })).toBe("hydrate");
     expect(chooseTarget({ mode: "spa", target: "hydrate", server: true })).toBe("hydrate");
@@ -42,7 +48,15 @@ describe("compileModule", () => {
     const s = server(async (...args) => (calls.push(args), { code: "js", map: { version: 3 } }));
     expect(await compileModule(s, "<p/>", "/a/Button.jsx", { target: "csr", hot: true })).toEqual({ code: "js", map: { version: 3 } });
     await compileModule(s, "", "/a/page.jsx", { target: "hydrate", hot: true });
-    expect(calls.map(([, , component, target]) => [component, target])).toEqual([[true, "csr-hot"], [false, "hydrate"]]);
+    await compileModule(s, "", "/a/page.jsx", { target: "hydrate" });
+    expect(calls.map(([, , component, target]) => [component, target])).toEqual([[true, "csr-hot"], [false, "hydrate-hot"], [false, "hydrate"]]);
+  });
+
+  test("hot selects each target's refresh build; server renderers have none", () => {
+    expect(compilerTarget("csr", true)).toBe("csr-hot");
+    expect(compilerTarget("hydrate", true)).toBe("hydrate-hot");
+    expect(compilerTarget("ssg", true)).toBe("ssg");
+    expect(compilerTarget("hydrate")).toBe("hydrate");
   });
 
   test("a failure becomes a stub, or throws after reporting when failOnError", async () => {

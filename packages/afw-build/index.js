@@ -7,7 +7,7 @@ export { assertHost } from "./host.js";
 export { compileError, closeCompilers, startCompilerServer } from "./compiler-client.js";
 export {
   FRAMEWORK_IMPORT, MODES, SOURCE_FILTER, TARGETS,
-  chooseTarget, compileModule, errorStub, isRouteModule, usesServerEntry, validateOptions,
+  chooseTarget, compileModule, compilerTarget, errorStub, isRouteModule, usesServerEntry, validateOptions,
 } from "./compile.js";
 export { ensureCompiler, findUp, resolveCompiler } from "./resolve-compiler.js";
 export {
