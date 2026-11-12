@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "runtime:test";
 import { clientRoute, configureI18n, localizePath, matchRoute, registerRoutes, router, routes, setRouteState } from "../runtime/router.js";
 import { defineSSG, ssgComponent } from "./ssg-runtime.js";
 import { lazyComponent } from "./builtins.js";
-import { collectRoutePaths, renderRoute, renderToString } from "./render.js";
+import { collectRoutePaths, registerStaticPaths, renderRoute, renderToString } from "./render.js";
 
 // An SSG page render fn (what the SSG backend emits): returns an HTML string.
 function page(html) {
@@ -554,5 +554,27 @@ describe("client routes on the server", () => {
     const out = await renderRoute("/");
     expect(out.html).toBe("<main><!--[--><p>home</p><!--]--></main>");
     expect(out.client).toBe(undefined);
+  });
+});
+
+describe("static paths from _config.js", () => {
+  afterEach(() => registerStaticPaths({}));
+
+  test("a config's paths list a dynamic route's pages, before the page's getStaticPaths", async () => {
+    registerRoutes({
+      "/app/posts/[slug]/page.jsx": { default: () => "", getStaticPaths: () => [{ slug: "from-page" }] },
+      "/app/docs/[...parts]/page.jsx": { default: () => "", getStaticPaths: () => [{ parts: ["page"] }] },
+    });
+    registerStaticPaths({ "/posts/[slug]": async () => [{ slug: "hello" }, { slug: "world" }] });
+    const { paths, skipped } = await collectRoutePaths();
+    expect(paths.map((p) => p.path).sort()).toEqual(["/docs/page", "/posts/hello", "/posts/world"]);
+    expect(skipped).toEqual([]);
+  });
+
+  test("a dynamic client route is skipped, never loaded", async () => {
+    registerRoutes({ "/app/admin/[id]/page.jsx": clientRoute(), "/app/admin/page.jsx": clientRoute() });
+    const { paths, skipped } = await collectRoutePaths();
+    expect(paths.map((p) => p.path)).toEqual(["/admin"]);
+    expect(skipped).toEqual(["/admin/[id]"]);
   });
 });

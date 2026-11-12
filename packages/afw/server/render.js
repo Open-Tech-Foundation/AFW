@@ -10,6 +10,7 @@
 import { DEV } from "../core/dev.js";
 import { urlOf } from "../runtime/route-match.js";
 import { routeErrorPayload } from "../runtime/route-data.js";
+import { isClientRoute } from "../runtime/route-match.js";
 import {
   clientSplit,
   layoutChain,
@@ -186,6 +187,19 @@ function fillRoute(route, params) {
  * (the chunk manifest behind `<link rel="modulepreload">`). Dynamic routes without
  * `getStaticPaths` are collected as `skipped`.
  */
+/** Each static route's `paths` from its folder's `_config.js`, keyed by route pattern. */
+const staticPaths = new Map();
+
+/**
+ * Register the `paths` functions of `_config.js` files (route pattern → function); the
+ * generated server module calls this. They list a dynamic static route's pages, like a
+ * page's `getStaticPaths`, which they take precedence over.
+ */
+export function registerStaticPaths(map) {
+  staticPaths.clear();
+  for (const [route, fn] of Object.entries(map ?? {})) if (typeof fn === "function") staticPaths.set(route, fn);
+}
+
 export async function collectRoutePaths() {
   const paths = [];
   const skipped = [];
@@ -201,9 +215,14 @@ export async function collectRoutePaths() {
       add(urlOf(route), {}, route);
       continue;
     }
-    const ns = await resolveModule(routes.pages[route]);
-    const getStaticPaths =
-      ns && (ns.getStaticPaths || (ns.default && ns.default.getStaticPaths));
+    // A dynamic page that renders in the browser has no module here to list its pages.
+    if (isClientRoute(routes.pages[route]) && !staticPaths.has(route)) {
+      skipped.push(route);
+      continue;
+    }
+    const ns = staticPaths.has(route) ? null : await resolveModule(routes.pages[route]);
+    const getStaticPaths = staticPaths.get(route) ??
+      (ns && (ns.getStaticPaths || (ns.default && ns.default.getStaticPaths)));
     if (typeof getStaticPaths === "function") {
       const entries = await getStaticPaths();
       if (!Array.isArray(entries)) throw new Error(`getStaticPaths for ${route} must return an array.`);

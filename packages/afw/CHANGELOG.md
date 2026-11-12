@@ -13,6 +13,9 @@
     it around an empty `{children}` region, and reports `client: true`.
   - On first paint the browser adopts those layouts and builds the client part into the
     region; its components build rather than adopt. Client navigation is unchanged.
+- `registerStaticPaths` (server entry): a `_config.js`'s `paths` list a dynamic static
+  route's pages, ahead of the page's `getStaticPaths`. `collectRoutePaths` skips dynamic
+  client routes, which have no server module.
 - `registerHotHydrate` in `@opentf/afw/hmr`, used by the compiler's `hydrate-hot` output: a
   page adopted in development is refreshed in place, with its state, when it is edited.
 - In development, the console warns (`[afw:hydrate] <path>: …`) when a server-rendered

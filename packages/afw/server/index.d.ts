@@ -86,6 +86,8 @@ export function renderRoute(
   options?: { data?: unknown },
 ): Promise<RenderResult | null>;
 export function renderToString(pathname: string, search?: string): Promise<string>;
+/** Register `_config.js` `paths` functions by route pattern (used by the generated server module). */
+export function registerStaticPaths(map: Record<string, () => unknown>): void;
 export function collectRoutePaths(): Promise<{
   paths: Array<{ path: string; params: Record<string, unknown>; route: string }>;
   skipped: string[];
