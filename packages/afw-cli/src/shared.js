@@ -287,17 +287,24 @@ export async function discoverLoaders(appDir, exclude = new Set()) {
     for (const entry of await readEntries(dir)) {
       if (entry.isDir) {
         if (!exclude.has(entry.name)) await walk(join(dir, entry.name));
-      } else if (/^loader\.(js|ts)$/.test(entry.name)) out.push(join(dir, entry.name));
+      } else if (/^(?:layout\.)?loader\.(js|ts)$/.test(entry.name)) out.push(join(dir, entry.name));
     }
   };
   await walk(appDir);
   return out;
 }
 
-/** The page route a `.../app/<...>/loader.{js,ts}` file feeds (folder = URL). */
+/** The route a `.../app/<...>/loader.{js,ts}` (its page) or `layout.loader.{js,ts}`
+ *  (its layout's folder) file feeds (folder = URL). */
 export function loaderRoutePath(filePath, appDir) {
-  const r = stripAppPrefix(filePath, appDir).replace(/\/loader\.(js|ts)$/, "");
+  const r = stripAppPrefix(filePath, appDir).replace(/\/(?:layout\.)?loader\.(js|ts)$/, "");
   return r === "" ? "/" : r;
+}
+
+/** The route of every `page.*` under `appDir` (folder = URL). */
+async function pageRoutesOf(appDir, exclude) {
+  const pages = (await discoverPages(appDir, exclude)).filter((p) => /\/page\.[^/]+$/.test(p));
+  return pages.map((p) => stripAppPrefix(p, appDir).replace(/\/page\.[^/]+$/, "") || "/").sort();
 }
 
 /**
@@ -331,6 +338,12 @@ export async function detectLoaderConflicts(appDir, exclude = new Set()) {
   };
   for (const loader of await discoverLoaders(appDir, exclude)) {
     const dir = dirname(loader);
+    if (/(?:^|\/)layout\.loader\.(js|ts)$/.test(loader)) {
+      // A layout loader feeds the layout in its folder (and the pages beneath it).
+      if (await anyExists(dir, ["layout.jsx", "layout.tsx", "layout.mdx", "layout.md"])) continue;
+      conflicts.push({ loader, route: loaderRoutePath(loader, appDir), reason: "has no sibling layout.* to feed" });
+      continue;
+    }
     if (await anyExists(dir, ["page.jsx", "page.tsx", "page.mdx", "page.md"])) continue;
     const hasRoute = await anyExists(dir, ["route.js", "route.ts"]);
     conflicts.push({
@@ -354,7 +367,7 @@ export async function assertNoRouteConflicts(appDir, exclude = new Set()) {
   const loaderConflicts = await detectLoaderConflicts(appDir, exclude);
   if (loaderConflicts.length > 0) {
     const lines = loaderConflicts.map((c) => `  ${c.route}\n    loader: ${c.loader}\n    ${c.reason}`).join("\n");
-    fail(`a loader.* file must sit next to the page.* it feeds:\n${lines}`);
+    fail(`a loader.* file must sit next to the page.* it feeds, and a layout.loader.* next to its layout.*:\n${lines}`);
   }
 }
 
@@ -434,14 +447,16 @@ export async function emitApiBundle({ root, appDir, afwEntry, exclude, i18n, out
  * `loader.{js,ts}` module (keyed by absolute path so the registry derives each
  * route from it) and export the composed registry. Mirrors `apiEntrySource`.
  */
-export function loaderEntrySource(loaderFiles, appDir, i18n = null) {
+export function loaderEntrySource(loaderFiles, appDir, i18n = null, pageRoutes = []) {
   const imports = loaderFiles.map((p, i) => `import * as l${i} from ${JSON.stringify(p)};`).join("\n");
   const map = loaderFiles.map((p, i) => `  [${JSON.stringify(p)}]: l${i},`).join("\n");
   const i18nOpt =
     i18n && Array.isArray(i18n.locales) && i18n.locales.length
       ? `, i18n: ${JSON.stringify({ locales: i18n.locales, defaultLocale: i18n.defaultLocale })}`
       : "";
-  const opts = `\n{ appDir: ${JSON.stringify(appDir ?? "")}${i18nOpt} },\n`;
+  // `pageRoutes`: a page beneath a layout.loader.* matches without a loader of its own.
+  const pagesOpt = pageRoutes.length ? `, pageRoutes: ${JSON.stringify(pageRoutes)}` : "";
+  const opts = `\n{ appDir: ${JSON.stringify(appDir ?? "")}${i18nOpt}${pagesOpt} },\n`;
   return (
     `import { createLoaderRegistry } from "@opentf/afw/server";\n` +
     `${imports}\n` +
@@ -462,7 +477,7 @@ export async function emitLoaderBundle({ root, appDir, afwEntry, exclude, i18n, 
   const tmp = join(root, ".afw-loaders-build");
   await mkdirp(tmp);
   const entry = join(tmp, "loaders-entry.js");
-  await writeFile(entry, loaderEntrySource(files, appDir, i18n));
+  await writeFile(entry, loaderEntrySource(files, appDir, i18n, await pageRoutesOf(appDir, exclude ?? new Set())));
 
   await mkdirp(outDir);
   const bundle = await build({

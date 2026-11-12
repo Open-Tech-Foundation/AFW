@@ -110,3 +110,37 @@ describe("injectRouteData", () => {
     expect(out).toContain(`"$189.00"`);
   });
 });
+
+describe("layout loaders", () => {
+  let lroot, lapp;
+  const lfile = (rel, content = "") => writeFile(join(lapp, rel), content);
+  beforeAll(async () => {
+    lroot = await tempDir("afw-layout-loaders");
+    lapp = join(lroot, "app");
+    await lfile("layout.jsx", "export default () => {}");
+    await lfile("page.jsx", "export default () => {}");
+    await lfile("dash/layout.jsx", "export default () => {}");
+    await lfile("dash/layout.loader.js", "export default () => ({})");
+    await lfile("dash/page.jsx", "export default () => {}");
+    await lfile("dash/settings/page.mdx", "# Settings");
+  });
+  afterAll(() => discard(lroot));
+
+  test("are discovered and keyed by their layout's folder", async () => {
+    const found = (await discoverLoaders(lapp)).map((f) => loaderRoutePath(f, lapp));
+    expect(found).toEqual(["/dash"]);
+  });
+
+  test("need a sibling layout", async () => {
+    expect(await detectLoaderConflicts(lapp)).toEqual([]);
+    await lfile("lonely/layout.loader.ts", "export default () => ({})");
+    await lfile("lonely/page.jsx", "export default () => {}");
+    const conflicts = await detectLoaderConflicts(lapp);
+    expect(conflicts.map((c) => [c.route, c.reason])).toEqual([["/lonely", "has no sibling layout.* to feed"]]);
+  });
+
+  test("the loader entry passes the page routes to the registry", () => {
+    const src = loaderEntrySource([join(lapp, "dash/layout.loader.js")], lapp, null, ["/", "/dash", "/dash/settings"]);
+    expect(src).toContain('pageRoutes: ["/","/dash","/dash/settings"]');
+  });
+});

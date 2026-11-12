@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- The SSG loader bundle (`discoverLoaders`, `emitLoaderBundle`) includes
+  `layout.loader.{js,ts}` files and passes the app's page routes to the registry, so
+  static builds on esdev merge layout data into each page like the other workflows.
+  `detectLoaderConflicts` rejects a layout loader without a sibling `layout.*`.
+
 ## [1.36.0] - 2026-11-11
 
 ### Added
