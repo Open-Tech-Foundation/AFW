@@ -10,6 +10,7 @@ export default {
   styling: "Styling",
   transitions: "Transitions",
   assets: "Assets & Workers",
+  "environment-variables": "Environment Variables",
   portal: "Portal",
   "error-boundary": "Error boundaries",
 };

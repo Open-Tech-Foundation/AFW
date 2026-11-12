@@ -110,6 +110,9 @@ On ES-Runtime, read variables from `runtime:process`'s `env`. Other hosts expose
 variables through their own environment API, and Fetch platforms can pass bindings
 as `context.env`/`context.ctx`. Node servers read `process.env`. Configure environment loading for your chosen host.
 
+Public values for components (`PUBLIC_*`) are compiled in at build time instead; see
+[Environment Variables](/docs/core-concepts/environment-variables).
+
 Keep database clients and secrets in `loader.*`, `route.*`, `_middleware.*` and
 server entries. The compiler does not provide a guarantee that arbitrary imports
 placed in client components stay server-only.

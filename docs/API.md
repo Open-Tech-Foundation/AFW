@@ -174,8 +174,12 @@ adapter supplies them. ES-Runtime server code reads host environment variables
 through `runtime:process` under the deployment's environment grants. Node servers
 can use `process.env`.
 
-Expose public browser values explicitly through build configuration. The native
-plugin does not automatically expose variables based on a `PUBLIC_` prefix.
+Public browser values are `PUBLIC_*` variables, read as `import.meta.env.PUBLIC_*`
+(plus `MODE`, `DEV`, `PROD`) in both toolchains; they are compiled in at build time
+and the server render sees the same values. esdev applies the prefix itself;
+`@opentf/vite-plugin-afw` sets Vite's `envPrefix` to `PUBLIC_` unless the app sets
+its own. Not yet in the esdev workflow: `@opentf/afw-cli` SSG and `esdev test` (both
+wait on esdev). See SPEC.md §14.
 
 ## 8. Phase B (planned)
 

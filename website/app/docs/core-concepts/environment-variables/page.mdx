@@ -1,0 +1,95 @@
+---
+title: Environment Variables
+description: Read PUBLIC_* variables in components through import.meta.env, in both the esdev and Vite workflows; keep secrets on the server.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Environment Variables
+
+Components read public build-time values from **`import.meta.env`**. The same code
+works in the esdev and Vite workflows.
+
+```sh
+# .env
+PUBLIC_API_URL=https://api.example.com   # compiled into the bundle
+DATABASE_URL=postgres://…                # never reaches the browser
+```
+
+```jsx
+import { resource } from "@opentf/afw";
+
+export default function Weather() {
+  const weather = resource(() =>
+    fetch(`${import.meta.env.PUBLIC_API_URL}/weather`).then((r) => r.json()),
+  );
+  return (
+    <p>
+      {weather.data?.temp}
+      {import.meta.env.DEV && <small> (development build)</small>}
+    </p>
+  );
+}
+```
+
+## What `import.meta.env` holds
+
+| Name | Value |
+| --- | --- |
+| `PUBLIC_*` | Every variable whose name starts with `PUBLIC_`, as a string |
+| `MODE` | `"development"` under the dev server, `"production"` in a build |
+| `DEV` / `PROD` | Booleans matching `MODE` |
+
+- Any other name reads as `undefined`, even when it is set in `.env` or the shell.
+- Destructuring works: `const { PUBLIC_API_URL, MODE } = import.meta.env`.
+- Vite also adds its own `SSR` and `BASE_URL`; esdev does not have them, so code
+  shared by both workflows should not rely on them.
+
+## Where values come from
+
+- **`.env`** in the project root.
+- **The shell** (or CI): an exported variable beats the same name in `.env`.
+- Values are compiled in when the bundle is built. Changing one needs a rebuild
+  (or a dev-server restart).
+
+## Server rendering and hydration
+
+- The server render (SSG or SSR) and the client bundle get the same values, so a
+  component that prints one adopts its server DOM without a mismatch.
+- The server bundle gets only the public names too; it is not a way to read secrets.
+
+## Secrets stay on the server
+
+<Callout type="warning" title="Everything in PUBLIC_* is public">
+  A `PUBLIC_` value is written into JavaScript anyone can download. Never put an API
+  key, token or password behind that prefix.
+</Callout>
+
+Read secrets at run time, in server-only files (`loader.*`, `*.server.*`,
+`route.*`, `_middleware.*`):
+
+| Host | How to read a secret |
+| --- | --- |
+| ES-Runtime (esdev / esrun) | `env` from `runtime:process`, under the deployment's `env` grant |
+| Node (Vite workflow) | `process.env` |
+| Fetch platforms (Workers and similar) | `context.env` bindings |
+
+## Workflow notes
+
+- **esdev:** the `PUBLIC_` prefix is built into `esdev start` and `esdev build`; nothing
+  to configure. See the esdev [project builds](https://esrun.opentechf.org/esdev/build/project)
+  guide.
+- **Vite:** `@opentf/vite-plugin-afw` sets Vite's `envPrefix` to `PUBLIC_`, so
+  `VITE_*` variables are not exposed. An app that sets `envPrefix` itself keeps its
+  own value.
+
+## Not yet supported in the esdev workflow
+
+These wait on esdev releases. Until then, avoid `import.meta.env` in code they run:
+
+- **Static generation through `@opentf/afw-cli`.** Its render bundle does not get the
+  values, so a page that reads `import.meta.env` fails to prerender.
+- **`esdev test`.** `import.meta.env` is `undefined` in test files and the components
+  they import.
+- **Types.** esdev's runtime types do not declare `import.meta.env` yet. In the Vite
+  workflow, `vite/client` (referenced by `@opentf/vite-plugin-afw/client`) types it.

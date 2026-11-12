@@ -75,7 +75,7 @@ Features React, Vue, Svelte and Solid developers expect, built in or from their 
 * [ ] Typed routes (`<Link href>`, `navigate()`, `params`) and schema-validated search params.
 * [x] Scroll restoration saved per history entry, applied after async page data loads (retries while the page grows).
 * [x] View transitions on client navigation (`mountApp({ viewTransitions: true })`).
-* [ ] `PUBLIC_*` env vars in both toolchains (SPEC.md §env and docs/API.md §7 disagree today).
+* [ ] `PUBLIC_*` env vars: `import.meta.env.PUBLIC_*` works in both toolchains' dev, builds and server rendering. Left, waiting on esdev: `afw-cli` SSG (the `runtime:build` API applies no env values), `esdev test` (`import.meta.env` is `undefined`), and `import.meta.env` types in `@opentf/esrun-types`.
 * [ ] ESLint plugin for macro misuse; editor tooling; devtools; image optimization.
 * [ ] Ecosystem bridges: signals adapters for TanStack Query/Table/Virtual; guides for web-component UI kits, Auth.js/Better Auth, realtime (WebSocket/SSE), Storybook, PWA; persisted/cross-tab state helper.
 

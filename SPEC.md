@@ -1108,9 +1108,10 @@ The AFW build pipeline (`waf build`) produces a production-ready bundle:
 - **Asset Handling**: Images and fonts imported in JSX are hashed and moved to `dist/public/assets/`.
 
 ## 14. Environment Variables
-AFW supports `.env` files with strict boundary enforcement:
-- **Server-only**: Variables in `.env` are only available in API routes and during SSG.
-- **Client-exposed**: Variables prefixed with `PUBLIC_` (e.g., `PUBLIC_API_URL`) are injected into the client bundle at build time.
-- **Access**: Use `process.env` (Node/Bun) or `import.meta.env` (Vite-based environments).
+Public values are compiled in at build time; secrets are read at run time on the server.
+- **Public (`import.meta.env`)**: variables named `PUBLIC_*` from `.env` or the shell (the shell wins), plus `MODE` (`"development"`/`"production"`), `DEV` and `PROD`. The same names in both toolchains: esdev applies the `PUBLIC_` prefix itself; `@opentf/vite-plugin-afw` sets Vite's `envPrefix` to `PUBLIC_` unless the app sets one.
+- **Same on both sides**: the server render (SSG/SSR) and the client bundle get identical values, so hydration matches. Any other name reads as `undefined` in both.
+- **Secrets**: never in `import.meta.env`. Server-only files (`loader.*`, `*.server.*`, `route.*`, `_middleware.*`) read them at run time: `runtime:process` `env` on ES-Runtime, `process.env` on Node, `context.env` on Fetch platforms.
+- **Pending upstream (esdev)**: `@opentf/afw-cli` SSG (its `runtime:build` render bundle gets no values), `esdev test`, and `import.meta.env` types.
 
 ---
