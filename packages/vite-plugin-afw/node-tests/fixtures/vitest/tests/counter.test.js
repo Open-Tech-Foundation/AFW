@@ -1,4 +1,5 @@
-import { expect, test } from "vitest";
+// The shared test API: Vitest here, runtime:test under esdev.
+import { expect, test } from "@opentf/afw-test/test";
 import { render, userEvent } from "@opentf/afw-test";
 import Counter from "../app/Counter.jsx";
 

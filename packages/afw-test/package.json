@@ -33,6 +33,14 @@
       "types": "./vitest.d.ts",
       "default": "./vitest.js"
     },
+    "./test": {
+      "esdev": {
+        "types": "./test-esdev.d.ts",
+        "default": "./test-esdev.js"
+      },
+      "types": "./test-vitest.d.ts",
+      "default": "./test-vitest.js"
+    },
     "./browser-runner": "./browser-runner.js",
     "./browser-runner.js": "./browser-runner.js",
     "./package.json": "./package.json"
@@ -44,6 +52,10 @@
     "setup.d.ts",
     "vitest.js",
     "vitest.d.ts",
+    "test-esdev.js",
+    "test-esdev.d.ts",
+    "test-vitest.js",
+    "test-vitest.d.ts",
     "browser-runner.js"
   ],
   "keywords": [

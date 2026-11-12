@@ -91,6 +91,21 @@ export default {
 
 Import `test` and `expect` from `vitest`; `render` and `userEvent` work as above.
 
+## One test file for both workflows
+
+Import the test API from `@opentf/afw-test/test` instead of `runtime:test` or `vitest`:
+
+```js
+import { expect, test } from "@opentf/afw-test/test";
+import { render } from "@opentf/afw-test";
+```
+
+- Under esdev it is `runtime:test` (the `esdev` export condition); under Vite, Vitest.
+- It exports `test`, `it`, `describe`, `expect` and the `beforeAll`/`afterAll`/
+  `beforeEach`/`afterEach` hooks: the names both runners share.
+- TypeScript under esdev: add `"customConditions": ["esdev"]` to `tsconfig.json`, so the
+  types come from `runtime:test` too.
+
 ## Two engines
 
 | Command | Runs in | Use for |

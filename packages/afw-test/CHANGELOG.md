@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- `@opentf/afw-test/test`: the test API (`test`, `it`, `describe`, `expect` and the
+  lifecycle hooks) from one import in both workflows: `runtime:test` under the `esdev`
+  export condition, Vitest otherwise. The AFW starters' tests use it, so the same test
+  files run under `esdev test` and `vitest`.
+
 ## [1.33.0] - 2026-11-12
 
 _Dependency updates._
