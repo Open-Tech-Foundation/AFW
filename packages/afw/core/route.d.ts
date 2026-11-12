@@ -8,7 +8,7 @@ export type RenderStrategy =
   | "client";
 
 /** One page's dynamic params: `{ slug: "hello" }`, or an array for a catch-all segment. */
-export type RouteParams = Record<string, string | number | Array<string | number>>;
+export type StaticParams = Record<string, string | number | Array<string | number>>;
 
 /** A folder's `_config.js`: applies to its pages and every folder below; the nearest one wins. */
 export interface RouteConfig {
@@ -26,7 +26,7 @@ export interface RouteConfig {
    * `static` dynamic routes only: the params of each page to build. Runs at build time.
    * A matching URL that is not listed renders when it is requested.
    */
-  paths?: () => RouteParams[] | Promise<RouteParams[]>;
+  paths?: () => StaticParams[] | Promise<StaticParams[]>;
 }
 
 /** Declare a folder's render policy: `export default defineRoute({ render: "static" })`. */
