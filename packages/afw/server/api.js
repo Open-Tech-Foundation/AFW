@@ -14,7 +14,7 @@
 // approach of the page router (runtime/router.js `matchRoute`) so behavior is
 // identical across pages and API and across every deployment target.
 
-import { compareRoutes, compileRoute, compileScope, decodeParams, normalizePath as normalize, stripAppDir } from "../runtime/route-match.js";
+import { compareRoutes, compileRoute, decodeParams, normalizePath as normalize, scopeMatcher, stripAppDir } from "../runtime/route-match.js";
 import { middlewareScopeFromPath, outermostFirst } from "./middleware.js";
 
 // Scope derivation lives in middleware.js now that middleware governs the whole
@@ -57,7 +57,7 @@ function allowedMethods(mod) {
  *        `init.locals` — a pre-existing `locals` bag from pipeline middleware
  *        (middleware.js), shared by reference so its writes reach the handlers.
  */
-export function createApiHandler(routeModules = {}, middlewareModules = {}, { appDir } = {}) {
+export function createApiHandler(routeModules = {}, middlewareModules = {}, { appDir, groupScopes = {} } = {}) {
   const routes = [];
   for (const file in routeModules) {
     const route = apiRouteFromPath(file, appDir);
@@ -73,7 +73,7 @@ export function createApiHandler(routeModules = {}, middlewareModules = {}, { ap
     const fn = mod.default ?? mod.middleware;
     if (typeof fn === "function") {
       const scope = middlewareScopeFromPath(file, appDir);
-      middleware.push({ scope, matcher: compileScope(scope), fn });
+      middleware.push({ scope, matcher: scopeMatcher(scope, groupScopes[scope]), fn });
     }
   }
   // Outermost runs first, so `/api/_middleware` wraps `/api/users/_middleware`.

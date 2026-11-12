@@ -8,6 +8,7 @@
 // renderers and concatenate them, passing `children` as an HTML string.
 
 import { DEV } from "../core/dev.js";
+import { urlOf } from "../runtime/route-match.js";
 import { routeErrorPayload } from "../runtime/route-data.js";
 import {
   layoutChain,
@@ -152,7 +153,11 @@ function fillRoute(route, params) {
   if (!params || typeof params !== "object" || Array.isArray(params)) {
     throw new Error(`getStaticPaths for ${route}: params must be an object.`);
   }
-  return route.replace(/\[(\.\.\.)?([^\]]+)\]/g, (_, rest, key) => {
+  // The URL, not the folder: route groups drop out. An optional segment
+  // (`[[lang]]`, `[[...rest]]`) left out of `params` (or undefined) drops out too.
+  const url = urlOf(route).replace(/\/\[\[(\.\.\.)?([^\]]+)\]\]/g, (whole, rest, key) =>
+    params[key] === undefined || (rest && Array.isArray(params[key]) && params[key].length === 0) ? "" : `/[${rest ?? ""}${key}]`);
+  return (url.replace(/\[(\.\.\.)?([^\]]+)\]/g, (_, rest, key) => {
     if (!Object.prototype.hasOwnProperty.call(params, key)) {
       throw new Error(`getStaticPaths for ${route}: missing parameter "${key}".`);
     }
@@ -163,7 +168,7 @@ function fillRoute(route, params) {
       return segments.map(segment => encodedSegment(segment, route, key)).join("/");
     }
     return encodedSegment(value, route, key);
-  });
+  })) || "/";
 }
 
 /**
@@ -187,7 +192,7 @@ export async function collectRoutePaths() {
   }
   for (const route in routes.pages) {
     if (!route.includes("[")) {
-      add(route, {}, route);
+      add(urlOf(route), {}, route);
       continue;
     }
     const ns = await resolveModule(routes.pages[route]);

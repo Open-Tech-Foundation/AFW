@@ -71,6 +71,17 @@
   500 and hydrates at the same site. The root layout has nothing above it, so its errors
   are reported, not caught.
   - `routeErrorSite`, `layoutFolders` and `layoutWraps` are exported from the router.
+- Route groups: a folder in parentheses, `(name)/`, is not part of the URL. Its
+  layouts, `loading.jsx`, `error.jsx` and layout loaders apply to the pages inside it.
+  - `_middleware.js` in a group covers exactly the group's pages, loader data, API routes
+    and server functions (`createMiddleware` / `createApiHandler` take `groupScopes`),
+    never a URL prefix.
+  - Two pages answering the same URL from different groups throw in `registerRoutes`.
+  - `urlOf`, `hasGroup`, `isGroupSegment`, `urlCollisions` and `scopeMatcher` are
+    exported from the route matcher.
+- Optional segments: `[[param]]` and `[[...rest]]` match with or without the segment;
+  an absent one is `undefined`. They rank after `[param]` and `[...rest]` respectively.
+  `getStaticPaths` may leave them out, and their segments drop from the path.
 - `<Pending error={(error, retry) => view}>` shows a failed first load in the
   boundary itself; `retry` refetches what failed and shows the fallback while it
   reloads.

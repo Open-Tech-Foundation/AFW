@@ -234,3 +234,27 @@ describe("createMiddleware — responses, locals, rewrites, errors", () => {
     expect((await res.json()).locals.env).toEqual({ KV: "binding" });
   });
 });
+
+describe("createMiddleware — route groups", () => {
+  test("a group's middleware runs for the group's pages, data and functions only", async () => {
+    const seen = [];
+    const runner = createMiddleware(
+      { "/app/(app)/_middleware.js": mw((r, _c, next) => (seen.push(new URL(r.url).pathname), next())) },
+      { appDir: "/app", groupScopes: { "/(app)": { scopes: ["/(app)/dashboard", "/(app)/users/[id]"], paths: ["/__fn/0123456789abcdef"] } } },
+    );
+    for (const path of ["/dashboard", "/dashboard/settings", "/users/7", "/dashboard/__data.json", "/__fn/0123456789abcdef", "/", "/pricing", "/__fn/ffffffffffffffff"]) {
+      await runner.run(req(path), echo);
+    }
+    expect(seen).toEqual(["/dashboard", "/dashboard/settings", "/users/7", "/dashboard/__data.json", "/__fn/0123456789abcdef"]);
+  });
+
+  test("a group's middleware nests inside the root's", async () => {
+    const order = [];
+    const runner = createMiddleware({
+      "/app/_middleware.js": mw((_r, _c, next) => (order.push("root"), next())),
+      "/app/(app)/_middleware.js": mw((_r, _c, next) => (order.push("group"), next())),
+    }, { appDir: "/app", groupScopes: { "/(app)": { scopes: ["/(app)/dashboard"] } } });
+    await runner.run(req("/dashboard"), echo);
+    expect(order).toEqual(["root", "group"]);
+  });
+});

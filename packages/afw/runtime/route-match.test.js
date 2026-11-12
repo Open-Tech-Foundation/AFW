@@ -1,6 +1,6 @@
 import { describe, expect, test } from "runtime:test";
 
-import { compareRoutes, compileRoute, compileScope, decodeParams, stripAppDir } from "./route-match.js";
+import { compareRoutes, compileRoute, compileScope, decodeParams, hasGroup, scopeMatcher, stripAppDir, urlCollisions, urlOf } from "./route-match.js";
 
 describe("compareRoutes", () => {
   const rank = (...routes) => [...routes].sort(compareRoutes);
@@ -79,5 +79,75 @@ describe("stripAppDir", () => {
   test("strips the exact app dir, else the last /app segment", () => {
     expect(stripAppDir("/root/app/app/x/route.js", "/root/app")).toBe("/app/x/route.js");
     expect(stripAppDir("/root/app/appointments/route.js")).toBe("/appointments/route.js");
+  });
+});
+
+describe("route groups", () => {
+  test("group folders drop out of the URL", () => {
+    expect(urlOf("/(marketing)/pricing")).toBe("/pricing");
+    expect(urlOf("/(marketing)")).toBe("/");
+    expect(urlOf("/(app)/(admin)/users/[id]")).toBe("/users/[id]");
+    expect(urlOf("/")).toBe("/");
+    expect(hasGroup("/(app)/x")).toBe(true);
+    expect(hasGroup("/app/x")).toBe(false);
+  });
+
+  test("a grouped route matches its URL, never one with the group in it", () => {
+    expect(compileRoute("/(app)/dashboard").test("/dashboard")).toBe(true);
+    expect(compileRoute("/(app)/dashboard").test("/(app)/dashboard")).toBe(false);
+    expect(compileRoute("/(marketing)").test("/")).toBe(true);
+    const m = "/users/7".match(compileRoute("/(app)/users/[id]"));
+    expect(decodeParams("/(app)/users/[id]", m.groups)).toEqual({ id: "7" });
+  });
+
+  test("ranking compares URLs, so a group adds no specificity", () => {
+    expect([...["/(app)/[slug]", "/about"]].sort(compareRoutes)).toEqual(["/about", "/(app)/[slug]"]);
+  });
+
+  test("two groups holding the same path collide", () => {
+    expect(urlCollisions(["/(a)/about", "/(b)/about", "/(a)/x"])).toEqual([["/about", "/(a)/about", "/(b)/about"]]);
+    expect(urlCollisions(["/about", "/[[lang]]/about"])).toEqual([]);
+  });
+
+  test("a grouped middleware scope covers only what its group holds", () => {
+    const m = scopeMatcher("/(app)", { scopes: ["/(app)/dashboard"], paths: ["/__fn/abc"] });
+    expect(m.test("/dashboard")).toBe(true);
+    expect(m.test("/dashboard/settings")).toBe(true);
+    expect(m.test("/__fn/abc")).toBe(true);
+    expect(m.test("/pricing")).toBe(false);
+    expect(m.test("/")).toBe(false);
+    expect(scopeMatcher("/api").test("/api/x")).toBe(true); // ungrouped: the URL prefix
+  });
+});
+
+describe("optional segments", () => {
+  const match = (route, path) => {
+    const m = path.match(compileRoute(route));
+    return m ? decodeParams(route, m.groups) : null;
+  };
+
+  test("[[param]] matches with or without the segment", () => {
+    expect(match("/[[lang]]/docs", "/docs")).toEqual({ lang: undefined });
+    expect(match("/[[lang]]/docs", "/fr/docs")).toEqual({ lang: "fr" });
+    expect(match("/[[lang]]/docs", "/fr/de/docs")).toBe(null);
+    expect(match("/[[lang]]", "/")).toEqual({ lang: undefined });
+  });
+
+  test("[[...rest]] matches zero or more segments", () => {
+    expect(match("/shop/[[...filters]]", "/shop")).toEqual({ filters: undefined });
+    expect(match("/shop/[[...filters]]", "/shop/")).toEqual({ filters: undefined });
+    expect(match("/shop/[[...filters]]", "/shop/red/large")).toEqual({ filters: ["red", "large"] });
+    expect(match("/shop/[[...filters]]", "/shopping")).toBe(null);
+  });
+
+  test("ranking: static, [param], [[param]], [...rest], [[...rest]]", () => {
+    expect(["/x/[[...o]]", "/x/[...r]", "/x/[[p]]", "/x/[p]", "/x/a"].sort(compareRoutes)).toEqual([
+      "/x/a", "/x/[p]", "/x/[[p]]", "/x/[...r]", "/x/[[...o]]",
+    ]);
+  });
+
+  test("an optional scope covers the folder with and without the segment", () => {
+    expect(compileScope("/[[lang]]/docs").test("/docs/intro")).toBe(true);
+    expect(compileScope("/[[lang]]/docs").test("/fr/docs/intro")).toBe(true);
   });
 });

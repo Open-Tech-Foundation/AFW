@@ -27,7 +27,7 @@ import { enterPending, exitPending } from "./pending-scope.js";
 import { setRouteErrorHandler } from "./route-errors.js";
 import { enterEntry, manageScroll, rememberScroll, restoreScroll } from "./scroll.js";
 import { setRouteDataRefresher } from "./invalidate.js";
-import { compareRoutes, compileRoute, decodeParams } from "./route-match.js";
+import { compareRoutes, compileRoute, decodeParams, urlCollisions } from "./route-match.js";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -270,6 +270,9 @@ export function registerRoutes(modules) {
     else if (/\/error\.(jsx|tsx)$/.test(file)) routes.errors[routeFromPath(file)] = entry;
     else routes.pages[routeFromPath(file)] = entry;
   }
+  // Route groups drop out of the URL, so two of them can hold the same page path.
+  const [clash] = urlCollisions(Object.keys(routes.pages));
+  if (clash) throw new Error(`Two pages answer ${clash[0]}: app${clash[1]} and app${clash[2]}. Move one to another path.`);
 }
 
 /**

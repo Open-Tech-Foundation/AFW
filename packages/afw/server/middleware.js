@@ -19,7 +19,7 @@
 //     middleware), mirroring the loader registry (loader.js `match`).
 
 import { DATA_FILE } from "../runtime/route-data.js";
-import { compareRoutes, compileScope, normalizePath as normalize, stripAppDir } from "../runtime/route-match.js";
+import { compareRoutes, normalizePath as normalize, scopeMatcher, stripAppDir } from "../runtime/route-match.js";
 
 /** The folder route a `_middleware.{js,ts}` file governs: `app/api/_middleware.js`
  *  → `/api` (applies to `/api` and everything nested under it); `app/_middleware.js`
@@ -44,22 +44,26 @@ export function outermostFirst(a, b) {
  *
  * @param {Record<string, object>} middlewareModules  the middleware is each
  *        module's default (or named `middleware`) export.
- * @param {{ appDir?: string, i18n?: { locales?: string[], defaultLocale?: string } }} [options]
+ * @param {{ appDir?: string, i18n?: { locales?: string[], defaultLocale?: string },
+ *           groupScopes?: Record<string, { scopes?: string[], paths?: string[] }> }} [options]
  *        `appDir` pins exact scope derivation; `i18n` lets scope matching strip a
- *        leading non-default locale prefix (mirroring the loader registry).
+ *        leading non-default locale prefix (mirroring the loader registry);
+ *        `groupScopes` gives each middleware folder inside a route group what it covers.
  * @returns {{ size: number, scopes: string[],
  *             run: (request: Request,
  *                   terminal: (req: Request, context: object) => Response | Promise<Response>,
  *                   extras?: { env?: unknown, ctx?: unknown }) => Promise<Response> }}
  */
-export function createMiddleware(middlewareModules = {}, { appDir, i18n } = {}) {
+export function createMiddleware(middlewareModules = {}, { appDir, i18n, groupScopes = {} } = {}) {
   const entries = [];
   for (const file in middlewareModules) {
     const mod = middlewareModules[file];
     const fn = mod.default ?? mod.middleware;
     if (typeof fn === "function") {
       const scope = middlewareScopeFromPath(file, appDir);
-      entries.push({ scope, matcher: compileScope(scope), fn });
+      // A folder inside a route group covers what the group holds (`groupScopes`, from
+      // the build), not a URL prefix: see `scopeMatcher`.
+      entries.push({ scope, matcher: scopeMatcher(scope, groupScopes[scope]), fn });
     }
   }
   entries.sort(outermostFirst);

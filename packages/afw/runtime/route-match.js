@@ -1,6 +1,11 @@
 // Route-pattern matching shared by the page router, API routes, route loaders and
 // middleware scopes, so `[param]` / `[...rest]` folders behave identically in each.
 //
+// A route is its *folder path*, which decides layouts, loaders and error files:
+// `/(app)/dashboard`. Its *URL* drops route-group segments — folders in parentheses —
+// so that page answers `/dashboard` (`urlOf`). `[[param]]` and `[[...rest]]` are
+// optional segments: the URL matches with or without them.
+//
 // Precedence is by specificity, segment by segment: a static segment beats a
 // `[param]`, which beats a `[...rest]`. So `/blog/new` wins over `/blog/[slug]` and
 // `/api/[id]` wins over `/api/[...rest]`, whatever order the files were discovered in
@@ -25,16 +30,57 @@ export function stripAppDir(filePath, appDir) {
 export const normalizePath = (p) => (p || "/").replace(/(.)\/+$/, "$1");
 
 const PARAM_SPLIT = /(\[\.\.\.[^\]]+\]|\[[^\]]+\])/;
+const OPTIONAL = /^\[\[(\.\.\.)?([^\]]+)\]\]$/;
 
-/** Regex source for a route with `[param]` / `[...rest]` segments. Named groups
+/** Is `segment` a route group, `(name)`: a folder that is not part of the URL? */
+export const isGroupSegment = (segment) => /^\(.+\)$/.test(segment);
+
+/** Does the folder route contain a route group? */
+export const hasGroup = (route) => (route ?? "").split("/").some(isGroupSegment);
+
+/** The URL pattern of a folder route: its group segments dropped (`/(app)/x` → `/x`). */
+export function urlOf(route) {
+  const url = (route ?? "/").split("/").filter((s) => s && !isGroupSegment(s)).join("/");
+  return `/${url}`;
+}
+
+/**
+ * Folder routes that answer the same URL — two route groups holding the same path
+ * (`/(a)/about` and `/(b)/about`). Returns `[url, first, second]` triples.
+ */
+export function urlCollisions(routes) {
+  const seen = new Map();
+  const out = [];
+  for (const route of routes) {
+    const url = urlOf(route);
+    if (seen.has(url) && seen.get(url) !== route) out.push([url, seen.get(url), route]);
+    else seen.set(url, route);
+  }
+  return out;
+}
+
+/** Regex source for one URL segment with `[param]` / `[...rest]` parts. Named groups
  *  become params; literal parts are regex-escaped (`v1.0` must not match `v1X0`). */
-function patternSource(route) {
-  return route
+function segmentSource(segment) {
+  return segment
     .split(PARAM_SPLIT)
     .map((part) => {
       if (part.startsWith("[...")) return `(?<${part.slice(4, -1)}>.+)`;
       if (part.startsWith("[")) return `(?<${part.slice(1, -1)}>[^/]+)`;
       return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    })
+    .join("");
+}
+
+/** Regex source for a route's URL; an optional segment carries its own leading slash. */
+function patternSource(route) {
+  return urlOf(route)
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      const optional = segment.match(OPTIONAL);
+      if (optional) return `(?:/(?<${optional[2]}>${optional[1] ? ".+" : "[^/]+"}))?`;
+      return `/${segmentSource(segment)}`;
     })
     .join("");
 }
@@ -50,21 +96,41 @@ export function compileRoute(route) {
  * every path.
  */
 export function compileScope(scope) {
-  if (scope === "/") return /^\//;
-  return new RegExp(`^${patternSource(scope)}(?:/.*)?$`);
+  const source = patternSource(scope);
+  if (source === "") return /^\//;
+  return new RegExp(`^${source}(?:/.*)?$`);
 }
 
-// Segment kinds, most specific first.
-const segmentKind = (seg) => (seg.startsWith("[...") ? 2 : seg.startsWith("[") ? 1 : 0);
+/**
+ * The matcher for a middleware folder. A folder inside a route group cannot be a URL
+ * prefix — `/(app)` is `/`, which would cover every page — so it covers exactly what
+ * the group holds: `group.scopes` (the folders of its pages and API routes, each with
+ * everything nested under it) and `group.paths` (exact URLs, its server functions).
+ * Without that list it falls back to the URL prefix. Returns `{ test(path) }`.
+ */
+export function scopeMatcher(scope, group = null) {
+  if (!hasGroup(scope) || !group) return compileScope(scope);
+  const scopes = (group.scopes ?? []).map(compileScope);
+  const paths = new Set(group.paths ?? []);
+  return { test: (path) => paths.has(path) || scopes.some((m) => m.test(path)) };
+}
+
+// Segment kinds, most specific first: static, `[param]`, `[[param]]`, `[...rest]`, `[[...rest]]`.
+const segmentKind = (seg) => {
+  const optional = seg.match(OPTIONAL);
+  if (optional) return optional[1] ? 4 : 2;
+  return seg.startsWith("[...") ? 3 : seg.startsWith("[") ? 1 : 0;
+};
 
 /**
- * Sort comparator: more specific routes first. Compares segment kinds left to
- * right (static < `[param]` < `[...rest]`); with equal kinds the route with more
- * segments is more specific; the final tie-break is lexical, for a deterministic order.
+ * Sort comparator: more specific routes first, by URL (groups dropped). Compares
+ * segment kinds left to right (static < `[param]` < `[[param]]` < `[...rest]` <
+ * `[[...rest]]`); with equal kinds the route with more segments is more specific; the
+ * final tie-break is lexical, for a deterministic order.
  */
 export function compareRoutes(a, b) {
-  const sa = a.split("/").filter(Boolean);
-  const sb = b.split("/").filter(Boolean);
+  const sa = urlOf(a).split("/").filter(Boolean);
+  const sb = urlOf(b).split("/").filter(Boolean);
   for (let i = 0; i < Math.min(sa.length, sb.length); i++) {
     const d = segmentKind(sa[i]) - segmentKind(sb[i]);
     if (d !== 0) return d;
@@ -81,6 +147,7 @@ export function compareRoutes(a, b) {
 export function decodeParams(route, groups, { strict = false } = {}) {
   const params = { ...(groups || {}) };
   for (const k in params) {
+    if (params[k] === undefined) continue; // an optional segment that is absent
     const decode = (s) => {
       try {
         return decodeURIComponent(s);

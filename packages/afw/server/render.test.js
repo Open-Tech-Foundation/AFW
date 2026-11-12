@@ -24,6 +24,34 @@ const resetRoutes = () => {
 beforeEach(resetRoutes);
 afterEach(resetRoutes);
 
+describe("route groups and optional segments on the server", () => {
+  test("a grouped page renders at its URL inside its group's layout", async () => {
+    registerRoutes({
+      "/app/(marketing)/layout.jsx": { default: ({ children }) => `<header>marketing</header>${children}` },
+      "/app/(marketing)/pricing/page.jsx": page("<p>pricing</p>"),
+      "/app/(app)/layout.jsx": { default: ({ children }) => `<aside>app</aside>${children}` },
+      "/app/(app)/dashboard/page.jsx": page("<p>dashboard</p>"),
+    });
+    expect((await renderRoute("/pricing")).html).toBe("<header>marketing</header><p>pricing</p>");
+    expect((await renderRoute("/dashboard")).html).toBe("<aside>app</aside><p>dashboard</p>");
+    expect((await collectRoutePaths()).paths.map((p) => p.path).sort()).toEqual(["/dashboard", "/pricing"]);
+  });
+
+  test("two groups holding the same page path are rejected", () => {
+    expect(() => registerRoutes({ "/app/(a)/about/page.jsx": page(""), "/app/(b)/about/page.jsx": page("") })).toThrow("Two pages answer /about");
+  });
+
+  test("getStaticPaths may leave optional params out; their segments drop from the path", async () => {
+    const docs = { default: ({ params }) => `<p>${params.lang ?? "default"}</p>`, getStaticPaths: () => [{}, { lang: "fr" }] };
+    const shop = { default: () => "<p>shop</p>", getStaticPaths: () => [{ params: { filters: [] } }, { filters: ["red", "large"] }] };
+    registerRoutes({ "/app/(site)/[[lang]]/docs/page.jsx": docs, "/app/shop/[[...filters]]/page.jsx": shop });
+    const paths = (await collectRoutePaths()).paths.map((p) => p.path).sort();
+    expect(paths).toEqual(["/docs", "/fr/docs", "/shop", "/shop/red/large"]);
+    expect((await renderRoute("/docs")).html).toBe("<p>default</p>");
+    expect((await renderRoute("/fr/docs")).html).toBe("<p>fr</p>");
+  });
+});
+
 describe("error.jsx on the server", () => {
   test("a failure renders the nearest error.jsx inside the layouts, status 500, with the client marker", async () => {
     registerRoutes({

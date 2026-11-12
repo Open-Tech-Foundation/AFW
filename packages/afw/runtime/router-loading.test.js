@@ -359,3 +359,37 @@ describe("layout errors", () => {
     expect(app.querySelector("#dash")).toBe(null);
   });
 });
+
+describe("route groups and optional segments in the client router", () => {
+  const shell = (id) => ({ children }) => {
+    const el = document.createElement("div");
+    el.id = id;
+    el.append(children);
+    return el;
+  };
+
+  test("a grouped page renders at its URL inside its group's layout, with its group's error.jsx", async () => {
+    const app = await mount({
+      "/p/app/(marketing)/layout.jsx": { default: shell("marketing") },
+      "/p/app/(marketing)/pricing/page.jsx": { default: view("pricing") },
+      "/p/app/(app)/layout.jsx": { default: shell("app-shell") },
+      "/p/app/(app)/error.jsx": { default: errorView },
+      "/p/app/(app)/dashboard/page.jsx": { default: () => { throw new Error("dash broke"); } },
+    });
+    await navigate("/pricing");
+    expect(app.querySelector("#marketing").textContent).toBe("pricing");
+    expect(app.querySelector("#app-shell")).toBe(null);
+    await navigate("/dashboard");
+    expect(app.querySelector("#app-shell #error").textContent).toBe("error: dash broke");
+  });
+
+  test("an optional segment page answers both URLs", async () => {
+    let seen;
+    const app = await mount({ "/p/app/[[lang]]/docs/page.jsx": { default: ({ params }) => ((seen = params.lang), view("docs")()) } });
+    await navigate("/docs");
+    expect(seen).toBe(undefined);
+    await navigate("/fr/docs");
+    expect(seen).toBe("fr");
+    expect(app.textContent).toBe("docs");
+  });
+});
