@@ -11,6 +11,7 @@ import { DEV } from "../core/dev.js";
 import { urlOf } from "../runtime/route-match.js";
 import { routeErrorPayload } from "../runtime/route-data.js";
 import {
+  clientSplit,
   layoutChain,
   layoutFolders,
   layoutWraps,
@@ -86,8 +87,13 @@ async function renderInContext(pathname, params, search, data, failure) {
   const chain = broken
     ? layoutFolders(match.route).filter((f) => f !== broken && layoutWraps(f, broken)).map((f) => routes.layouts[f])
     : layoutChain(match.route);
+  // A client route renders the layouts above its first client entry; that region stays
+  // empty for the browser to build (`hydrateClientRoute`). Client entries have no module.
+  const split = error ? -1 : clientSplit(match.entry, chain);
+  const serverChain = split >= 0 ? chain.slice(0, split) : chain;
   const [pageModule, ...layoutModules] = await Promise.all(
-    [match.entry, ...chain].map(async entry => {
+    [split >= 0 ? null : match.entry, ...serverChain].map(async entry => {
+      if (!entry) return null;
       const module = await resolveModule(entry);
       // A loader can return a bare factory. Keep it distinguishable from a
       // loader when these resolved entries are passed to metadata resolution.
@@ -103,7 +109,7 @@ async function renderInContext(pathname, params, search, data, failure) {
   let html, hydration;
   beginHydrationCollect();
   try {
-    html = page(props);
+    html = split >= 0 ? "" : page(props);
     // Wrap with layouts, most-specific inward to root outermost.
     for (let i = layouts.length - 1; i >= 0; i--) {
       html = layouts[i]({ ...props, children: html });
@@ -114,7 +120,7 @@ async function renderInContext(pathname, params, search, data, failure) {
 
   const metadata = await resolveMetadata({
     route: match.route,
-    entry: pageModule,
+    entry: pageModule ?? {},
     layouts: layoutModules,
     params: match.params,
     query,
@@ -126,7 +132,7 @@ async function renderInContext(pathname, params, search, data, failure) {
     const dataJson = routeErrorPayload(error);
     return { html, metadata, status: error.status, hydration, route: match.route, dataJson, error };
   }
-  return { html, metadata, status: real ? 200 : 404, hydration, route: match.route };
+  return { html, metadata, status: real ? 200 : 404, hydration, route: match.route, ...(split >= 0 ? { client: true } : {}) };
 }
 
 /** Back-compat / convenience: render just the `#app` markup for `pathname`. */

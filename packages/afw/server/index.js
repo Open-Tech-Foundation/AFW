@@ -23,7 +23,7 @@ export * from "./render.js";
 export {
   registerRoutes, router, matchRoute, configureI18n, i18nLocales,
   resolveLocale, localizePath, shouldInterceptNav,
-  setLocale, setRouteState, setRouteToc, navigate, prefetch,
+  setLocale, setRouteState, setRouteToc, navigate, prefetch, clientRoute, isClientRoute,
 } from "../runtime/router.js";
 export { isHydrating } from "../runtime/hydrate.js";
 export { emit } from "../runtime/events.js";

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "runtime:test";
 
-import { configureI18n, localizePath, matchRoute, registerRoutes, router, routes, setRouteState } from "../runtime/router.js";
+import { clientRoute, configureI18n, localizePath, matchRoute, registerRoutes, router, routes, setRouteState } from "../runtime/router.js";
 import { defineSSG, ssgComponent } from "./ssg-runtime.js";
 import { lazyComponent } from "./builtins.js";
 import { collectRoutePaths, renderRoute, renderToString } from "./render.js";
@@ -506,4 +506,53 @@ test("static paths reject collisions with existing static routes", async () => {
     "/app/post/[id]/page.jsx": { default: () => "", getStaticPaths: () => [{ id: "hello" }] },
   });
   await expect(collectRoutePaths()).rejects.toThrow("Duplicate static path");
+});
+
+describe("client routes on the server", () => {
+  // A layout as the SSG backend emits it: its `{children}` region is bracketed by markers.
+  const layout = (tag, metadata) => ({
+    default: ({ children }) => `<${tag}><!--[-->${children ?? ""}<!--]--></${tag}>`,
+    ...(metadata ? { metadata } : {}),
+  });
+
+  test("a client page renders the layouts around an empty region, without its module", async () => {
+    registerRoutes({
+      "/app/layout.jsx": layout("main", { title: "Site" }),
+      "/app/admin/layout.jsx": layout("section", { description: "Admin area" }),
+      "/app/admin/page.jsx": clientRoute(),
+    });
+    const out = await renderRoute("/admin");
+    expect(out.html).toBe("<main><!--[--><section><!--[--><!--]--></section><!--]--></main>");
+    expect(out.client).toBe(true);
+    expect(out.status).toBe(200);
+    expect(out.metadata.title).toBe("Site");
+    expect(out.metadata.description).toBe("Admin area");
+  });
+
+  test("a client layout stops the server render: it and everything inside it render in the browser", async () => {
+    registerRoutes({
+      "/app/layout.jsx": layout("main"),
+      "/app/admin/layout.jsx": clientRoute(),
+      "/app/admin/users/page.jsx": clientRoute(),
+    });
+    expect((await renderRoute("/admin/users")).html).toBe("<main><!--[--><!--]--></main>");
+  });
+
+  test("a client route with no server layout renders nothing inside #app", async () => {
+    registerRoutes({ "/app/dashboard/page.jsx": clientRoute() });
+    const out = await renderRoute("/dashboard");
+    expect(out.html).toBe("");
+    expect(out.client).toBe(true);
+  });
+
+  test("a server page beside a client one is unaffected", async () => {
+    registerRoutes({
+      "/app/layout.jsx": layout("main"),
+      "/app/page.jsx": page("<p>home</p>"),
+      "/app/admin/page.jsx": clientRoute(),
+    });
+    const out = await renderRoute("/");
+    expect(out.html).toBe("<main><!--[--><p>home</p><!--]--></main>");
+    expect(out.client).toBe(undefined);
+  });
 });

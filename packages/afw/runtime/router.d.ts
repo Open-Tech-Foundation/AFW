@@ -183,3 +183,12 @@ export namespace router {
     function push(path: any): Promise<void>;
     function replace(path: any): Promise<void>;
 }
+
+/**
+ * Mark a route-table entry as rendered in the browser (its folder's `_config.js` says
+ * `render: "client"`). Used by the generated route tables; `load` is the client's lazy
+ * import, omitted on the server, whose bundle never includes the module.
+ */
+export function clientRoute<T extends (() => unknown) | undefined>(load?: T): T extends () => unknown ? T : () => never;
+/** Whether a route-table entry renders in the browser (see `clientRoute`). */
+export function isClientRoute(entry: unknown): boolean;

@@ -17,7 +17,7 @@ import {
   isHydrating,
   skipNode,
 } from "./hydrate.js";
-import { mountApp, navigate, registerRoutes, routes } from "./router.js";
+import { clientRoute, mountApp, navigate, registerRoutes, routes } from "./router.js";
 
 afterEach(() => {
   routes.pages = {};
@@ -369,4 +369,97 @@ test("hydration retains server head until navigation and removes managed custom 
     expect(document.head.querySelector('meta[name="custom-route"]')).toBe(null);
     expect(document.head.querySelector('meta[name="viewport"]') !== null).toBe(true);
   } finally { document.head.innerHTML = originalHead; }
+});
+
+describe("client routes on first paint", () => {
+  // A server-rendered layout (hydrate target): claims its <main> and threads the cursor
+  // into its `{children}` region. `adopted` collects the elements it claimed.
+  const serverLayout = (tag, adopted) => ({
+    default: ({ children }) => { const el = document.createElement(tag); el.append(children); return el; },
+    hydrateAt(c, { children }) {
+      const el = claimElement(c, tag);
+      adopted.push(el);
+      const inner = cursor(el);
+      claimRegionStart(inner);
+      children(inner);
+      claimRegionEnd(inner);
+      return el;
+    },
+  });
+  // A client entry's module: builds a <p>, with a custom element whose connect records
+  // whether hydration was in progress (it must not be: the part is built, not adopted).
+  const seen = [];
+  if (!customElements.get("afw-test-client-probe")) {
+    customElements.define("afw-test-client-probe", class extends HTMLElement {
+      connectedCallback() { seen.push(isHydrating()); }
+    });
+  }
+  const clientPage = (text) => clientRoute(async () => ({
+    default: () => {
+      const p = document.createElement("p");
+      p.textContent = text;
+      p.append(document.createElement("afw-test-client-probe"));
+      return p;
+    },
+  }));
+
+  function serverApp(html, path) {
+    const app = document.createElement("div");
+    app.id = "app";
+    app.setAttribute("data-afw-hydrate", "");
+    app.innerHTML = html;
+    document.body.appendChild(app);
+    window.history.replaceState({}, "", path);
+    return app;
+  }
+
+  test("the server layouts are adopted and the client page is built into their region", async () => {
+    seen.length = 0;
+    const adopted = [];
+    const app = serverApp("<main><!--[--><!--]--></main>", "/admin");
+    const main = app.querySelector("main");
+    await mountApp({ target: app, pages: {
+      "/app/layout.jsx": serverLayout("main", adopted),
+      "/app/admin/page.jsx": clientPage("dashboard"),
+      "/app/page.jsx": { default: () => document.createElement("h1") },
+    } });
+    expect(app.querySelector("main")).toBe(main); // adopted, not rebuilt
+    expect(adopted).toEqual([main]);
+    expect(main.innerHTML).toBe("<!--[--><p>dashboard<afw-test-client-probe></afw-test-client-probe></p><!--]-->");
+    expect(seen).toEqual([false]);
+  });
+
+  test("a client layout and its page are both built inside the adopted root layout", async () => {
+    const adopted = [];
+    const app = serverApp("<main><!--[--><!--]--></main>", "/admin/users");
+    await mountApp({ target: app, pages: {
+      "/app/layout.jsx": serverLayout("main", adopted),
+      "/app/admin/layout.jsx": clientRoute(async () => ({
+        default: ({ children }) => { const s = document.createElement("section"); s.append(children); return s; },
+      })),
+      "/app/admin/users/page.jsx": clientPage("users"),
+    } });
+    expect(adopted.length).toBe(1);
+    expect(app.querySelector("main > section > p")?.firstChild.data).toBe("users");
+  });
+
+  test("a client route without server layouts is built into the empty #app", async () => {
+    const app = serverApp("", "/dashboard");
+    await mountApp({ target: app, pages: { "/app/dashboard/page.jsx": clientPage("solo") } });
+    expect(app.querySelector("p")?.firstChild.data).toBe("solo");
+  });
+
+  test("client navigation away from and back to a client route builds it as usual", async () => {
+    const adopted = [];
+    const app = serverApp("<main><!--[--><!--]--></main>", "/admin");
+    await mountApp({ target: app, pages: {
+      "/app/layout.jsx": serverLayout("main", adopted),
+      "/app/admin/page.jsx": clientPage("dashboard"),
+      "/app/page.jsx": { default: () => { const h = document.createElement("h1"); h.textContent = "home"; return h; } },
+    } });
+    await navigate("/");
+    expect(app.querySelector("h1")?.textContent).toBe("home");
+    await navigate("/admin");
+    expect(app.querySelector("p")?.firstChild.data).toBe("dashboard");
+  });
 });

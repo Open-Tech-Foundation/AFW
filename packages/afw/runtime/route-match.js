@@ -164,3 +164,21 @@ export function decodeParams(route, groups, { strict = false } = {}) {
   }
   return params;
 }
+
+/**
+ * Mark a route-table entry (page, layout, loading or error file) as rendered in the
+ * browser — its folder's `_config.js` says `render: "client"`. The generated route tables
+ * wrap these entries: the client's keeps the lazy import, the server's has none (the module
+ * never enters the server bundle). A server render stops at the first such entry and
+ * leaves its region empty; the client builds it there.
+ */
+export function clientRoute(load) {
+  const entry = load ?? (() => {
+    throw new Error("This route renders in the browser: its module is not part of the server bundle.");
+  });
+  entry.__afwClient = true;
+  return entry;
+}
+
+/** Whether a route-table entry renders in the browser (see {@link clientRoute}). */
+export const isClientRoute = (entry) => entry?.__afwClient === true;

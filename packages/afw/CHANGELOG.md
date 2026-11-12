@@ -7,6 +7,12 @@
 - `defineRoute({ render, data, paths })`: the default export of a folder's `_config.js`,
   which sets how the pages in that folder and below it render (`server`, `static` or
   `client`). Typed, exported from both the browser and server entries.
+- Client routes: `clientRoute(load?)` marks a route-table entry as rendered in the browser
+  (the generated route tables use it for folders whose `_config.js` says `render: "client"`).
+  - The server render stops at the first client layout or page, renders the layouts above
+    it around an empty `{children}` region, and reports `client: true`.
+  - On first paint the browser adopts those layouts and builds the client part into the
+    region; its components build rather than adopt. Client navigation is unchanged.
 - `registerHotHydrate` in `@opentf/afw/hmr`, used by the compiler's `hydrate-hot` output: a
   page adopted in development is refreshed in place, with its state, when it is edited.
 - In development, the console warns (`[afw:hydrate] <path>: …`) when a server-rendered

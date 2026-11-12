@@ -20,7 +20,7 @@ import { signal } from "../core/signals.js";
 import { getRenderContext } from "../core/render-context.js";
 import { resolveMetadataModules } from "../core/metadata.js";
 import { prepareRouteHead, updateRouteHead } from "./head.js";
-import { beginHydration, cursor, endHydration, renderedForPath } from "./hydrate.js";
+import { beginHydration, cursor, endHydration, renderedForPath, runBuild } from "./hydrate.js";
 import { collectHotState, withHotCarry } from "./hot-carry.js";
 import { buildScopedView, runCleanup, runMount } from "./mount.js";
 import { RouteRedirect, fetchRouteData, readInlineRouteData, routeErrorFrom } from "./route-data.js";
@@ -28,7 +28,8 @@ import { enterPending, exitPending } from "./pending-scope.js";
 import { setRouteErrorHandler } from "./route-errors.js";
 import { enterEntry, manageScroll, rememberScroll, restoreScroll } from "./scroll.js";
 import { setRouteDataRefresher } from "./invalidate.js";
-import { compareRoutes, compileRoute, decodeParams, urlCollisions } from "./route-match.js";
+import { compareRoutes, compileRoute, decodeParams, isClientRoute, urlCollisions } from "./route-match.js";
+export { clientRoute, isClientRoute } from "./route-match.js";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -386,9 +387,11 @@ async function resolveAll(entries, resolve) {
  * the ordered `nodes` list (page → … → root) so callers can run lifecycle on each.
  * Each factory owns a reactive scope, disposed with its node on navigation.
  */
-export async function buildRouteNode(match, query = {}, { error = null, loadingShown = false } = {}) {
+export async function buildRouteNode(match, query = {}, { error = null, loadingShown = false, outer = 0 } = {}) {
   const props = { params: match.params, query };
-  const folders = layoutFolders(match.route);
+  // `outer` leaves out that many outermost layouts: the server rendered them and the
+  // client adopts them, building only what is inside (a client route's part).
+  const folders = layoutFolders(match.route).slice(outer);
   // A failed loader replaces the page (its own loader) or a layout and everything in it
   // (a layout loader: `afwLayoutRoute`) with the error view at that site.
   const broken = error?.afwLayoutRoute ?? null;
@@ -610,6 +613,10 @@ export async function hydrateRouteNode(match, query, rootEl, { error = null } = 
   // Page + layout chunks download concurrently (see `resolveAll`). Adoptability is
   // checked after they all land rather than short-circuiting on the page: bailing
   // early would only skip imports the CSR fallback below is about to need anyway.
+  // A client route: the server rendered the layouts above its first client entry and left
+  // that region empty. Adopt those layouts and build the rest into the region.
+  const split = error ? -1 : clientSplit(match.entry, chain);
+  if (split >= 0) return hydrateClientRoute(match, query, rootEl, props, folders.slice(0, split), chain.slice(0, split));
   const [pageMod, ...layoutMods] = await resolveAll([errorEntry ?? match.entry, ...chain], resolveModule);
   if (!error) setRouteToc(pageMod);
   if (!pageMod || typeof pageMod.hydrateAt !== "function") return null;
@@ -643,6 +650,66 @@ export async function hydrateRouteNode(match, query, rootEl, { error = null } = 
     throw error;
   }
   return { nodes };
+}
+
+/**
+ * Where a route's client part starts: the index of its first client layout (outermost
+ * first), the chain's length when only the page renders in the browser, or -1 when the
+ * whole route renders on the server.
+ */
+export function clientSplit(pageEntry, chain) {
+  const layout = chain.findIndex(isClientRoute);
+  if (layout >= 0) return layout;
+  return isClientRoute(pageEntry) ? chain.length : -1;
+}
+
+/**
+ * First paint of a client route: adopt the server-rendered layouts (`outerFolders`,
+ * outermost first) and build the client part — the first client layout or the page, and
+ * everything inside it — into the innermost adopted layout's empty `{children}` region.
+ * The build is inserted inside `runBuild`, so its components build rather than adopt.
+ */
+async function hydrateClientRoute(match, query, rootEl, props, outerFolders, outerEntries) {
+  const [layoutMods, inner] = await Promise.all([
+    resolveAll(outerEntries, resolveModule),
+    buildRouteNode(match, query, { outer: outerEntries.length }),
+  ]);
+  if (layoutMods.some((m) => !m || typeof m.hydrateAt !== "function")) {
+    for (const n of inner.nodes) runCleanup(n);
+    return null;
+  }
+  const place = (parent, before) => runBuild(() => parent.insertBefore(inner.node, before));
+  const nodes = [...inner.nodes];
+  if (outerEntries.length === 0) {
+    // The page or the root layout is the client part: the server left `#app` empty.
+    place(rootEl, null);
+    return { nodes, region: inner.region };
+  }
+  // The innermost adopted layout's children thunk: the cursor stands on its region's end
+  // marker, so the built part goes right before it.
+  let thunk = (c) => {
+    if (!c.node?.parentNode) throw new Error("hydrate: no region for the client part of this route");
+    place(c.node.parentNode, c.node);
+    return inner.node;
+  };
+  for (let i = outerEntries.length - 1; i >= 0; i--) {
+    const layout = layoutMods[i];
+    const innerThunk = thunk;
+    const folder = outerFolders[i];
+    thunk = (c) => {
+      const n = buildScopedView(() => layout.hydrateAt(c, { ...props, children: innerThunk }));
+      n.__afwLayoutRoute = folder;
+      nodes.push(n);
+      return n;
+    };
+  }
+  try {
+    thunk(cursor(rootEl));
+  } catch (error) {
+    for (const node of nodes) runCleanup(node);
+    throw error;
+  }
+  return { nodes, region: inner.region };
 }
 
 /** Resolve a route entry (lazy loader or module namespace) to its module. */

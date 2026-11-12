@@ -220,3 +220,8 @@ export function createServerFunctions(
   /** Limits on decoded input: body size (default 1 MiB) and nesting depth (default 64). */
   options?: { maxBodyBytes?: number; maxDepth?: number },
 ): { size: number; handle(request: Request, context?: { locals?: Record<string, unknown>; env?: unknown; ctx?: unknown }): Promise<Response | null> };
+
+/** Mark a route-table entry as rendered in the browser (see the client `clientRoute`). */
+export function clientRoute(load?: () => unknown): () => unknown;
+/** Whether a route-table entry renders in the browser. */
+export function isClientRoute(entry: unknown): boolean;
