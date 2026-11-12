@@ -15,6 +15,10 @@ export {
   discoverLoaders, discoverPages, findGuard, isUnpublishedPage, isUnpublishedSource, loaderPageRoutes,
   resolveAppRoot, routeKey, routesModule,
 } from "./routes.js";
+export {
+  CONFIG_FILE, RENDERS, RENDER_OF_MODE,
+  discoverRouteConfigs, folderRoute, formatRouteTable, readRouteConfigs, resolveRoutePolicies, routeManifest,
+} from "./route-policy.js";
 export { SERVER_ID, discoverServerFiles, hasServerFiles, serverConflicts, serverModule } from "./server.js";
 export {
   DATA_FILE, alternateLinks, escapeXml, i18nSettings, injectBeforeBody, injectHead, injectHydrationData,

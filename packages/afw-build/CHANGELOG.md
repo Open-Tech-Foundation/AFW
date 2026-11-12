@@ -10,6 +10,12 @@
 
 ### Added
 
+- Route policies: `discoverRouteConfigs`, `readRouteConfigs` (through the compiler's
+  `route-config` request) and `resolveRoutePolicies` resolve each page's render policy from
+  the nearest `_config.{js,ts}` up its folder tree, then the root config or the `mode`
+  shorthand. Errors for a default set in two places, two config files in one folder,
+  `paths` outside a static folder and `data` outside a client folder; a warning for a
+  config that governs no page. `formatRouteTable` and `routeManifest` report the result.
 - `compilerTarget(target, hot)`: the backend token for a target, with `hot` selecting
   `csr-hot` or `hydrate-hot`. `compileModule` uses it, so `hot` now applies to the hydrate
   target too.
