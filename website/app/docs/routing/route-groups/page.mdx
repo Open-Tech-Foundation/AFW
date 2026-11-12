@@ -1,0 +1,67 @@
+---
+title: Route Groups
+description: Folders in parentheses organize pages, give them their own layout, middleware, loaders and error pages, without becoming part of the URL.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Route Groups
+
+A folder name in parentheses is a **route group**: it organizes pages without being part of their URL.
+
+```text
+app/
+├─ (marketing)/
+│  ├─ layout.jsx          # marketing shell: big header, footer
+│  ├─ page.jsx            # /
+│  └─ pricing/page.jsx    # /pricing
+└─ (app)/
+   ├─ layout.jsx          # app shell: sidebar
+   ├─ _middleware.js      # sign-in check for this group only
+   ├─ dashboard/page.jsx  # /dashboard
+   └─ settings/page.jsx   # /settings
+```
+
+<Callout type="info" title="New in the next release">
+  Route groups ship in the next releases of `@opentf/afw`, `@opentf/afw-build` and `@opentf/afw-docs`.
+</Callout>
+
+## What a group can hold
+
+Everything a folder can hold, applied to the pages inside it:
+
+| File in the group | Applies to |
+| --- | --- |
+| `layout.jsx` | The group's pages. `/pricing` and `/dashboard` sit side by side in the URL but get different shells |
+| `_middleware.js` | The group's pages, their loader data, API routes and server functions; nothing outside the group |
+| `layout.loader.js` | The group's pages, through its layout ([layout loaders](/docs/data-fetching/route-loaders#layout-loaders)) |
+| `loading.jsx`, `error.jsx` | The group's pages ([loading and errors](/docs/routing/loading-and-errors)) |
+| `route.js` folders | API routes at URLs without the group |
+| `*.server.js` | [Server functions](/docs/server-functions) whose endpoints have no group in their URL |
+
+## Rules
+
+- **Never in the URL.** `/(marketing)/pricing` is not a URL; the page answers `/pricing`.
+- **One page per URL.** Two groups holding the same path (`(a)/about` and `(b)/about`) is a build error that names both files. So is a page in one group and an API route in another at the same URL.
+- **Groups nest.** `(app)/(admin)/users/page.jsx` answers `/users`, inside both groups' layouts and middleware.
+- **Ranking ignores groups.** A route ranks by its URL, so a group adds no specificity.
+- **Groups in docs sidebars.** With [`@opentf/afw-docs`](/packages/afw-docs/configuration), a group folder is a sidebar heading over its pages (labelled from `_meta`, e.g. `"(guides)": "Guides"`), and their links have no group in them.
+
+## Middleware in a group
+
+```js
+// app/(app)/_middleware.js
+export default async function requireUser(request, context, next) {
+  if (!context.locals.user) return Response.redirect(new URL("/login", request.url), 302);
+  return next();
+}
+```
+
+- **Covers exactly the group.** It runs for the group's pages (and anything nested under them), their `__data.json`, its API routes and its server functions. `/pricing` in `(marketing)` is not affected, even though both groups sit at the root URL.
+- **Composes as usual.** `app/_middleware.js` still runs first, then the group's.
+
+## Related
+
+- [Pages & Layouts](/docs/routing/pages-and-layouts)
+- [Dynamic Routes](/docs/routing/dynamic-routes): optional segments.
+- [Middleware](/docs/routing/middleware)

@@ -123,6 +123,7 @@ Files the toolchain recognizes beyond ordinary components. Extensions `.js`, `.t
 | `error.jsx` | The [error view](/docs/routing/loading-and-errors) for the pages beneath its folder, when the loader, the page or a resource fails. |
 | `route.js` | An [API endpoint](/docs/routing/api-routes). The folder is the URL (`app/api/hello/route.js` → `/api/hello`). A folder holds a `page.*` or a `route.*`, never both. |
 | `loader.js` | A [route loader](/docs/data-fetching/route-loaders) sibling to a `page.*`. Runs server-side before the page renders; its return value is `router.data`. Requires a matching `page.*` in the same folder. |
+| `(group)/` | A [route group](/docs/routing/route-groups): organizes pages and gives them a layout, middleware or error page, without being part of the URL. |
 | `layout.loader.js` | A [layout loader](/docs/data-fetching/route-loaders#layout-loaders) sibling to a `layout.*`: data for every page beneath that layout, merged into `router.data`. |
 | `_middleware.js` | [Middleware](/docs/routing/middleware) for its folder and everything nested under it (pages, API, loader data, SSR). |
 | `_meta.js` | Docs sidebar order and labels for a folder (`@opentf/afw-docs`). Supports `.js`, `.mjs` and `.json` today. |

@@ -27,6 +27,10 @@ Compose both: middleware is authoritative; the route guard keeps the SPA feel af
 Multiple middleware compose **outermost-first**: `app/_middleware.js` wraps
 `app/admin/_middleware.js`, which wraps the route.
 
+A `_middleware.js` in a [route group](/docs/routing/route-groups#middleware-in-a-group)
+covers exactly what the group holds (its pages, loader data, API routes and server
+functions), not a URL prefix.
+
 Middleware files are **plain server modules** — never shipped to the client.
 
 ## Handler signature

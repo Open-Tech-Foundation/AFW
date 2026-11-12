@@ -11,8 +11,13 @@ Wrap a folder name in brackets to capture a path segment.
 | --- | --- | --- |
 | `app/blog/[slug]/page.jsx` | `/blog/hello` | `{ slug: "hello" }` |
 | `app/docs/[...path]/page.jsx` | `/docs/a/b/c` | `{ path: ["a", "b", "c"] }` |
+| `app/[[lang]]/guide/page.jsx` | `/guide`, `/fr/guide` | `{ lang: undefined }`, `{ lang: "fr" }` |
+| `app/shop/[[...filters]]/page.jsx` | `/shop`, `/shop/red/large` | `{ filters: undefined }`, `{ filters: ["red", "large"] }` |
 
-`[param]` matches one segment; `[...rest]` is a catch-all matching the remainder.
+- **`[param]`** matches one segment; **`[...rest]`** is a catch-all matching the remainder.
+- **`[[param]]`** and **`[[...rest]]`** are optional: the URL matches with or without them, and an absent one is `undefined`.
+- **Ranking:** static beats `[param]`, then `[[param]]`, then `[...rest]`, then `[[...rest]]`, segment by segment. So `/guide/intro` wins over `/guide/[[...slug]]`.
+- **Folders in parentheses** are [route groups](/docs/routing/route-groups): not part of the URL.
 
 ## Reading params
 
@@ -42,6 +47,9 @@ export function getStaticPaths() {
 Pass raw parameter values: the framework encodes URL segments and decodes them
 when matching a route. For catch-all routes, pass an array such as
 `{ params: { path: ["guides", "getting started"] } }`.
+
+- **Optional params can be left out.** `{}` for `[[lang]]/guide` prerenders `/guide`; `{ lang: "fr" }` prerenders `/fr/guide`. An optional catch-all given `[]` is left out too.
+- **Like any dynamic route,** a page with optional segments needs `getStaticPaths()` to prerender, including for the URL without them.
 
 Missing parameters, empty segments, invalid values and duplicate URLs fail the
 build with an error. `getStaticPaths()` must return an array. It describes URLs;

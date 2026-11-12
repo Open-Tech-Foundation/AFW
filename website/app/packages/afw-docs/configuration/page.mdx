@@ -89,6 +89,19 @@ export default {
 - **The folder's page is a child.** It is listed as "Overview", in the declared order, at the folder's URL (`/docs/deployment`).
 - **Without `index`,** the folder's page is the heading's link.
 
+### Route groups in the sidebar
+
+A [route group](/docs/routing/route-groups) folder, such as `(guides)`, is a sidebar
+heading over its pages, and their links have no group in them:
+
+```js
+// app/docs/_meta.js
+export default { index: "Introduction", "(guides)": "Guides", "(reference)": "Reference" };
+```
+
+- **Label:** the `_meta` entry, or the folder name without parentheses.
+- **URLs:** `app/docs/(guides)/install/page.mdx` is `/docs/install`, in the sidebar, breadcrumbs, last-updated dates, feeds and `llms.txt`.
+
 ## Mobile navigation
 
 On screens narrower than **768px** the sidebar doesn't fit beside the content, so it
