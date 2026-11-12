@@ -290,3 +290,71 @@ describe("serialization + notFound", () => {
     expect(isNotFound(null)).toBe(false);
   });
 });
+
+describe("layout loaders", () => {
+  const files = (extra = {}) => ({
+    "/proj/app/layout.loader.js": mod(() => ({ site: "acme" })),
+    "/proj/app/dash/layout.loader.js": mod(({ params, locals }) => ({ user: locals.user ?? "ada", team: params.team })),
+    "/proj/app/dash/[team]/loader.js": mod(({ params }) => ({ page: `team ${params.team}`, site: "page wins" })),
+    ...extra,
+  });
+  const pageRoutes = ["/", "/dash", "/dash/[team]", "/dash/settings", "/about"];
+  const registry = createLoaderRegistry(files(), { appDir: "/proj/app", pageRoutes });
+
+  test("layout.loader files key by their layout's folder", () => {
+    expect(loaderRouteFromPath("/proj/app/dash/layout.loader.ts", "/proj/app")).toBe("/dash");
+    expect(loaderRouteFromPath("/proj/app/layout.loader.js", "/proj/app")).toBe("/");
+  });
+
+  test("every page beneath a layout loader matches, with or without its own loader", () => {
+    expect(registry.routes).toEqual(expect.arrayContaining(["/", "/about", "/dash", "/dash/[team]", "/dash/settings"]));
+    expect(registry.match("/dash/settings").layouts.map((l) => l.route)).toEqual(["/", "/dash"]);
+    expect(registry.match("/dash/settings").fn).toBe(null);
+    expect(registry.match("/about").layouts.map((l) => l.route)).toEqual(["/"]);
+  });
+
+  test("results merge outermost first, the page's on top, with the whole context", async () => {
+    expect(await registry.load(registry.match("/dash/red"), { locals: { user: "grace" } })).toEqual({
+      site: "page wins", user: "grace", team: "red", page: "team red",
+    });
+    expect(await registry.load(registry.match("/dash/settings"))).toEqual({ site: "acme", user: "ada", team: undefined });
+  });
+
+  test("loaders run in parallel", async () => {
+    const started = [];
+    const slow = (name) => mod(async () => { started.push(name); await new Promise((r) => setTimeout(r, 30)); return { [name]: true }; });
+    const r = createLoaderRegistry({
+      "/proj/app/layout.loader.js": slow("root"),
+      "/proj/app/a/layout.loader.js": slow("a"),
+      "/proj/app/a/loader.js": slow("page"),
+    }, { appDir: "/proj/app", pageRoutes: ["/a"] });
+    const pending = r.load(r.match("/a"));
+    await Promise.resolve();
+    expect(started.sort()).toEqual(["a", "page", "root"]);
+    expect(await pending).toEqual({ root: true, a: true, page: true });
+  });
+
+  test("a chain whose loaders do not all return objects is an error", async () => {
+    const r = createLoaderRegistry(files({ "/proj/app/about/loader.js": mod(() => ["x"]) }), { appDir: "/proj/app", pageRoutes });
+    await expect(r.load(r.match("/about"))).rejects.toThrow("must return objects");
+  });
+
+  test("a single loader's result passes through unchanged", async () => {
+    const r = createLoaderRegistry({ "/proj/app/list/loader.js": mod(() => [1, 2]) }, { appDir: "/proj/app" });
+    expect(await r.load(r.match("/list"))).toEqual([1, 2]);
+  });
+
+  test("a failing layout loader is tagged with its folder, also in the data endpoint's 500", async () => {
+    const r = createLoaderRegistry(files({ "/proj/app/dash/layout.loader.js": mod(() => { throw new Error("db down"); }) }), { appDir: "/proj/app", pageRoutes });
+    const error = await r.load(r.match("/dash/settings")).catch((e) => e);
+    expect(error.afwLayoutRoute).toBe("/dash");
+    const res = await r.handle(new Request("http://x/dash/settings/__data.json"));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Internal Server Error", layout: "/dash" });
+  });
+
+  test("the data endpoint serves the merged data for a page without its own loader", async () => {
+    const res = await registry.handle(new Request("http://x/dash/settings/__data.json"));
+    expect(await res.json()).toEqual({ site: "acme", user: "ada" });
+  });
+});

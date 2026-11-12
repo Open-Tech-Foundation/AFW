@@ -47,6 +47,12 @@ export function registerLoaderRoutes(paths: any): void;
 export function setRouteData(data: any): void;
 /** Layout entries that wrap `route`, outermost (root) first. */
 export function layoutChain(route: any): any[];
+/** The folders of the layouts wrapping `route`, outermost first (aligned with `layoutChain`). */
+export function layoutFolders(route: string | null): string[];
+/** Does the layout at `folder` wrap `route`? */
+export function layoutWraps(folder: string, route: string | null): boolean;
+/** The `error.jsx` for an error: the page's nearest, or for a broken layout the nearest above it. */
+export function routeErrorSite(route: string | null, brokenLayout?: string | null): { entry: unknown };
 /** The nearest `loading.jsx` / `error.jsx` entry for `route`: its folder, then each parent. */
 export function nearestRouteFile(table: Record<string, unknown>, route: string | null): unknown;
 /** How long a navigation waits before showing `loading.jsx` (milliseconds). */

@@ -141,9 +141,17 @@ export interface LoaderRegistry {
 
 export function createLoaderRegistry(
   loaderModules?: Record<string, { default?: Loader; loader?: Loader }>,
-  options?: { appDir?: string; i18n?: { locales?: string[]; defaultLocale?: string } },
+  /** `pageRoutes`: every page route, so a page beneath a `layout.loader.*` matches without a loader of its own. */
+  options?: { appDir?: string; i18n?: { locales?: string[]; defaultLocale?: string }; pageRoutes?: string[] },
 ): LoaderRegistry;
+/** The route a `loader.*` (its page) or `layout.loader.*` (its layout's folder) belongs to. */
 export function loaderRouteFromPath(filePath: string, appDir?: string): string;
+/** Is this a `layout.loader.{js,ts}` file? */
+export function isLayoutLoaderFile(filePath: string): boolean;
+/** Does the layout at `folder` wrap the page at `route`? */
+export function layoutWraps(folder: string, route: string): boolean;
+/** Page routes with loader data: their own `loader.*`, or beneath a `layout.loader.*`. */
+export function loaderPageRoutes(routes: { pages?: string[]; pageLoaders?: string[]; layoutLoaders?: string[] }): string[];
 /** Throw "this page does not exist" from inside a loader (404 semantics). */
 export function notFound(message?: string): never;
 export function isNotFound(e: unknown): boolean;

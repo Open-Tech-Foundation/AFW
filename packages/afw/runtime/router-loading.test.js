@@ -261,3 +261,101 @@ describe("error.jsx", () => {
     expect(app.textContent).toBe("error: Something went wrong");
   });
 });
+
+describe("layout errors", () => {
+  const root = ({ children }) => {
+    const main = document.createElement("main");
+    main.id = "root";
+    main.append(children);
+    return main;
+  };
+  const dash = ({ children }) => {
+    const aside = document.createElement("aside");
+    aside.id = "dash";
+    aside.textContent = "dash shell ";
+    aside.append(children);
+    return aside;
+  };
+  const named = (name) => ({ error, retry }) => {
+    const p = document.createElement("p");
+    p.id = `${name}-error`;
+    p.textContent = `${name}: ${error.message}`;
+    p.onclick = retry;
+    return p;
+  };
+  const shell = (extra = {}) => ({
+    "/p/app/layout.jsx": { default: root },
+    "/p/app/error.jsx": { default: named("root") },
+    "/p/app/dash/layout.jsx": { default: dash },
+    "/p/app/dash/error.jsx": { default: named("dash") },
+    "/p/app/dash/page.jsx": { default: view("dash page", "section") },
+    ...extra,
+  });
+
+  test("a layout that throws is replaced by the error.jsx above it, inside the layouts above", async () => {
+    const app = await mount(shell({ "/p/app/dash/layout.jsx": { default: () => { throw new Error("shell broke"); } } }));
+    await navigate("/dash");
+    expect(app.querySelector("#root #root-error").textContent).toBe("root: shell broke");
+    expect(app.querySelector("#dash-error")).toBe(null); // not the error.jsx inside the broken layout
+  });
+
+  test("a failed layout loader shows the error.jsx above that layout; retry loads it again", async () => {
+    let fail = true;
+    globalThis.fetch = async () => (fail ? json({ error: "Internal Server Error", layout: "/dash" }, 500) : json({ user: "ada" }));
+    const app = await mount(shell(), ["/dash"]);
+    await navigate("/dash");
+    expect(app.querySelector("#root #root-error").textContent).toContain("failed (500)");
+    expect(app.querySelector("#dash")).toBe(null);
+    fail = false;
+    app.querySelector("#root-error").click();
+    await tick();
+    await tick();
+    expect(app.querySelector("#dash").textContent).toBe("dash shell dash page");
+  });
+
+  test("a page loader failure under the same layout still uses the page's error.jsx", async () => {
+    globalThis.fetch = async () => json({ error: "Internal Server Error" }, 500);
+    const app = await mount(shell(), ["/dash"]);
+    await navigate("/dash");
+    expect(app.querySelector("#dash #dash-error")).not.toBe(null);
+  });
+
+  test("an unhandled error inside a layout replaces that layout with the error.jsx above it", async () => {
+    const app = await mount(shell());
+    await navigate("/dash");
+    handleError(app.querySelector("#dash"), new Error("widget in shell crashed"));
+    await tick();
+    expect(app.querySelector("#root #root-error").textContent).toBe("root: widget in shell crashed");
+    expect(app.querySelector("#dash")).toBe(null);
+  });
+
+  test("an error in the root layout has nothing above it: reported, not replaced", async () => {
+    const app = await mount(shell());
+    await navigate("/dash");
+    handleError(app.querySelector("#root"), new Error("navbar crashed"));
+    await tick();
+    expect(app.querySelector("#root-error")).toBe(null);
+    expect(app.querySelector("#dash section").textContent).toBe("dash page");
+  });
+
+  test("a server-rendered layout-loader error hydrates the error view above that layout", async () => {
+    const app = document.createElement("div");
+    app.setAttribute("data-afw-hydrate", "");
+    app.innerHTML = "<main id=\"root\"><p id=\"root-error\">root: Something went wrong</p></main>";
+    document.body.appendChild(app);
+    const data = document.createElement("script");
+    data.type = "application/json";
+    data.id = "__afw_data";
+    data.textContent = JSON.stringify({ __afwRouteError: { status: 500, message: "Something went wrong", layout: "/dash" } });
+    document.body.appendChild(data);
+    let props;
+    window.history.replaceState({}, "", "/dash");
+    const pages = shell({ "/p/app/error.jsx": { default: (p) => ((props = p), named("root")(p)) } });
+    mountApp({ pages: { "/p/app/page.jsx": { default: view("home") }, ...pages }, target: app, loaders: ["/dash"] });
+    await tick();
+    await tick();
+    expect(props.error.afwLayoutRoute).toBe("/dash");
+    expect(app.querySelector("#root #root-error").textContent).toBe("root: Something went wrong");
+    expect(app.querySelector("#dash")).toBe(null);
+  });
+});

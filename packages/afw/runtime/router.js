@@ -318,6 +318,36 @@ export function nearestRouteFile(table, route) {
   }
 }
 
+/** The folders of the layouts that wrap `route`, outermost (root) first — aligned with `layoutChain`. */
+export function layoutFolders(route) {
+  const folders = [];
+  if (!route) return routes.layouts["/"] ? ["/"] : folders;
+  let p = route;
+  while (true) {
+    if (routes.layouts[p]) folders.unshift(p);
+    if (p === "/") break;
+    p = p.slice(0, p.lastIndexOf("/")) || "/";
+  }
+  return folders;
+}
+
+/** Does the layout at `folder` wrap `route` (the folder itself, or anything beneath it)? */
+export const layoutWraps = (folder, route) =>
+  folder === "/" || route === folder || (route ?? "").startsWith(`${folder}/`);
+
+/**
+ * Where an error shows: the `error.jsx` entry for it (or null). A page's errors use the
+ * nearest one from the page's folder; a broken layout's (`brokenLayout`, its folder) the
+ * nearest one *above* that layout, since the layout itself is what failed. The root
+ * layout has nothing above it.
+ */
+export function routeErrorSite(route, brokenLayout = null) {
+  if (!brokenLayout) return { entry: nearestRouteFile(routes.errors, route) };
+  if (brokenLayout === "/") return { entry: null };
+  const parent = brokenLayout.slice(0, brokenLayout.lastIndexOf("/")) || "/";
+  return { entry: nearestRouteFile(routes.errors, parent) };
+}
+
 /** Resolve a route entry (module namespace or lazy loader) to its factory. */
 export async function resolveFactory(entry) {
   const mod = await resolveModule(entry);
@@ -354,33 +384,41 @@ async function resolveAll(entries, resolve) {
  */
 export async function buildRouteNode(match, query = {}, { error = null, loadingShown = false } = {}) {
   const props = { params: match.params, query };
-  const chain = layoutChain(match.route);
-  // The nearest `loading.jsx` wraps the page in a <Pending>; the nearest `error.jsx`
-  // replaces it when the loader failed (`error`) or the page throws while building.
+  const folders = layoutFolders(match.route);
+  // A failed loader replaces the page (its own loader) or a layout and everything in it
+  // (a layout loader: `afwLayoutRoute`) with the error view at that site.
+  const broken = error?.afwLayoutRoute ?? null;
+  const keep = broken ? folders.filter((f) => f !== broken && layoutWraps(f, broken)) : folders;
+  const chain = keep.map((f) => routes.layouts[f]);
+  // The nearest `loading.jsx` wraps the page in a <Pending>. The error views that could be
+  // needed — the page's, and the one above each layout — load up front with the rest.
   const loadingEntry = error ? null : nearestRouteFile(routes.loading, match.route);
-  const errorEntry = nearestRouteFile(routes.errors, match.route);
+  const pageError = error ? routeErrorSite(match.route, broken).entry : nearestRouteFile(routes.errors, match.route);
+  const layoutErrors = keep.map((f) => routeErrorSite(match.route, f).entry);
+  const errorEntries = [...new Set([pageError, ...layoutErrors].filter(Boolean))];
   const [pageModule, ...rest] = await resolveAll(
-    [match.entry, ...chain, loadingEntry, errorEntry],
+    [error ? null : match.entry, ...chain, loadingEntry, ...errorEntries],
     resolveModule,
   );
   const layoutModules = rest.slice(0, chain.length);
-  const [loadingModule, errorModule] = rest.slice(chain.length);
+  const loadingModule = rest[chain.length];
+  const errorModules = new Map(errorEntries.map((entry, i) => [entry, rest[chain.length + 1 + i]]));
   const namespace = module => typeof module === "function" ? { default: module } : module;
-  const modules = [...layoutModules, pageModule].map(namespace);
-  const pageFactory = pageModule?.default ?? pageModule;
+  const modules = [...layoutModules, pageModule].filter(Boolean).map(namespace);
   const layoutFactories = layoutModules.map(module => module?.default ?? module);
-  setRouteToc(pageModule);
-  const errorView = (e) => {
-    const view = factoryOf(errorModule);
+  if (!error) setRouteToc(pageModule);
+  const errorView = (entry, e) => {
+    const view = factoryOf(errorModules.get(entry));
     return buildScopedView(() => view({ ...props, error: e, retry: () => navigate(currentLocation(), true) }));
   };
   let node;
   const nodes = [];
   if (error) {
-    if (!errorModule) throw error;
-    node = errorView(error);
+    if (!pageError) throw error;
+    node = errorView(pageError, error);
     nodes.push(node);
   } else {
+    const pageFactory = pageModule?.default ?? pageModule;
     const loading = factoryOf(loadingModule);
     let pending = loading ? routePending(loading, props, loadingShown) : null;
     let page;
@@ -392,11 +430,11 @@ export async function buildRouteNode(match, query = {}, { error = null, loadingS
         if (pending) exitPending();
       }
     } catch (e) {
-      if (!errorModule) throw e;
+      if (!pageError) throw e;
       reportError(e, { phase: "render" });
       if (pending) runCleanup(pending);
       pending = null;
-      page = errorView(e);
+      page = errorView(pageError, e);
     }
     nodes.push(page);
     node = page;
@@ -406,15 +444,30 @@ export async function buildRouteNode(match, query = {}, { error = null, loadingS
       node = pending;
     }
   }
-  const region = node;
+  let region = node;
   try {
     for (let i = chain.length - 1; i >= 0; i--) {
-      node = buildScopedView(() => layoutFactories[i]({ ...props, children: node }));
+      const inner = node;
+      try {
+        node = buildScopedView(() => layoutFactories[i]({ ...props, children: inner }));
+      } catch (e) {
+        // A layout that throws is replaced, with everything inside it, by the error view
+        // above it; the layouts above it still wrap that view.
+        const site = layoutErrors[i];
+        if (!site) throw e;
+        reportError(e, { phase: "render" });
+        for (const n of nodes.splice(0)) runCleanup(n);
+        node = errorView(site, e);
+        nodes.push(node);
+        region = null; // the page is gone; the error view is not re-handled
+        continue;
+      }
+      node.__afwLayoutRoute = keep[i];
       nodes.push(node);
     }
-  } catch (error) {
+  } catch (e) {
     for (const n of nodes) runCleanup(n);
-    throw error;
+    throw e;
   }
   return { node, nodes, modules, region };
 }
@@ -483,25 +536,35 @@ function scheduleRouteLoading(match, query, seq, entry) {
 
 /**
  * An error no <ErrorBoundary> caught (a component throwing, a resource's first load
- * failing). Inside the current page, replace the page with its nearest `error.jsx`,
- * inside the same layouts; retry navigates to the page again. First error wins.
+ * failing). Inside the page, the page's nearest `error.jsx` replaces it; inside a layout,
+ * the `error.jsx` above that layout replaces the layout (and everything in it). The
+ * layouts above stay. Retry navigates to the page again. First error per view wins.
  */
+const handledViews = new WeakSet();
 function showRouteError(el, error) {
-  const region = currentRegion;
-  if (!region || !el) return;
-  const inPage = viewNodes(region).some((n) => n === el || (n.contains && n.contains(el)));
-  if (!inPage) return;
-  const entry = nearestRouteFile(routes.errors, currentRoute);
-  if (!entry) return;
-  currentRegion = null; // first error wins; the error view itself is not re-handled
+  if (!el) return;
+  const holds = (node) => viewNodes(node).some((n) => n === el || (n.contains && n.contains(el)));
+  let target = null;
+  let entry = null;
+  if (currentRegion && holds(currentRegion)) {
+    target = currentRegion;
+    entry = nearestRouteFile(routes.errors, currentRoute);
+  } else {
+    // The innermost layout around the element (currentNodes runs inner → outer).
+    target = currentNodes.find((n) => n.__afwLayoutRoute && holds(n)) ?? null;
+    if (target) entry = routeErrorSite(currentRoute, target.__afwLayoutRoute).entry;
+  }
+  if (!target || !entry || handledViews.has(target)) return;
+  handledViews.add(target);
+  if (target === currentRegion) currentRegion = null; // the error view itself is not re-handled
   const seq = navSeq;
   // Deferred: never swap the tree in the middle of the connectedCallback that threw.
   queueMicrotask(async () => {
     try {
       const module = await resolveModule(entry);
       if (seq !== navSeq) return;
-      const index = currentNodes.indexOf(region);
-      const old = viewNodes(region);
+      const index = currentNodes.indexOf(target);
+      const old = viewNodes(target);
       const parent = old[0]?.parentNode;
       if (index < 0 || !parent) return;
       const props = { params: state.params.value, query: Object.fromEntries(state.searchParams.value) };
@@ -510,6 +573,7 @@ function showRouteError(el, error) {
       parent.insertBefore(view, old[0]);
       for (const n of old) n.remove();
       for (let i = 0; i <= index; i++) runCleanup(currentNodes[i]);
+      if (index >= currentNodes.indexOf(currentRegion)) currentRegion = null;
       currentNodes = [view, ...currentNodes.slice(index + 1)];
       runMount(view);
     } catch (e) {
@@ -529,13 +593,16 @@ function showRouteError(el, error) {
  * disposing each layer's partial wiring on the way (each `hydrateAt` has its own guard).
  */
 export async function hydrateRouteNode(match, query, rootEl, { error = null } = {}) {
-  // A page the server rendered with its `error.jsx` (a failed loader) adopts that view.
-  const errorEntry = error ? nearestRouteFile(routes.errors, match.route) : null;
+  // A page the server rendered with an `error.jsx` (a failed loader) adopts that view, at
+  // the same site: the page's, or above the layout whose loader failed.
+  const broken = error?.afwLayoutRoute ?? null;
+  const errorEntry = error ? routeErrorSite(match.route, broken).entry : null;
   if (error && !errorEntry) return null;
   const props = error
     ? { params: match.params, query, error, retry: () => navigate(currentLocation(), true) }
     : { params: match.params, query };
-  const chain = layoutChain(match.route);
+  const folders = layoutFolders(match.route).filter((f) => !broken || (f !== broken && layoutWraps(f, broken)));
+  const chain = folders.map((f) => routes.layouts[f]);
   // Page + layout chunks download concurrently (see `resolveAll`). Adoptability is
   // checked after they all land rather than short-circuiting on the page: bailing
   // early would only skip imports the CSR fallback below is about to need anyway.
@@ -557,8 +624,10 @@ export async function hydrateRouteNode(match, query, rootEl, { error = null } = 
   for (let i = chain.length - 1; i >= 0; i--) {
     const layout = layoutMods[i];
     const inner = thunk;
+    const folder = folders[i];
     thunk = (c) => {
       const n = buildScopedView(() => layout.hydrateAt(c, { ...props, children: inner }));
+      n.__afwLayoutRoute = folder;
       nodes.push(n);
       return n;
     };
@@ -887,7 +956,7 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
         data = warmed ? await warmed.catch(() => fetchRouteData(url.pathname, url.search)) : await fetchRouteData(url.pathname, url.search);
       } catch (e) {
         reportError(e, { phase: "data", path: url.pathname });
-        if (nearestRouteFile(routes.errors, match.route)) dataError = e;
+        if (routeErrorSite(match.route, e?.afwLayoutRoute ?? null).entry) dataError = e;
       }
       if (seq !== navSeq) return; // a newer navigation superseded this one
       if (data instanceof RouteRedirect) return followRedirect(data);

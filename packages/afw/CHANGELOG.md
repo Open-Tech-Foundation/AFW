@@ -57,6 +57,20 @@
 - `mountApp({ viewTransitions: true })` runs client navigations inside
   `document.startViewTransition()`, skipped on the first paint, with reduced motion,
   and where unsupported.
+- Layout loaders: a `layout.loader.{js,ts}` beside a `layout.*` loads data for every
+  page beneath that layout.
+  - A page's loaders (each layout's, root first, then its own) run in parallel and merge
+    into one `router.data`, the page's keys on top. One `__data.json` request serves them.
+  - `createLoaderRegistry(modules, { pageRoutes })` matches pages beneath a layout loader
+    that have no loader of their own. `loaderPageRoutes`, `isLayoutLoaderFile` and
+    `layoutWraps` are exported from `@opentf/afw/server`.
+  - Loaders that share a page must return objects; a single loader can return any value.
+- Layout errors: a layout that throws while it builds, a component in it that throws with
+  no `<ErrorBoundary>`, or a failed layout loader shows the nearest `error.jsx` above that
+  layout, inside the layouts above it. On a server render the failure is sent with HTTP
+  500 and hydrates at the same site. The root layout has nothing above it, so its errors
+  are reported, not caught.
+  - `routeErrorSite`, `layoutFolders` and `layoutWraps` are exported from the router.
 - `<Pending error={(error, retry) => view}>` shows a failed first load in the
   boundary itself; `retry` refetches what failed and shows the fallback while it
   reloads.

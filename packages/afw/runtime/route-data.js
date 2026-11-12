@@ -56,7 +56,17 @@ export async function fetchRouteData(pathname, search = "") {
     return new RouteRedirect(pathname + search, { reload: true });
   }
   if (res.status === 404) return undefined;
-  if (!res.ok) throw new Error(`route data request for ${pathname} failed (${res.status})`);
+  if (!res.ok) {
+    const error = Object.assign(new Error(`route data request for ${pathname} failed (${res.status})`), { status: res.status });
+    // The endpoint names the layout whose loader failed (see the server's loader registry).
+    try {
+      const body = await res.json();
+      if (typeof body?.layout === "string") error.afwLayoutRoute = body.layout;
+    } catch {
+      // a response without the JSON error body
+    }
+    throw error;
+  }
   return res.json();
 }
 
@@ -74,6 +84,8 @@ const ROUTE_ERROR = "__afwRouteError";
  */
 export function routeErrorPayload(error) {
   const marker = { [ROUTE_ERROR]: { status: error.status ?? 500, message: String(error.message ?? "") } };
+  // A failed layout loader: the error view replaces that layout, not just the page.
+  if (error.afwLayoutRoute) marker[ROUTE_ERROR].layout = error.afwLayoutRoute;
   return JSON.stringify(marker).replace(/</g, "\\u003c");
 }
 
@@ -81,7 +93,9 @@ export function routeErrorPayload(error) {
 export function routeErrorFrom(data) {
   const marker = data && typeof data === "object" ? data[ROUTE_ERROR] : null;
   if (!marker) return null;
-  return Object.assign(new Error(marker.message), { status: marker.status });
+  const error = Object.assign(new Error(marker.message), { status: marker.status });
+  if (marker.layout) error.afwLayoutRoute = marker.layout;
+  return error;
 }
 
 /** The loader data inlined by the server for the current document, or `undefined`. */

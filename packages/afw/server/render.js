@@ -11,8 +11,10 @@ import { DEV } from "../core/dev.js";
 import { routeErrorPayload } from "../runtime/route-data.js";
 import {
   layoutChain,
+  layoutFolders,
+  layoutWraps,
   matchRoute,
-  nearestRouteFile,
+  routeErrorSite,
   resolveModule,
   routes,
   setRouteState,
@@ -46,7 +48,9 @@ export async function renderRoute(pathname, params = null, search = "", { data, 
 function publicError(error) {
   const status = Number.isInteger(error?.status) && error.status >= 400 ? error.status : 500;
   const message = DEV && error?.message ? String(error.message) : "Something went wrong";
-  return Object.assign(new Error(message), { status });
+  const out = Object.assign(new Error(message), { status });
+  if (error?.afwLayoutRoute) out.afwLayoutRoute = error.afwLayoutRoute;
+  return out;
 }
 
 async function renderInContext(pathname, params, search, data, failure) {
@@ -55,11 +59,14 @@ async function renderInContext(pathname, params, search, data, failure) {
     real || (routes.notFound ? { entry: routes.notFound, params: {}, route: null } : null);
   if (!match) return null;
   if (params) match.params = params;
-  // A failed loader renders the route's nearest `error.jsx` in place of the page,
-  // inside the same layouts, with status 500. No error file: the caller's error stands.
+  // A failed loader renders an `error.jsx` with status 500: the page's nearest one, or —
+  // when a layout's loader failed — the one above that layout, inside the layouts above
+  // it. No error file: the caller's error stands.
   let error = null;
+  let broken = null;
   if (failure !== undefined) {
-    const entry = nearestRouteFile(routes.errors, match.route);
+    broken = failure?.afwLayoutRoute ?? null;
+    const entry = routeErrorSite(match.route, broken).entry;
     if (!entry) throw failure;
     error = publicError(failure);
     match = { ...match, entry };
@@ -75,7 +82,9 @@ async function renderInContext(pathname, params, search, data, failure) {
 
   // Import modules before collecting: module-level JSX must keep its inline
   // props rather than capture hydration ids belonging to just the first request.
-  const chain = layoutChain(match.route);
+  const chain = broken
+    ? layoutFolders(match.route).filter((f) => f !== broken && layoutWraps(f, broken)).map((f) => routes.layouts[f])
+    : layoutChain(match.route);
   const [pageModule, ...layoutModules] = await Promise.all(
     [match.entry, ...chain].map(async entry => {
       const module = await resolveModule(entry);

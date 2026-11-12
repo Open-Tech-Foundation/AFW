@@ -38,6 +38,30 @@ describe("error.jsx on the server", () => {
     expect(JSON.parse(result.dataJson).__afwRouteError).toEqual({ status: 503, message: "db password is hunter2" });
   });
 
+  test("a failed layout loader renders the error.jsx above that layout, inside the layouts above", async () => {
+    registerRoutes({
+      "/app/layout.jsx": { default: ({ children }) => `<main>${children}</main>` },
+      "/app/error.jsx": { default: ({ error }) => `<p>root error: ${error.message}</p>` },
+      "/app/dash/layout.jsx": { default: ({ children }) => `<aside>dash</aside>${children}` },
+      "/app/dash/error.jsx": { default: () => "<p>dash error</p>" },
+      "/app/dash/page.jsx": page("<p>dash page</p>"),
+    });
+    const failure = Object.assign(new Error("user service down"), { afwLayoutRoute: "/dash" });
+    const result = await renderRoute("/dash", null, "", { error: failure });
+    expect(result.status).toBe(500);
+    expect(result.html).toBe("<main><p>root error: user service down</p></main>"); // no dash layout, not dash/error.jsx
+    expect(JSON.parse(result.dataJson).__afwRouteError.layout).toBe("/dash");
+  });
+
+  test("a failed root layout loader has no error.jsx above it, so the failure stands", async () => {
+    registerRoutes({
+      "/app/layout.jsx": { default: ({ children }) => `<main>${children}</main>` },
+      "/app/error.jsx": { default: () => "<p>error</p>" },
+      "/app/page.jsx": page("<p>home</p>"),
+    });
+    await expect(renderRoute("/", null, "", { error: Object.assign(new Error("boom"), { afwLayoutRoute: "/" }) })).rejects.toThrow("boom");
+  });
+
   test("without an error.jsx, the failure is rethrown", async () => {
     registerRoutes({ "/app/todos/page.jsx": page("<p>todos</p>") });
     await expect(renderRoute("/todos", null, "", { error: new Error("boom") })).rejects.toThrow("boom");

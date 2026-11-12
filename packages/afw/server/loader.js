@@ -13,6 +13,12 @@
 // `request`), the SSR server (per request), the dev server, and the
 // `<path>/__data.json` HTTP endpoint SPA navigation fetches from (`handle`).
 //
+// A `layout.loader.{js,ts}` beside a `layout.*` loads data for every page beneath
+// that layout. A page's loaders — each layout loader from the root down, then the
+// page's own — run in parallel, and their results merge into one object (layout
+// data first, the page's on top), so one `router.data` and one `__data.json`
+// request serve the whole chain.
+//
 // Matching duplicates the `[param]` / `[...rest]` compile/decode approach of the
 // API handler (api.js) — like api.js itself mirrors the page router — so params
 // behave identically across pages, endpoints, and loaders.
@@ -23,8 +29,41 @@ import { compareRoutes, compileRoute, decodeParams, normalizePath as normalize, 
 /** The page route a `.../app/<...>/loader.{js,ts}` file feeds (folder = URL):
  *  `app/todos/loader.js` → `/todos`, `app/loader.js` → `/`. */
 export function loaderRouteFromPath(filePath, appDir) {
-  const r = stripAppDir(filePath, appDir).replace(/\/loader\.(js|ts)$/, "");
+  const r = stripAppDir(filePath, appDir).replace(/\/(?:layout\.)?loader\.(js|ts)$/, "");
   return r === "" ? "/" : r;
+}
+
+/** Is this a `layout.loader.{js,ts}` file? */
+export const isLayoutLoaderFile = (filePath) => /(?:^|\/)layout\.loader\.(js|ts)$/.test(filePath);
+
+/** Does the layout at `folder` (a route like "/dashboard") wrap the page at `route`? */
+export const layoutWraps = (folder, route) =>
+  folder === "/" || route === folder || route.startsWith(`${folder}/`);
+
+/**
+ * The page routes that have loader data: those with their own `loader.*`, and every
+ * page beneath a `layout.loader.*`. The client router fetches `__data.json` for these.
+ */
+export function loaderPageRoutes({ pages = [], pageLoaders = [], layoutLoaders = [] }) {
+  const out = new Set(pageLoaders);
+  for (const page of pages) if (layoutLoaders.some((folder) => layoutWraps(folder, page))) out.add(page);
+  return [...out].sort();
+}
+
+/**
+ * Merge a page's loader results: layout data outermost first, the page's own on top.
+ * A single result passes through unchanged (any JSON value); a chain must be objects.
+ */
+function mergeLoaderData(results) {
+  const defined = results.filter((r) => r.value !== undefined);
+  if (defined.length <= 1) return defined[0]?.value;
+  for (const { value, route, layout } of defined) {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      const kind = layout ? `layout loader ${route}` : `loader ${route}`;
+      throw new TypeError(`${kind} returned ${Array.isArray(value) ? "an array" : String(value === null ? null : typeof value)}; loaders that share a page must return objects so their data can merge`);
+    }
+  }
+  return Object.assign({}, ...defined.map((r) => r.value));
 }
 
 /**
@@ -74,15 +113,26 @@ export function serializeRouteData(value) {
  *             loadSerialized: (m: object, ctx?: object) => Promise<{ data: unknown, json: string }>,
  *             handle: (request: Request, extras?: { locals?: object }) => Promise<Response | null> }}
  */
-export function createLoaderRegistry(loaderModules = {}, { appDir, i18n } = {}) {
-  const entries = [];
+export function createLoaderRegistry(loaderModules = {}, { appDir, i18n, pageRoutes = [] } = {}) {
+  const pageFns = new Map(); // page route → its loader
+  const layouts = []; // { route: layout folder, fn }
   for (const file in loaderModules) {
     const ns = loaderModules[file];
     const fn = ns.default ?? ns.loader;
     if (typeof fn !== "function") continue; // a loader file without a loader export is inert
     const route = loaderRouteFromPath(file, appDir);
-    entries.push({ route, pattern: compileRoute(route), fn });
+    if (isLayoutLoaderFile(file)) layouts.push({ route, fn });
+    else pageFns.set(route, fn);
   }
+  // Outermost layout first: the order their data merges in.
+  layouts.sort((a, b) => a.route.split("/").length - b.route.split("/").length || (a.route < b.route ? -1 : 1));
+  const pages = loaderPageRoutes({ pages: pageRoutes, pageLoaders: [...pageFns.keys()], layoutLoaders: layouts.map((l) => l.route) });
+  const entries = pages.map((route) => ({
+    route,
+    pattern: compileRoute(route),
+    fn: pageFns.get(route) ?? null,
+    layouts: layouts.filter((l) => layoutWraps(l.route, route)),
+  }));
   // Most specific first, segment by segment — the same ranking as pages and API routes.
   entries.sort((a, b) => compareRoutes(a.route, b.route));
 
@@ -104,7 +154,7 @@ export function createLoaderRegistry(loaderModules = {}, { appDir, i18n } = {}) 
     for (const e of entries) {
       const m = path.match(e.pattern);
       if (!m) continue;
-      return { route: e.route, params: decodeParams(e.route, m.groups), locale, fn: e.fn };
+      return { route: e.route, params: decodeParams(e.route, m.groups), locale, fn: e.fn, layouts: e.layouts };
     }
     return null;
   }
@@ -113,7 +163,21 @@ export function createLoaderRegistry(loaderModules = {}, { appDir, i18n } = {}) 
    *  `undefined` at SSG prerender; `locals` is the per-request bag pipeline
    *  middleware stamped (middleware.js) — empty at prerender, where none runs. */
   async function load(m, { request, query = {}, locals = {} } = {}) {
-    return m.fn({ params: m.params, query, request, locale: m.locale, locals });
+    const context = { params: m.params, query, request, locale: m.locale, locals };
+    const chain = m.layouts ?? [];
+    if (!chain.length) return m.fn ? m.fn(context) : undefined;
+    // Every loader at once; a failing layout loader is tagged with its folder, so the
+    // error view above that layout can replace it (`afwLayoutRoute`).
+    const runs = chain.map(async (layout) => {
+      try {
+        return { value: await layout.fn(context), route: layout.route, layout: true };
+      } catch (error) {
+        if (error && typeof error === "object" && !(error instanceof Response)) error.afwLayoutRoute ??= layout.route;
+        throw error;
+      }
+    });
+    if (m.fn) runs.push(Promise.resolve(m.fn(context)).then((value) => ({ value, route: m.route, layout: false })));
+    return mergeLoaderData(await Promise.all(runs));
   }
 
   /** {@link load}, plus the serialized form — escaping lives in one place. */
@@ -163,7 +227,9 @@ export function createLoaderRegistry(loaderModules = {}, { appDir, i18n } = {}) 
         return e;
       }
       console.error(`✗ loader ${pagePath}:`, e?.stack ?? e);
-      return Response.json({ error: "Internal Server Error" }, { status: 500 });
+      // `layout`: which layout's loader failed, so the client shows the error view above it.
+      const body = e?.afwLayoutRoute ? { error: "Internal Server Error", layout: e.afwLayoutRoute } : { error: "Internal Server Error" };
+      return Response.json(body, { status: 500 });
     }
   }
 
