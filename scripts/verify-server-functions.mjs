@@ -1,4 +1,5 @@
-// Real-browser check of server functions in the esdev workflow (`tsr test-e2e-esdev-fns`):
+// Real-browser check of server functions in the esdev workflow (`tsr test-e2e-esdev-fns`),
+// plus `PUBLIC_*` env vars rendered on the server and hydrated in the browser:
 // an installed-style project whose server target is the generated `@afw/server`
 // (`mode: "ssr"`), run by `esdev start` and driven in headless Chrome, then built with
 // `esdev build` and run as a production server.
@@ -101,6 +102,19 @@ export default function Todos() {
   );
 }`);
 
+// PUBLIC_* env: compiled into the server render and the client alike; the secret
+// beside it in .env reaches neither.
+await write(`${project}/.env`, "PUBLIC_GREETING=hello-from-env\nSECRET_TOKEN=do-not-ship-me\n");
+await mkdir(`${project}/app/env`, { recursive: true });
+await write(`${project}/app/env/EnvGreeting.jsx`, `export default function EnvGreeting() {
+  let clicks = $state(0);
+  return <button id="env-greeting" onclick={() => clicks++}>{import.meta.env.PUBLIC_GREETING} {clicks}</button>;
+}`);
+await write(`${project}/app/env/page.jsx`, `import EnvGreeting from "./EnvGreeting.jsx";
+export default function EnvPage() {
+  return <div><EnvGreeting /><p id="env-mode">{import.meta.env.MODE}</p><p id="env-secret">[{import.meta.env.SECRET_TOKEN ?? "none"}]</p></div>;
+}`);
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function launch(args, options = {}) {
   const child = await new Command(args[0], { args: args.slice(1), cwd: project, inheritEnv: true, stdout: "piped", stderr: "piped", ...options }).spawn();
@@ -139,7 +153,7 @@ try {
   await send("Runtime.enable");
 
   // ------------------------------------------------------------------ esdev start
-  await launch(["esdev", "start", `--port=${appPort}`]);
+  const devServer = await launch(["esdev", "start", `--port=${appPort}`]);
   const origin = `http://127.0.0.1:${appPort}`;
   await ready(origin);
   const ssr = await (await fetch(`${origin}/todos`, { headers: { accept: "text/html" } })).text();
@@ -163,9 +177,19 @@ try {
   await write(source, (await file(source).text()).replace('version: "A"', 'version: "B"'));
   await until("window.__fns.listTodos().then((r) => r.version === 'B')");
   assert((await evaluate("window.__doc")) === doc, "an edited server function answers after the restart, without a page reload");
+  const plain = async (url) => (await (await fetch(url, { headers: { accept: "text/html" } })).text()).replace(/<!--[\s\S]*?-->/g, "");
+  const envDev = await plain(`${origin}/env`);
+  assert(envDev.includes(">hello-from-env 0</button>") && envDev.includes(">development</p>") && envDev.includes("[none]") && !envDev.includes("do-not-ship-me"), "esdev start renders PUBLIC_* and MODE on the server, and no other variable");
+  await send("Page.navigate", { url: `${origin}/env` });
+  await until("document.readyState === 'complete' && document.getElementById('env-greeting')?.textContent === 'hello-from-env 0'");
+  await delay(300);
+  await evaluate("document.getElementById('env-greeting').click()");
+  await until("document.getElementById('env-greeting').textContent === 'hello-from-env 1'");
+  assert(true, "the browser component reads PUBLIC_* under esdev start");
   const failures = errors.filter((e) => e && !e.includes("favicon") && !e.includes("400"));
   assert(failures.length === 0, "no browser errors: " + JSON.stringify(failures));
-  await stopAll();
+  // Stop the dev server only; the browser stays for the production checks.
+  try { devServer.kill(); await devServer.status; } catch {}
 
   // ------------------------------------------------------------------ production
   const built = await new Command("esdev", { args: ["build"], cwd: project, inheritEnv: true, stdout: "piped", stderr: "piped" }).output();
@@ -189,6 +213,16 @@ try {
     if (res.status === 200 && (await res.json()).v.user === "ada") answered++;
   }
   assert(answered >= 1, "the built server answers its server functions under the middleware");
+  assert(client.includes("hello-from-env") && !client.includes("do-not-ship-me"), "the client bundle carries PUBLIC_* and no other variable");
+  const envProd = (await (await fetch(`${prod}/env`, { headers: { accept: "text/html" } })).text()).replace(/<!--[\s\S]*?-->/g, "");
+  assert(envProd.includes(">hello-from-env 0</button>") && envProd.includes(">production</p>") && envProd.includes("[none]"), "the built server renders PUBLIC_* and MODE");
+  assert(!(await file(`${project}/dist/server.js`).text()).includes("do-not-ship-me"), "the server bundle has no non-public variable compiled in");
+  await send("Page.navigate", { url: `${prod}/env` });
+  await until("document.readyState === 'complete' && document.getElementById('env-greeting')?.textContent === 'hello-from-env 0'");
+  await delay(300);
+  await evaluate("document.getElementById('env-greeting').click()");
+  await until("document.getElementById('env-greeting').textContent === 'hello-from-env 1'");
+  assert(true, "the hydrated component keeps the PUBLIC_ value in production");
   passed = true;
 } finally {
   ws?.close();
