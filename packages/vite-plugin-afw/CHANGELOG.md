@@ -4,6 +4,10 @@
 
 ### Added
 
+- The dev server renders pages on the server with `mode: "ssr"`, into `index.html` as Vite
+  serves it, and the client adopts them as in production. Component, page and layout edits
+  still refresh in place and keep their state. Only requests that accept HTML are
+  rendered; `spa` and `ssg` dev servers render on the client as before.
 - `PUBLIC_*` environment variables reach components as `import.meta.env.PUBLIC_*`,
   the same names as the esdev workflow.
   - The plugin sets Vite's `envPrefix` to `PUBLIC_`, so `VITE_*` variables are no

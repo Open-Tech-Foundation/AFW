@@ -101,8 +101,9 @@ export async function POST(request) {
   them under their folder's middleware.
 - Generates `@afw/routes` from `app/`: pages (lazy, code-split), loader route patterns
   and the route guard. Adding or removing a route file reloads the route table.
-- Development: components, pages and layouts refresh in place, keeping their state
-  when its shape is unchanged. Compile errors show in Vite's overlay with their
+- Development: with `mode: "ssr"` the dev server renders pages on the server and the
+  client adopts them, as in production. Components, pages and layouts refresh in place,
+  keeping their state when its shape is unchanged. Compile errors show in Vite's overlay with their
   position and code frame. Draft and scheduled Markdown pages are served.
 - Production: release builds carry no refresh code and leave drafts out.
 

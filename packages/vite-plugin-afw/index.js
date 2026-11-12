@@ -159,9 +159,10 @@ export default function afw({
   }
 
   const isServer = (ctx, options) => !testing && (ctx.environment?.config?.consumer === "server" || !!options?.ssr);
-  // Release server bundles render pages unless the app is an SPA; the dev server
-  // renders pages on the client, so its `@afw/server` carries server routes only.
-  const serverPages = () => command === "build" && mode !== "spa";
+  // Release server bundles render pages unless the app is an SPA. The dev server
+  // renders them for `ssr`, as production does (the client adopts them); for `spa` and
+  // `ssg` it renders on the client, so its `@afw/server` carries server routes only.
+  const serverPages = () => mode !== "spa" && (command === "build" || mode === "ssr");
 
   // Static generation: render every route of the built server bundle into the client.
   // Other plugins take part through their `api`: `afwPrerenderData()` supplies the site
@@ -187,6 +188,10 @@ export default function afw({
   // The app directory the server half serves. It has no importing entry, so a leaf
   // `appDir` is found from the project root.
   const serverRoot = () => resolveAppRoot(nodeHost, appDir, join(projectRoot, "index.html").replaceAll("\\", "/"));
+  // The dev app shell: index.html as Vite serves it (client entry, HMR client), read per
+  // request so edits to it apply without a restart.
+  const devShell = async (devServer, url) =>
+    devServer.transformIndexHtml(url, await readFile(join(projectRoot, "index.html"), "utf8"));
 
   return {
     name: "afw",
@@ -297,7 +302,12 @@ export default function afw({
           req.url = req.originalUrl ?? req.url;
           try {
             const app = await devServer.ssrLoadModule(SERVER_ID);
-            const response = await app.createHandler({ fallback: pass })(await toWebRequest(req));
+            // `ssr`: page navigations render on the server into the transformed shell, which
+            // the client then adopts. Other requests Vite did not serve are not pages.
+            const renderPage = serverPages() && (req.headers.accept ?? "").includes("text/html")
+              ? app.createPageRenderer({ shell: await devShell(devServer, req.url), baseUrl })
+              : undefined;
+            const response = await app.createHandler({ renderPage, fallback: pass })(await toWebRequest(req));
             if (response.headers.get(PASS_HEADER)) {
               req.url = url;
               return next();
@@ -392,7 +402,8 @@ export default function afw({
         const [root, query] = id.slice(SERVER_PREFIX.length).split("?");
         const pages = query === "pages";
         const listExports = async (file) => serverExports(await compiler(), file, await nodeHost.readText(file));
-        const { code, files } = await serverModule(nodeHost, root, { exclude, i18n, pages, drafts: !pages, listExports });
+        // Drafts and scheduled pages render in the dev server only.
+        const { code, files } = await serverModule(nodeHost, root, { exclude, i18n, pages, drafts: command === "serve" || !pages, listExports });
         for (const file of files) this.addWatchFile(file);
         return { code, map: null };
       }
@@ -408,7 +419,7 @@ export default function afw({
       const file = cleanId(id);
       if (!SOURCE_FILTER.test(file) || file.startsWith("\0")) return null;
       const serverBuild = isServer(this, options);
-      const moduleTarget = chooseTarget({ mode, target, server: serverBuild, dev: testing || (command === "serve" && !serverBuild) });
+      const moduleTarget = chooseTarget({ mode, target, server: serverBuild, dev: command === "serve" && !serverBuild, test: testing });
       const client = await compiler();
       try {
         const out = await compileModule(client, code, file, {
