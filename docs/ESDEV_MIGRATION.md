@@ -78,9 +78,12 @@ in headless Chrome.
 
 - Done: `esdev start` and the Vite dev server (`mode: "ssr"`) render pages on the server
   and the client adopts them; the dev browser build is the compiler's `hydrate-hot` target.
-- Editing a `*.server.js` file under `esdev start` reloads the page (the Vite dev server
-  does not). Not yet investigated; `scripts/verify-server-functions.mjs` asserts no reload
-  and fails on it.
+- Pending esdev: any server-only edit under `esdev start` (`_middleware.js`, `loader.js`,
+  a `*.server.js` function body) restarts the server and then reloads the page, because no
+  browser module accepted the change. The Vite dev server leaves the page alone. Asked of
+  esdev: no reload when the browser output is unchanged, plus a hot event after a server
+  restart so the router can refetch the current route's loader data (then in both
+  workflows). `scripts/verify-server-functions.mjs` reports it as `PENDING (esdev)`.
 - Original Markdown/MDX source maps (current maps target generated JSX).
 - MDX 404 routes are rejected; use `404.jsx`/`404.tsx`.
 - Benchmarks: the published tables predate the migration. Re-run all four engines
