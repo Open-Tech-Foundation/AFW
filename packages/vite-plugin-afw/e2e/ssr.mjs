@@ -88,6 +88,22 @@ export default function Settings() { return <p id="settings-page">settings for {
   await page("team/x/layout.jsx", `export default function X({ children }) { return <div id="x-shell">{children}</div>; }\n`);
   await page("team/x/layout.loader.js", `export default function loader() { throw new Error("team service down"); }\n`);
   await page("team/x/page.jsx", `export default function XPage() { return <p id="x-page">never</p>; }\n`);
+  // Route groups and optional segments: a (shop) group with its own layout and
+  // middleware, a [[lang]] page and a [[...filters]] page.
+  await page("(shop)/layout.jsx", `import { Link } from "@opentf/afw";
+export default function ShopShell({ children }) { return <div id="shop-shell"><Link href="/cart">cart</Link>{children}</div>; }
+`);
+  await page("(shop)/_middleware.js", `export default async function middleware(request, context, next) {
+  const response = await next();
+  const headers = new Headers(response.headers);
+  headers.set("x-group", "shop");
+  return new Response(response.body, { status: response.status, headers });
+}
+`);
+  await page("(shop)/catalog/page.jsx", `export default function Catalog() { return <p id="catalog">catalog</p>; }\n`);
+  await page("(shop)/cart/page.jsx", `export default function Cart() { return <p id="cart">cart</p>; }\n`);
+  await page("[[lang]]/guide/page.jsx", `export default function Guide({ params }) { return <p id="guide">guide {params.lang ?? "en"}</p>; }\n`);
+  await page("browse/[[...filters]]/page.jsx", `export default function Browse({ params }) { return <p id="browse">{(params.filters ?? ["all"]).join("+")}</p>; }\n`);
   await writeFile(join(dir, "vite.config.js"), 'import afw from "@opentf/vite-plugin-afw";\nexport default { plugins: [afw({ mode: "ssr" })] };\n');
   await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw({ mode: "ssr" })] })).buildApp();
   server = spawn(process.execPath, ["dist/server/index.js"], { cwd: dir, env: { ...process.env, PORT: "0", HOST: "127.0.0.1" } });
@@ -187,6 +203,27 @@ export default function Settings() { return <p id="settings-page">settings for {
   check(team.status === 500 && teamHtml.includes('id="team-error"') && !teamHtml.includes('id="x-shell"'), `a failed layout loader renders the error.jsx above its layout (got ${team.status})`);
   await send("Page.navigate", { url: `${origin}/team/x` });
   check(await until("document.readyState === 'complete' && !!document.getElementById('team-error') && !document.getElementById('x-shell')"), "the layout error page shows in the browser without the broken layout");
+
+  // Route groups: the URL has no group, the page gets the group's layout and middleware.
+  const catalog = await fetch(`${origin}/catalog`);
+  const catalogHtml = await catalog.text();
+  check(catalog.status === 200 && catalogHtml.includes('id="shop-shell"') && catalogHtml.includes('id="catalog"'), "a grouped page renders at its URL inside its group's layout");
+  check(catalog.headers.get("x-group") === "shop", "the group's middleware runs for the group's pages");
+  check((await fetch(`${origin}/todos`)).headers.get("x-group") === null, "the group's middleware does not run outside the group");
+  check((await fetch(`${origin}/(shop)/catalog`)).status === 404, "the group folder is not part of any URL");
+  await send("Page.navigate", { url: `${origin}/catalog` });
+  check(await until("document.readyState === 'complete' && !!document.getElementById('catalog')"), "the grouped page loads in the browser");
+  await delay(300);
+  check((await evaluate("JSON.stringify(window.__removed)")) === "[]", "the grouped page adopts the server DOM");
+  await evaluate(`document.querySelector('a[href="/cart"]').click()`);
+  check(await until("!!document.getElementById('cart') && !!document.getElementById('shop-shell')"), "client navigation inside the group keeps the group's layout");
+
+  // Optional segments: one page, with or without the segment.
+  const text = async (path) => (await (await fetch(`${origin}${path}`)).text()).replace(/<!--[\s\S]*?-->/g, "");
+  check((await text("/guide")).includes("guide en"), "[[lang]] matches without the segment");
+  check((await text("/fr/guide")).includes("guide fr"), "[[lang]] matches with the segment");
+  check((await text("/browse")).includes(">all<"), "[[...filters]] matches with no segments");
+  check((await text("/browse/red/large")).includes(">red+large<"), "[[...filters]] matches several segments");
 
   check(errors.length === 0, `no browser errors or warnings: ${JSON.stringify(errors)}`);
 } catch (error) {
