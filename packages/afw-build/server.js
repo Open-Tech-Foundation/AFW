@@ -12,7 +12,7 @@
 //   const response = await handle(request);
 //   // middleware → API routes → loader data → files → page render → fallback
 
-import { discoverPages, routeKey } from "./routes.js";
+import { discoverPages, loaderPageRoutes, routeKey } from "./routes.js";
 import { serverFunctionTable } from "./server-functions.js";
 
 /** The specifier a server entry imports. */
@@ -21,7 +21,9 @@ export const SERVER_ID = "@afw/server";
 const ROUTE_FILE = /^route\.(jsx?|tsx?)$/;
 const MIDDLEWARE_FILE = /^_middleware\.(jsx?|tsx?)$/;
 const LOADER_FILE = /^loader\.(js|ts)$/;
+const LAYOUT_LOADER_FILE = /^layout\.loader\.(js|ts)$/;
 const PAGE_FILE = /^page\.(mdx|md|jsx|tsx)$/;
+const LAYOUT_FILE = /^layout\.(mdx|md|jsx|tsx)$/;
 
 async function walk(host, dir, exclude, visitFile) {
   async function visit(abs, rel) {
@@ -60,20 +62,23 @@ async function walk(host, dir, exclude, visitFile) {
  * @returns {Promise<{ routes: string[], middleware: string[], loaders: string[], pages: Map<string, string> }>}
  */
 export async function discoverServerFiles(host, dir, { exclude = [] } = {}) {
-  const routes = [], middleware = [], loaders = [];
+  const routes = [], middleware = [], loaders = [], layoutLoaders = [];
   const pages = new Map(); // folder (relative, "" for the root) → page file
+  const layouts = new Set(); // folders with a layout.*
   await walk(host, dir, new Set(exclude), (name, abs, folder) => {
     if (ROUTE_FILE.test(name)) routes.push(abs);
     else if (MIDDLEWARE_FILE.test(name)) middleware.push(abs);
     else if (LOADER_FILE.test(name)) loaders.push(abs);
+    else if (LAYOUT_LOADER_FILE.test(name)) layoutLoaders.push(abs);
     else if (PAGE_FILE.test(name)) pages.set(folder, abs);
+    else if (LAYOUT_FILE.test(name)) layouts.add(folder);
   });
-  return { routes: routes.sort(), middleware: middleware.sort(), loaders: loaders.sort(), pages };
+  return { routes: routes.sort(), middleware: middleware.sort(), loaders: loaders.sort(), layoutLoaders: layoutLoaders.sort(), pages, layouts };
 }
 
 /** Whether the app has anything for a server to run. */
-export function hasServerFiles({ routes, middleware, loaders }) {
-  return routes.length + middleware.length + loaders.length > 0;
+export function hasServerFiles({ routes, middleware, loaders, layoutLoaders = [] }) {
+  return routes.length + middleware.length + loaders.length + layoutLoaders.length > 0;
 }
 
 const folderOf = (host, dir, file) => {
@@ -103,6 +108,9 @@ export function serverConflicts(host, dir, files) {
       `${loader} ${beside ? "sits next to a route.* API endpoint (endpoints take a Request; loaders feed pages)" : "has no sibling page.* to feed"}.`,
     );
   }
+  for (const loader of files.layoutLoaders ?? []) {
+    if (!files.layouts?.has(folderOf(host, dir, loader))) problems.push(`${loader} has no sibling layout.* to feed.`);
+  }
   return problems;
 }
 
@@ -131,7 +139,9 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     imports: list.map((p, i) => `import * as ${prefix}${i} from ${JSON.stringify(p)};`).join("\n"),
     map: list.map((p, i) => `  [${JSON.stringify(p)}]: ${prefix}${i},`).join("\n"),
   });
-  const r = group(files.routes, "r"), m = group(files.middleware, "m"), l = group(files.loaders, "l");
+  const r = group(files.routes, "r"), m = group(files.middleware, "m"), l = group([...files.loaders, ...files.layoutLoaders], "l");
+  // Every page route, so a page beneath a layout.loader.* matches without a loader of its own.
+  const pageRoutes = [...files.pages.keys()].map((folder) => (folder ? `/${folder}` : "/")).sort();
   const options = { appDir: root };
   if (i18n && Array.isArray(i18n.locales) && i18n.locales.length) {
     options.i18n = { locales: i18n.locales, defaultLocale: i18n.defaultLocale ?? i18n.locales[0] };
@@ -184,9 +194,13 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     `export const apiHandler = createApiHandler(routeModules, middlewareModules, options);\n` +
     `export const apiRoutes = createApiHandler(routeModules, {}, options);\n` +
     `export const middleware = createMiddleware(middlewareModules, options);\n` +
-    `export const loaders = createLoaderRegistry(loaderModules, options);\n` +
+    `export const loaders = createLoaderRegistry(loaderModules, { ...options, pageRoutes: ${JSON.stringify(pageRoutes)} });\n` +
     `export const serverFunctions = createServerFunctions({\n${fns.table}\n});\n` +
-    `export const loaderRoutes = ${JSON.stringify(loaderRoutePatterns(host, root, files.loaders))};\n` +
+    `export const loaderRoutes = ${JSON.stringify(loaderPageRoutes({
+      pages: pageRoutes,
+      pageLoaders: loaderRoutePatterns(host, root, files.loaders),
+      layoutLoaders: loaderRoutePatterns(host, root, files.layoutLoaders),
+    }))};\n` +
     renderPart +
     `/**\n` +
     ` * A Fetch handler. Inside the middleware: API routes, loader data (\`<path>/__data.json\`),\n` +
@@ -204,7 +218,7 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
     `  };\n` +
     `  return createFetchHandler(terminal, { middleware, fallback });\n` +
     `}\n`;
-  return { code, files: [...files.routes, ...files.middleware, ...files.loaders, ...pageFiles, ...fns.files] };
+  return { code, files: [...files.routes, ...files.middleware, ...files.loaders, ...files.layoutLoaders, ...pageFiles, ...fns.files] };
 }
 
 function loaderRoutePatterns(host, root, loaders) {

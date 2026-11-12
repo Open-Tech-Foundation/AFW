@@ -12,7 +12,7 @@ export {
 export { ensureCompiler, findUp, resolveCompiler } from "./resolve-compiler.js";
 export {
   ROUTES_ID,
-  discoverLoaders, discoverPages, findGuard, isUnpublishedPage, isUnpublishedSource,
+  discoverLoaders, discoverPages, findGuard, isUnpublishedPage, isUnpublishedSource, loaderPageRoutes,
   resolveAppRoot, routeKey, routesModule,
 } from "./routes.js";
 export { SERVER_ID, discoverServerFiles, hasServerFiles, serverConflicts, serverModule } from "./server.js";

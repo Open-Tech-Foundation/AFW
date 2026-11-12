@@ -1,7 +1,7 @@
 import { describe, expect, test } from "runtime:test";
 
 import {
-  discoverLoaders, discoverPages, isUnpublishedSource, resolveAppRoot, routeKey, routesModule,
+  discoverLoaders, discoverPages, isUnpublishedSource, loaderPageRoutes, resolveAppRoot, routeKey, routesModule,
 } from "../index.js";
 import { memoryHost } from "./memory-host.js";
 
@@ -49,6 +49,30 @@ describe("discoverLoaders", () => {
       ["/", "/site/app/loader.js"], ["/posts/[id]", "/site/app/posts/[id]/loader.ts"],
     ]);
     await expect(discoverLoaders(app({ "loader.js": "", "loader.ts": "" }), "/site/app")).rejects.toThrow("Conflicting loaders for /");
+  });
+});
+
+describe("layout loaders", () => {
+  test("discovers layout.loader files by folder", async () => {
+    expect(await discoverLoaders(app({ "layout.loader.js": "", "dash/layout.loader.ts": "", "dash/loader.js": "" }), "/site/app", { layout: true })).toEqual([
+      ["/", "/site/app/layout.loader.js"], ["/dash", "/site/app/dash/layout.loader.ts"],
+    ]);
+  });
+
+  test("every page beneath a layout loader is a loader route on the client", async () => {
+    const host = app({
+      "page.jsx": "", "layout.jsx": "", "about/page.jsx": "",
+      "dash/layout.jsx": "", "dash/layout.loader.js": "SECRET", "dash/page.jsx": "", "dash/settings/page.mdx": "",
+    });
+    const { code, files } = await routesModule(host, "/site/app");
+    expect(code).toContain('export const loaderRoutes = ["/dash","/dash/settings"];');
+    expect(code).not.toContain("layout.loader");
+    expect(files).toContain("/site/app/dash/layout.loader.js");
+  });
+
+  test("loaderPageRoutes matches the runtime's rule", () => {
+    expect(loaderPageRoutes({ pages: ["/", "/a", "/a/b", "/ab"], pageLoaders: ["/ab"], layoutLoaders: ["/a"] })).toEqual(["/a", "/a/b", "/ab"]);
+    expect(loaderPageRoutes({ pages: ["/", "/x"], layoutLoaders: ["/"] })).toEqual(["/", "/x"]);
   });
 });
 

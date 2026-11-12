@@ -12,6 +12,10 @@
   default, `"throw"`, keeps static generation reporting the path as failed.
 - The generated server's `createPageRenderer` uses `errors: "render"`, so a request
   server sends a failed loader's page as its `error.jsx`.
+- `layout.loader.{js,ts}` files are discovered (`discoverLoaders(host, dir, { layout: true })`),
+  imported into the server module, and checked to sit beside a `layout.*`. The loader
+  registry gets every page route (`pageRoutes`), and `loaderRoutes` (client and server)
+  lists every page beneath a layout loader (`loaderPageRoutes`).
 - `serverModule({ hydrate: false })` renders pages without the `data-afw-hydrate`
   marker, for a dev loop whose browser build cannot adopt server DOM.
 

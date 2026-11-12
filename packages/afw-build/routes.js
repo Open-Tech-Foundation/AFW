@@ -12,6 +12,7 @@ export const ROUTES_ID = "@afw/routes";
 
 const PAGE_FILE = /^(page|layout|404|loading|error)\.(mdx|md|jsx|tsx)$/;
 const LOADER_FILE = /^loader\.(js|ts)$/;
+const LAYOUT_LOADER_FILE = /^layout\.loader\.(js|ts)$/;
 
 /**
  * Whether Markdown source is unpublished: frontmatter `draft: true`, or a `date`
@@ -105,18 +106,36 @@ export async function discoverPages(host, dir, { exclude = [], drafts = true } =
 }
 
 /** Loader files under `dir` as `[route, absPath]` pairs, sorted by route. A route
- *  with both `loader.js` and `loader.ts` is an error. */
-export async function discoverLoaders(host, dir, { exclude = [] } = {}) {
+ *  with both `loader.js` and `loader.ts` is an error. `{ layout: true }` finds
+ *  `layout.loader.{js,ts}` files instead, keyed by their layout's folder. */
+export async function discoverLoaders(host, dir, { exclude = [], layout = false } = {}) {
   const routes = new Map();
-  for (const rel of await walk(host, dir, LOADER_FILE, new Set(exclude))) {
-    const pattern = rel.replace(/(^|\/)loader\.(js|ts)$/, "") || "/";
+  for (const rel of await walk(host, dir, layout ? LAYOUT_LOADER_FILE : LOADER_FILE, new Set(exclude))) {
+    const pattern = rel.replace(/(^|\/)(?:layout\.)?loader\.(js|ts)$/, "") || "/";
     const route = pattern.startsWith("/") ? pattern : `/${pattern}`;
     const abs = host.path.join(dir, rel);
-    if (routes.has(route)) throw new Error(`Conflicting loaders for ${route}: ${routes.get(route)} and ${abs}`);
+    if (routes.has(route)) throw new Error(`Conflicting ${layout ? "layout " : ""}loaders for ${route}: ${routes.get(route)} and ${abs}`);
     routes.set(route, abs);
   }
   return [...routes].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
+
+/** Does the layout at `folder` wrap the page at `route`? (Mirrors `@opentf/afw/server`.) */
+const layoutWraps = (folder, route) => folder === "/" || route === folder || route.startsWith(`${folder}/`);
+
+/**
+ * The page routes with loader data — their own `loader.*`, or any page beneath a
+ * `layout.loader.*` — which the client router fetches `__data.json` for. Mirrors
+ * `loaderPageRoutes` in `@opentf/afw/server`, which this package does not import.
+ */
+export function loaderPageRoutes({ pages = [], pageLoaders = [], layoutLoaders = [] }) {
+  const out = new Set(pageLoaders);
+  for (const page of pages) if (layoutLoaders.some((folder) => layoutWraps(folder, page))) out.add(page);
+  return [...out].sort();
+}
+
+/** The route a `page.*` file serves: its folder (`/` for the app root). */
+const pageRoute = (file, root) => routeKey(file, root).replace(/^\/app/, "").replace(/\/page\.[^/]+$/, "") || "/";
 
 function stripAppPrefix(filePath, appDir) {
   if (appDir) {
@@ -168,13 +187,20 @@ export async function resolveAppRoot(host, appDir, importer) {
 export async function routesModule(host, root, { exclude = [], drafts = true } = {}) {
   const pages = await discoverPages(host, root, { exclude, drafts });
   const loaders = await discoverLoaders(host, root, { exclude });
+  const layoutLoaders = await discoverLoaders(host, root, { exclude, layout: true });
   const guard = await findGuard(host, root);
+  const loaderRoutes = loaderPageRoutes({
+    pages: pages.filter((p) => /\/page\.[^/]+$/.test(p)).map((p) => pageRoute(p, root)),
+    pageLoaders: loaders.map(([route]) => route),
+    layoutLoaders: layoutLoaders.map(([route]) => route),
+  });
   const map = pages
     .map((p) => `  [${JSON.stringify(routeKey(p, root))}]: () => import(${JSON.stringify(p)}),`)
     .join("\n");
   const code =
     `export const pages = {\n${map}\n};\n` +
-    `export const loaderRoutes = ${JSON.stringify(loaders.map(([route]) => route))};\n` +
+    `export const loaderRoutes = ${JSON.stringify(loaderRoutes)};\n` +
     (guard ? `export { default as guard } from ${JSON.stringify(guard)};\n` : `export const guard = undefined;\n`);
-  return { code, files: [...pages, ...loaders.map(([, file]) => file), ...(guard ? [guard] : [])] };
+  const loaderFiles = [...loaders, ...layoutLoaders].map(([, file]) => file);
+  return { code, files: [...pages, ...loaderFiles, ...(guard ? [guard] : [])] };
 }

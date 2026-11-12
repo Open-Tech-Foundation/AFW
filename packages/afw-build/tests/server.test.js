@@ -34,6 +34,24 @@ describe("serverConflicts", () => {
   });
 });
 
+describe("layout loaders on the server", () => {
+  test("a layout loader needs a sibling layout", async () => {
+    const host = app({ "dash/layout.jsx": "", "dash/layout.loader.js": "", "dash/page.jsx": "", "lonely/layout.loader.ts": "", "lonely/page.jsx": "" });
+    const problems = serverConflicts(host, "/site/app", await discoverServerFiles(host, "/site/app"));
+    expect(problems).toEqual(["/site/app/lonely/layout.loader.ts has no sibling layout.* to feed."]);
+  });
+
+  test("imports layout loaders, passes the page routes and lists every page beneath them", async () => {
+    const host = app({ "layout.jsx": "", "page.jsx": "", "dash/layout.jsx": "", "dash/layout.loader.js": "", "dash/page.jsx": "", "dash/x/page.jsx": "" });
+    const files = await discoverServerFiles(host, "/site/app");
+    expect(hasServerFiles(files)).toBe(true);
+    const { code } = await serverModule(host, "/site/app");
+    expect(code).toContain('import * as l0 from "/site/app/dash/layout.loader.js";');
+    expect(code).toContain('createLoaderRegistry(loaderModules, { ...options, pageRoutes: ["/","/dash","/dash/x"] })');
+    expect(code).toContain('export const loaderRoutes = ["/dash","/dash/x"];');
+  });
+});
+
 describe("serverModule", () => {
   test("imports every server file and composes the handler", async () => {
     const host = app({ "api/hello/route.js": "", "_middleware.js": "", "todos/page.jsx": "", "todos/loader.js": "", "loader.ts": "", "page.jsx": "" });
