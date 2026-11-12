@@ -69,6 +69,25 @@ export default function Slow() { return <p id="slow-page">{router.data?.ok}</p>;
   await page("links/page.jsx", `import { Link } from "@opentf/afw";
 export default function Links() { return <nav><Link href="/slow">slow</Link> <Link href="/broken">broken</Link></nav>; }
 `);
+  // Layout loaders: one feeding a shell and two pages (one without a loader of its own),
+  // and one that fails under an error.jsx above it.
+  await page("shell/layout.jsx", `import { Link, router } from "@opentf/afw";
+export default function Shell({ children }) {
+  return <div><aside id="shell-user">{router.data?.user}</aside><Link href="/shell/settings">settings</Link>{children}</div>;
+}
+`);
+  await page("shell/layout.loader.js", `export default function loader() { return { user: "ada", plan: "pro" }; }\n`);
+  await page("shell/page.jsx", `import { router } from "@opentf/afw";
+export default function ShellHome() { return <p id="shell-page">{router.data?.page} {router.data?.plan}</p>; }
+`);
+  await page("shell/loader.js", `export default function loader() { return { page: "home" }; }\n`);
+  await page("shell/settings/page.jsx", `import { router } from "@opentf/afw";
+export default function Settings() { return <p id="settings-page">settings for {router.data?.user}</p>; }
+`);
+  await page("team/error.jsx", `export default function TeamError({ error }) { return <p id="team-error">{error.message}</p>; }\n`);
+  await page("team/x/layout.jsx", `export default function X({ children }) { return <div id="x-shell">{children}</div>; }\n`);
+  await page("team/x/layout.loader.js", `export default function loader() { throw new Error("team service down"); }\n`);
+  await page("team/x/page.jsx", `export default function XPage() { return <p id="x-page">never</p>; }\n`);
   await writeFile(join(dir, "vite.config.js"), 'import afw from "@opentf/vite-plugin-afw";\nexport default { plugins: [afw({ mode: "ssr" })] };\n');
   await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw({ mode: "ssr" })] })).buildApp();
   server = spawn(process.execPath, ["dist/server/index.js"], { cwd: dir, env: { ...process.env, PORT: "0", HOST: "127.0.0.1" } });
@@ -151,6 +170,23 @@ export default function Links() { return <nav><Link href="/slow">slow</Link> <Li
   await evaluate(`document.querySelector('a[href="/slow"]').click()`);
   check(await until(shows("slow-loading"), 800), "a slow navigation shows loading.jsx");
   check(await until(`document.getElementById('slow-page')?.textContent === 'loaded' && ${shows("slow-page")} && !${shows("slow-loading")}`), "the page replaces loading.jsx once its data arrives");
+
+  // Layout loaders: the merged data reaches the shell and the page on the server.
+  const shellHtml = await (await fetch(`${origin}/shell`)).text();
+  check(/id="shell-user"[^>]*>(?:<!--[^>]*-->)*ada/.test(shellHtml) && shellHtml.includes("home") && shellHtml.includes("pro"), "a layout loader and the page's loader merge on the server");
+  await send("Page.navigate", { url: `${origin}/shell` });
+  check(await until("document.readyState === 'complete' && document.getElementById('shell-page')?.textContent.includes('home pro')"), "the shell page shows both loaders' data");
+  await delay(300);
+  check((await evaluate("JSON.stringify(window.__removed)")) === "[]", "the layout-loader page adopts the server DOM");
+  await evaluate(`document.querySelector('a[href="/shell/settings"]').click()`);
+  check(await until("document.getElementById('settings-page')?.textContent === 'settings for ada' && document.getElementById('shell-user')?.textContent === 'ada'"), "a page without its own loader gets the layout's data on client navigation");
+
+  // A failed layout loader: the error.jsx above that layout, with status 500.
+  const team = await fetch(`${origin}/team/x`);
+  const teamHtml = await team.text();
+  check(team.status === 500 && teamHtml.includes('id="team-error"') && !teamHtml.includes('id="x-shell"'), `a failed layout loader renders the error.jsx above its layout (got ${team.status})`);
+  await send("Page.navigate", { url: `${origin}/team/x` });
+  check(await until("document.readyState === 'complete' && !!document.getElementById('team-error') && !document.getElementById('x-shell')"), "the layout error page shows in the browser without the broken layout");
 
   check(errors.length === 0, `no browser errors or warnings: ${JSON.stringify(errors)}`);
 } catch (error) {
