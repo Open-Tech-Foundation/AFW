@@ -398,6 +398,19 @@ fn serve(source_map: bool) -> ExitCode {
         let id = String::from_utf8_lossy(&id_buf).into_owned();
         let source = String::from_utf8_lossy(&src_buf).into_owned();
 
+        // `route-config` reads a folder's `_config.{js,ts}` render policy without running it:
+        // `OK` with `{"render","data","paths"}` (`null` render/data = inherited).
+        if target_tok == "route-config" {
+            match afw_compiler::route_config::route_config(std::path::Path::new(&id), &source) {
+                Ok(c) => write_frame(
+                    &mut writer,
+                    true,
+                    serde_json::json!({ "render": c.render, "data": c.data, "paths": c.paths }).to_string().as_bytes(),
+                ),
+                Err(e) => write_frame(&mut writer, false, Diag::at(&id, e.message, &source, e.offset, e.len).json().as_bytes()),
+            }
+            continue;
+        }
         // `server-exports` lists a `.server` module's exports instead of compiling it
         // (docs/SERVER_FUNCTIONS.md): `OK` with `{"exports":[{"name","kind"}]}`.
         if target_tok == "server-exports" {

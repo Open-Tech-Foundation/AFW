@@ -34,4 +34,5 @@ pub mod graph;
 pub mod sourcemap;
 
 /// The exports of a `*.server` module and which are server functions.
+pub mod route_config;
 pub mod server_exports;

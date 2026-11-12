@@ -4,6 +4,11 @@
 
 ### Added
 
+- `route-config` (`afwc serve`): reads a folder's `_config.{js,ts}` render policy without
+  running it. `render` (`server`, `static`, `client`) and `data` (`server`, `client`) must be
+  string literals, since they decide what each bundle contains; `paths` may be any expression
+  and is reported as present. Unknown keys, spreads, computed keys and the caching keys of a
+  later phase (`revalidate`, `cache`) are errors pointing at the offending code.
 - `hydrate-hot` target (`afwc serve`; `afwc build --hot --target=hydrate`): the hydrate
   target with development refresh, for dev servers that render pages first.
   - Components adopt server DOM on first paint and register for refresh; `$state` lives in
