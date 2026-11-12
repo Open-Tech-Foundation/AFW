@@ -92,6 +92,8 @@ struct Uses {
     hydratable_node: bool,
     adopted_children: bool,
     hydrate_paragraph: bool,
+    /// A development page's `hydrateAt` is wrapped by `registerHotHydrate`.
+    hot_hydrate: bool,
 }
 
 fn merge_uses(into: &mut Uses, from: &Uses) {
@@ -109,6 +111,7 @@ fn merge_uses(into: &mut Uses, from: &Uses) {
     into.hydratable_node |= from.hydratable_node;
     into.adopted_children |= from.adopted_children;
     into.hydrate_paragraph |= from.hydrate_paragraph;
+    into.hot_hydrate |= from.hot_hydrate;
 }
 
 /// Emit a whole module for the **hydrate target**. Calls `csr` to emit the build
@@ -119,6 +122,28 @@ pub fn emit_module(
     components: &[Lowered],
     module_stmts: &[BodyItem],
     module_exprs: &ExprTable,
+) -> HydrateModule {
+    emit_module_inner(components, module_stmts, module_exprs, false)
+}
+
+/// Development hydrate target: the [`emit_module`] output plus component refresh. Components
+/// adopt server DOM on first paint and register for refresh like `csr`'s hot build; their
+/// `$state` (and a default-export page's) lives in the refresh slots on both paths, so an edit
+/// after hydration keeps it. A page's `hydrateAt` is wrapped by `registerHotHydrate`, which
+/// marks the adopted view for the router's route refresh.
+pub fn emit_hot_module(
+    components: &[Lowered],
+    module_stmts: &[BodyItem],
+    module_exprs: &ExprTable,
+) -> HydrateModule {
+    emit_module_inner(components, module_stmts, module_exprs, true)
+}
+
+fn emit_module_inner(
+    components: &[Lowered],
+    module_stmts: &[BodyItem],
+    module_exprs: &ExprTable,
+    hot: bool,
 ) -> HydrateModule {
     let mut uses = Uses::default();
     let mut errors = Vec::new();
@@ -138,6 +163,7 @@ pub fn emit_module(
             continue;
         }
         let mut e = Emitter::new(c, Some("this._cleanups"));
+        e.hot = hot;
         let body = e.component_adopt(c);
         if e.errors.is_empty() {
             merge_uses(&mut uses, &e.uses);
@@ -154,12 +180,14 @@ pub fn emit_module(
         .iter()
         .zip(&adopt_bodies)
         .map(|(c, body)| {
-            if c.is_page {
-                ComponentView::Build
-            } else if let Some(b) = body {
-                ComponentView::Adopt(b)
-            } else {
-                ComponentView::RebuildIfServerChildren
+            match (c.is_page, body, hot) {
+                // A page's view slot only selects csr's hot route output.
+                (true, _, true) => ComponentView::Hot,
+                (true, _, false) => ComponentView::Build,
+                (false, Some(b), true) => ComponentView::HotAdopt(b),
+                (false, Some(b), false) => ComponentView::Adopt(b),
+                (false, None, true) => ComponentView::HotRebuild,
+                (false, None, false) => ComponentView::RebuildIfServerChildren,
             }
         })
         .collect();
@@ -178,6 +206,7 @@ pub fn emit_module(
         // router's fallback CSR rebuild doesn't leave orphaned effects double-subscribed
         // (issue 6). The page node itself is discarded on navigation, as before.
         let mut e = Emitter::new(c, Some("__disposers"));
+        e.hot_route = hot && c.ir.id.export == "default";
         let body = e.page(c);
         if e.errors.is_empty() {
             merge_uses(&mut uses, &e.uses);
@@ -239,6 +268,9 @@ pub fn emit_module(
         code.push('\n');
     }
     code.push_str(&claim_import(&uses));
+    if uses.hot_hydrate {
+        code.push_str("import { registerHotHydrate } from \"@opentf/afw/hmr\";\n");
+    }
     for body in page_bodies {
         code.push_str(&body);
     }
@@ -351,6 +383,11 @@ struct Emitter<'a> {
     /// `<template>`. They are handed to `csr::emit_module_with_adopt` so the `const`
     /// lands at module scope, declared before any component can render.
     templates: Vec<Template>,
+    /// Development component adopt body: `$state` in the host's refresh slots (`hotState`),
+    /// derived signals disposed with the host, `$expose` through `hotExpose`.
+    hot: bool,
+    /// Development default-export page: `$state` in the route view's refresh slots.
+    hot_route: bool,
 }
 
 impl<'a> Emitter<'a> {
@@ -366,6 +403,8 @@ impl<'a> Emitter<'a> {
             list_counter: 0,
             value_locals: Vec::new(),
             templates: Vec::new(),
+            hot: false,
+            hot_route: false,
         }
     }
 
@@ -525,8 +564,21 @@ impl<'a> Emitter<'a> {
         // partway (issue 6): the router catches the throw and rebuilds via CSR, so without
         // this the partial page's `bindText`/`bindAttr`/`effect` subscriptions would leak
         // and double up against the rebuild.
+        // A development page's adopt factory is registered for the route refresh: the
+        // wrapper runs it inside fresh refresh slots and marks the adopted view, so an edit
+        // after hydration refreshes it like a built view (same state shape as csr's).
+        let (decl, register) = if self.hot_route {
+            self.uses.hot_hydrate = true;
+            let shape = format!("{:?}", csr::state_shape(lowered));
+            (
+                format!("function __afwHydrateAt({at_params})"),
+                format!("export const {at_name} = registerHotHydrate(import.meta.hot, __afwHydrateAt, {});\n", js_string(&shape)),
+            )
+        } else {
+            (format!("export function {at_name}({at_params})"), String::new())
+        };
         format!(
-            "export function {at_name}({at_params}) {{\n  const __disposers = [];\n  try {{\n{}    return {root};\n  }} catch (__e) {{\n    for (const __d of __disposers) __d();\n    throw __e;\n  }}\n}}\nexport function {name}({wrap_params}) {{\n  return {at_name}({wrap_args});\n}}\n",
+            "{decl} {{\n  const __disposers = [];\n  try {{\n{}    return {root};\n  }} catch (__e) {{\n    for (const __d of __disposers) __d();\n    throw __e;\n  }}\n}}\n{register}export function {name}({wrap_params}) {{\n  return {at_name}({wrap_args});\n}}\n",
             self.render("    ")
         )
     }
@@ -582,10 +634,19 @@ impl<'a> Emitter<'a> {
             self.templates.extend(tmpls);
             self.bind(format!("effect({code})"));
         }
+        let mut exposed = Vec::new();
         for obj in &lowered.exposes {
             let (code, tmpls) = csr::effect_code_pub(lowered, obj);
             self.templates.extend(tmpls);
-            self.line(format!("Object.assign(this, ({code}));"));
+            exposed.push(format!("({code})"));
+        }
+        if self.hot && !exposed.is_empty() {
+            // One call for every `$expose`, as csr's hot build does.
+            self.line(format!("hotExpose(this, Object.assign({{}}, {}));", exposed.join(", ")));
+        } else {
+            for code in exposed {
+                self.line(format!("Object.assign(this, {code});"));
+            }
         }
         if let Some(sink) = self.sink {
             for cb in &lowered.on_cleanups {
@@ -657,7 +718,13 @@ impl<'a> Emitter<'a> {
     fn emit_decl(&mut self, decl: &SignalDecl) {
         match decl.kind {
             SignalKind::State => {
-                self.line(format!("const {} = signal({});", decl.name, decl.init));
+                if self.hot {
+                    self.line(format!("const {} = hotState(this, {}, () => signal({}));", decl.name, js_string(&decl.name), decl.init));
+                } else if self.hot_route {
+                    self.line(format!("const {} = hotRouteState({}, () => signal({}));", decl.name, js_string(&decl.name), decl.init));
+                } else {
+                    self.line(format!("const {} = signal({});", decl.name, decl.init));
+                }
             }
             SignalKind::Ref => {
                 self.line(format!("const {} = signal(null);", decl.name));
@@ -672,6 +739,9 @@ impl<'a> Emitter<'a> {
                     format!("() => {}", decl.init)
                 };
                 self.line(format!("const {} = computed({});", decl.name, body));
+                if self.hot {
+                    self.line(format!("this._cleanups.push(() => {}.dispose());", decl.name));
+                }
             }
             SignalKind::Prop => {
                 self.errors.push(format!("hydrate: prop signal not supported yet: {}", decl.name));
@@ -2466,5 +2536,111 @@ mod tests {
         );
         assert!(m.code.contains("let __children = [];"), "code:\n{}", m.code);
         assert!(!m.code.contains("adoptedChildren()"), "code:\n{}", m.code);
+    }
+
+    // ── the development (hot) hydrate target ─────────────────────────────────────────
+
+    fn emit_hot(source: &str, path: &str, page: bool) -> HydrateModule {
+        let session = ParseSession::new();
+        let parsed = session.parse(Path::new(path), source);
+        assert!(parsed.is_clean(), "parse errors: {:?}", parsed.errors);
+        let m = lower_module(path, &parsed.program, source, page).expect("lowered");
+        emit_hot_module(&m.components, &m.module_stmts, &m.module_exprs)
+    }
+
+    #[test]
+    fn hot_component_adopts_with_state_in_the_refresh_slots() {
+        let m = emit_hot(
+            "export default function Counter({ start = 0 }){ let count = $state(start); \
+             const twice = $derived(count * 2); $expose({ reset: () => (count = 0) }); \
+             return <button onclick={() => count++}>{count} {twice}</button>; }",
+            "/app/Counter.tsx",
+            false,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // The dual switch: adopt on first paint, build otherwise, both hot.
+        assert!(m.code.contains("if (isHydrating() && this.firstChild) {"), "adopt switch:\n{}", m.code);
+        assert_eq!(
+            m.code.matches("const count = hotState(this, \"count\", () => signal(start.value));").count(),
+            2,
+            "state in the refresh slots on the build and adopt paths:\n{}",
+            m.code
+        );
+        assert_eq!(m.code.matches("this._cleanups.push(() => twice.dispose());").count(), 2, "{}", m.code);
+        assert_eq!(m.code.matches("hotExpose(this, Object.assign({}, ").count(), 2, "{}", m.code);
+        assert!(!m.code.contains("Object.assign(this,"), "no plain expose in a hot build:\n{}", m.code);
+        // Rich props from the hydration payload, and the refresh registration.
+        assert!(m.code.contains("const __h = hydrationProps(this);"), "{}", m.code);
+        assert!(m.code.contains("if (!this._hotRefreshing) this._hotState = new Map();"), "{}", m.code);
+        assert!(m.code.contains("registerHotModule(import.meta.hot, [[CounterElement, "), "{}", m.code);
+        assert!(m.code.contains("import { hotExpose, hotRouteState, hotState, registerHotModule, registerHotRoute } from \"@opentf/afw/hmr\";"), "{}", m.code);
+        assert!(m.code.contains("claimElement("), "adopt walk:\n{}", m.code);
+    }
+
+    #[test]
+    fn hot_component_with_a_slot_keeps_the_adopted_slot_for_refresh() {
+        let m = emit_hot(
+            "export default function Card({ children }){ let open = $state(false); \
+             return <div onclick={() => (open = !open)}><h2>{open ? \"open\" : \"closed\"}</h2>{children}</div>; }",
+            "/app/Card.tsx",
+            false,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // A refresh rebuilds from `_hotChildren`: after adoption, the nodes the walk found
+        // in the slot; on the build path, the capture (server slot first, as in production).
+        assert!(m.code.contains("if (Array.isArray(children)) this._hotChildren = children;"), "{}", m.code);
+        assert!(
+            m.code.contains("const children = this._hotChildren ??= (this._serverSlot ?? Array.from(this.childNodes));"),
+            "{}",
+            m.code
+        );
+    }
+
+    #[test]
+    fn hot_component_that_cannot_adopt_rebuilds_with_refresh() {
+        let m = emit_hot(
+            "export default function Panel({ framed, children }){ let n = $state(1); \
+             return framed ? <p>a <Box/> {children} {n}</p> : <div class=\"b\">{children}</div>; }",
+            "/app/Panel.tsx",
+            false,
+        );
+        assert!(m.errors.iter().any(|e| e.contains("inside <p>")), "non-adoptable:\n{:?}", m.errors);
+        assert!(m.code.contains("runBuild(() => {"), "the rebuild is bracketed:\n{}", m.code);
+        assert!(m.code.contains("const n = hotState(this, \"n\", () => signal(1));"), "{}", m.code);
+        assert!(!m.code.contains("if (isHydrating() && this.firstChild) {\n      try"), "no adopt branch:\n{}", m.code);
+        assert!(m.code.contains("registerHotModule(import.meta.hot, [[PanelElement, "), "{}", m.code);
+    }
+
+    #[test]
+    fn hot_page_registers_its_adopt_factory_for_the_route_refresh() {
+        let m = emit_hot(
+            "export default function Home(){ let count = $state(1); \
+             return <section><h1>Home</h1><button onclick={() => count++}>{count}</button></section>; }",
+            "/app/page.tsx",
+            true,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        // The build factory is csr's hot route; the adopt factory reads the same slots.
+        assert!(m.code.contains("export default registerHotRoute(import.meta.hot, __afwRoute, \"[\\\"count:State\\\"]\""), "{}", m.code);
+        assert_eq!(m.code.matches("const count = hotRouteState(\"count\", () => signal(1));").count(), 2, "{}", m.code);
+        assert!(m.code.contains("function __afwHydrateAt(__c"), "{}", m.code);
+        assert!(
+            m.code.contains("export const hydrateAt = registerHotHydrate(import.meta.hot, __afwHydrateAt, \"[\\\"count:State\\\"]\");"),
+            "same state shape as the route:\n{}",
+            m.code
+        );
+        assert!(m.code.contains("export function hydrate(__root) {\n  return hydrateAt(cursor(__root));"), "{}", m.code);
+        assert!(m.code.contains("import { registerHotHydrate } from \"@opentf/afw/hmr\";"), "{}", m.code);
+    }
+
+    #[test]
+    fn only_the_default_page_is_wrapped_and_release_builds_have_no_hot_wrapper() {
+        let src = "export function Aside(){ return <aside>a</aside>; } export default function P(){ return <main>p</main>; }";
+        let hot = emit_hot(src, "/app/page.tsx", true);
+        assert_eq!(hot.code.matches("registerHotHydrate(import.meta.hot").count(), 1, "{}", hot.code);
+        let release = emit(src);
+        assert!(!release.code.contains("registerHotHydrate"), "{}", release.code);
+        assert!(!release.code.contains("hotRouteState"), "{}", release.code);
+        assert!(release.code.contains("export function hydrateAt("), "{}", release.code);
     }
 }

@@ -334,6 +334,18 @@ pub(crate) enum ComponentView<'a> {
     /// the server DOM (gated on `isHydrating()`), leaving call-site children for the nav
     /// capture. A flash, but correct — a server-rendered host never double-renders.
     RebuildIfServerChildren,
+    /// Development hydrate target, adoptable: [`ComponentView::Adopt`] with the refresh
+    /// registration and state slots of [`ComponentView::Hot`]. The adopt body comes from the
+    /// hydrate backend's hot emitter, so adopted state lives in the same slots a refresh reads.
+    HotAdopt(&'a str),
+    /// Development hydrate target, not adoptable yet: [`ComponentView::RebuildIfServerChildren`]
+    /// with refresh support.
+    HotRebuild,
+}
+
+/// Whether a view emits development refresh output.
+pub(crate) fn is_hot_view(view: &ComponentView<'_>) -> bool {
+    matches!(view, ComponentView::Hot | ComponentView::HotAdopt(_) | ComponentView::HotRebuild)
 }
 
 /// Build a Custom Element class body (everything after the import header). Returns the
@@ -350,7 +362,7 @@ fn component_body_ex<'a>(
     let props = &lowered.props;
     // Hydrate-target components (anything but pure CSR `Build`) initialize prop signals
     // from the serialized rich-props payload; a CSR-only build reads attributes as before.
-    let hot = matches!(view, ComponentView::Hot);
+    let hot = is_hot_view(&view);
     let hydratable = !matches!(view, ComponentView::Build | ComponentView::Hot);
 
     let mut e = Emitter::new(lowered, Disposal::Sink("this._cleanups"));
@@ -518,7 +530,7 @@ fn component_body_ex<'a>(
             code.push_str(&format!("    this.appendChild({root});\n"));
             code.push_str(&mounts);
         }
-        ComponentView::RebuildIfServerChildren => {
+        ComponentView::RebuildIfServerChildren | ComponentView::HotRebuild => {
             if lowered.children_local.is_some() {
                 // Has a `{children}` slot but isn't adoptable yet (Phase 2.1). During
                 // first-paint hydration the server DOM is the *rendered* view, not the
@@ -548,7 +560,7 @@ fn component_body_ex<'a>(
             code.push_str(&mounts);
             code.push_str("    });\n");
         }
-        ComponentView::Adopt(adopt_body) => {
+        ComponentView::Adopt(adopt_body) | ComponentView::HotAdopt(adopt_body) => {
             // Adopt the server DOM during the first-paint hydration pass; build fresh on a
             // client navigation. `this.firstChild` can't discriminate on its own — a
             // client-`createElement`'d host handed call-site children also has one — so gate
@@ -576,6 +588,14 @@ fn component_body_ex<'a>(
             code.push_str("    if (isHydrating() && this.firstChild) {\n");
             code.push_str("      try {\n");
             code.push_str(adopt_body);
+            if hot {
+                // A refresh rebuilds this host from its `_hotChildren`: after adoption those are
+                // the slotted nodes the walk found (`skipSlot` filled the children local), not
+                // the rendered view `this.childNodes` holds.
+                if let Some(local) = &lowered.children_local {
+                    code.push_str(&format!("      if (Array.isArray({local})) this._hotChildren = {local};\n"));
+                }
+            }
             code.push_str(&mounts);
             code.push_str("      } catch (__e) {\n");
             code.push_str("        if (!(__e instanceof HydrationMismatch)) throw __e;\n");
@@ -794,7 +814,7 @@ pub(crate) fn props_object_alias(props_local: &str, lowered: &Lowered) -> Option
 }
 
 /// `name:Kind` for every signal declaration — the refresh compatibility shape.
-fn state_shape(c: &Lowered) -> Vec<String> {
+pub(crate) fn state_shape(c: &Lowered) -> Vec<String> {
     c.body.iter().filter_map(|item| match item {
         BodyItem::Signal(d) => Some(format!("{}:{:?}", d.name, d.kind)), _ => None,
     }).collect()
@@ -820,7 +840,7 @@ fn emit_module_inner(
         // surface alongside codegen errors so the CLI's warning channel sees them.
         errors.extend(c.errors.iter().cloned());
         if c.is_page {
-            let hot_route = views.get(i).is_some_and(|v| matches!(v, ComponentView::Hot)) && c.ir.id.export == "default";
+            let hot_route = views.get(i).is_some_and(is_hot_view) && c.ir.id.export == "default";
             let (mut e, mut body) = page_body(c, hot_route);
             if hot_route {
                 e.uses.hot = true;
@@ -928,7 +948,7 @@ fn emit_module_inner(
     // All registrations last: every component class (and any module-level builder) is now
     // declared, so defining a tag — which synchronously upgrades a matching SSR element
     // and runs its `connectedCallback` — can safely reach any sibling component by `.tag`.
-    if views.iter().any(|v| matches!(v, ComponentView::Hot)) && components.iter().any(|c| !c.is_page) {
+    if views.iter().any(is_hot_view) && components.iter().any(|c| !c.is_page) {
         let entries = components.iter().filter(|c| !c.is_page).map(|c| {
             // Changing constructor/observed attributes or state declarations is a reload.
             // Initializer expressions are intentionally excluded: existing state wins.
@@ -954,7 +974,7 @@ fn emit_module_inner(
             js_string(&exports)
         ));
     }
-    if views.iter().any(|v| matches!(v, ComponentView::Hot)) &&
+    if views.iter().any(is_hot_view) &&
         !components.iter().any(|c| c.is_page && c.ir.id.export == "default") {
         code.push_str("if (import.meta.hot?.data.afwRouteBoundary) import.meta.hot.invalidate();\n");
     }
@@ -1199,7 +1219,14 @@ impl<'a> Emitter<'a> {
     /// dropped everything the parent had slotted into the component.
     fn emit_children_capture(&mut self, from_server_slot: bool) {
         if let Some(local) = self.lowered.children_local.clone() {
-            if from_server_slot {
+            if from_server_slot && self.hot {
+                // A refresh re-runs this build with the capture already made (the server
+                // slot is gone by then), so it is kept in `_hotChildren` like a CSR hot build.
+                self.line(format!(
+                    "const {local} = this._hotChildren ??= (this._serverSlot ?? Array.from(this.childNodes));"
+                ));
+                self.line("this._serverSlot = null;".to_string());
+            } else if from_server_slot {
                 self.line(format!(
                     "const {local} = this._serverSlot ?? Array.from(this.childNodes);"
                 ));

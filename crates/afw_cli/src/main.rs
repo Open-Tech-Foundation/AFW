@@ -32,6 +32,7 @@ enum Target {
     CsrHot,
     Ssg,
     Hydrate,
+    HydrateHot,
 }
 
 fn main() -> ExitCode {
@@ -41,7 +42,10 @@ fn main() -> ExitCode {
             let rest = &args[2..];
             let as_component = rest.iter().any(|a| a == "--component");
             let from_stdin = rest.iter().any(|a| a == "--stdin");
-            let target = if rest.iter().any(|a| a == "--hot") {
+            let hot = rest.iter().any(|a| a == "--hot");
+            let target = if hot && rest.iter().any(|a| a == "--target=hydrate") {
+                Target::HydrateHot
+            } else if hot {
                 Target::CsrHot
             } else if rest.iter().any(|a| a == "--target=hydrate") {
                 Target::Hydrate
@@ -70,6 +74,7 @@ fn main() -> ExitCode {
             println!("  default emits a page factory; --component emits a Custom Element class");
             println!("  --stdin reads source from stdin; <file> is used only for the module id");
             println!("  --hot emits development CSR refresh metadata for esdev");
+            println!("  --hot --target=hydrate emits the hydrate target with development refresh");
             println!("  --sourcemap emits an inline map for JSX/TSX; Markdown maps to generated JSX");
             println!("       afwc serve [--sourcemap]   # long-lived compiler: framed requests on stdin, results on stdout");
             println!("       afwc docs <index|inspect|query> …   # static HTML search indexes");
@@ -263,6 +268,11 @@ fn compile_module(
                 hydrate::emit_module(&lowered.components, &lowered.module_stmts, &lowered.module_exprs);
             (m.code, m.errors)
         }
+        Target::HydrateHot => {
+            let m =
+                hydrate::emit_hot_module(&lowered.components, &lowered.module_stmts, &lowered.module_exprs);
+            (m.code, m.errors)
+        }
         Target::CsrHot => {
             let m = csr::emit_hot_module(&lowered.components, &lowered.module_stmts, &lowered.module_exprs);
             (m.code, m.errors)
@@ -409,6 +419,7 @@ fn serve(source_map: bool) -> ExitCode {
             "csr-hot" => Target::CsrHot,
             "ssg" => Target::Ssg,
             "hydrate" => Target::Hydrate,
+            "hydrate-hot" => Target::HydrateHot,
             _ => Target::Csr,
         };
         match compile_module(&id, source, as_component, target, source_map) {

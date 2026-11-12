@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- `hydrate-hot` target (`afwc serve`; `afwc build --hot --target=hydrate`): the hydrate
+  target with development refresh, for dev servers that render pages first.
+  - Components adopt server DOM on first paint and register for refresh; `$state` lives in
+    the refresh slots on both the adopt and build paths, so an edit after hydration keeps it.
+  - A component that cannot adopt rebuilds as before, with refresh.
+  - A default-export page's `hydrateAt` is wrapped by `registerHotHydrate`, so the route
+    refresh finds the adopted view.
+
 ## [0.25.0] - 2026-11-12
 
 ### Added
