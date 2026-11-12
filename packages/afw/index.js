@@ -3,6 +3,7 @@
 export * from "./core/signals.js";
 export * from "./core/reactive.js";
 export * from "./core/errors.js";
+export * from "./core/route.js";
 export * from "./runtime/index.js";
 // `Link` is shipped as JSX source and compiled by the consuming app's pipeline
 // (the `.jsx` lands in the module graph and afwc transforms it). Its compiled

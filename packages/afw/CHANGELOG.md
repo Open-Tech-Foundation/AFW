@@ -4,6 +4,9 @@
 
 ### Added
 
+- `defineRoute({ render, data, paths })`: the default export of a folder's `_config.js`,
+  which sets how the pages in that folder and below it render (`server`, `static` or
+  `client`). Typed, exported from both the browser and server entries.
 - `registerHotHydrate` in `@opentf/afw/hmr`, used by the compiler's `hydrate-hot` output: a
   page adopted in development is refreshed in place, with its state, when it is edited.
 - In development, the console warns (`[afw:hydrate] <path>: …`) when a server-rendered

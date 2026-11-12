@@ -7,6 +7,7 @@ export * from "./cookies.js";
 export * from "../core/signals.js";
 export * from "../core/reactive.js";
 export * from "../core/errors.js";
+export * from "../core/route.js";
 export * from "../core/context.js";
 export * from "../runtime/lifecycle.js";
 export { resource } from "../runtime/resource.js";
