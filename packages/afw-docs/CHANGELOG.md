@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-11-12
+
 ### Added
 
 - A sidebar group whose folder `_meta` lists `index` keeps its heading as a plain

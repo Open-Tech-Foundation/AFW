@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-12
+
 ### Added
 
 - `transition`, `in` and `out` expression props on HTML elements compile to

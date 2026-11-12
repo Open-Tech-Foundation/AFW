@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-12
+
 ### Added
 
 - `loading.{jsx,tsx}` and `error.{jsx,tsx}` route files are discovered alongside pages,

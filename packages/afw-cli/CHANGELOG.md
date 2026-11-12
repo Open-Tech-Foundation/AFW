@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.37.0] - 2026-11-12
+
 ### Added
 
 - The SSG loader bundle (`discoverLoaders`, `emitLoaderBundle`) includes

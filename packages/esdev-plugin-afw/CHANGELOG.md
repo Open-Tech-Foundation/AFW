@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-12
+
 ### Fixed
 
 - Under `esdev start`, server-rendered pages (`mode: "ssr"`) are no longer marked for
