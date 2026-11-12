@@ -65,6 +65,12 @@ pub fn use_tag_expr(name: &str, module_components: &[String], local_binding: &st
     }
 }
 
+/// The placeholder tag of a lazy component (`const Chart = () => import(...)` in
+/// `module_id`): unique per module and binding, the same in every build of the module.
+pub fn lazy_tag(name: &str, module_id: &str) -> String {
+    format!("afw-lazy-{}-{}", kebab(name), module_hash(&format!("{module_id}#{name}")))
+}
+
 /// A stable, readable CSS hook for a component host: `afw-<kebab>`, independent of
 /// the (possibly hashed) registry tag. The compiler stamps this as a class on every
 /// component host so authors can style hosts (`display`, layout) by a stable name —

@@ -24,7 +24,7 @@ use oxc::ast::ast::{
     ForOfStatement, ForStatementLeft, Function, FunctionBody, IdentifierReference,
     ImportDeclarationSpecifier, JSXAttribute,
     JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName,
-    JSXExpression, JSXFragment, JSXOpeningElement, ObjectProperty, Program, SimpleAssignmentTarget,
+    JSXExpression, JSXFragment, JSXOpeningElement, ObjectProperty, Program, SimpleAssignmentTarget, VariableDeclarationKind,
     StaticMemberExpression, Statement, TSType, TSTypeName, UnaryExpression, UpdateExpression,
     VariableDeclaration, VariableDeclarator,
 };
@@ -340,7 +340,13 @@ fn lower_module_inner<'a>(
 ) -> Option<LoweredModule> {
     let resolved = crate::semantic::resolve(program);
     let scoping = resolved.semantic.scoping();
-    let (imports, server_imports, runtime_imports) = collect_imports(program, source, source_map);
+    let (imports, server_imports, mut runtime_imports) = collect_imports(program, source, source_map);
+    // Lazy components (`const Chart = () => import("./Chart.jsx")`) are rewritten to
+    // `lazyComponent(...)`, so the module needs the runtime helper.
+    let lazies: Vec<_> = program.body.iter().filter_map(|stmt| lazy_statement(stmt, source, module)).collect();
+    if !lazies.is_empty() && !runtime_imports.iter().any(|n| n == "lazyComponent") {
+        runtime_imports.push("lazyComponent".to_string());
+    }
 
     // A module-scope lowerer (no component signals) templates JSX-as-value in
     // preserved top-level statements; its expr table travels with the module.
@@ -359,6 +365,8 @@ fn lower_module_inner<'a>(
             ) {
                 components.push(lowered);
             }
+        } else if let Some(lazy) = lazy_statement(stmt, source, module) {
+            module_stmts.push(BodyItem::Raw(lazy));
         } else if !matches!(stmt, Statement::ImportDeclaration(_)) {
             // Preserve helper data / module-level stores (templating any JSX values).
             module_stmts.push(module_lowerer.lower_stmt(stmt));
@@ -2740,6 +2748,58 @@ pub fn transition_prop_diagnostic(program: &Program) -> Option<(u32, String)> {
              See https://afw.opentechf.org/docs/core-concepts/transitions."
         ))
     })
+}
+
+/**
+ * A lazy component declaration, rewritten: `const Chart = () => import("./Chart.jsx")`
+ * (optionally `.then((m) => m.Name)`, optionally `export`ed) becomes
+ * `const Chart = lazyComponent(() => import("./Chart.jsx"), "<tag>")`. The `import()`
+ * stays as written, so the bundler still splits the chunk; the tag is derived from this
+ * module and the binding, so the client and server builds agree on it. Only that exact
+ * shape, with a capitalized name, is a lazy component; anything else is left alone.
+ */
+fn lazy_statement(stmt: &Statement, source: &str, module: &str) -> Option<String> {
+    let (decl, exported) = match stmt {
+        Statement::VariableDeclaration(vd) => (vd.as_ref(), false),
+        Statement::ExportNamedDeclaration(e) => match &e.declaration {
+            Some(Declaration::VariableDeclaration(vd)) => (vd.as_ref(), true),
+            _ => return None,
+        },
+        _ => return None,
+    };
+    if decl.kind != VariableDeclarationKind::Const || decl.declarations.len() != 1 {
+        return None;
+    }
+    let d = &decl.declarations[0];
+    let BindingPattern::BindingIdentifier(bi) = &d.id else { return None };
+    let name = bi.name.as_str();
+    if !name.starts_with(|c: char| c.is_ascii_uppercase()) {
+        return None;
+    }
+    let Some(Expression::ArrowFunctionExpression(arrow)) = &d.init else { return None };
+    if !arrow.params.items.is_empty() || arrow.params.rest.is_some() || !arrow.expression || arrow.r#async {
+        return None;
+    }
+    let Some(Statement::ExpressionStatement(body)) = arrow.body.statements.first() else { return None };
+    if !is_literal_import(&body.expression) && !is_import_then(&body.expression) {
+        return None;
+    }
+    let loader = &source[arrow.span.start as usize..arrow.span.end as usize];
+    let tag = crate::codegen::tags::lazy_tag(name, module);
+    Some(format!("{}const {name} = lazyComponent({loader}, \"{tag}\");", if exported { "export " } else { "" }))
+}
+
+/// `import("./literal")`, with no options argument.
+fn is_literal_import(expr: &Expression) -> bool {
+    matches!(expr, Expression::ImportExpression(ie)
+        if matches!(ie.source, Expression::StringLiteral(_)) && ie.options.is_none())
+}
+
+/// `import("./literal").then(<one callback>)`, picking a named export.
+fn is_import_then(expr: &Expression) -> bool {
+    let Expression::CallExpression(call) = expr else { return false };
+    let Expression::StaticMemberExpression(member) = &call.callee else { return false };
+    member.property.name == "then" && call.arguments.len() == 1 && is_literal_import(&member.object)
 }
 
 fn is_component_name(name: &str) -> bool {

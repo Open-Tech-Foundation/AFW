@@ -10,6 +10,10 @@
   attribute.
 - A string-valued transition prop on an HTML element (`transition="fade"`) fails with a
   located error that shows the expression form.
+- A module-level `const Name = () => import("./x.jsx")` (optionally `.then((m) => m.X)`,
+  optionally exported) is rewritten to `lazyComponent(<loader>, "afw-lazy-…")`. The
+  `import()` stays in place, so bundlers still split the chunk, and the tag is derived
+  from the module and binding, the same in every target. Other shapes are left alone.
 - `<Pending>` compiles to the `afw-internal-pending` built-in. The build and the
   hydration adoption of its children are bracketed by `enterPending`/`exitPending`, so
   a resource read there makes the boundary wait on it.
