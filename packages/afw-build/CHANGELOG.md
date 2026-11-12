@@ -26,6 +26,8 @@
   middleware chain.
 - `prerender({ routes })` prerenders only those route patterns (a server app's static
   routes), without a 404 page, sitemap or robots.txt.
+- `chooseTarget({ devRenders })`: a dev server that renders pages first (Vite, static
+  pages included) gets the hydrate target in its browser build for any non-SPA app.
 - `compilerTarget(target, hot)`: the backend token for a target, with `hot` selecting
   `csr-hot` or `hydrate-hot`. `compileModule` uses it, so `hot` now applies to the hydrate
   target too.

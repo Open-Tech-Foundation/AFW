@@ -15,6 +15,9 @@ describe("targets", () => {
     expect(chooseTarget({ mode: "ssr", test: true })).toBe("csr");
     expect(chooseTarget({ mode: "ssr", dev: true, test: true })).toBe("csr");
     expect(chooseTarget({ mode: "ssr", dev: true, target: "csr" })).toBe("csr");
+    // A dev server that renders static pages on request (Vite) adopts them too.
+    expect(chooseTarget({ mode: "ssg", dev: true, devRenders: true })).toBe("hydrate");
+    expect(chooseTarget({ mode: "spa", dev: true, devRenders: true })).toBe("csr");
     expect(chooseTarget({ mode: "spa" })).toBe("csr");
     expect(chooseTarget({ mode: "ssg" })).toBe("hydrate");
     expect(chooseTarget({ mode: "spa", target: "hydrate", server: true })).toBe("hydrate");

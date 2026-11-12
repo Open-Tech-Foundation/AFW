@@ -21,16 +21,16 @@ export function validateOptions({ mode = "spa", target } = {}) {
 /**
  * The compiler target for one module. `server` — the module is bundled for the
  * server (string renderers). `test` — a test run, which renders on the client.
- * `dev` — a dev server's browser build: the hydrating dual module for `ssr`, whose
- * dev server renders pages first as production does; CSR otherwise. Otherwise a
- * release browser build: CSR for an SPA, the hydrating dual module when the server
- * renders first.
+ * `dev` — a dev server's browser build: the hydrating dual module when the dev server
+ * renders pages first, as production does (`devRenders`, by default only for `ssr`);
+ * CSR otherwise. Otherwise a release browser build: CSR for an SPA, the hydrating dual
+ * module when the server renders first.
  */
-export function chooseTarget({ mode = "spa", target, server = false, dev = false, test = false } = {}) {
+export function chooseTarget({ mode = "spa", target, server = false, dev = false, test = false, devRenders = mode === "ssr" } = {}) {
   if (target) return target;
   if (server) return "ssg";
   if (test) return "csr";
-  if (dev) return mode === "ssr" ? "hydrate" : "csr";
+  if (dev) return devRenders && mode !== "spa" ? "hydrate" : "csr";
   return mode === "spa" ? "csr" : "hydrate";
 }
 
