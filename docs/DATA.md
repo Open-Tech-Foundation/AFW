@@ -152,6 +152,20 @@ paint, keeping hydration adoption aligned.
 * **Server.** The SSG renderer emits `<template shadowrootmode="open">` showing the fallback slot. A server-rendered boundary changes nothing until `exitPending` reports its children adopted.
 * **Lifetime.** A component's resource pushes its effect disposers onto the host's `_cleanups`, so it stops (and unregisters) when the component is torn down.
 
+### Layout loaders
+
+* **Files.** `layout.loader.{js,ts}` beside a `layout.*`, keyed by the layout's folder (`loaderRouteFromPath`). `serverConflicts` / `detectLoaderConflicts` reject one without a sibling layout.
+* **Matching.** `createLoaderRegistry(modules, { pageRoutes })` matches every page route that has its own loader or sits beneath a layout loader (`loaderPageRoutes`; afw-build keeps a copy for the client's `loaderRoutes`). A match carries `layouts` (outermost first) and the page's `fn` (or null).
+* **Running.** `load` runs the chain in parallel and merges with `Object.assign({}, ...layouts, page)`; a lone result passes through unchanged, a chain must return objects.
+* **Failures.** A layout loader's error is tagged `afwLayoutRoute` (its folder). The data endpoint's 500 body carries `layout`; `fetchRouteData` and `routeErrorFrom` copy it back onto the client error.
+* **Both toolchains.** `serverModule` (afw-build) passes `pageRoutes` for Vite, esdev request servers and the Vite prerender; `emitLoaderBundle` (afw-cli) does the same for the esdev SSG driver.
+
+### Layout errors
+
+* **Site.** `routeErrorSite(route, brokenLayout)`: a page's errors use `nearestRouteFile(errors, route)`; a broken layout's use the nearest `error.jsx` above the layout's folder (none for the root). The view renders inside the layouts strictly above the broken one.
+* **Client.** `buildRouteNode` preloads the error views a build could need and catches a throwing layout; layout nodes carry `__afwLayoutRoute`, so `showRouteError` can place an unhandled error raised inside a layout. `hydrateRouteNode` adopts a server error page at the same site.
+* **Server.** `renderRoute(..., { error })` with `afwLayoutRoute` renders the error view inside the layouts above, and the `__afwRouteError` marker carries `layout`.
+
 ### Route `loading.jsx` / `error.jsx`
 
 * **Registration.** `registerRoutes` files them in `routes.loading` / `routes.errors` by folder; `nearestRouteFile` walks from the route's folder to the root.

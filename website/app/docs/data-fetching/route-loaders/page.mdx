@@ -39,6 +39,48 @@ export default function Todos() {
 }
 ```
 
+## Layout loaders
+
+A `layout.loader.js` next to a `layout.jsx` loads data for every page beneath that layout.
+
+```text
+app/dashboard/
+├─ layout.jsx
+├─ layout.loader.js   # data for the dashboard shell and every page in it
+├─ page.jsx
+├─ loader.js          # data for this page only
+└─ settings/page.jsx  # no loader of its own: still gets the layout's data
+```
+
+```js
+// app/dashboard/layout.loader.js
+export default async function loader({ locals }) {
+  return { user: await db.users.get(locals.userId) };
+}
+```
+
+```jsx
+// app/dashboard/layout.jsx
+import { router } from "@opentf/afw";
+
+export default function DashboardLayout({ children }) {
+  return (
+    <div class="shell">
+      <aside>{router.data?.user.name}</aside>
+      <main>{children}</main>
+    </div>
+  );
+}
+```
+
+- **One `router.data`.** A page's loaders merge into one object: each layout loader from the root down, then the page's own on top. A page can read `router.data.user` too.
+- **In parallel.** All of a page's loaders run at once, and the browser makes one `__data.json` request for them.
+- **Objects to merge.** When more than one loader feeds a page, each must return an object. A page with a single loader can return any JSON value.
+- **Same context.** A layout loader gets `params` (all of the page's), `query`, `request`, `locals` and `locale`. It can call `notFound()`, throw a `Response`, or call a server function directly.
+- **Every navigation.** Layout loaders run again on each navigation to a page beneath them.
+- **Needs its layout.** A `layout.loader.*` without a `layout.*` in its folder is a build error.
+- **A failed layout loader** shows the [`error.jsx` above that layout](/docs/routing/loading-and-errors#layout-errors).
+
 ## The loader context
 
 | Field | What it is |
@@ -82,7 +124,6 @@ mountApp({ pages, guard, loaders: loaderRoutes, target: document.getElementById(
 
 ## Current limits
 
-- Loaders are **page-level** (no layout loaders yet).
 - A query-dependent loader needs a request server — static `__data.json` files are
   rendered with an empty query.
 - Streaming is future work (see the

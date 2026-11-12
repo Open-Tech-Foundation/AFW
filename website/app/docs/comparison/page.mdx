@@ -84,7 +84,7 @@ The everyday features AFW is still missing, and the plan for each, are on the
 
 | | AFW | Next.js | TanStack Start | React Router | Nuxt | SvelteKit | Astro | SolidStart |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Route data loaders | 🟡 ⁷ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Route data loaders | ✅ ⁷ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mutations / server functions | 🟡 ¹¹ | ✅ | ✅ | ✅ | 🟡 | 🟡 ⁸ | ✅ | ✅ |
 | API routes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Cookie helpers | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -92,8 +92,8 @@ The everyday features AFW is still missing, and the plan for each, are on the
 | Deploy as a standard Fetch handler | ✅ | 🟡 | ✅ | ✅ | ✅ | 🟡 | 🟡 | ✅ |
 | Capability-secured server runtime | ✅ ¹⁰ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-7. Page loaders only; no layout loaders yet. A loader can redirect or refuse by throwing
-   a `Response`.
+7. Page and [layout loaders](/docs/data-fetching/route-loaders#layout-loaders) (layout
+   loaders in the next release). A loader can redirect or refuse by throwing a `Response`.
 8. SvelteKit has stable form actions; its remote functions are still experimental.
 9. In the Vite + Node workflow, API routes, middleware and loaders run on Node in
    development and production, native addons such as `sharp` included.
@@ -160,10 +160,8 @@ AFW is alpha. Compared with the frameworks above it does not yet have:
   updates, which Next.js, React Router, SvelteKit and SolidStart provide.
 - **Streaming server rendering** — pages render to one complete HTML string, and
   loaders finish before rendering starts.
-- **Richer loaders** — layout loaders.
-- **Routing conventions** — route groups, optional segments, per-route error and
-  loading files, and fully type-checked routes in the style of TanStack Router.
-- **Navigation polish** — view transitions.
+- **Routing conventions** — route groups, optional segments, and fully type-checked
+  routes in the style of TanStack Router.
 - **Image optimization**, and **cached or incremental regeneration**.
 - **Ecosystem and maturity** — none of the others is new, and React, Vue and Svelte
   each come with a large library ecosystem AFW cannot match yet. APIs can change

@@ -30,7 +30,7 @@ app/
 
 - **The nearest one wins.** The router looks in the page's folder, then each parent up to `app/`.
 - **Inside the layouts.** Both replace only the page, so the layouts around it (navbar, sidebar) stay on screen and keep working.
-- **Layouts are not covered.** An error thrown by a layout (or a component in it) is reported, not caught; wrap that part in an `<ErrorBoundary>`.
+- **Layouts use the one above.** A broken layout shows the `error.jsx` above it: see [Layout errors](#layout-errors).
 - **Not pages.** `loading.jsx` and `error.jsx` never become routes of their own.
 - **JSX or TSX only.** A `loading.mdx` or `error.md` is a build error.
 
@@ -90,6 +90,31 @@ It replaces the page when:
 - **Redirects and refusals** (a thrown `Response`) are unchanged: see [Loader Errors & Redirects](/docs/data-fetching/loader-errors).
 - **Production messages.** A server-rendered error page shows "Something went wrong" in production, so a loader's internals never reach the browser. Development shows the real message.
 - **Static generation.** A loader that throws at build time is reported and that page is skipped, as before. An error page is never baked into a static file.
+
+## Layout errors
+
+A layout can't show its own error inside itself, because it is the part that broke. Its
+errors go to the nearest `error.jsx` **above** the layout, shown inside the layouts above it.
+
+```text
+app/
+├─ layout.jsx          # root shell: stays, with its navbar
+├─ error.jsx           # shows when the dashboard layout breaks
+└─ dashboard/
+   ├─ layout.jsx       # throws, or its layout.loader.js fails
+   ├─ error.jsx        # only for the dashboard's pages
+   └─ page.jsx
+```
+
+| Failure | What shows |
+| --- | --- |
+| `dashboard/layout.jsx` throws while it builds | `app/error.jsx`, inside the root layout |
+| A component in the dashboard layout throws, with no `<ErrorBoundary>` around it | `app/error.jsx`, inside the root layout |
+| `dashboard/layout.loader.js` fails | `app/error.jsx`, inside the root layout; HTTP 500 on a server render |
+| A dashboard page fails | `dashboard/error.jsx`, inside the dashboard layout |
+
+- **Retry** reruns the loaders and rebuilds from the broken layout down.
+- **The root layout** has nothing above it: its errors are reported, not caught. Keep it simple, or wrap risky parts of it in an `<ErrorBoundary>`.
 
 ## Dashboards: sections inside the page
 

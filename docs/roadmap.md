@@ -67,7 +67,9 @@ Features React, Vue, Svelte and Solid developers expect, built in or from their 
 * [ ] `resource.data` typed as present inside `<Pending>`.
 * [ ] Component-level `lazy()` outside routes.
 * [x] Per-route `loading.jsx` / `error.jsx` (nearest file; navigation delay; loader, page and unhandled errors; SSR status 500) and `<Pending error>` for sections.
-* [ ] Layout errors caught by `error.jsx`; layout loaders, route groups, optional segments.
+* [x] Layout errors: a broken layout shows the `error.jsx` above it (build, unhandled component errors, failed layout loader; SSR status 500).
+* [x] Layout loaders: `layout.loader.{js,ts}`, merged into `router.data` (layouts first, page on top), run in parallel, one `__data.json`.
+* [ ] Layout loaders that rerun only when their params change; root-layout errors; route groups, optional segments.
 * [ ] Typed routes (`<Link href>`, `navigate()`, `params`) and schema-validated search params.
 * [x] Scroll restoration saved per history entry, applied after async page data loads (retries while the page grows).
 * [x] View transitions on client navigation (`mountApp({ viewTransitions: true })`).
