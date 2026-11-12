@@ -3,14 +3,15 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@monaco-editor/loader": "^1.4.0",
     "@opentf/afw": "workspace:*",
     "@opentf/afw-form": "workspace:*",
     "monaco-editor": "^0.52.2",
-    "@monaco-editor/loader": "^1.4.0",
+    "quill": "2.0.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@opentf/esdev-plugin-afw": "workspace:*",
-    "@opentf/afw-cli": "workspace:*"
+    "@opentf/afw-cli": "workspace:*",
+    "@opentf/esdev-plugin-afw": "workspace:*"
   }
 }

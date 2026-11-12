@@ -4,3 +4,11 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
 }
+/* Lazy demo: the saved note's rich text (Tailwind's preflight resets these). */
+.saved-note h1 { font-size: 1.5rem; font-weight: 700; }
+.saved-note h2 { font-size: 1.25rem; font-weight: 600; }
+.saved-note ol { list-style: decimal; padding-left: 1.5rem; }
+.saved-note ul { list-style: disc; padding-left: 1.5rem; }
+.saved-note blockquote { border-left: 3px solid #6366f1; padding-left: 0.75rem; color: #cbd5e1; }
+.saved-note a { color: #a5b4fc; text-decoration: underline; }
+.saved-note pre { background: #0f172a; padding: 0.75rem; border-radius: 0.5rem; }
