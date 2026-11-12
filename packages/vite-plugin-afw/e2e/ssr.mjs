@@ -133,6 +133,18 @@ export default function EnvPage() {
   return <div><EnvGreeting /><p id="env-secret">[{import.meta.env.SECRET_TOKEN ?? "none"}]</p></div>;
 }
 `);
+  // Per-route policies on top of mode "ssr": a static page and a client section whose page
+  // reads `window` as it loads (so the server must never import it).
+  await page("about/_config.js", 'export default { render: "static" };\n');
+  await page("dashboard/_config.js", 'export default { render: "client" };\n');
+  await page("dashboard/loader.js", "export default function loader() { return { visits: 42 }; }\n");
+  await page("dashboard/page.jsx", `import { router } from "@opentf/afw";
+const width = window.innerWidth;
+export default function Dashboard() {
+  let clicks = $state(0);
+  return <section id="dashboard" data-wide={width > 0 ? "yes" : "no"} onclick={() => clicks++}>visits {router.data?.visits} clicks {clicks}</section>;
+}
+`);
   await writeFile(join(dir, "vite.config.js"), 'import afw from "@opentf/vite-plugin-afw";\nexport default { plugins: [afw({ mode: "ssr" })] };\n');
   await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw({ mode: "ssr" })] })).buildApp();
   server = spawn(process.execPath, ["dist/server/index.js"], { cwd: dir, env: { ...process.env, PORT: "0", HOST: "127.0.0.1" } });
@@ -277,6 +289,26 @@ export default function EnvPage() {
   check(await until("document.getElementById('env-greeting').textContent === 'hello-from-env 1'"), "the hydrated component keeps the PUBLIC_ value");
   const clientJs = await Promise.all((await readdir(join(dir, "dist", "client", "assets"))).filter((f) => f.endsWith(".js")).map((f) => readFile(join(dir, "dist", "client", "assets", f), "utf8")));
   check(clientJs.some((js) => js.includes("hello-from-env")) && !clientJs.some((js) => js.includes("do-not-ship-me")), "the client bundle carries PUBLIC_* and no other variable");
+
+  // Per-route policies in the browser.
+  const dashHtml = await (await fetch(`${origin}/dashboard`, { headers: { accept: "text/html" } })).text();
+  check(dashHtml.includes("<main><!--[--><!--]--></main>") && !dashHtml.includes("clicks") && dashHtml.includes('{"visits":42}'), "a client route's HTML has the layout, an empty region and its loader data");
+  await send("Page.navigate", { url: `${origin}/dashboard` });
+  check(await until("document.readyState === 'complete' && document.getElementById('dashboard')?.textContent === 'visits 42 clicks 0'"), "the client page renders in the browser with its loader data");
+  await delay(300);
+  check((await evaluate("JSON.stringify(window.__removed)")) === "[]", "the layout around the client page is adopted, not rebuilt");
+  check((await evaluate("document.getElementById('dashboard').dataset.wide")) === "yes", "the page's browser-only code ran in the browser");
+  await evaluate("document.getElementById('dashboard').click()");
+  check(await until("document.getElementById('dashboard').textContent === 'visits 42 clicks 1'"), "the client page is interactive");
+  await evaluate(`document.querySelector('a[href="/about"]').click()`);
+  check(await until("document.querySelector('main h1')?.textContent === 'About'"), "client navigation from a client route to a static one");
+  await send("Page.navigate", { url: `${origin}/about` });
+  check((await fetch(`${origin}/about`, { headers: { accept: "text/html" } })).headers.get("x-afw-render") === "static", "the static page is served as a prebuilt file");
+  check(await until("document.readyState === 'complete' && document.querySelector('main h1')?.textContent === 'About'"), "the prebuilt static page loads");
+  await delay(300);
+  check((await evaluate("JSON.stringify(window.__removed)")) === "[]", "the prebuilt static page is adopted");
+  await evaluate(`document.querySelector('a[href="/"]').click()`);
+  check(await until("!!document.getElementById('counter')"), "client navigation from a static route to a server one");
 
   check(errors.length === 0, `no browser errors or warnings: ${JSON.stringify(errors)}`);
 } catch (error) {

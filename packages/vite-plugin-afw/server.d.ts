@@ -19,3 +19,6 @@ export function startServer(options: {
   port?: number;
   host?: string;
 }): Promise<Server>;
+
+/** A `readStatic` for `createPageRenderer`: the prerendered HTML of a static route under `clientDir`, or null. */
+export function prerenderedPages(clientDir: string | URL): (pathname: string) => Promise<string | null>;

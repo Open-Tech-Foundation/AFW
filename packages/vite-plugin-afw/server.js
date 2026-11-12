@@ -75,6 +75,26 @@ export function staticFiles(clientDir, { html = true } = {}) {
   };
 }
 
+/**
+ * A `readStatic` for `createPageRenderer`: the HTML the build prerendered for a static
+ * route (`<clientDir>/<path>/index.html`), or null. The renderer serves it inside the
+ * middleware chain, so a folder's `_middleware` still guards its static pages.
+ */
+export function prerenderedPages(clientDir) {
+  const root = clientRoot(clientDir);
+  return async (pathname) => {
+    let path;
+    try {
+      path = decodeURIComponent(pathname);
+    } catch {
+      return null;
+    }
+    const file = normalize(join(root, path, "index.html"));
+    if (!file.startsWith(root.endsWith(sep) ? root : root + sep)) return null;
+    return readFile(file, "utf8").catch(() => null);
+  };
+}
+
 const wantsHtml = (request) =>
   ["GET", "HEAD"].includes(request.method.toUpperCase()) && (request.headers.get("accept") ?? "").includes("text/html");
 
@@ -124,7 +144,7 @@ export async function startServer({
     const shell = stampHydrateSentinel(await readFile(join(clientRoot(clientDir), "index.html"), "utf8"));
     handler = createHandler({
       files: staticFiles(clientDir, { html: false }),
-      renderPage: app.createPageRenderer({ shell, baseUrl }),
+      renderPage: app.createPageRenderer({ shell, baseUrl, readStatic: prerenderedPages(clientDir) }),
       fallback: notFound,
     });
   } else if (mode === "ssg") {

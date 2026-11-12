@@ -20,10 +20,11 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
-  FRAMEWORK_IMPORT, ROUTES_ID, SERVER_ID, SERVER_MODULE_FILE, SOURCE_FILTER, discoverServerModules, serverExports,
+  CONFIG_FILE, FRAMEWORK_IMPORT, ROUTES_ID, SERVER_ID, SERVER_MODULE_FILE, SOURCE_FILTER, discoverServerModules, serverExports,
   serverFunctionStub,
-  chooseTarget, compileModule, discoverServerFiles, hasServerFiles, resolveAppRoot, resolveCompiler,
-  prerender, routesModule, serverModule, stampHydrateSentinel, startCompilerServer, usesServerEntry,
+  chooseTarget, clientRouteFiles, compileModule, discoverPages, discoverRouteConfigs, discoverServerFiles, formatRouteTable,
+  hasServerFiles, readRouteConfigs, resolveAppRoot, resolveCompiler, resolveRoutePolicies, routeManifest, routeRenders,
+  prerender, routesModule, serverModule, stampHydrateSentinel, startCompilerServer, staticPathConfigs, usesServerEntry,
   validateOptions,
 } from "@opentf/afw-build";
 import { sendWebResponse, toWebRequest } from "@opentf/afw/server/adapters/node";
@@ -35,7 +36,7 @@ const VIRTUAL_PREFIX = `\0${ROUTES_ID}:`;
 const SERVER_PREFIX = `\0${SERVER_ID}:`;
 // The built server's entry: starts the Node server around `@afw/server`.
 const NODE_SERVER_ID = "@afw/node-server";
-const ROUTE_FILE = /(?:^|\/)(?:(?:page|layout|404|loading|error)\.(?:mdx|md|jsx|tsx)|loader\.(?:js|ts)|routeGuard\.(?:js|ts))$/;
+const ROUTE_FILE = /(?:^|\/)(?:(?:page|layout|404|loading|error)\.(?:mdx|md|jsx|tsx)|loader\.(?:js|ts)|routeGuard\.(?:js|ts)|_config\.(?:js|ts))$/;
 const SERVER_FILE = /(?:^|\/)(?:route\.(?:jsx?|tsx?)|_middleware\.(?:jsx?|tsx?)|loader\.(?:js|ts)|page\.(?:mdx|md|jsx|tsx)|[^/]+\.server\.(?:[cm]?js|[cm]?ts))$/;
 // The dev server's fallback: nothing on the app's server answered, so Vite serves it.
 const PASS_HEADER = "x-afw-vite-pass";
@@ -101,7 +102,9 @@ const slash = (p) => p.replaceAll("\\", "/");
  * @param {{ mode?: "spa" | "ssg" | "ssr", appDir?: string, exclude?: string[],
  *           routes?: boolean, server?: boolean | "auto", target?: "csr" | "ssg" | "hydrate",
  *           i18n?: { locales: string[], defaultLocale?: string } }} [options]
- *   `mode` — how pages render in release builds (as in the esdev plugin).
+ *   `mode` — shorthand for the app's default render policy (`spa` → client, `ssg` →
+ *   static, `ssr` → server) when there is no root `app/_config.js`; each folder's
+ *   `_config.js` sets its own (as in the esdev plugin).
  *   `appDir` — the routes folder; a leaf name anchors beside the importing entry.
  *   `exclude` — folders under `appDir` that hold no routes. `routes: false` drops the
  *   `@afw/routes` module. `server` — build `dist/server` (default `"auto"`: when the
@@ -110,10 +113,10 @@ const slash = (p) => p.replaceAll("\\", "/");
  *   `baseUrl` — the site's absolute URL, for canonical links and `sitemap.xml`.
  */
 export default function afw({
-  mode = "spa", appDir = "app", exclude = [], routes = true, server: serverBuild = "auto", target, i18n = null,
+  mode: explicitMode, appDir = "app", exclude = [], routes = true, server: serverBuild = "auto", target, i18n = null,
   baseUrl = "",
 } = {}) {
-  validateOptions({ mode, target });
+  validateOptions({ mode: explicitMode, target });
   if (![true, false, "auto"].includes(serverBuild)) throw new Error(`AFW server option must be true, false or "auto"`);
 
   let command = "serve";
@@ -159,16 +162,41 @@ export default function afw({
   }
 
   const isServer = (ctx, options) => !testing && (ctx.environment?.config?.consumer === "server" || !!options?.ssr);
-  // Release server bundles render pages unless the app is an SPA. The dev server
-  // renders them for `ssr`, as production does (the client adopts them); for `spa` and
-  // `ssg` it renders on the client, so its `@afw/server` carries server routes only.
-  const serverPages = () => mode !== "spa" && (command === "build" || mode === "ssr");
+
+  // The app's shape, from each route's resolved render policy (the nearest `_config.js`,
+  // then the root one or `mode`): `mode` is `ssr` when any route renders per request,
+  // else `ssg` when any is static, else `spa`. Cached; the dev server drops it when a
+  // route or config file comes or goes, or a config changes.
+  let shapePromise = null;
+  const shape = () => (shapePromise ??= computeShape().catch((e) => { shapePromise = null; throw e; }));
+  async function computeShape() {
+    const root = await serverRoot();
+    if (testing) return { root, mode: explicitMode ?? "spa", clientFiles: new Set(), renders: {}, staticPaths: [], staticRoutes: new Set(), resolved: null };
+    const files = await discoverPages(nodeHost, root, { exclude, drafts: command === "serve" });
+    const configs = await readRouteConfigs(nodeHost, await compiler(), await discoverRouteConfigs(nodeHost, root, { exclude }));
+    const resolved = resolveRoutePolicies({ root, pages: files, configs, mode: explicitMode });
+    const strategies = new Set(resolved.routes.map((r) => r.render));
+    if (strategies.size === 0) strategies.add(resolved.defaultRender);
+    const renders = routeRenders(resolved);
+    return {
+      root, resolved, files,
+      mode: strategies.has("server") ? "ssr" : strategies.has("static") ? "ssg" : "spa",
+      clientFiles: clientRouteFiles(resolved, root, files),
+      renders,
+      staticPaths: staticPathConfigs(resolved, configs),
+      staticRoutes: new Set(Object.keys(renders).filter((route) => renders[route] === "static")),
+    };
+  }
+  // Release server bundles render pages unless the app is an SPA; so does the dev
+  // server, as production does (the client adopts them). An SPA's `@afw/server` carries
+  // server routes only.
+  const serverPages = async () => (await shape()).mode !== "spa";
 
   // Static generation: render every route of the built server bundle into the client.
   // Other plugins take part through their `api`: `afwPrerenderData()` supplies the site
   // URL and per-page last-updated times, `afwFinish()` post-processes the output
   // (`@opentf/afw-docs/vite`: search index, feeds, llms.txt).
-  async function prerenderSite({ clientOut, serverOut, plugins }) {
+  async function prerenderSite({ clientOut, serverOut, plugins, routes: only = null }) {
     const helpers = plugins.map((p) => p.api).filter(Boolean);
     const data = await Promise.all(helpers.filter((a) => a.afwPrerenderData).map((a) => a.afwPrerenderData()));
     const siteUrl = baseUrl || data.find((d) => d?.baseUrl)?.baseUrl || "";
@@ -177,10 +205,13 @@ export default function afw({
     const shellHtml = stampHydrateSentinel(await readFile(join(clientOut, "index.html"), "utf8"));
     const result = await prerender(nodeHost, {
       render: app.render, shellHtml, outDir: slash(clientOut), publicDir: nodeHost.path.join(projectRoot, "public"),
-      baseUrl: siteUrl, lastUpdated, i18n, loaders: app.loaders,
+      baseUrl: siteUrl, lastUpdated, i18n, loaders: app.loaders, routes: only,
     });
     if (result.failed.length) throw new Error(`AFW prerender failed for ${result.failed.join(", ")}`);
-    console.log(`AFW prerendered ${result.count} page(s)${result.skipped.length ? `; skipped ${result.skipped.join(", ")} (no getStaticPaths)` : ""}`);
+    console.log(`AFW prerendered ${result.count} page(s)${result.skipped.length ? `; skipped ${result.skipped.join(", ")} (no paths; rendered on request)` : ""}`);
+    // A server app's static routes are part of a site its server answers; the site-wide
+    // finishing steps (search index, feeds) belong to a fully static build.
+    if (only) return;
     for (const api of helpers) {
       if (api.afwFinish) await api.afwFinish({ outDir: slash(clientOut), siteDescription: result.siteDescription, baseUrl: siteUrl, afwc: await compilerBinary() });
     }
@@ -226,7 +257,12 @@ export default function afw({
       }
       if (env.command !== "build") return config;
       projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());
-      // Whether to ship a Node server: always for server-rendered pages; otherwise
+      command = "build";
+      const app = await shape();
+      for (const warning of app.resolved.warnings) console.warn(`⚠ ${warning}`);
+      if (app.resolved.routes.length) console.log(`AFW routes\n${formatRouteTable(app.resolved.routes, app.root)}\n`);
+      const mode = app.mode;
+      // Whether to ship a Node server: always when a route renders per request; otherwise
       // when asked, or ("auto") when the app has API routes, middleware or loaders.
       const appRoot = await serverRoot();
       const ship = mode === "ssr" || serverBuild === true ||
@@ -253,6 +289,8 @@ export default function afw({
             await builder.build(builder.environments.client);
             await builder.build(builder.environments.ssr);
             if (mode === "ssg") await prerenderSite({ clientOut, serverOut, plugins: builder.config.plugins });
+            // A server app builds its static routes now and serves them as files.
+            else if (app.staticRoutes.size) await prerenderSite({ clientOut, serverOut, plugins: builder.config.plugins, routes: app.staticRoutes });
             if (!ship) await rm(serverOut, { recursive: true, force: true });
           },
         },
@@ -273,23 +311,53 @@ export default function afw({
         for (const env of Object.values(devServer.environments ?? { client: devServer })) {
           const graph = env.moduleGraph;
           for (const root of roots) {
-            const mod = graph?.getModuleById?.(prefix + root);
-            if (mod) graph.invalidateModule(mod);
+            // `@afw/server` carries `?pages` when it registers the app's pages.
+            for (const id of [prefix + root, `${prefix + root}?pages`]) {
+              const mod = graph?.getModuleById?.(id);
+              if (mod) graph.invalidateModule(mod);
+            }
           }
         }
+      };
+      // A route or config file that comes or goes, or an edited config, changes the
+      // route policies: rebuild both route tables. If the app's shape changes (an SPA
+      // gains a server route, say), every module's compile target changes: restart.
+      const policiesChanged = () => {
+        const previous = shapePromise;
+        shapePromise = null;
+        void serverRoot().then((root) => invalidate(SERVER_PREFIX, [root]));
+        invalidate(VIRTUAL_PREFIX, appRoots);
+        devServer.ws.send({ type: "full-reload" });
+        void (async () => {
+          const before = previous ? (await previous.catch(() => null))?.mode : null;
+          const after = await shape().then((app) => app.mode, (error) => {
+            devServer.config.logger.error(String(error?.message ?? error));
+            return null;
+          });
+          if (before && after && after !== before) await devServer.restart();
+        })();
       };
       const refresh = (file) => {
         const path = slash(file);
         if (SERVER_FILE.test(path)) void serverRoot().then((root) => invalidate(SERVER_PREFIX, [root]));
-        if (!ROUTE_FILE.test(path) || ![...appRoots].some((root) => path.startsWith(`${root}/`))) return;
-        invalidate(VIRTUAL_PREFIX, appRoots);
-        devServer.ws.send({ type: "full-reload" });
+        if (!ROUTE_FILE.test(path)) return;
+        if ([...appRoots].some((root) => path.startsWith(`${root}/`))) return policiesChanged();
+        // A route file the browser's table has not loaded yet still changes the policies.
+        void serverRoot().then((root) => {
+          if (path.startsWith(`${root}/`)) policiesChanged();
+        });
       };
       devServer.watcher.on("add", refresh);
       devServer.watcher.on("unlink", refresh);
-      // An edited .server module may add or remove server functions: rebuild the table.
       devServer.watcher.on("change", (file) => {
-        if (SERVER_MODULE_FILE.test(slash(file))) void serverRoot().then((root) => invalidate(SERVER_PREFIX, [root]));
+        const path = slash(file);
+        // An edited .server module may add or remove server functions: rebuild the table.
+        if (SERVER_MODULE_FILE.test(path)) void serverRoot().then((root) => invalidate(SERVER_PREFIX, [root]));
+        if (CONFIG_FILE.test(path.split("/").pop())) {
+          void serverRoot().then((root) => {
+            if ([root, ...appRoots].some((r) => path.startsWith(`${r}/`))) policiesChanged();
+          });
+        }
       });
 
       // Server routes run on Node inside the dev server. Installed after Vite's own
@@ -304,7 +372,7 @@ export default function afw({
             const app = await devServer.ssrLoadModule(SERVER_ID);
             // `ssr`: page navigations render on the server into the transformed shell, which
             // the client then adopts. Other requests Vite did not serve are not pages.
-            const renderPage = serverPages() && (req.headers.accept ?? "").includes("text/html")
+            const renderPage = (await serverPages()) && (req.headers.accept ?? "").includes("text/html")
               ? app.createPageRenderer({ shell: await devShell(devServer, req.url), baseUrl })
               : undefined;
             const response = await app.createHandler({ renderPage, fallback: pass })(await toWebRequest(req));
@@ -326,11 +394,11 @@ export default function afw({
     // `index.html` with a trailing slash and answers everything else with the home
     // page. Serve `<path>/index.html` when it was prerendered, else `404.html` with 404.
     configurePreviewServer(previewServer) {
-      if (mode !== "ssg") return;
       const outDir = nodeHost.path.resolve(previewServer.config.root, previewServer.config.build.outDir);
       const isFile = (file) => stat(file).then((s) => s.isFile(), () => false);
       previewServer.middlewares.use(async (req, res, next) => {
         try {
+          if ((await shape()).mode !== "ssg") return next();
           if (!["GET", "HEAD"].includes(req.method) || !(req.headers.accept ?? "").includes("text/html")) return next();
           const url = new URL(req.url, "http://preview");
           const pathname = decodeURIComponent(url.pathname);
@@ -351,6 +419,13 @@ export default function afw({
       });
     },
 
+    // The route manifest beside the client build: each route's policy and the file behind it.
+    async generateBundle() {
+      if (command !== "build" || testing || isServer(this)) return;
+      const app = await shape();
+      this.emitFile({ type: "asset", fileName: "routes.json", source: `${JSON.stringify(routeManifest(app.resolved, app.root), null, 2)}\n` });
+    },
+
     async closeBundle() {
       if (command === "build") await closeCompiler();
     },
@@ -359,7 +434,7 @@ export default function afw({
       if (PLUGIN_IMPORT.test(source) && importer?.startsWith("\0")) {
         return this.resolve(source, PLUGIN_FILE, { skipSelf: true });
       }
-      if (source === SERVER_ID) return SERVER_PREFIX + (await serverRoot()) + (serverPages() ? "?pages" : "");
+      if (source === SERVER_ID) return SERVER_PREFIX + (await serverRoot()) + ((await serverPages()) ? "?pages" : "");
       if (source === NODE_SERVER_ID) return `\0${NODE_SERVER_ID}`;
       if (routes && source === ROUTES_ID) {
         const root = await resolveAppRoot(nodeHost, appDir, importer ? slash(cleanId(importer)) : undefined);
@@ -395,7 +470,7 @@ export default function afw({
           `import * as app from ${JSON.stringify(SERVER_ID)};\n` +
           `import { startServer } from "@opentf/vite-plugin-afw/server";\n` +
           `export const { createHandler } = app;\n` +
-          `await startServer({ app, mode: ${JSON.stringify(mode)}, baseUrl: ${JSON.stringify(baseUrl)}, clientDir: new URL("../client/", import.meta.url) });\n`
+          `await startServer({ app, mode: ${JSON.stringify((await shape()).mode)}, baseUrl: ${JSON.stringify(baseUrl)}, clientDir: new URL("../client/", import.meta.url) });\n`
         );
       }
       if (id.startsWith(SERVER_PREFIX)) {
@@ -403,14 +478,18 @@ export default function afw({
         const pages = query === "pages";
         const listExports = async (file) => serverExports(await compiler(), file, await nodeHost.readText(file));
         // Drafts and scheduled pages render in the dev server only.
-        const { code, files } = await serverModule(nodeHost, root, { exclude, i18n, pages, drafts: command === "serve" || !pages, listExports });
+        const app = await shape();
+        const { code, files } = await serverModule(nodeHost, root, {
+          exclude, i18n, pages, drafts: command === "serve" || !pages, listExports,
+          clientFiles: app.clientFiles, renders: app.renders, staticPaths: app.staticPaths,
+        });
         for (const file of files) this.addWatchFile(file);
         return { code, map: null };
       }
       if (!id.startsWith(VIRTUAL_PREFIX)) return null;
       const root = id.slice(VIRTUAL_PREFIX.length);
       // Drafts and scheduled pages are routes in the dev server only.
-      const { code, files } = await routesModule(nodeHost, root, { exclude, drafts: command === "serve" });
+      const { code, files } = await routesModule(nodeHost, root, { exclude, drafts: command === "serve", clientFiles: (await shape()).clientFiles });
       for (const file of files) this.addWatchFile(file);
       return { code, map: null };
     },
@@ -419,7 +498,10 @@ export default function afw({
       const file = cleanId(id);
       if (!SOURCE_FILTER.test(file) || file.startsWith("\0")) return null;
       const serverBuild = isServer(this, options);
-      const moduleTarget = chooseTarget({ mode, target, server: serverBuild, dev: command === "serve" && !serverBuild, test: testing });
+      // The dev server renders every non-SPA app's pages, static ones on request.
+      const moduleTarget = chooseTarget({
+        mode: (await shape()).mode, target, server: serverBuild, dev: command === "serve" && !serverBuild, test: testing, devRenders: true,
+      });
       const client = await compiler();
       try {
         const out = await compileModule(client, code, file, {

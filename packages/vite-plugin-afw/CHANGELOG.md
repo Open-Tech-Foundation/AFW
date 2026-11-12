@@ -4,6 +4,21 @@
 
 ### Added
 
+- Per-route render policies: each folder's `_config.js` (`defineRoute({ render })`)
+  decides how its pages render, `server`, `static` or `client`; the nearest one wins,
+  then the root `app/_config.js`, then `mode`, now a shorthand for that default.
+  - The app's overall shape follows from the routes: a server ships when any route renders
+    per request; a fully static app prerenders everything as before.
+  - A server app prebuilds its static routes (with `_config.js` `paths` for dynamic
+    ones) and serves them inside the middleware chain; unlisted pages render on request.
+  - Client routes never enter the server bundle: the server sends their layouts, an empty
+    region and their loader data, and the browser builds the page.
+  - Page responses carry `x-afw-render`, the build prints a route table and writes
+    `routes.json` beside the client build, and the dev server renders each route as
+    production does, static pages included. A config edit applies after a reload (a
+    restart when the app's shape changes).
+- `prerenderedPages(clientDir)` (`@opentf/vite-plugin-afw/server`): the `readStatic` a
+  custom server passes to `createPageRenderer`.
 - The dev server renders pages on the server with `mode: "ssr"`, into `index.html` as Vite
   serves it, and the client adopts them as in production. Component, page and layout edits
   still refresh in place and keep their state. Only requests that accept HTML are
@@ -14,6 +29,11 @@
     longer exposed. An app that sets `envPrefix` itself keeps its own value.
   - The server render (SSG/SSR) and the client bundle get the same values, so
     hydration matches; every other variable stays out of both.
+
+### Fixed
+
+- In the dev server, editing a server file now rebuilds `@afw/server` when it registers
+  the app's pages (its `?pages` variant was never invalidated).
 
 ## [0.6.0] - 2026-11-12
 
