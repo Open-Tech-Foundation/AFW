@@ -60,6 +60,7 @@ in headless Chrome.
 | `esdev start` reports "ready" after a target fails to build, then answers every route with 404 | The error is only in the terminal; the browser shows a blank 404, with no overlay | Waiting for esdev |
 | After restarting a server target, esdev sends every page `{"type":"reload"}`, even when the browser build is unchanged (intermittent) | Editing a `.server.js` function reloads the page in the esdev workflow; the Vite workflow keeps it | Waiting for esdev; `tsr test-e2e-esdev-fns` fails when it happens |
 | A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | A request in that window is refused (`Failed to fetch`); the Vite workflow never restarts its server | Waiting for esdev; `tsr test-e2e-esdev-fns` fails when it happens |
+| `esdev start` walks directories its root `.gitignore` excludes, and `.git` (docs: ".gitignore rules exclude matching paths") | One playground start touched 445,392 paths: 436,748 inside gitignored folders (`node_modules`, `target`, `.cache`, `.dev`), 7,092 in `.git`, 1,496 of real source. Warm: 2.4–3.6s. Cold, on a spinning disk: 24–67s | Waiting for esdev |
 | `esdev preview` serves `.xml` files as `application/octet-stream` | `rss.xml`, `atom.xml` and `sitemap.xml` download instead of displaying; feed readers may reject them | Waiting for esdev |
 
 ## Open esdev template issues (templates are baked into esdev 0.27.0)
