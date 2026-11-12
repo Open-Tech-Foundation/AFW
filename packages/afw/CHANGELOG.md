@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- `registerHotHydrate` in `@opentf/afw/hmr`, used by the compiler's `hydrate-hot` output: a
+  page adopted in development is refreshed in place, with its state, when it is edited.
+- In development, the console warns (`[afw:hydrate] <path>: …`) when a server-rendered
+  route is rebuilt because its page or a layout cannot adopt the server HTML.
+
 ## [0.38.0] - 2026-11-12
 
 ### Added

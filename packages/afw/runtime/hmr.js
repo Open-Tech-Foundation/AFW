@@ -80,6 +80,8 @@ export function registerHotRoute(hot, factory, shape = "", exports = "", data = 
     };
     return entry;
   });
+  // For `registerHotHydrate`: the adopt factory marks its view with this record's `view`.
+  hot.data.afwRoute = record;
   const updated = record.factory !== factory || record.shape !== shape;
   record.factory = factory;
   record.shape = shape;
@@ -91,6 +93,33 @@ export function registerHotRoute(hot, factory, shape = "", exports = "", data = 
     if (!hot.data.afwInvalidated) void refreshHotRoute(record.view, record.data);
   });
   return record.view;
+}
+
+/**
+ * A development page's `hydrateAt`, registered for the route refresh. The adopt walk runs
+ * inside fresh refresh slots (its `$state` reads `hotRouteState`), and the adopted view is
+ * marked like a view `registerHotRoute` built, so an edit after hydration refreshes it with
+ * its state kept. `shape` is the same state shape `registerHotRoute` was given.
+ */
+export function registerHotHydrate(hot, adopt, shape = "") {
+  if (!hot) return adopt;
+  return (cursor, ...args) => {
+    const slots = new Map();
+    const outer = routeSlots;
+    routeSlots = slots;
+    let node;
+    try {
+      node = adopt(cursor, ...args);
+    } finally {
+      routeSlots = outer;
+    }
+    const record = hot.data.afwRoute;
+    if (record && node) {
+      node.__afwHotFactory = record.view;
+      node.__afwHotSlots = { shape, slots };
+    }
+    return node;
+  };
 }
 
 export function hotState(host, key, create) {

@@ -14,6 +14,7 @@
 // emit yet — for now pages read params via the reactive `router.params`, and a
 // route loader's data via the reactive `router.data` (docs/DATA.md).
 
+import { DEV } from "../core/dev.js";
 import { clearError, reportError } from "../core/errors.js";
 import { signal } from "../core/signals.js";
 import { getRenderContext } from "../core/render-context.js";
@@ -1010,6 +1011,10 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
         clearChunkReloadFlag();
         return;
       }
+      // Not a mismatch: the page or a layout has no adopt factory (the compiler could
+      // not emit one), so the server HTML is rebuilt. Say so in development, where the
+      // compiler's warning may have scrolled away.
+      if (DEV && !dataError) console.warn(`[afw:hydrate] ${url.pathname}: the page or one of its layouts cannot adopt the server-rendered HTML, so it is rebuilt on the client. See the compiler's warning for that file.`);
     } catch (e) {
       reportError(e, { phase: "hydrate", path: url.pathname });
       // fall through to a clean CSR build below

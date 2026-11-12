@@ -4,7 +4,7 @@
 
 import { afterEach, expect, test } from "runtime:test";
 import { effect, signal } from "../core/signals.js";
-import { hotRouteState, hotState, registerHotModule, registerHotRoute } from "./hmr.js";
+import { hotRouteState, hotState, registerHotHydrate, registerHotModule, registerHotRoute } from "./hmr.js";
 import { mountApp, router, routes } from "./router.js";
 
 const tick = async (n = 4) => { for (let i = 0; i < n; i++) await new Promise((r) => setTimeout(r, 0)); };
@@ -345,4 +345,62 @@ test("a component edit keeps the state of the components it renders", async () =
   } finally {
     holder.remove();
   }
+});
+
+// A development page's adopt factory: claims the server-rendered section in place and
+// keeps its `$state` in the route slots, as the compiler's hot hydrate target emits it.
+function adoptVersion(label) {
+  return () => {
+    const count = hotRouteState("count", () => signal(0));
+    const root = app.querySelector(".page");
+    const text = root.firstChild;
+    effect(() => { text.data = `${label}:${count.value}`; });
+    root.querySelector(".inc").onclick = () => count.value++;
+    return root;
+  };
+}
+
+async function mountAdopted(pageHot, wrap) {
+  routes.pages = {}; routes.layouts = {}; routes.notFound = null;
+  app = document.createElement("div");
+  app.setAttribute("data-afw-hydrate", "");
+  app.innerHTML = '<section class="page">A:0<button class="inc"></button></section>';
+  document.body.appendChild(app);
+  window.history.replaceState({}, "", "/");
+  const server = app.querySelector(".page");
+  const module = { default: registerHotRoute(pageHot, pageVersion("A"), '["count:State"]') };
+  module.hydrateAt = wrap ? registerHotHydrate(pageHot, adoptVersion("A"), '["count:State"]') : adoptVersion("A");
+  await mountApp({ target: app, pages: { "/app/page.jsx": module } });
+  await tick();
+  return server;
+}
+
+test("an edit to an adopted page refreshes it in place and keeps its state", async () => {
+  const pageHot = fakeHot();
+  const server = await mountAdopted(pageHot, true);
+  expect(app.querySelector(".page")).toBe(server); // adopted, not rebuilt
+  app.querySelector(".inc").click(); app.querySelector(".inc").click();
+  expect(text(".page")).toBe("A:2");
+
+  registerHotRoute(pageHot, pageVersion("B"), '["count:State"]');
+  await tick();
+
+  expect(app.querySelector(".page")).not.toBe(server);
+  expect(text(".page")).toBe("B:2");
+  expect(pageHot.invalidated).toBe(0);
+});
+
+test("without registerHotHydrate the route refresh cannot find an adopted page", async () => {
+  const pageHot = fakeHot();
+  const server = await mountAdopted(pageHot, false);
+  app.querySelector(".inc").click();
+  registerHotRoute(pageHot, pageVersion("B"), '["count:State"]');
+  await tick();
+  expect(app.querySelector(".page")).toBe(server);
+  expect(text(".page")).toBe("A:1");
+});
+
+test("registerHotHydrate returns the adopt factory unchanged without a hot API", () => {
+  const adopt = () => null;
+  expect(registerHotHydrate(undefined, adopt)).toBe(adopt);
 });
