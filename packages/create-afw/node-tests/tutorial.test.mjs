@@ -34,8 +34,8 @@ test("the tutorial's create command scaffolds the app it builds on", async () =>
   const command = page.match(/npm create @opentf\/afw@latest (\S+) -- ([^\n]+)/);
   assert.ok(command, "the create command is in the tutorial");
   const options = parseArgs([command[1], ...command[2].trim().split(/\s+/)]);
-  const server = options.render === "ssr" || !!options.server; // SSR always has a server, as main() resolves it
-  assert.deepEqual([options.template, options.render, server, options.language], ["app", "ssr", true, "js"]);
+  const server = ["server", "mixed"].includes(options.render) || !!options.server; // as main() resolves it
+  assert.deepEqual([options.template, options.render, server, options.language], ["app", "server", true, "js"]);
   await create({ directory: root, template: options.template, render: options.render, server, language: options.language });
   const paths = fileBlocks(page).map((b) => b.path);
   assert.ok(paths.includes("app/notes/[id]/page.jsx") && paths.includes("app/notes/[id]/loader.js"), `the dynamic route's files are written (${paths})`);
@@ -55,6 +55,7 @@ test("its tests pass (npm test)", async () => {
     assert.deepEqual(files.flatMap((f) => f.result?.errors ?? []).map((e) => e.message), []);
     assert.deepEqual(files.flatMap((f) => f.tasks).map((t) => `${t.name}: ${t.result?.state}`).sort(), [
       "/ focuses the input: pass",
+      "GET /api/hello greets by name: pass",
       "counts clicks: pass",
       "refuses an empty note without calling the server: pass",
       "saves the typed note and clears the input: pass",

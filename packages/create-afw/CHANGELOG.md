@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+
+- The app template asks "How should pages render by default?": **Client**, **Server**,
+  **Static** or **Mixed** (server by default, with a prebuilt `/about` and a client
+  `/dashboard` to copy). The answer is written to `app/_config.js`, which any folder
+  can override with its own. `--render client|server|static|mixed`; `spa`, `ssr` and
+  `ssg` still work and mean client, server and static.
+- Apps with a server get a server test (`tests/server/api.test.*`) beside the component
+  tests, which move to `tests/ui/`.
+
+### Changed
+
+- Tests import their test API from `@opentf/afw-test/test`, so the same files run under
+  Vitest and esdev.
+- The library template's peer dependency on `@opentf/afw` is a caret range.
+- Requires Node 24 or later (was 22).
+- The scaffolder's own test suite builds the variants in parallel.
+
 ## [0.5.0] - 2026-11-11
 
 ### Changed

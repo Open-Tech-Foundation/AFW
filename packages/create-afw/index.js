@@ -16,7 +16,7 @@ import { styleText } from "node:util";
 import * as prompts from "@clack/prompts";
 import { slugify } from "@opentf/std";
 
-import { LEGACY_TEMPLATES, RENDERINGS, STYLINGS, TEMPLATES, projectFiles } from "./templates.js";
+import { LEGACY_TEMPLATES, RENDERINGS, RENDER_ALIASES, SERVER_RENDERINGS, STYLINGS, TEMPLATES, projectFiles } from "./templates.js";
 import { afwVersions } from "./versions.js";
 
 const DEFAULT_DIRECTORY = "afw-app";
@@ -31,9 +31,9 @@ Create an AFW project on Vite and Node. With no options, you are asked for each 
 
 Options:
   -t, --template <name>   ${TEMPLATE_NAMES.join(", ")} (add -ts or -js to pick the language)
-  -r, --render <mode>     app: ${Object.keys(RENDERINGS).join(", ")}
+  -r, --render <mode>     app: how pages render by default: ${Object.keys(RENDERINGS).join(", ")}
       --server            app: add ${SERVER_HINT}
-      --no-server         app: no server (not with --render ssr, which always has one)
+      --no-server         app: no server (not with --render server or mixed, which always have one)
   -s, --styling <name>    app and library: ${Object.keys(STYLINGS).join(", ")} (--tailwind for short)
       --blog              docs: add a blog, with RSS and Atom feeds
       --no-blog           docs: no blog (the default)
@@ -46,8 +46,9 @@ Options:
 Templates:
 ${TEMPLATE_NAMES.map((t) => `  ${t.padEnd(10)} ${TEMPLATES[t]}`).join("\n")}
 
-Renderings (app):
+Renderings (app), set in app/_config.js; any folder can change it with its own:
 ${Object.entries(RENDERINGS).map(([r, label]) => `  ${r.padEnd(10)} ${label}`).join("\n")}
+  (spa, ssr and ssg from earlier releases mean client, server and static.)
 
 Shorthands from earlier releases: ${Object.entries(LEGACY_TEMPLATES).map(([name, t]) => `${name} = app --render ${t.render}${t.server ? " --server" : ""}`).join("; ")}.
 
@@ -99,7 +100,7 @@ export function parseArgs(args) {
     const legacy = LEGACY_TEMPLATES[base];
     if (legacy) {
       // An earlier release's name: a shorthand for app with its rendering and server.
-      if (options.render !== undefined && options.render !== legacy.render) throw new Error(`--template ${base} conflicts with --render ${options.render}`);
+      if (options.render !== undefined && (RENDER_ALIASES[options.render] ?? options.render) !== legacy.render) throw new Error(`--template ${base} conflicts with --render ${options.render}`);
       if (legacy.server && options.server === false) throw new Error(`--template ${base} conflicts with --no-server`);
       options.template = legacy.template;
       options.render = legacy.render;
@@ -108,6 +109,7 @@ export function parseArgs(args) {
       options.template = base;
     }
   }
+  if (options.render !== undefined) options.render = RENDER_ALIASES[options.render] ?? options.render;
   if (options.render !== undefined && !RENDERINGS[options.render]) {
     throw new Error(`Unknown rendering "${options.render}". Choose one of: ${Object.keys(RENDERINGS).join(", ")}.`);
   }
@@ -117,7 +119,7 @@ export function parseArgs(args) {
   if (options.language !== undefined && !LANGUAGES[options.language]) {
     throw new Error(`Unknown language "${options.language}". Choose ts or js.`);
   }
-  if (options.render === "ssr" && options.server === false) throw new Error("--render ssr always has a server; drop --no-server");
+  if (SERVER_RENDERINGS.has(options.render) && options.server === false) throw new Error(`--render ${options.render} always has a server; drop --no-server`);
   if (options.template && options.template !== "app") {
     if (options.render !== undefined) throw new Error(`--render applies to the app template, not ${options.template}`);
     if (options.server !== undefined) throw new Error(`--server applies to the app template, not ${options.template}`);
@@ -162,7 +164,7 @@ async function emptyDir(dir) {
  * (default), `"remove"` its files first, or `"ignore"` and write beside them.
  */
 export async function create({
-  directory = DEFAULT_DIRECTORY, template = "app", render = "spa", server = false, blog = false, styling = "css", language = "ts",
+  directory = DEFAULT_DIRECTORY, template = "app", render = "client", server = false, blog = false, styling = "css", language = "ts",
   packageName, existing = "error", cwd: base = cwd(),
 } = {}) {
   const target = resolve(base, directory);
@@ -279,9 +281,11 @@ export async function main(args = argv.slice(2)) {
 
   const template = options.template ?? (interactive ? await choose("Select a template:", TEMPLATES) : "app");
   const isApp = template === "app";
-  const render = isApp ? (options.render ?? (interactive ? await choose("How should pages render?", RENDERINGS) : "spa")) : undefined;
+  const render = isApp
+    ? (options.render ?? (interactive ? await choose("How should pages render by default? (any folder can change it later with its own _config.js)", RENDERINGS) : "client"))
+    : undefined;
   // Server-rendered pages need a server; the other renderings may add one.
-  const server = isApp && (render === "ssr" || (options.server ?? (interactive
+  const server = isApp && (SERVER_RENDERINGS.has(render) || (options.server ?? (interactive
     ? await ask(prompts.confirm({ message: `Add a server? (${SERVER_HINT})`, initialValue: false }))
     : false)));
   // A docs site has no blog unless asked for one.

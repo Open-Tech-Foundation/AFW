@@ -19,7 +19,7 @@
     "versions.json"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "devDependencies": {
     "@opentf/afw": "workspace:*",

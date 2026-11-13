@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { availableParallelism } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -49,12 +50,13 @@ function startServer(root) {
 // Every rendering × server combination of the app, both stylings, docs with and
 // without a blog, and library.
 const CASES = [
-  { template: "app", render: "spa", server: false, styling: "css" },
-  { template: "app", render: "spa", server: false, styling: "tailwind" },
-  { template: "app", render: "spa", server: true, styling: "css" },
-  { template: "app", render: "ssr", server: true, styling: "tailwind" },
-  { template: "app", render: "ssg", server: false, styling: "css" },
-  { template: "app", render: "ssg", server: true, styling: "tailwind" },
+  { template: "app", render: "client", server: false, styling: "css" },
+  { template: "app", render: "client", server: false, styling: "tailwind" },
+  { template: "app", render: "client", server: true, styling: "css" },
+  { template: "app", render: "server", server: true, styling: "tailwind" },
+  { template: "app", render: "static", server: false, styling: "css" },
+  { template: "app", render: "static", server: true, styling: "tailwind" },
+  { template: "app", render: "mixed", server: true, styling: "css" },
   { template: "docs" },
   { template: "docs", blog: true },
   { template: "library", styling: "css" },
@@ -67,11 +69,14 @@ async function builtCss(dir) {
   return (await Promise.all((await readdir(assets)).filter((f) => f.endsWith(".css")).map((f) => readFile(join(assets, f), "utf8")))).join("\n");
 }
 
+// The variants are independent, so they run side by side; each one's own steps
+// (scaffold, test, typecheck, build) run in order.
+describe("every template variant", { concurrency: Math.max(2, availableParallelism() - 1) }, () => {
 for (const language of ["ts", "js"]) {
   for (const options of CASES) {
     const { template, render, server, styling, blog } = options;
     const name = `${label(options)}-${language}`;
-    describe(`${name}`, () => {
+    describe(`${name}`, { concurrency: 1 }, () => {
       const root = join(scratch, name);
 
       test("scaffolds a project on the workspace's AFW versions", async () => {
@@ -81,6 +86,7 @@ for (const language of ["ts", "js"]) {
         const afwRange = template === "library" ? manifest.peerDependencies["@opentf/afw"] : manifest.dependencies["@opentf/afw"];
         assert.match(afwRange, /^\^\d+\.\d+\.\d+/);
         assert.equal(files.includes("tsconfig.json"), language === "ts");
+        assert.equal(files.includes(`app/_config.${language}`), template !== "library");
         assert.equal(files.includes(`app/api/hello/route.${language}`), !!server);
         assert.equal(files.includes(`app/todos/todos.server.${language}`), !!server);
         assert.equal("tailwindcss" in manifest.devDependencies, styling === "tailwind");
@@ -104,7 +110,8 @@ for (const language of ["ts", "js"]) {
         const result = await runTests(root);
         assert.deepEqual(result.errors, []);
         const docsTest = `the home page links to the docs${blog ? " and the blog" : ""}: pass`;
-        assert.deepEqual(result.states, [template === "docs" ? docsTest : "counts clicks: pass"]);
+        const expected = [template === "docs" ? docsTest : "counts clicks: pass", ...(server ? ["GET /api/hello greets by name: pass"] : [])];
+        assert.deepEqual(result.states.sort(), expected.sort());
       });
 
       if (language === "ts") {
@@ -135,7 +142,7 @@ for (const language of ["ts", "js"]) {
         }
         if (!server) {
           assert.ok(!(await exists(join(dist, "server"))), "no server without one");
-          if (render === "ssg") assert.match(await readFile(join(dist, "about", "index.html"), "utf8"), /This page is Markdown/);
+          if (render === "static") assert.match(await readFile(join(dist, "about", "index.html"), "utf8"), /This page is Markdown/);
           else assert.ok(await exists(join(dist, "index.html")));
           return;
         }
@@ -147,7 +154,7 @@ for (const language of ["ts", "js"]) {
           assert.match(api.headers.get("x-request-id") ?? "", /^[0-9a-f-]{36}$/);
           assert.deepEqual((await (await fetch(`${url}/todos/__data.json`)).json()).todos.length, 3);
           const page = await (await fetch(`${url}/todos`, { headers: html })).text();
-          if (render === "spa") assert.match(page, /<div id="app"><\/div>/);
+          if (render === "client") assert.match(page, /<div id="app"><\/div>/);
           else assert.match(page, /Try the dev server/, "the page's HTML has its loader data");
           // The page's server function, called as its browser stub calls it.
           const assets = join(client, "assets");
@@ -160,6 +167,18 @@ for (const language of ["ts", "js"]) {
             return res.status === 200 ? (await res.json()).v : null;
           }));
           assert.ok(answers.some((list) => list?.at(-1) === "Ship it"), JSON.stringify(answers));
+          if (render === "mixed") {
+            // A prebuilt page and a section rendered in the browser, beside server pages.
+            assert.match(await readFile(join(client, "about", "index.html"), "utf8"), /This page is Markdown/);
+            const about = await fetch(`${url}/about`, { headers: html });
+            assert.equal(about.headers.get("x-afw-render"), "static");
+            const dashboard = await fetch(`${url}/dashboard`, { headers: html });
+            assert.equal(dashboard.headers.get("x-afw-render"), "client");
+            const body = await dashboard.text();
+            assert.match(body, /<main><!--\[--><!--\]--><\/main>/, "the layout, around an empty region");
+            assert.match(body, /\{"visits":42\}/, "its loader data");
+            assert.doesNotMatch(body, /Browser-only code is safe here/);
+          }
         } finally {
           child.kill();
         }
@@ -167,6 +186,7 @@ for (const language of ["ts", "js"]) {
     });
   }
 }
+});
 
 // A fake \`npm\` first on PATH: records each call, and exits with \`code\`.
 async function fakeNpm(code = 0) {
@@ -179,16 +199,20 @@ async function fakeNpm(code = 0) {
 describe("command line", () => {
   test("parses options, including template-language names, and rejects bad ones", () => {
     assert.deepEqual(parseArgs(["my-app", "--template", "app-js", "--render", "ssg", "--server", "--tailwind", "--overwrite", "--no-interactive"]), {
-      directory: "my-app", template: "app", render: "ssg", server: true, styling: "tailwind", blog: undefined, language: "js",
+      directory: "my-app", template: "app", render: "static", server: true, styling: "tailwind", blog: undefined, language: "js",
       overwrite: true, install: true, interactive: false, help: false,
     });
     assert.deepEqual(parseArgs(["-t", "library", "-s", "css"]).styling, "css");
     // The template names of earlier releases still work, as app shorthands.
     const legacy = (args) => { const o = parseArgs(args); return [o.template, o.render, o.server]; };
-    assert.deepEqual(legacy(["-t", "fullstack"]), ["app", "spa", true]);
-    assert.deepEqual(legacy(["-t", "ssr-ts"]), ["app", "ssr", true]);
-    assert.deepEqual(legacy(["-t", "ssg"]), ["app", "ssg", false]);
-    assert.deepEqual(legacy(["-t", "ssg", "--server"]), ["app", "ssg", true]);
+    assert.deepEqual(legacy(["-t", "fullstack"]), ["app", "client", true]);
+    assert.deepEqual(legacy(["-t", "ssr-ts"]), ["app", "server", true]);
+    assert.deepEqual(legacy(["-t", "ssg"]), ["app", "static", false]);
+    assert.deepEqual(legacy(["-t", "ssg", "--server"]), ["app", "static", true]);
+    // The renderings of earlier releases name the new ones.
+    assert.equal(parseArgs(["--render", "spa"]).render, "client");
+    assert.equal(parseArgs(["-t", "ssr", "--render", "ssr"]).render, "server");
+    assert.throws(() => parseArgs(["--render", "mixed", "--no-server"]), /always has a server/);
     assert.throws(() => parseArgs(["-t", "fullstack", "--no-server"]), /conflicts with --no-server/);
     assert.throws(() => parseArgs(["-t", "ssr", "--render", "spa"]), /conflicts with --render spa/);
     assert.throws(() => parseArgs(["--render", "ssr", "--no-server"]), /always has a server/);
@@ -240,7 +264,7 @@ describe("command line", () => {
     const { stdout } = await promisify(execFile)(process.execPath, [join(pkg, "index.js"), dir, "--template", "app-js", "--server", "--tailwind", "--no-interactive", "--no-install"], {
       env: { ...process.env, npm_config_user_agent: "pnpm/11" },
     });
-    assert.match(stdout, /Scaffolding app \(spa, server, Tailwind CSS, JavaScript\)/);
+    assert.match(stdout, /Scaffolding app \(client, server, Tailwind CSS, JavaScript\)/);
     assert.match(stdout, /pnpm install\s+pnpm dev/);
     assert.ok(await exists(join(dir, "app", "api", "hello", "route.js")));
   });
@@ -340,7 +364,7 @@ describe("interactive prompts", { skip: !hasScript && "needs util-linux script" 
     const tty = terminal(cwd, npm.env);
     await tty.until("Project name:"); tty.type(`my-app${KEY.enter}`);
     await tty.until("Select a template:"); tty.type(KEY.enter); // app
-    await tty.until("How should pages render?"); tty.type(`${KEY.down}${KEY.enter}`); // ssr: no server question
+    await tty.until("How should pages render by default?"); tty.type(`${KEY.down}${KEY.enter}`); // server: no server question
     await tty.until("Select a styling:"); tty.type(`${KEY.down}${KEY.enter}`); // Tailwind CSS
     await tty.until("Select a language:"); tty.type(`${KEY.down}${KEY.enter}`);
     await tty.until("Done. Now run:");
@@ -365,7 +389,7 @@ describe("interactive prompts", { skip: !hasScript && "needs util-linux script" 
     await tty.until("is not empty. How do you want to continue?"); tty.type(`${KEY.down}${KEY.enter}`); // Remove
     await tty.until("Package name:"); tty.type(KEY.enter); // accept the suggested my-app
     await tty.until("Select a template:"); tty.type(KEY.enter);
-    await tty.until("How should pages render?"); tty.type(KEY.enter); // spa
+    await tty.until("How should pages render by default?"); tty.type(KEY.enter); // client, the default
     await tty.until("Add a server?"); tty.type(KEY.enter); // the default: no
     await tty.until("Select a styling:"); tty.type(KEY.enter);
     await tty.until("Select a language:"); tty.type(KEY.enter);
