@@ -11,13 +11,13 @@ export function createAfwAppPlugin({ appDir = "app", exclude = [], routes = true
   if (typeof routes !== "boolean") throw new Error("AFW plugin routes must be a boolean");
   const getCompiler = lazyCompiler();
   if (!routes) return createAfwPlugin({ ...options, failOnError, getCompiler });
-  // Each folder's `_config.js` decides how its pages render; `mode` is the shorthand for
-  // the app default. One shape per app root and build, shared by every hook below.
-  const shapes = createAppShape({ exclude, mode: options.mode, getCompiler });
+  // Each folder's `_config.js` decides how its pages render. One shape per app root and
+  // build, shared by every hook below.
+  const shapes = createAppShape({ exclude, getCompiler });
   const shapeOfRoot = (root, ctx) => shapes.of(root, ctx?.command);
   const shapeOfModule = async (id, ctx) => {
     const shape = await shapeOfRoot(await resolveAppRoot(esdevHost, appDir, id.split("?")[0]), ctx);
-    return { mode: shape.mode, devRenders: devRenders(shape) };
+    return { app: shape.app, devRenders: devRenders(shape) };
   };
   const compiler = createAfwPlugin({ ...options, failOnError, getCompiler, shapeOf: shapeOfModule });
   const routing = createAfwRoutes({ appDir, exclude, shapeOf: shapeOfRoot });

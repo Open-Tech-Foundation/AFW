@@ -3,36 +3,33 @@
 // entries, `@afw/server` leaves them out and labels responses, and the compiler picks
 // each module's target from the app's shape.
 //
-// The shape's `mode` is `ssr` when any route renders per request, else `ssg` when any is
-// static, else `spa` — the same rule as the Vite plugin.
+// The shape's `app` is `server` when any route renders per request, else `static` when any
+// is built, else `client` — the same rule as the Vite plugin (`appRender`).
 
 import {
-  clientRouteFiles, discoverPages, discoverRouteConfigs, discoverServerFiles, discoverServerModules, formatRouteTable,
+  appRender, clientRouteFiles, discoverPages, discoverRouteConfigs, discoverServerFiles, discoverServerModules, formatRouteTable,
   hasServerFiles, readRouteConfigs, resolveRoutePolicies, routeRenders, staticPathConfigs,
 } from "@opentf/afw-build";
 
 import { esdevHost } from "./host.js";
 
 /**
- * A cache of each app root's shape. `mode` is the plugin option as the project gave it
- * (`undefined` when it did not); `getCompiler()` returns the `afwc serve` client.
+ * A cache of each app root's shape. `getCompiler()` returns the `afwc serve` client.
  */
-export function createAppShape({ exclude = [], mode, getCompiler }) {
+export function createAppShape({ exclude = [], getCompiler }) {
   const cache = new Map();
   const printed = new Set();
 
   async function compute(root, command) {
     const files = await discoverPages(esdevHost, root, { exclude, drafts: command === "start" });
     const configs = await readRouteConfigs(esdevHost, await getCompiler(), await discoverRouteConfigs(esdevHost, root, { exclude }));
-    const resolved = resolveRoutePolicies({ root, pages: files, configs, mode });
-    const strategies = new Set(resolved.routes.map((r) => r.render));
-    if (strategies.size === 0) strategies.add(resolved.defaultRender);
+    const resolved = resolveRoutePolicies({ root, pages: files, configs });
     const renders = routeRenders(resolved);
     const hasServer = hasServerFiles(await discoverServerFiles(esdevHost, root, { exclude })) ||
       (await discoverServerModules(esdevHost, root, { exclude })).length > 0;
     return {
       root, resolved, hasServer,
-      mode: strategies.has("server") ? "ssr" : strategies.has("static") ? "ssg" : "spa",
+      app: appRender(resolved),
       clientFiles: clientRouteFiles(resolved, root, files),
       renders,
       staticPaths: staticPathConfigs(resolved, configs),
@@ -72,4 +69,4 @@ export function createAppShape({ exclude = [], mode, getCompiler }) {
  * app renders pages first (not an SPA) and has a server to do it (`dev.run`), which a
  * static site without server files does not.
  */
-export const devRenders = (shape) => shape.mode === "ssr" || (shape.mode === "ssg" && shape.hasServer);
+export const devRenders = (shape) => shape.app === "server" || (shape.app === "static" && shape.hasServer);

@@ -7,6 +7,19 @@ import afwPlugin, { closeCompilers, createAfwAppPlugin, createAfwPlugin } from "
 
 afterAll(closeCompilers);
 
+// A throwaway app whose app/_config.js sets how its pages render; returns its page's path.
+const apps = [];
+afterAll(async () => { for (const dir of apps) await remove(dir, { recursive: true }); });
+async function appPage(render) {
+  await mkdir(".cache", { recursive: true });
+  const dir = join(env.PWD ?? ".", await makeTempDir({ dir: ".cache", prefix: "plugin-app-" }));
+  apps.push(dir);
+  await mkdir(join(dir, "app"), { recursive: true });
+  if (render) await write(join(dir, "app/_config.js"), `export default { render: "${render}" };\n`);
+  await write(join(dir, "app/page.jsx"), "export default function P() { return <p>p</p>; }\n");
+  return join(dir, "app/page.jsx");
+}
+
 test("framework resolution selects the server entry only for server rendering", async () => {
   const calls = [];
   const ctx = { platform: "server", async resolve(source, importer) {
@@ -43,7 +56,7 @@ test("the default factory combines the compiler and virtual route hooks", () => 
 });
 
 test("invalid rendering options fail before the compiler starts", () => {
-  expect(() => afwPlugin({ mode: "invalid" })).toThrow("Unknown AFW rendering mode");
+  for (const mode of ["spa", "ssr", "ssg"]) expect(() => afwPlugin({ mode })).toThrow("`mode` option was removed");
   expect(() => afwPlugin({ target: "invalid" })).toThrow("Unknown AFW compiler target");
   expect(() => afwPlugin({ routes: "false" })).toThrow("routes must be a boolean");
 });
@@ -57,9 +70,9 @@ for (const [label, context, expected] of [
   ["DOM test", { command: "test", platform: "browser" }, "csr"],
   ["server script", { command: "run", platform: "server" }, "ssg"],
 ]) {
-  test(`SSR mode selects ${expected} for a ${label}`, async () => {
-    const plugin = afwPlugin({ mode: "ssr" });
-    const result = await plugin.transform.handler(source, "/app/page.jsx", context);
+  test(`a server-rendered app selects ${expected} for a ${label}`, async () => {
+    const plugin = afwPlugin();
+    const result = await plugin.transform.handler(source, await appPage("server"), context);
     expect(result.type).toBe("js");
     // No forced side-effect flag: components register on first use of `.tag`.
     expect("moduleSideEffects" in result).toBe(false);
@@ -69,9 +82,9 @@ for (const [label, context, expected] of [
   });
 }
 
-test("SPA and SSG dev servers render on the client, with component refresh", async () => {
-  for (const mode of ["spa", "ssg"]) {
-    const result = await afwPlugin({ mode }).transform.handler(source, "/app/page.jsx", {
+test("client and static (serverless) apps render on the client in dev, with component refresh", async () => {
+  for (const render of ["client", "static", undefined]) {
+    const result = await afwPlugin().transform.handler(source, await appPage(render), {
       command: "start", platform: "browser", hot: true,
     });
     expect(result.code.includes("export function hydrate")).toBe(false);
@@ -79,15 +92,15 @@ test("SPA and SSG dev servers render on the client, with component refresh", asy
   }
 });
 
-test("explicit compiler targets still override mode and hook context", async () => {
-  const plugin = createAfwPlugin({ target: "ssg", mode: "ssr" });
+test("explicit compiler targets still override the app and hook context", async () => {
+  const plugin = createAfwPlugin({ target: "ssg" });
   const result = await plugin.transform.handler(source, "/app/page.jsx", { command: "test", platform: "browser" });
   expect(result.code).toContain("@opentf/afw/server");
 });
 
-test("SPA releases use CSR and SSG releases use hydration in the browser", async () => {
-  for (const [mode, hydrating] of [["spa", false], ["ssg", true]]) {
-    const result = await afwPlugin({ mode }).transform.handler(source, "/app/page.jsx", {
+test("client apps release CSR and static apps release hydration in the browser", async () => {
+  for (const [render, hydrating] of [["client", false], ["static", true], [undefined, false]]) {
+    const result = await afwPlugin().transform.handler(source, await appPage(render), {
       command: "build", platform: "browser",
     });
     expect(result.code.includes("export function hydrate")).toBe(hydrating);
@@ -100,7 +113,7 @@ test("a .tsx page keeps its TypeScript, and says so", async () => {
     { command: "build", platform: "browser", target: "web" },
     { command: "build", platform: "server", target: "server" },
   ]) {
-    const result = await afwPlugin({ mode: "ssr" }).transform.handler(typed, "/app/page.tsx", context);
+    const result = await afwPlugin().transform.handler(typed, "/app/page.tsx", context);
     // afwc lowers the JSX and leaves the types for the bundler to strip.
     expect(result.type).toBe("ts");
     expect(result.code).toContain("string[]");
@@ -125,7 +138,7 @@ test("only hot browser CSR builds emit component refresh and state slots", async
     expect(result.code.includes("registerHotModule(import.meta.hot,")).toBe(hot);
     expect(result.map.sourcesContent).toEqual([component]);
   }
-  const server = await afwPlugin({ mode: "ssr" }).transform.handler(component, "/app/Counter.jsx", {
+  const server = await afwPlugin().transform.handler(component, "/app/Counter.jsx", {
     command: "start", platform: "server", hot: true,
   });
   expect(server.code).not.toContain("@opentf/afw/hmr");
@@ -194,6 +207,7 @@ test("a starter config loads the default factory and builds browser and server r
       },
     }));
     await write(join(scratch, "tsconfig.json"), "{}");
+    await write(join(scratch, "app/_config.js"), 'export default { render: "server" };');
     await write(join(scratch, "app/shared.js"), 'import * as web from "@opentf/afw"; export const Theme = web.createContext("Default");');
     await write(join(scratch, "app/page.jsx"), 'import { router, Link, ContextProvider, RawHtml, onMount } from "@opentf/afw"; import { Theme } from "./shared.js"; export default function Home() { let value = $state("Hello"); const theme = $context(Theme); onMount(() => {}); return <section><p>{value}</p><Link href="/next" class={{ active: true }}>{router.data?.message || theme}</Link><ContextProvider context={Theme} value="Provided"><RawHtml html="<b>Trusted</b>"/></ContextProvider></section>; }');
     await write(join(scratch, "entry.js"), 'import { mountApp } from "@opentf/afw"; import { pages, loaderRoutes } from "@afw/routes"; mountApp({ pages, loaders: loaderRoutes, target: document.getElementById("app") });');
@@ -242,7 +256,7 @@ test("a starter config loads the default factory and builds browser and server r
       } finally { await server.stop(); }
     `);
     await write(join(scratch, "esdev.json"), JSON.stringify({
-      plugins: [{ module: "@opentf/esdev-plugin-afw", options: { mode: "ssr" } }],
+      plugins: [{ module: "@opentf/esdev-plugin-afw" }],
       build: { targets: {
         web: { entry: "index.html", outdir: "dist" },
         server: { entry: "server.js", out: "server.mjs", platform: "server" },

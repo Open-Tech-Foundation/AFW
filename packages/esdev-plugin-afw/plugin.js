@@ -21,13 +21,14 @@ import {
 
 import { resolveCompiler, startCompilerServer } from "./compiler.js";
 
-// The project has one plugin list. Its rendering mode is an option; the host
-// supplies the command/platform for each hook, including unbundled imports.
+// The project has one plugin list. How the app renders comes from its route policies
+// (`_config.js`); the host supplies the command/platform for each hook, including
+// unbundled imports.
 // `devRenders`: whether the dev build adopts server-rendered pages (the app has a dev
 // server that renders them first); by default only for `ssr`.
-function renderingTarget(mode, ctx, devRenders) {
+function renderingTarget(app, ctx, devRenders) {
   return chooseTarget({
-    mode,
+    app,
     server: ctx?.platform === "server",
     dev: ctx?.command === "start",
     test: ctx?.command === "test",
@@ -47,7 +48,7 @@ function renderingTarget(mode, ctx, devRenders) {
  * `afwc serve` child as `afwPlugin`). An async factory would depend on the
  * host awaiting it; this shape works either way.
  */
-export function createAfwPlugin({ target, mode = "spa", failOnError = false, onResult, quiet, getCompiler, shapeOf } = {}) {
+export function createAfwPlugin({ target, mode, failOnError = false, onResult, quiet, getCompiler, shapeOf } = {}) {
   validateOptions({ mode, target });
   const getServer = getCompiler ?? lazyCompiler();
   return {
@@ -64,7 +65,8 @@ export function createAfwPlugin({ target, mode = "spa", failOnError = false, onR
         // when the plugin knows the app (`createAfwAppPlugin`).
         const shape = !target && shapeOf ? await shapeOf(id, ctx) : null;
         return compileModule(server, code, id, {
-          target: target ?? (shape ? renderingTarget(shape.mode, ctx, shape.devRenders) : renderingTarget(mode, ctx)),
+          // Without the app (a library, `routes: false`), modules render on the client.
+          target: target ?? (shape ? renderingTarget(shape.app, ctx, shape.devRenders) : renderingTarget("client", ctx)),
           failOnError, onResult, quiet, ctx,
         });
       },

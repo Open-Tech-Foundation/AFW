@@ -53,29 +53,35 @@ pnpm add -D @opentf/esdev-plugin-afw
 
 Requires esdev 0.16 or newer (0.17+ for development refresh). The `afwc` compiler
 comes from [`@opentf/afw-compiler`](https://www.npmjs.com/package/@opentf/afw-compiler),
-installed as a dependency. `esdev create my-app --template=spa` generates a project
+installed as a dependency. `esdev create my-app --template=app` generates a project
 already configured this way.
 
-## Rendering modes
+## Rendering
 
-Pass options to pick how pages are rendered:
+Each folder's `_config.js` sets how its pages render (see
+[Rendering](https://afw.opentechf.org/docs/routing/rendering)):
 
-```json
-{
-  "plugins": [{
-    "module": "@opentf/esdev-plugin-afw",
-    "options": { "mode": "ssg", "appDir": "app" }
-  }]
-}
+```js
+// app/_config.js
+import { defineRoute } from "@opentf/afw";
+export default defineRoute({ render: "server" }); // or "static", "client"
 ```
 
-The plugin chooses a compiler backend per module from the build's context:
+- The nearest `_config.js` up a page's folders wins; without any, pages render in the
+  browser (`client`).
+- Client pages never enter the server bundle; responses carry `x-afw-render`; a release
+  build prints the route table.
 
-| Context | `mode: "spa"` (default) | `mode: "ssg"` / `"ssr"` |
+The plugin chooses a compiler backend per module from the build's context and how the
+app renders overall (`server` when any page renders per request, else `static` when any
+is built, else `client`):
+
+| Context | `client` app | `static` / `server` app |
 | --- | --- | --- |
 | Server build, `esdev start`, or a script | `ssg` | `ssg` |
 | Browser release build | `csr` | `hydrate` |
-| Browser development or DOM test | `csr` | `csr` |
+| Browser development | `csr` | `hydrate` when the app has a server to render pages first, else `csr` |
+| DOM test | `csr` | `csr` |
 
 Server builds import framework helpers from `@opentf/afw/server`, which renders
 HTML without browser Custom Elements, so a server target can point straight at
@@ -85,7 +91,6 @@ HTML without browser Custom Elements, so a server target can point straight at
 
 | Option | Default | Purpose |
 | --- | --- | --- |
-| `mode` | `"spa"` | `spa`, `ssg` or `ssr`; selects backends as in the table above |
 | `target` | — | Force one backend: `csr`, `ssg` or `hydrate` |
 | `appDir` | `"app"` | Route folder. A bare name is found next to the importing entry; a path such as `"website/app"` resolves from the working directory |
 | `exclude` | `[]` | Folder names to leave out of the route map |
@@ -107,7 +112,9 @@ const handle = createHandler({ files: serveStatic, renderPage: createPageRendere
 serve({ port: 3000 }, handle);
 ```
 
-- `createPageRenderer({ shell })` exists with `mode: "ssr"`: pages render per request.
+- `createPageRenderer({ shell, readStatic })` exists when any page renders on the server
+  or at build time: pages render per request, and a static route's prebuilt HTML from
+  `readStatic(pathname)` is served instead.
 - Browser builds get fetch stubs for `*.server.js` modules; server builds keep them.
 - See [Server Setup](https://afw.opentechf.org/docs/deployment/server) for a complete
   entry with static files.
@@ -139,7 +146,7 @@ positions. Markdown maps to its generated JSX for now.
 | --- | --- |
 | `default` / `createAfwAppPlugin(options)` | Compiler plus `@afw/routes` and `@afw/server`: the factory `esdev.json` uses |
 | `createAfwServer({ appDir, exclude, getCompiler, pages })` | `@afw/server` and the `.server` stubs, for custom pipelines |
-| `createAfwPlugin({ target, mode, failOnError })` | Compiler only, for custom pipelines and test configs |
+| `createAfwPlugin({ target, failOnError })` | Compiler only, for custom pipelines and test configs |
 | `createAfwRoutes({ appDir, exclude })` | Route map only |
 | `afwPlugin(afwc, { target, failOnError })` | Compiler plugin for a `runtime:build` script |
 | `resolveCompiler()` | Find `afwc`: `AFWC_BIN`, then the packaged binary, then a local Cargo checkout |
@@ -166,8 +173,8 @@ instance, so the binary starts once per build.
 | Doc | Purpose |
 | --- | --- |
 | [Installation](https://afw.opentechf.org/docs/getting-started/installation) | Creating and configuring a project |
-| [Static generation](https://afw.opentechf.org/docs/deployment/static-generation) | `mode: "ssg"` with a prerender step |
-| [Server rendering](https://afw.opentechf.org/docs/deployment/server) | `mode: "ssr"` with a server target |
+| [Static generation](https://afw.opentechf.org/docs/deployment/static-generation) | `render: "static"` with a prerender step |
+| [Server rendering](https://afw.opentechf.org/docs/deployment/server) | `render: "server"` with a server target |
 | [esdev plugins](https://esrun.opentechf.org/esdev/plugins) | How esdev loads and orders plugins |
 
 ## License

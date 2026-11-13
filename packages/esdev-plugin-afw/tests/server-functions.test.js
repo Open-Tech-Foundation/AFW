@@ -90,9 +90,10 @@ test("a browser build gets stubs; the server answers them under the folder's mid
   }
 });
 
-test("with mode ssr, @afw/server renders pages, and a loader calls a server function directly", async () => {
+test("a server-rendered app's @afw/server renders pages, and a loader calls a server function directly", async () => {
   const { dir, app } = await fixture();
   try {
+    await write(join(app, "_config.js"), 'export default { render: "server" };');
     await write(join(app, "todos", "loader.js"), `
       import { listTodos } from "./todos.server.js";
       export default async function loader({ locals }) { return listTodos({ prefix: "p" }, { locals }); }
@@ -107,7 +108,7 @@ test("with mode ssr, @afw/server renders pages, and a loader calls a server func
       export const handle = createHandler({ renderPage: createPageRenderer({ shell }), fallback: () => new Response("fallback", { status: 404 }) });
     `);
     // "server", as an esdev server target builds.
-    const bundle = await build({ input: join(dir, "server.js"), platform: "server", plugins: [createAfwAppPlugin({ mode: "ssr" })] });
+    const bundle = await build({ input: join(dir, "server.js"), platform: "server", plugins: [createAfwAppPlugin()] });
     let code;
     try {
       code = (await bundle.generate({ format: "esm" })).output.map((chunk) => chunk.code ?? "").join("\n");

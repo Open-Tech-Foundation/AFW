@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Removed
+
+- The `mode` option (`spa`, `ssr`, `ssg`), in `esdev.json` and in `createAfwPlugin`. Set
+  how pages render in `app/_config.js`; without one, pages render in the browser. Passing
+  `mode` is an error that says so.
+
 ## [0.10.0] - 2026-11-13
 
 ### Added

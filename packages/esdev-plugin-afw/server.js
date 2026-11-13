@@ -9,7 +9,7 @@
 //     import { createHandler } from "@afw/server";
 //     export default { fetch: createHandler({ fallback: serveStatic }) };
 //
-// - With `pages` (`mode: "ssr"`), it also registers every page and exports
+// - With `pages` (any route rendered on the server or at build time), it also registers those pages and exports
 //   `createPageRenderer({ shell })`, a `renderPage` step for per-request rendering.
 
 import {
@@ -58,7 +58,7 @@ export function createAfwServer({ appDir = "app", exclude = [], getCompiler, pag
         const shape = shapeOf ? await shapeOf(root, ctx) : null;
         const { code, files } = await serverModule(esdevHost, root, {
           exclude, listExports, drafts: dev,
-          pages: shape ? shape.mode !== "spa" : pages,
+          pages: shape ? shape.app !== "client" : pages,
           ...(shape ? { clientFiles: shape.clientFiles, renders: shape.renders, staticPaths: shape.staticPaths } : {}),
         });
         return { code, type: "js", dependsOn: [...files, ...(shape?.configFiles ?? [])] };
