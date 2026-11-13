@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `@opentf/afw-test/test` resolves to esdev's `runtime:test` by default, and to Vitest
+  under the `vitest` export condition, which `@opentf/vite-plugin-afw` sets for test runs.
+  Before, esdev needed a condition of its own and loaded Vitest without it. TypeScript in
+  a Vite project: `"customConditions": ["vitest"]` (the Vite starters set it).
+
 ## [1.34.0] - 2026-11-13
 
 ### Added

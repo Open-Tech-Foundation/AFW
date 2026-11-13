@@ -34,12 +34,12 @@
       "default": "./vitest.js"
     },
     "./test": {
-      "esdev": {
-        "types": "./test-esdev.d.ts",
-        "default": "./test-esdev.js"
+      "vitest": {
+        "types": "./test-vitest.d.ts",
+        "default": "./test-vitest.js"
       },
-      "types": "./test-vitest.d.ts",
-      "default": "./test-vitest.js"
+      "types": "./test-esdev.d.ts",
+      "default": "./test-esdev.js"
     },
     "./browser-runner": "./browser-runner.js",
     "./browser-runner.js": "./browser-runner.js",
