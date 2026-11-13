@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Removed
+
+- The rendering names of earlier releases (`--render spa|ssr|ssg`) and the template
+  names `spa`, `fullstack`, `ssr` and `ssg`. Use `--template app` with
+  `--render client|server|static|mixed`, plus `--server` for a client or static app with
+  a server.
+
 ## [0.6.0] - 2026-11-13
 
 ### Added

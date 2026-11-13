@@ -16,7 +16,7 @@ import { styleText } from "node:util";
 import * as prompts from "@clack/prompts";
 import { slugify } from "@opentf/std";
 
-import { LEGACY_TEMPLATES, RENDERINGS, RENDER_ALIASES, SERVER_RENDERINGS, STYLINGS, TEMPLATES, projectFiles } from "./templates.js";
+import { RENDERINGS, SERVER_RENDERINGS, STYLINGS, TEMPLATES, projectFiles } from "./templates.js";
 import { afwVersions } from "./versions.js";
 
 const DEFAULT_DIRECTORY = "afw-app";
@@ -48,9 +48,7 @@ ${TEMPLATE_NAMES.map((t) => `  ${t.padEnd(10)} ${TEMPLATES[t]}`).join("\n")}
 
 Renderings (app), set in app/_config.js; any folder can change it with its own:
 ${Object.entries(RENDERINGS).map(([r, label]) => `  ${r.padEnd(10)} ${label}`).join("\n")}
-  (spa, ssr and ssg from earlier releases mean client, server and static.)
 
-Shorthands from earlier releases: ${Object.entries(LEGACY_TEMPLATES).map(([name, t]) => `${name} = app --render ${t.render}${t.server ? " --server" : ""}`).join("; ")}.
 
 For the esdev + ES-Runtime workflow, use \`esdev create\`.`;
 
@@ -90,26 +88,15 @@ export function parseArgs(args) {
   }
   if (options.template !== undefined) {
     const [, base, lang] = options.template.match(/^(.*?)(?:-(ts|js))?$/);
-    if (!TEMPLATES[base] && !LEGACY_TEMPLATES[base]) {
+    if (!TEMPLATES[base]) {
       throw new Error(`Unknown template "${options.template}". Choose one of: ${TEMPLATE_NAMES.join(", ")} (optionally with -ts or -js).`);
     }
     if (lang) {
       if (options.language && options.language !== lang) throw new Error(`--template ${options.template} conflicts with --language ${options.language}`);
       options.language = lang;
     }
-    const legacy = LEGACY_TEMPLATES[base];
-    if (legacy) {
-      // An earlier release's name: a shorthand for app with its rendering and server.
-      if (options.render !== undefined && (RENDER_ALIASES[options.render] ?? options.render) !== legacy.render) throw new Error(`--template ${base} conflicts with --render ${options.render}`);
-      if (legacy.server && options.server === false) throw new Error(`--template ${base} conflicts with --no-server`);
-      options.template = legacy.template;
-      options.render = legacy.render;
-      options.server ??= legacy.server;
-    } else {
-      options.template = base;
-    }
+    options.template = base;
   }
-  if (options.render !== undefined) options.render = RENDER_ALIASES[options.render] ?? options.render;
   if (options.render !== undefined && !RENDERINGS[options.render]) {
     throw new Error(`Unknown rendering "${options.render}". Choose one of: ${Object.keys(RENDERINGS).join(", ")}.`);
   }

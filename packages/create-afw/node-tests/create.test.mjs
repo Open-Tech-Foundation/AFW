@@ -198,25 +198,17 @@ async function fakeNpm(code = 0) {
 
 describe("command line", () => {
   test("parses options, including template-language names, and rejects bad ones", () => {
-    assert.deepEqual(parseArgs(["my-app", "--template", "app-js", "--render", "ssg", "--server", "--tailwind", "--overwrite", "--no-interactive"]), {
+    assert.deepEqual(parseArgs(["my-app", "--template", "app-js", "--render", "static", "--server", "--tailwind", "--overwrite", "--no-interactive"]), {
       directory: "my-app", template: "app", render: "static", server: true, styling: "tailwind", blog: undefined, language: "js",
       overwrite: true, install: true, interactive: false, help: false,
     });
     assert.deepEqual(parseArgs(["-t", "library", "-s", "css"]).styling, "css");
-    // The template names of earlier releases still work, as app shorthands.
-    const legacy = (args) => { const o = parseArgs(args); return [o.template, o.render, o.server]; };
-    assert.deepEqual(legacy(["-t", "fullstack"]), ["app", "client", true]);
-    assert.deepEqual(legacy(["-t", "ssr-ts"]), ["app", "server", true]);
-    assert.deepEqual(legacy(["-t", "ssg"]), ["app", "static", false]);
-    assert.deepEqual(legacy(["-t", "ssg", "--server"]), ["app", "static", true]);
-    // The renderings of earlier releases name the new ones.
-    assert.equal(parseArgs(["--render", "spa"]).render, "client");
-    assert.equal(parseArgs(["-t", "ssr", "--render", "ssr"]).render, "server");
+    // Only the current names: the old ones (spa, ssr, ssg, fullstack) are refused.
+    for (const old of ["spa", "fullstack", "ssr", "ssg"]) assert.throws(() => parseArgs(["-t", old]), /Unknown template/);
+    for (const old of ["spa", "ssr", "ssg"]) assert.throws(() => parseArgs(["--render", old]), /Unknown rendering/);
     assert.throws(() => parseArgs(["--render", "mixed", "--no-server"]), /always has a server/);
-    assert.throws(() => parseArgs(["-t", "fullstack", "--no-server"]), /conflicts with --no-server/);
-    assert.throws(() => parseArgs(["-t", "ssr", "--render", "spa"]), /conflicts with --render spa/);
-    assert.throws(() => parseArgs(["--render", "ssr", "--no-server"]), /always has a server/);
-    assert.throws(() => parseArgs(["-t", "docs", "--render", "ssr"]), /applies to the app template/);
+    assert.throws(() => parseArgs(["--render", "server", "--no-server"]), /always has a server/);
+    assert.throws(() => parseArgs(["-t", "docs", "--render", "server"]), /applies to the app template/);
     assert.throws(() => parseArgs(["-t", "library", "--server"]), /applies to the app template/);
     assert.throws(() => parseArgs(["-t", "docs", "--tailwind"]), /afw-docs theme/);
     assert.equal(parseArgs(["-t", "docs"]).blog, undefined);
@@ -228,10 +220,10 @@ describe("command line", () => {
     assert.throws(() => parseArgs(["--styling", "sass"]), /Unknown styling/);
     assert.equal(parseArgs(["--no-install"]).install, false);
     assert.throws(() => parseArgs(["--immediate"]), /Unknown option/);
-    assert.equal(parseArgs(["--template=spa-ts"]).language, "ts");
+    assert.equal(parseArgs(["--template=app-ts"]).language, "ts");
     assert.equal(parseArgs(["--js"]).language, "js");
     assert.throws(() => parseArgs(["--template=nope"]), /Unknown template "nope"/);
-    assert.throws(() => parseArgs(["--template=ssr-ts", "--language=js"]), /conflicts/);
+    assert.throws(() => parseArgs(["--template=app-ts", "--language=js"]), /conflicts/);
     assert.throws(() => parseArgs(["--language=go"]), /Unknown language/);
     assert.throws(() => parseArgs(["--template"]), /needs a value/);
     assert.throws(() => parseArgs(["--bogus"]), /Unknown option/);
@@ -374,7 +366,7 @@ describe("interactive prompts", { skip: !hasScript && "needs util-linux script" 
     assert.match(tty.plain(), /Nowrun:cdmy-appnpmrundev/);
     const manifest = JSON.parse(await readFile(join(cwd, "my-app", "package.json"), "utf8"));
     assert.equal(manifest.name, "my-app");
-    assert.ok(await exists(join(cwd, "my-app", "app", "api", "hello", "route.js")), "ssr, with its server");
+    assert.ok(await exists(join(cwd, "my-app", "app", "api", "hello", "route.js")), "server rendering, with its server");
     assert.ok("tailwindcss" in manifest.devDependencies, "Tailwind CSS");
     assert.ok(!(await exists(join(cwd, "my-app", "tsconfig.json"))), "JavaScript");
     assert.doesNotMatch(tty.plain(), /Addaserver\?/, "SSR does not ask about a server");

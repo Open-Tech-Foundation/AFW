@@ -31,9 +31,6 @@ export const RENDERINGS = {
   mixed: "Server by default, plus a static page and a client section to copy",
 };
 
-/** The rendering names of earlier releases, kept as shorthands. */
-export const RENDER_ALIASES = { spa: "client", ssr: "server", ssg: "static" };
-
 /** Renderings that always have a server. */
 export const SERVER_RENDERINGS = new Set(["server", "mixed"]);
 
@@ -41,13 +38,6 @@ export const TOOLCHAINS = { vite: "Vite + Node", esdev: "esdev + ES-Runtime" };
 
 export const STYLINGS = { css: "CSS", tailwind: "Tailwind CSS" };
 
-/** The template names of earlier releases, kept as shorthands. */
-export const LEGACY_TEMPLATES = {
-  spa: { template: "app", render: "client", server: false },
-  fullstack: { template: "app", render: "client", server: true },
-  ssr: { template: "app", render: "server", server: true },
-  ssg: { template: "app", render: "static", server: false },
-};
 
 // The third-party tools a new project starts on. AFW's own packages take the
 // versions this scaffolder was released with (versions.js).
@@ -76,7 +66,6 @@ export function projectFiles({
   toolchain = "vite", pm = "npm",
 }) {
   if (!TEMPLATES[template]) throw new Error(`Unknown template "${template}". Choose one of: ${Object.keys(TEMPLATES).join(", ")}`);
-  render = RENDER_ALIASES[render] ?? render;
   if (!RENDERINGS[render]) throw new Error(`Unknown rendering "${render}". Choose one of: ${Object.keys(RENDERINGS).join(", ")}`);
   if (!STYLINGS[styling]) throw new Error(`Unknown styling "${styling}". Choose one of: ${Object.keys(STYLINGS).join(", ")}`);
   if (!TOOLCHAINS[toolchain]) throw new Error(`Unknown toolchain "${toolchain}". Choose one of: ${Object.keys(TOOLCHAINS).join(", ")}`);
