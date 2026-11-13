@@ -187,7 +187,7 @@ alongside the AFW compiler/routes and site-output plugins (esdev 0.27 or later):
 ```json
 {
   "plugins": [
-    { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
+    { "module": "@opentf/esdev-plugin-afw" },
     { "module": "@opentf/afw-docs/build", "export": "afwDocsPlugin",
       "options": { "appDir": "app" } }
   ]
@@ -217,7 +217,10 @@ the prerender writes the search index, the blog feeds and `llms.txt`:
 import afw from "@opentf/vite-plugin-afw";
 import afwDocs from "@opentf/afw-docs/vite";
 
-export default { plugins: [afw({ mode: "ssg" }), afwDocs()] };
+export default { plugins: [afw(), afwDocs()] };
+
+// app/_config.js: the site is prerendered
+// export default { render: "static" };
 ```
 
 Test search with `vite build` and `vite preview`.

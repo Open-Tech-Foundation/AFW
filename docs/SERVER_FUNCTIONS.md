@@ -202,7 +202,7 @@ What phase 1 runs:
 
 ## 7. Phase 1 coverage
 
-- Both toolchains generate the same `@afw/server`; with `mode: "ssr"` it also renders
+- Both toolchains generate the same `@afw/server`; with server-rendered pages (`app/_config.js`) it also renders
   pages (`createPageRenderer`), on esdev as on Vite.
 - Browser e2e in both: `packages/vite-plugin-afw/e2e/dev.mjs` (Vite dev server) and
   `scripts/verify-server-functions.mjs` (`esdev start` with a server target, then a

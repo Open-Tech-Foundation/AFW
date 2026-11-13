@@ -76,7 +76,7 @@ in headless Chrome.
 
 ## Framework follow-ups
 
-- Done: `esdev start` and the Vite dev server (`mode: "ssr"`) render pages on the server
+- Done: `esdev start` and the Vite dev server render server pages on the server
   and the client adopts them; the dev browser build is the compiler's `hydrate-hot` target.
 - Pending esdev: any server-only edit under `esdev start` (`_middleware.js`, `loader.js`,
   a `*.server.js` function body) restarts the server and then reloads the page, because no

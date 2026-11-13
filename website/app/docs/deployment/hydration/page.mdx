@@ -36,8 +36,7 @@ hydrates on that first paint. SPA navigation is layered on top as a progressive 
 ## How to enable it
 
 Pages hydrate when they are rendered first, on the server or at build time: their
-[render policy](/docs/routing/rendering) is `server` or `static` (`app/_config.js`, or the
-plugin's `mode` shorthand `"ssr"`/`"ssg"`).
+[render policy](/docs/routing/rendering) is `server` or `static` (`app/_config.js`).
 
 - `static` pages need a prerender step (esdev: a prerender target; Vite: built in).
 - `server` pages need a server entry for request rendering (esdev: your `server.js`; Vite:
@@ -49,7 +48,7 @@ plugin's `mode` shorthand `"ssr"`/`"ssg"`).
 esdev build --minify
 ```
 
-An app whose pages are all `client` (`mode: "spa"`) emits CSR output. See
+An app whose pages are all `client` (the default) emits CSR output. See
 [Static Generation](/docs/deployment/static-generation) and
 [Server](/docs/deployment/server) for the required entries.
 

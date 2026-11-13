@@ -21,7 +21,7 @@
 ```json
 {
   "plugins": [
-    { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
+    { "module": "@opentf/esdev-plugin-afw" },
     { "module": "@opentf/afw-cli/ssg", "export": "siteOutputPlugin",
       "options": { "target": "web", "prerenderTarget": "site-ssg", "root": "." } }
   ],

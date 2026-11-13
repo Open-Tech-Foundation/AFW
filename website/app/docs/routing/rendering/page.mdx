@@ -52,9 +52,8 @@ app/
 - **One file per folder:** `_config.js` or `_config.ts`. Both in one folder is a build error.
 - **Route groups work as folders:** `(legal)/_config.js` covers what the group holds without
   changing its URLs.
-- **The app default** is the root `app/_config.js`. Without one, the plugin's `mode` option
-  is the default: `mode: "spa"` means client, `"ssg"` static, `"ssr"` server. Setting both
-  is a build error: the default lives in one place.
+- **The app default** is the root `app/_config.js`. Without one, pages render in the
+  browser (`client`).
 - **`render` is a string literal.** It decides what each bundle contains (a client page
   never enters the server bundle), so the build reads it without running the file.
   `render: isAdmin ? "client" : "server"` is a build error that says so.

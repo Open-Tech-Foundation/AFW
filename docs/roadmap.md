@@ -51,12 +51,12 @@ Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE
 * [x] `@opentf/afw-docs/vite`: navigation, posts, last-updated, search index, feeds, `llms.txt`.
 * [x] Native addons in server routes (tested with `sharp` in dev and production).
 * [ ] Vite prerender: `<link rel="modulepreload">` hints per route (esdev's prerender emits them).
-* [x] Server-rendered pages in the dev server for `mode: "ssr"` in both workflows: the client adopts them (compiler `hydrate-hot` target) and component/page/layout refresh keeps working on adopted views.
+* [x] Server-rendered pages in the dev server in both workflows: the client adopts them (compiler `hydrate-hot` target) and component/page/layout refresh keeps working on adopted views.
 * [x] Per-route render policies: a folder's `_config.js` (`defineRoute({ render, paths, data })`) picks server, static or client; route table, `routes.json` (Vite), `x-afw-render`; both workflows and their dev servers.
 * [ ] esdev: prebuild the static pages of an app with a server (today rendered per request) and write `routes.json`.
 * [ ] Revalidation and cache headers per route (`revalidate`, `cache`; refused by `_config.js` until then).
 * [x] Vite dev server renders static pages on request. Left: a fully static esdev site in development (no dev server to render; needs dev-only targets in esdev).
-* [ ] `@opentf/afw-docs/vite` finishing steps under `mode: "ssr"` (today: `ssg` only).
+* [ ] `@opentf/afw-docs/vite` finishing steps for a docs site with server pages (today: fully static only).
 * [ ] `afw-cli`'s server entry (`apiEntrySource`, `serverEntrySource`) on `afw-build`'s `serverModule`.
 
 ## Streaming (for future review)
