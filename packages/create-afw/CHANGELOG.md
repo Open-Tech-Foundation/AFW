@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-13
+
 ### Fixed
 
 - The esdev starters, which esdev 0.28 could not use:

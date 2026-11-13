@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
 ### Removed
 
 - `MODES`, `RENDER_OF_MODE` and the `mode` input of `resolveRoutePolicies`: the app default
