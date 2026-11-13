@@ -7,7 +7,10 @@
     "build": "cp ../../LICENSE LICENSE"
   },
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./client": {
+      "types": "./client.d.ts"
+    }
   },
   "files": [
     "index.js",
@@ -17,7 +20,8 @@
     "routes.js",
     "afw.js",
     "server.js",
-    "policy.js"
+    "policy.js",
+    "client.d.ts"
   ],
   "dependencies": {
     "@opentf/afw-build": "workspace:*",

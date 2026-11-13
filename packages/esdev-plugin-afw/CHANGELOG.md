@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- `@opentf/esdev-plugin-afw/client` types: `@afw/routes`, and `.md`, `.mdx` and `.css`
+  imports. Add it to `tsconfig.json` `types`, as the starters do.
+
 ### Removed
 
 - The `mode` option (`spa`, `ssr`, `ssg`), in `esdev.json` and in `createAfwPlugin`. Set
