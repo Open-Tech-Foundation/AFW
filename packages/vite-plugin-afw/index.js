@@ -31,6 +31,8 @@ import {
   prerender, routesModule, serverModule, stampHydrateSentinel, startCompilerServer, staticPathConfigs, usesServerEntry,
   validateOptions,
 } from "@opentf/afw-build";
+import { defaultClientConditions, defaultServerConditions } from "vite";
+
 import { sendWebResponse, toWebRequest } from "@opentf/afw/server/adapters/node";
 import { afwcPath } from "@opentf/afw-compiler/node";
 
@@ -253,7 +255,15 @@ export default function afw({
         // through the compiler rather than load them from node_modules as they are.
         // Vitest matches resolved paths as well as names, so both forms are listed:
         // in an installed app the files sit under node_modules/@opentf/.
-        return { ...config, test: { server: { deps: { inline: [/^@opentf\//, AFW_PACKAGE_PATH, ...libraries, ...libraryPaths] } } } };
+        // The `vitest` export condition: `@opentf/afw-test/test` resolves to Vitest's test API
+        // here (its default is esdev's). Setting conditions replaces Vite's, so they are kept.
+        const vitest = (defaults) => [...(defaults ?? []), "vitest"];
+        return {
+          ...config,
+          resolve: { conditions: vitest(userConfig.resolve?.conditions ?? defaultClientConditions) },
+          ssr: { ...config.ssr, resolve: { conditions: vitest(userConfig.ssr?.resolve?.conditions ?? defaultServerConditions) } },
+          test: { server: { deps: { inline: [/^@opentf\//, AFW_PACKAGE_PATH, ...libraries, ...libraryPaths] } } },
+        };
       }
       if (env.command !== "build") return config;
       projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());

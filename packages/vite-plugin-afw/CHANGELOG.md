@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Test runs resolve the `vitest` export condition (beside Vite's defaults), so
+  `@opentf/afw-test/test` gives Vitest's test API.
+
 ### Removed
 
 - The `mode` option (`spa`, `ssr`, `ssg`). Set how pages render in `app/_config.js`
