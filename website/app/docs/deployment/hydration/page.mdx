@@ -35,16 +35,21 @@ hydrates on that first paint. SPA navigation is layered on top as a progressive 
 
 ## How to enable it
 
-Use plugin `mode: "ssg"` with a prerender target for static HTML, or `mode: "ssr"`
-with an app-owned server entry for request rendering. Both modes compile browser
-release modules for hydration. Server HTML must include the sentinel and island/data
-payloads that the client expects; the plugin does not produce that request server.
+Pages hydrate when they are rendered first, on the server or at build time: their
+[render policy](/docs/routing/rendering) is `server` or `static` (`app/_config.js`, or the
+plugin's `mode` shorthand `"ssr"`/`"ssg"`).
+
+- `static` pages need a prerender step (esdev: a prerender target; Vite: built in).
+- `server` pages need a server entry for request rendering (esdev: your `server.js`; Vite:
+  built in).
+- The browser build then compiles release modules for hydration. Server HTML must include
+  the sentinel and island/data payloads that the client expects.
 
 ```bash
 esdev build --minify
 ```
 
-Plugin `mode: "spa"` emits CSR output for a client-only app. See
+An app whose pages are all `client` (`mode: "spa"`) emits CSR output. See
 [Static Generation](/docs/deployment/static-generation) and
 [Server](/docs/deployment/server) for the required entries.
 
@@ -86,13 +91,15 @@ Fine-grained adoption is implemented for the constructs you use in real apps:
 
 ## In development
 
-- With `mode: "ssr"`, both dev servers (`esdev start` and Vite) render pages on the server
-  and the client adopts them, as in production. Mismatches show up while you work, not
+- Both dev servers (`esdev start` and Vite) render `server` pages on the server and the
+  client adopts them, as in production. Mismatches show up while you work, not
   after a release build.
 - Component, page and layout edits still refresh in place and keep their state, including
   views the client adopted.
-- `mode: "spa"` and `mode: "ssg"` dev servers render on the client. Static generation's
-  output is checked by building it.
+- `static` pages render on request in the Vite dev server, and in `esdev start` when the
+  app has a server. A fully static esdev site renders in the browser in development; its
+  prerendered output is checked by building it.
+- `client` pages render in the browser, inside their server-rendered layouts.
 - Only page navigations (requests that accept HTML) are rendered; a URL that matches no
   page gets the app shell, and the client shows its 404 page.
 

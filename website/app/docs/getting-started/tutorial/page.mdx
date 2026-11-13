@@ -24,14 +24,15 @@ is the same; only the server entry differs (see [Server Setup](/docs/deployment/
 ## 1. Create the app
 
 ```bash
-npm create @opentf/afw@latest my-notes -- --template app --render ssr --language js
+npm create @opentf/afw@latest my-notes -- --template app --render server --language js
 cd my-notes
 npm install zod @opentf/afw-form
 npm run dev
 ```
 
-- `--render ssr` renders pages on the server per request and hydrates them in the
-  browser. It always includes a Node server.
+- `--render server` renders pages on the server per request and hydrates them in the
+  browser. It always includes a Node server. `app/_config.js` records the choice; a folder
+  can [change it with its own](/docs/routing/rendering).
 - The starter already has a home page, an About page and a todos example. Open
   `http://localhost:5173`.
 - Zod validates a note. Any [Standard Schema](https://standardschema.dev) library
@@ -287,10 +288,10 @@ export default function Note() {
 
 ## 7. Test the component
 
-```js tests/NoteForm.test.js
+```js tests/ui/NoteForm.test.js
 import { expect, test, vi } from "vitest";
 import { render, userEvent } from "@opentf/afw-test";
-import NoteForm from "../app/notes/NoteForm.jsx";
+import NoteForm from "../../app/notes/NoteForm.jsx";
 
 test("saves the typed note and clears the input", async () => {
   const save = vi.fn(async () => {});
@@ -348,7 +349,7 @@ npm start
 - `npm run build` writes the browser assets to `dist/client` and a Node server to
   `dist/server`.
 - `npm start` runs `node dist/server/index.js`. `PORT` and `HOST` set where it listens.
-- To deploy to any Node 22+ host:
+- To deploy to any Node 24+ host:
 
 ```bash
 npm ci

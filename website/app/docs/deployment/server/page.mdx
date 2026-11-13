@@ -16,8 +16,12 @@ The AFW plugin generates `@afw/server` from `app/`, in both workflows:
   app's middleware it answers API routes, [server functions](/docs/server-functions)
   and loader data (`<path>/__data.json`), then `files(request)`, then
   `renderPage(request)`; each may return `null` to pass. `fallback` answers the rest.
-- `createPageRenderer({ shell })` — with `mode: "ssr"`: renders pages per request into
+- `createPageRenderer({ shell, readStatic })` — when any route renders on the server or
+  at build time ([Rendering](/docs/routing/rendering)): renders pages per request into
   `shell` (the client's `index.html`), with loader data, metadata and hydration.
+  `readStatic(pathname)` returns a static route's prebuilt HTML (or `null`), which is
+  served instead; client routes get their layouts around an empty slot. Each response
+  carries `x-afw-render`.
 - Also exported: `apiRoutes`, `middleware`, `loaders`, `serverFunctions`, and `render`
   (with pages) for custom pipelines.
 
@@ -49,15 +53,21 @@ async function files(request) {
 const shell = await file(new URL("./index.html", outDir)).text();
 const handle = createHandler({
   files,
-  renderPage: createPageRenderer({ shell }), // with mode: "ssr"; leave out for an SPA
+  renderPage: createPageRenderer({ shell }), // leave out when every page is client
   fallback: () => new Response("Not Found", { status: 404 }),
 });
 serve({ port: Number(env.PORT ?? "3000") }, handle);
 ```
 
+```js app/_config.js
+// Pages render per request (see Rendering for static and client folders).
+import { defineRoute } from "@opentf/afw";
+export default defineRoute({ render: "server" });
+```
+
 ```json esdev.json
 {
-  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssr" } }],
+  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "appDir": "app" } }],
   "build": { "targets": {
     "web": { "entry": "index.html", "outdir": "dist" },
     "server": { "entry": "server.js", "out": "dist/server.js" }

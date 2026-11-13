@@ -7,82 +7,80 @@ import { Callout } from "@opentf/afw-docs";
 
 # Library Template
 
-Component libraries can ship JSX/TSX source from `index.js`. Apps compile that source
-with their own AFW plugin, so the library does not bundle a second copy of the
-framework.
+Component libraries ship JSX/TSX source from `index.js`. Apps compile that source with
+their own AFW plugin, so the library does not bundle a second copy of the framework.
 
-- **esdev:** `esdev create my-lib --template=library --package-manager=pnpm`. The
-  project compiles components for tests and includes a rendering test that
-  `esdev test --dom` runs.
-- **Vite:** `npm create @opentf/afw my-lib -- --template=library` (add
-  `--styling=tailwind` for Tailwind classes). It includes a preview app
-  (`npm run dev`) and a Vitest test.
+| Workflow | Command |
+| --- | --- |
+| esdev | `esdev create my-lib --template=library` |
+| Vite | `npm create @opentf/afw my-lib -- --template library` |
 
-## Using a library in a Vite app
+Both write the same project:
 
-- Install it next to `@opentf/afw`. Nothing to configure.
-- `@opentf/vite-plugin-afw` compiles every dependency that declares `@opentf/afw` (as a
-  peer or a dependency): in the dev server, in server and prerender builds, and in
-  Vitest.
+- `index.js` (the package entry) and `src/Counter.jsx`;
+- a preview app (`app/page.jsx`, run by `dev`), which is not published;
+- a component test in `tests/ui/`, run by `test`;
+- `--styling tailwind` for Tailwind classes, `--language js` for JavaScript.
+
+## Using a library in an app
+
+- Install it next to `@opentf/afw`, a peer dependency (a caret range). Nothing to
+  configure.
+- Both AFW plugins compile every dependency that declares `@opentf/afw` (as a peer or a
+  dependency), in the dev server, in builds and in tests.
 - A library that uses Tailwind classes needs `@source "../node_modules/my-lib";` in the
   app's stylesheet, since Tailwind does not scan `node_modules`.
 
 ## Package entry
 
 ```js index.js
+// The package entry: export each component.
 export { default as Counter } from "./src/Counter.jsx";
 ```
 
-Include `index.js` and `src/` in the package's `files` list, and make `@opentf/afw`
-a peer dependency. Install the runtime, plugin and test helpers for development:
-
-```bash
-pnpm add -D @opentf/afw @opentf/esdev-plugin-afw @opentf/afw-test
-```
+- `package.json` publishes `index.js` and `src/` (its `files` list).
+- `@opentf/afw` is a peer dependency, and a dev dependency for the preview and tests.
 
 ## Sample component
 
 ```jsx src/Counter.jsx
-export default function Counter(props) {
-  let count = $state(props.initial ?? 0);
-  return <button type="button" onclick={() => count++}>Count: {count}</button>;
+export default function Counter({ start = 0 }) {
+  let count = $state(start);
+  const doubled = $derived(count * 2);
+
+  return (
+    <p>
+      <button onclick={() => count++}>Count: {count}</button> Doubled: {doubled}
+    </p>
+  );
 }
 ```
 
-## Rendering tests
+## Tests
 
-The library's `esdev.json` compiles components for client rendering and turns
-route discovery off, since a library has no `app/` folder. The
-[Testing Setup](/packages/afw-test/setup) module registers cleanup:
+The same test file runs in both workflows: it imports its test API from
+`@opentf/afw-test/test` (esdev's `runtime:test`, or Vitest).
 
-```json esdev.json
-{
-  "plugins": [{
-    "module": "@opentf/esdev-plugin-afw",
-    "options": { "target": "csr", "routes": false }
-  }],
-  "test": { "setup": ["@opentf/afw-test/setup"] }
-}
-```
+```js tests/ui/Counter.test.js
+import { expect, test } from "@opentf/afw-test/test";
+import { render, userEvent } from "@opentf/afw-test";
+import { Counter } from "../../index.js";
 
-```js tests/counter.test.js
-import { expect, test } from "runtime:test";
-import { render } from "@opentf/afw-test";
-import { Counter } from "../index.js";
-
-test("updates after a click", async () => {
-  const { getByRole } = render(Counter, { initial: 2 });
-  const button = getByRole("button", { name: "Count: 2" });
-  button.click();
-  expect(button.textContent).toBe("Count: 3");
+test("counts clicks", async () => {
+  const { getByRole, getByText } = render(Counter, { start: 1 });
+  await userEvent.setup().click(getByRole("button", { name: "Count: 1" }));
+  expect(getByRole("button").textContent).toBe("Count: 2");
+  expect(getByText(/Doubled: 4/)).toBeTruthy();
 });
 ```
 
-```bash
-esdev test --dom
-```
+| Workflow | `test` runs |
+| --- | --- |
+| esdev | `esdev test --dom --setup=@opentf/afw-test/setup tests/ui` |
+| Vite | `vitest run` (`happy-dom`, with `@opentf/afw-test/vitest` as the setup file) |
 
-Use `--browser` for full user-event interaction sequences. Publishing source and
-publishing a compiled library are different workflows; see esdev's official
-[library build guide](https://esrun.opentechf.org/esdev/build/library) if consumers
-need precompiled output.
+<Callout type="info" title="Publishing">
+  Publishing source and publishing a compiled library are different workflows; see
+  esdev's [library build guide](https://esrun.opentechf.org/esdev/build/library) if
+  consumers need precompiled output.
+</Callout>

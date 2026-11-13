@@ -38,9 +38,16 @@ These items need compiler or runtime support, so a third-party package cannot ad
 - [x] **Lazy components.**
   - [`const Chart = () => import("./Chart.jsx")`](/docs/core-concepts/lazy-components), in the next release.
   - Others: React `lazy()`, Solid `lazy()`, Vue `defineAsyncComponent`.
+- [x] **Server, static and client pages in one app.**
+  - Each folder's [`_config.js`](/docs/routing/rendering) picks how its pages render; the build prints a route table and each response says what produced it.
+  - Left: static pages prebuilt in esdev apps that have a server (they render per request today), and `routes.json` from esdev builds.
+  - Others: Nuxt `routeRules`, SvelteKit page options, Next.js route segment config.
+- [ ] **Revalidation and caching per route.**
+  - `revalidate` for static pages (on a schedule or on demand, by path or tag) and cache headers per route.
+  - Others: Next.js ISR and `revalidateTag`, Nuxt `routeRules` caching.
 - [x] **Server-rendered pages in development.**
-  - With `mode: "ssr"`, `esdev start` and the Vite dev server render pages on the server and the client [adopts them](/docs/deployment/hydration#in-development), in the next release; edits still refresh in place.
-  - Left: the same for `mode: "ssg"`, which renders on the client in development.
+  - `esdev start` and the Vite dev server render server pages on the server and the client [adopts them](/docs/deployment/hydration#in-development); edits still refresh in place. Vite renders static pages on request too.
+  - Left: static pages in esdev development for a fully static site (no server), which render in the browser.
   - Others: Next.js, SvelteKit, Nuxt, React Router and SolidStart render on the server in development.
 - [ ] **Deferred hydration.**
   - Send a component's HTML with the page and load its JavaScript later: after hydration, when it scrolls into view, or when the browser is idle.

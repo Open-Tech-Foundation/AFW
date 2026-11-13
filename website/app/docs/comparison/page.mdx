@@ -47,6 +47,7 @@ The everyday features AFW is still missing, and the plan for each, are on the
 | Client-rendered app (SPA) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
 | Static generation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Server rendering per request | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Server, static and client pages in one app, chosen per route | ✅ ⁵ | 🟡 | ✅ | 🟡 | ✅ | ✅ | 🟡 | 🟡 |
 | Streaming server rendering | ❌ | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | ✅ |
 | Hydration that reuses server DOM | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Per-component hydration (islands) | ✅ ¹ | 🟡 ² | ❌ | ❌ | 🟡 | ❌ | ✅ | ❌ |
@@ -59,6 +60,8 @@ The everyday features AFW is still missing, and the plan for each, are on the
 3. Experimental: TanStack Start and React Router both ship React Server Components
    behind experimental or `unstable` APIs.
 4. Astro's server islands render a component on the server after the page loads.
+5. Each folder's [`_config.js`](/docs/routing/rendering) picks `server`, `static` or `client`; a
+   client page never enters the server bundle, and its layouts still render on the server.
 
 ## Routing
 

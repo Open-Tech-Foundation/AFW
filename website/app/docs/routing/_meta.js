@@ -2,6 +2,7 @@ export default {
   "pages-and-layouts": "Pages & Layouts",
   metadata: "Metadata & SEO",
   "dynamic-routes": "Dynamic Routes",
+  rendering: "Rendering",
   "route-groups": "Route Groups",
   navigation: "Navigation",
   "loading-and-errors": "Loading & Error UI",

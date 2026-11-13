@@ -62,6 +62,27 @@ esdev test --config=esdev.test.json --dom
   custom-element cleanup reactions.
 </Callout>
 
+## One test file for both workflows
+
+Import the test API from `@opentf/afw-test/test` instead of `runtime:test` or `vitest`, and
+the same file runs under `esdev test` and Vitest. The starters' tests do this.
+
+```js tests/ui/Counter.test.js
+import { expect, test } from "@opentf/afw-test/test";
+import { render } from "@opentf/afw-test";
+```
+
+| Workflow | `@opentf/afw-test/test` is | Setup |
+| --- | --- | --- |
+| esdev (0.28 or newer) | `runtime:test`, by the `esdev` export condition | `esdev test --dom --setup=@opentf/afw-test/setup` |
+| Vite | Vitest | `test.setupFiles: ["@opentf/afw-test/vitest"]`, `environment: "happy-dom"` |
+
+- It exports `test`, `it`, `describe`, `expect` and the `beforeAll`/`afterAll`/
+  `beforeEach`/`afterEach` hooks, the names both runners share. Use the runner's own
+  module for anything else (mocks, timers).
+- TypeScript under esdev: `"customConditions": ["esdev"]` in `tsconfig.json`, which the
+  starters set.
+
 ## Manual cleanup
 
 If you omit `test.setup`, register the hook in each test file:

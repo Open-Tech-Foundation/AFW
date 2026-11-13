@@ -7,100 +7,119 @@ import { Callout } from "@opentf/afw-docs";
 
 # Project Structure
 
-AFW supports browser apps, fullstack apps, documentation sites and component
-libraries. The layouts below match the projects `esdev create` generates; see
-[Installation](/docs/getting-started/installation).
-Apps and docs sites share the same `app/` routing layout; libraries ship source
-components without an `app/` folder.
+The layouts below match the projects both scaffolders write (`esdev create` and
+`npm create @opentf/afw`); see [Installation](/docs/getting-started/installation).
 
-## SPA (browser-only)
+- Apps and docs sites share the `app/` routing layout; libraries ship source components
+  and keep a small preview app.
+- `app/` and `tests/` are the same in both workflows. Only the toolchain files differ:
+  `esdev.json` (with `server.js` or `ssg.js`) or `vite.config.js`.
+- The trees show JavaScript; TypeScript projects use `.ts`/`.tsx` and add `tsconfig.json`.
 
-A client-only app — deploy `dist/` to any static host. No server files in the repo.
+## App
+
+A client-rendered app, the `app` template's default:
 
 ```text
 my-app/
 ├─ app/
+│  ├─ _config.js      # how pages render: { render: "client" }
+│  ├─ layout.jsx      # wraps every page
 │  ├─ page.jsx        # route: /
-│  ├─ layout.jsx      # shared layout wrapping all routes
-│  ├─ 404.jsx         # not-found page
+│  ├─ Counter.jsx     # a component
 │  ├─ about/
-│  │  └─ page.jsx     # route: /about
+│  │  └─ page.md      # route: /about, written in Markdown
 │  └─ global.css
-├─ public/            # static files copied to dist/ as-is (favicon, images, …)
-├─ esdev.json         # compiler plugin and build targets
+├─ tests/
+│  └─ ui/
+│     └─ Counter.test.js   # component test
+├─ public/            # optional: files served at the site root
 ├─ entry.js           # client bootstrap
 ├─ index.html         # mount point + module script
+├─ esdev.json         # esdev: compiler plugin and build targets
+├─ vite.config.js     # Vite: the AFW plugin (instead of esdev.json)
 └─ package.json
 ```
 
-Add an optional `afw.config.js` at the root when you need `site.url` (for
-a prerender target), or i18n — see [Configuration](/docs/configuration).
+## App with a server
 
-## Fullstack (browser + server)
-
-Same UI as an SPA, plus server modules the toolchain bundles separately — never
-shipped to the browser.
+The **Server**, **Mixed** and (when you add one) **Client** or **Static** choices add
+server code, bundled separately and never shipped to the browser:
 
 ```text
 my-app/
 ├─ app/
-│  ├─ page.jsx
-│  ├─ layout.jsx
-│  ├─ loader.js       # route loader for / — data → router.data
-│  ├─ _middleware.js  # middleware for the whole app tree
-│  ├─ 404.jsx
-│  ├─ about/
-│  │  └─ page.jsx
+│  ├─ _config.js        # { render: "server" }
+│  ├─ _middleware.js    # runs for every request
 │  ├─ api/
 │  │  └─ hello/
-│  │     └─ route.js  # API endpoint: GET /api/hello
-│  └─ global.css
-├─ public/
-├─ esdev.json         # browser and server targets
-├─ entry.js           # client bootstrap
-├─ server.js          # app-owned request pipeline
-├─ index.html
-└─ package.json
+│  │     └─ route.js    # API endpoint: GET /api/hello
+│  ├─ todos/
+│  │  ├─ page.jsx
+│  │  ├─ loader.js      # data → router.data, on the server
+│  │  └─ todos.server.js   # server functions the page calls
+│  └─ …                 # layout, page, about/ as above
+├─ tests/
+│  ├─ server/
+│  │  └─ api.test.js    # API route test, no DOM
+│  └─ ui/
+│     └─ Counter.test.js
+├─ server.js            # esdev: the server entry (Vite builds its own)
+└─ …
 ```
 
-Provide a native server entry to compose per-request rendering, loaders and API routes. See
-[Server](/docs/deployment/server).
+**Mixed** adds two folders that override the default, to copy from:
+
+```text
+app/
+├─ about/
+│  ├─ _config.js     # { render: "static" }: built once
+│  └─ page.md
+└─ dashboard/
+   ├─ _config.js     # { render: "client" }: rendered in the browser
+   ├─ loader.js      # still runs on the server
+   └─ page.jsx
+```
+
+See [Rendering](/docs/routing/rendering) for how `_config.js` works.
 
 ## Documentation site
-
-Docs projects add `afw.config.js` and an `app/docs/` section for MDX content. Add `app/blog/` when you need posts — see [afw-docs → Blog](/packages/afw-docs/blog).
 
 ```text
 my-docs/
 ├─ app/
-│  ├─ page.jsx            # marketing landing page
+│  ├─ _config.js          # { render: "static" }: every page prerendered
+│  ├─ page.jsx            # landing page
 │  ├─ layout.jsx
 │  ├─ docs/
 │  │  ├─ layout.jsx       # docs shell (sidebar + TOC)
 │  │  ├─ _meta.js         # sidebar order + labels
-│  │  └─ page.mdx         # /docs introduction
+│  │  ├─ page.mdx         # /docs
+│  │  ├─ getting-started/page.mdx
+│  │  └─ guides/writing-pages/page.mdx
 │  └─ global.css
-├─ public/                # logos, og images — served at /
-├─ esdev.json             # browser + prerender targets
-├─ entry.js               # client bootstrap
-├─ ssg.js                 # staged release prerender step
-├─ afw.config.js         # site URL, docs/blog sections (@opentf/afw-docs)
+├─ tests/ui/Home.test.js
+├─ afw.config.js          # site URL, docs/blog sections (@opentf/afw-docs)
+├─ ssg.js                 # esdev: the release prerender step
+├─ entry.js
 ├─ index.html
 └─ package.json
 ```
 
-## Library
+With a blog, `app/blog/` holds the post list and the posts; see
+[afw-docs → Blog](/packages/afw-docs/blog).
 
-Library projects export source components from the package root — no `app/` folder:
+## Library
 
 ```text
 my-lib/
-├─ index.js           # package entry
+├─ index.js           # package entry: export each component
 ├─ src/
 │  └─ Counter.jsx
-├─ tests/
-│  └─ counter.test.js
-├─ esdev.json       # CSR compiler plugin (routes off) and test cleanup
+├─ tests/ui/Counter.test.js
+├─ app/page.jsx       # preview app for `dev` (not published)
+├─ entry.js
+├─ index.html
 └─ package.json
 ```
 
@@ -126,6 +145,7 @@ Files the toolchain recognizes beyond ordinary components. Extensions `.js`, `.t
 | `(group)/` | A [route group](/docs/routing/route-groups): organizes pages and gives them a layout, middleware or error page, without being part of the URL. |
 | `layout.loader.js` | A [layout loader](/docs/data-fetching/route-loaders#layout-loaders) sibling to a `layout.*`: data for every page beneath that layout, merged into `router.data`. |
 | `_middleware.js` | [Middleware](/docs/routing/middleware) for its folder and everything nested under it (pages, API, loader data, SSR). |
+| `_config.js` | How the pages in its folder and below it render (`server`, `static` or `client`); the nearest one wins. See [Rendering](/docs/routing/rendering). |
 | `_meta.js` | Docs sidebar order and labels for a folder (`@opentf/afw-docs`). Supports `.js`, `.mjs` and `.json` today. |
 
 ### Project root
@@ -133,11 +153,15 @@ Files the toolchain recognizes beyond ordinary components. Extensions `.js`, `.t
 | File / folder | Role |
 | --- | --- |
 | `esdev.json` | Compiler plugins, build targets, output locations and development settings. |
+| `vite.config.js` | Vite workflow: the AFW plugin (`@opentf/vite-plugin-afw`) and test settings. |
+| `server.js` | esdev, apps with a server: the server entry around the generated `@afw/server`. |
+| `ssg.js` | esdev, static sites: the prerender step a release build runs. |
+| `tests/ui/`, `tests/server/` | Component tests (with a DOM) and server tests (API routes, without one). |
 | `entry.js` | Client bootstrap: imports @afw/routes and calls mountApp. |
 | `index.html` | The HTML shell with an explicit module script. Your entry mounts into `#app`; esdev bundles the module script. |
 | `public/` | Static assets copied to `dist/` at build time and served at the site root (`public/favicon.svg` → `/favicon.svg`). Overrides generated files when names collide (e.g. a hand-written `public/robots.txt`). |
 | `afw.config.js` | Optional for SPA/fullstack (`site.url`, `i18n`). Required for docs/blog production builds and drives `@opentf/afw-docs` (navbar, search, feeds). See [Configuration](/docs/configuration). |
-| `dist/` | Build output — created by `esdev build`. Not checked in; safe to delete and rebuild. |
+| `dist/` | Build output — created by `esdev build` or `vite build`. Not checked in; safe to delete and rebuild. |
 
 Every other PascalCase `.jsx`/`.tsx` file under `app/` is a reusable component — no
 registration needed (see [Components](/docs/core-concepts/components)).
@@ -149,7 +173,7 @@ registration needed (see [Components](/docs/core-concepts/components)).
 - You never import `$state`, `onMount`, etc. — the compiler injects them.
 
 <Callout type="info" title="TypeScript">
-  Choose TypeScript at the scaffold prompt to get `.tsx` pages, `.ts` API routes and
-  loaders, `tsconfig.json`, and macro typings (`app/afw-env.d.ts`). Docs sites keep
+  TypeScript is the default at the scaffold prompt: `.tsx` pages, `.ts` API routes,
+  loaders and `_config.ts`, and a `tsconfig.json`. Docs sites keep
   `afw.config.js` and `_meta.js` as JavaScript — the toolchain reads those today.
 </Callout>

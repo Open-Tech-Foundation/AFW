@@ -23,17 +23,80 @@ export const installTabs = [
 
 # Installation
 
-AFW has two official workflows. Both compile the same components and `app/` routes.
+AFW has two official workflows. Both compile the same components and `app/` routes, and
+both create the same projects: the same questions, the same `app/` and `tests/`. Only the
+toolchain's own files differ.
 
 | Workflow | Choose it when |
 | --- | --- |
 | **esdev + ES-Runtime** | You want the single-binary, capability-secured ES-Runtime toolchain. |
 | **Vite + Node** | Your server code needs the Node ecosystem: ORMs, database drivers, native addons such as `sharp`, or Node hosting. |
 
+## Create a project
+
+| Workflow | Command | Needs |
+| --- | --- | --- |
+| esdev + ES-Runtime | `esdev create my-app` (pick **AFW**) | esdev 0.28 or newer, [installed below](#install-esdev) |
+| Vite + Node | `npm create @opentf/afw my-app` (or `pnpm`/`yarn`/`bun create`) | Node 24 or newer |
+
+Both ask the same questions:
+
+| Template | Questions |
+| --- | --- |
+| `app` | How pages render by default · whether it has a server · styling · language |
+| `docs` | Whether it has a blog · language |
+| `library` | Styling · language |
+
+## The `app` template's choices
+
+**How should pages render by default?** The answer goes to `app/_config.js`; any folder
+can [change it with its own](/docs/routing/rendering).
+
+| Choice | Pages | Good for |
+| --- | --- | --- |
+| **Client** (default) | Rendered in the browser | Apps behind a login |
+| **Server** | Rendered per request, then hydrated | Content sites, search, anything with SEO |
+| **Static** | Built once at build time, then hydrated | Marketing sites, docs, blogs |
+| **Mixed** | Server by default, with a prebuilt `/about` and a client `/dashboard` | Sites that need all three; copy the examples |
+
+The other choices:
+
+- **Server**: API routes, middleware, loaders and [server functions](/docs/server-functions).
+  Asked for Client and Static; Server and Mixed always have one.
+- **Styling**: plain CSS or [Tailwind CSS](/docs/core-concepts/styling#tailwind-css), also
+  for `library`.
+- **Language**: TypeScript (default) or JavaScript, for every template.
+- **Blog** (`docs`): posts with RSS and Atom feeds. Off unless you ask for it.
+
+## Non-interactive usage
+
+| Workflow | Example |
+| --- | --- |
+| esdev | `esdev create my-app --template=app --render=mixed --styling=tailwind --language=ts` |
+| Vite | `npm create @opentf/afw my-app -- --template app --render mixed --tailwind --language ts` |
+
+- `--render`: `client`, `server`, `static` or `mixed`. The names of earlier releases still
+  work: `spa` is client, `ssr` is server, `ssg` is static.
+- `--server` / `--no-server`, `--blog` / `--no-blog`.
+- esdev: `esdev create --help` lists the options; Vite: `npm create @opentf/afw -- --help`.
+- The Vite template names of earlier releases (`spa`, `fullstack`, `ssr`, `ssg`) still work
+  as shorthands for `app`.
+
+## What a project contains
+
+| | esdev + ES-Runtime | Vite + Node |
+| --- | --- | --- |
+| Toolchain config | `esdev.json` (+ `server.js` with a server, `ssg.js` for a static site) | `vite.config.js` |
+| Scripts | `dev`, `build`, `test`, `start` or `preview`; `typecheck` with TypeScript | the same |
+| Tests | `tests/ui/` (components) and `tests/server/` (API routes); `esdev test` | the same files; Vitest |
+| Server code runs on | ES-Runtime | Node, so any npm package works |
+
+Tests import their API from `@opentf/afw-test/test`, so the same files run under either
+runner. See [Project Structure](/docs/getting-started/project-structure) for each file.
+
 ## Install esdev
 
-Install ES-Runtime's **esdev** development binary before creating a project.
-Use esdev 0.17 or newer and a package manager such as pnpm.
+Install ES-Runtime's **esdev** development binary before creating an esdev project.
 
 <Tabs tabs={installTabs} />
 
@@ -46,86 +109,10 @@ esdev --version
 See the official [installation guide](https://esrun.opentechf.org/docs/install)
 for version pinning, upgrades and custom install locations.
 
-## Create a project
-
-```bash
-esdev create my-app
-```
-
-Follow the prompts to choose a template, language and package manager.
-
-## Non-interactive usage
-
-Specify your choices with flags for scripts or CI:
-
-```bash
-esdev create my-app --template=spa --language=js --package-manager=pnpm
-```
-
-Use `--language=ts` for TypeScript and `esdev create --help` for supported options.
-
-Available templates:
-
-| Template | Purpose |
-| --- | --- |
-| `spa` | A browser app with file-based routing and client rendering. |
-| `fullstack` | A browser app with a server entry for APIs, middleware and request rendering. |
-| `docs` | An MDX docs site with prerendered HTML, navigation and search; `--blog` adds a blog. |
-| `library` | A source package of reusable components compiled by its consumers. |
-
-Template files are embedded in esdev; package versions are resolved while scaffolding.
-Each template writes its `esdev.json`, entry files and `dev`/`build`/`test` scripts.
-
-## Vite and Node
-
-Create a project with npm (or `pnpm create`, `yarn create`, `bun create`):
-
-```bash
-npm create @opentf/afw my-app
-```
-
-Follow the prompts, or pass the choices as flags:
-
-```bash
-npm create @opentf/afw my-app -- --template=app --render=ssg --server --styling=tailwind
-```
-
-| Template | Purpose |
-| --- | --- |
-| `app` | An app with file-based routing; you choose how pages render and whether it has a server. |
-| `docs` | An MDX docs site (`@opentf/afw-docs`), prerendered, with search; a blog with feeds only if you ask for one. |
-| `library` | A component library published as JSX source, compiled by the apps that use it. |
-
-The choices for `app` are independent:
-
-- **Rendering** (`--render`): `spa` renders in the browser, `ssr` renders per request on
-  Node and hydrates, `ssg` prerenders to static HTML at build time.
-- **Server** (`--server`): API routes, middleware, loaders and
-  [server functions](/docs/server-functions) on Node, with any rendering. `ssr` always
-  has one.
-- **Styling** (`--styling`): plain CSS or [Tailwind CSS](/docs/core-concepts/styling#tailwind-css),
-  also for `library`.
-- **Language** (`--language`): `ts` (default) or `js`, for every template.
-
-For `docs`:
-
-- **Blog** (`--blog`): posts with RSS and Atom feeds. Off unless you ask for it — the
-  prompt defaults to no, and `--no-interactive` leaves it out.
-
-Scripts:
-
-- Apps and docs sites: `dev`, `build`, `test` (Vitest), and `start` (the built Node
-  server) or `preview`.
-- Libraries: `dev` (a preview app) and `test`.
-- TypeScript projects add `typecheck`.
-- Server code runs on Node in development and production, so any npm package works
-  there.
-- The template names of earlier releases (`spa`, `fullstack`, `ssr`, `ssg`) still work
-  as shorthands for `app`.
-
 ## Next
 
 - [Tutorial](/docs/getting-started/tutorial): build a notes app with a loader, typed
-  server functions and a test, then run it as a Node server.
+  server functions and a test, then run it as a server.
 - [Project Structure](/docs/getting-started/project-structure): what each file in a new
   project does.
+- [Rendering](/docs/routing/rendering): server, static and client pages in one app.

@@ -12,12 +12,18 @@ composes routes and layouts into HTML without a server-side DOM.
 
 ## Configure the build
 
-Use the default AFW plugin with `mode: "ssg"` and add a second build target:
+Set the app's pages to `static` in `app/_config.js` (see [Rendering](/docs/routing/rendering)),
+and add a second build target for the prerender step:
+
+```js app/_config.js
+import { defineRoute } from "@opentf/afw";
+export default defineRoute({ render: "static" });
+```
 
 ```json esdev.json
 {
   "plugins": [
-    { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
+    { "module": "@opentf/esdev-plugin-afw", "options": { "appDir": "app" } },
     { "module": "@opentf/afw-cli/ssg", "export": "siteOutputPlugin",
       "options": { "target": "web", "prerenderTarget": "prerender" } }
   ],

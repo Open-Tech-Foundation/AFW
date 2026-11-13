@@ -1,0 +1,139 @@
+---
+title: Rendering
+description: Render each part of an app on the server, at build time or in the browser, with a _config.js per folder.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# Rendering
+
+Every page renders one of three ways, and each folder of `app/` chooses its own.
+
+| `render` | The page is | Good for |
+| --- | --- | --- |
+| `"server"` | Rendered per request, then hydrated in the browser | Articles, search, anything per user or with SEO |
+| `"static"` | Built once at build time, then hydrated | Marketing pages, docs, legal pages |
+| `"client"` | Rendered in the browser | Dashboards, editors, apps behind a login |
+
+## Setting it
+
+A folder's `_config.js` sets how its pages, and every folder below it, render:
+
+```js
+// app/admin/_config.js
+import { defineRoute } from "@opentf/afw";
+
+export default defineRoute({ render: "client" });
+```
+
+A site that needs all three, set with four small files:
+
+```text
+app/
+├─ _config.js              { render: "server" }   the default for the whole app
+├─ page.jsx                  /                      server
+├─ articles/[slug]/page.jsx  /articles/hello        server (inherited)
+├─ (legal)/
+│  ├─ _config.js           { render: "static" }
+│  ├─ privacy/page.jsx       /privacy               static
+│  └─ terms/page.jsx         /terms                 static
+├─ about/
+│  ├─ _config.js           { render: "static" }
+│  └─ page.jsx               /about                 static
+└─ admin/
+   ├─ _config.js           { render: "client" }
+   ├─ layout.jsx
+   └─ editor/page.jsx        /admin/editor          client (inherited)
+```
+
+## The rules
+
+- **Nearest wins:** a page uses the closest `_config.js` in its folder or above it.
+- **One file per folder:** `_config.js` or `_config.ts`. Both in one folder is a build error.
+- **Route groups work as folders:** `(legal)/_config.js` covers what the group holds without
+  changing its URLs.
+- **The app default** is the root `app/_config.js`. Without one, the plugin's `mode` option
+  is the default: `mode: "spa"` means client, `"ssg"` static, `"ssr"` server. Setting both
+  is a build error: the default lives in one place.
+- **`render` is a string literal.** It decides what each bundle contains (a client page
+  never enters the server bundle), so the build reads it without running the file.
+  `render: isAdmin ? "client" : "server"` is a build error that says so.
+- **Unknown keys are errors,** so a typo never falls back to the inherited value silently.
+
+## Options
+
+| Key | For | Value |
+| --- | --- | --- |
+| `render` | every folder | `"server"`, `"static"` or `"client"`; inherited when left out |
+| `paths` | a dynamic static page (`[slug]/page.jsx`) | `() => [{ slug: "hello" }, …]`, may be async; the pages to build |
+| `data` | client pages | `"server"` (default): the loader runs on the server and its data comes with the page; `"client"`: the page fetches its own |
+
+- `paths` sits in the `_config.js` beside the dynamic page it lists; anywhere else is an error.
+- `paths` is ordinary code: it runs at build time and can query a database.
+- A page's own `getStaticPaths` still works; `paths` takes precedence.
+
+## Client pages
+
+- **The server never loads the page module,** so it may use browser-only code (an editor
+  library, `window`, `localStorage`) at import time.
+- **Layouts above it still render on the server:** the site header appears at once, and the
+  page is built into the layout's slot in the browser.
+- **Its loader still runs on the server,** under the folder's middleware, and the data comes
+  with the page (unless `data: "client"`).
+- **A client layout** makes everything inside it client-rendered too. A `server` or `static`
+  page inside a client layout is a build error: the server cannot render inside a layout it
+  never loads.
+
+## Static pages
+
+- **Prebuilt at build time** to `<path>/index.html`, then served as files.
+- **The middleware still runs** for them: `app/admin/_middleware.js` still guards a static
+  `/admin` page.
+- **Loaders run at build time,** with no request: a static page's loader cannot read
+  cookies or headers.
+- **Dynamic routes:** the pages `paths` lists are prebuilt; any other matching URL is
+  rendered when it is requested.
+- In a fully static app, client pages are prebuilt as their layouts around an empty slot.
+
+<Callout type="note" title="esdev apps with a server">
+  The esdev workflow prebuilds the static pages of a fully static site. In an app with a
+  server (Mixed), its static pages are rendered per request for now; the response and the
+  `x-afw-render` label are the same.
+</Callout>
+
+## Loading, error and 404 files
+
+- `loading.jsx` and `error.jsx` follow the policy of the folder they are in.
+- `404.jsx` is prerendered to `404.html` in a static site, and rendered by the server when
+  the app has one.
+
+## Seeing what each page does
+
+- **The build prints a route table:**
+
+  ```text
+  AFW routes
+  Route              Render  From
+  /                  server  app/_config.js
+  /about             static  app/about/_config.js
+  /admin/editor      client  app/admin/_config.ts
+  ```
+
+- **`routes.json`** beside the client build (Vite workflow) lists each route, its policy and
+  the file that set it, for tools and deploy adapters.
+- **Every rendered page response carries `x-afw-render`** (`server`, `static` or `client`),
+  in development and production.
+- **Development works like production:** both dev servers render each page by its policy,
+  static pages on request. A fully static esdev site (no server) renders in the browser in
+  development.
+
+## One browser-only widget
+
+For a single component that needs the browser (a map, a chart) inside a server page, keep
+the page as it is and make the component [lazy](/docs/core-concepts/lazy-components): the
+server sends a placeholder, and the browser loads and renders the component.
+
+## Not yet
+
+- Revalidation (rebuilding static pages on a schedule or on demand) and cache headers per
+  route. Unknown keys such as `revalidate` and `cache` are refused until they exist.

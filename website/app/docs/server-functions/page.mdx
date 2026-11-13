@@ -244,15 +244,21 @@ async function files(request) {
 const shell = await file(new URL("./index.html", outDir)).text();
 const handle = createHandler({
   files,
-  renderPage: createPageRenderer({ shell }), // with mode: "ssr"; leave out for an SPA
+  renderPage: createPageRenderer({ shell }), // leave out when every page is client
   fallback: () => new Response("Not Found", { status: 404 }),
 });
 serve({ port: Number(env.PORT ?? "3000") }, handle);
 ```
 
+```js app/_config.js
+// Pages render per request (see Rendering for static and client folders).
+import { defineRoute } from "@opentf/afw";
+export default defineRoute({ render: "server" });
+```
+
 ```json esdev.json
 {
-  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssr" } }],
+  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "appDir": "app" } }],
   "build": { "targets": {
     "web": { "entry": "index.html", "outdir": "dist" },
     "server": { "entry": "server.js", "out": "dist/server.js" }
@@ -263,10 +269,10 @@ serve({ port: Number(env.PORT ?? "3000") }, handle);
 
 - `createHandler` runs the app's middleware around API routes, server functions, loader
   data, `files` and `renderPage`, in that order.
-- `createPageRenderer` exists with `mode: "ssr"`: it registers every page and renders
-  them per request into the shell, with loader data.
+- `createPageRenderer` exists when any route renders on the server or at build time: it
+  registers those pages and renders them per request into the shell, with loader data.
 - `esdev start` runs the server target (`dev.run`) and restarts it when server code
-  changes; an edited `.server` file applies without a page reload.
+  changes. For now the page also reloads after that restart; the Vite dev server keeps it.
 - `esdev build`, then `esdev dist/server.js`, runs it in production.
 - Browser targets get the stubs automatically.
 
