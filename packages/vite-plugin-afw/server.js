@@ -130,24 +130,25 @@ function notFoundPage(clientDir) {
 
 /**
  * Start the app on Node. `app` is the built `@afw/server` module; `clientDir` the
- * built client (`dist/client`). `mode` picks how pages are served: `spa` (the app
- * shell), `ssg` (prerendered files, `404.html`) or `ssr` (rendered per request).
- * Resolves to the listening `http.Server`.
+ * built client (`dist/client`). `render` is how the app renders overall: `client` (every
+ * page is the app shell), `static` (prerendered files, `404.html`) or `server` (pages
+ * rendered per request, static routes served prebuilt). Resolves to the listening
+ * `http.Server`.
  */
 export async function startServer({
-  app, createHandler = app?.createHandler, clientDir, mode = "spa", baseUrl = "",
+  app, createHandler = app?.createHandler, clientDir, render = "client", baseUrl = "",
   port = Number(process.env.PORT ?? 3000), host = process.env.HOST ?? "0.0.0.0",
 } = {}) {
   let handler;
-  if (mode === "ssr") {
-    if (typeof app?.createPageRenderer !== "function") throw new Error("startServer: mode \"ssr\" needs an app built with pages");
+  if (render === "server") {
+    if (typeof app?.createPageRenderer !== "function") throw new Error('startServer: render "server" needs an app built with pages');
     const shell = stampHydrateSentinel(await readFile(join(clientRoot(clientDir), "index.html"), "utf8"));
     handler = createHandler({
       files: staticFiles(clientDir, { html: false }),
       renderPage: app.createPageRenderer({ shell, baseUrl, readStatic: prerenderedPages(clientDir) }),
       fallback: notFound,
     });
-  } else if (mode === "ssg") {
+  } else if (render === "static") {
     handler = createHandler({ files: staticFiles(clientDir), fallback: notFoundPage(clientDir) });
   } else {
     handler = createHandler({ fallback: staticFallback(clientDir) });

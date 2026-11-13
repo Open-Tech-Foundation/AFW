@@ -13,7 +13,7 @@ const quiet = { logLevel: "silent", configFile: false };
 test("an SPA builds: compiled components, code-split routes, Markdown pages", async () => {
   const { dir, cleanup } = await copyFixture("spa");
   try {
-    await build({ ...quiet, root: dir, plugins: [afw({ mode: "spa" })], build: { outDir: join(dir, "dist") } });
+    await build({ ...quiet, root: dir, plugins: [afw()], build: { outDir: join(dir, "dist") } });
     const assets = await readdir(join(dir, "dist", "assets"));
     const js = await Promise.all(assets.filter((f) => f.endsWith(".js")).map((f) => readFile(join(dir, "dist", "assets", f), "utf8")));
     const all = js.join("\n");
@@ -57,5 +57,5 @@ test("draft pages are left out of release routes", async () => {
 });
 
 test("unknown options fail before anything starts", () => {
-  assert.throws(() => afw({ mode: "isr" }), /Unknown AFW rendering mode/);
+  for (const mode of ["spa", "ssr", "ssg"]) assert.throws(() => afw({ mode }), /`mode` option was removed: set how pages render in app\/_config\.js/);
 });

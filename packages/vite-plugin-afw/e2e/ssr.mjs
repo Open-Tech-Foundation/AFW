@@ -1,5 +1,5 @@
 // Real-browser check of server-rendered pages in the Vite workflow (`tsr test-e2e-vite`):
-// build the full-stack fixture with `mode: "ssr"`, start the built Node server, and in
+// build the full-stack fixture rendered on the server (app/_config.js), start the built Node server, and in
 // headless Chrome confirm the client adopts the server's DOM instead of rebuilding it,
 // then stays interactive and navigates on the client.
 //
@@ -133,7 +133,7 @@ export default function EnvPage() {
   return <div><EnvGreeting /><p id="env-secret">[{import.meta.env.SECRET_TOKEN ?? "none"}]</p></div>;
 }
 `);
-  // Per-route policies on top of mode "ssr": a static page and a client section whose page
+  // The app renders on the server; per-route policies add a static page and a client section whose page
   // reads `window` as it loads (so the server must never import it).
   await page("about/_config.js", 'export default { render: "static" };\n');
   await page("dashboard/_config.js", 'export default { render: "client" };\n');
@@ -145,8 +145,9 @@ export default function Dashboard() {
   return <section id="dashboard" data-wide={width > 0 ? "yes" : "no"} onclick={() => clicks++}>visits {router.data?.visits} clicks {clicks}</section>;
 }
 `);
-  await writeFile(join(dir, "vite.config.js"), 'import afw from "@opentf/vite-plugin-afw";\nexport default { plugins: [afw({ mode: "ssr" })] };\n');
-  await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw({ mode: "ssr" })] })).buildApp();
+  await writeFile(join(dir, "app", "_config.js"), 'export default { render: "server" };\n');
+  await writeFile(join(dir, "vite.config.js"), 'import afw from "@opentf/vite-plugin-afw";\nexport default { plugins: [afw()] };\n');
+  await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw()] })).buildApp();
   server = spawn(process.execPath, ["dist/server/index.js"], { cwd: dir, env: { ...process.env, PORT: "0", HOST: "127.0.0.1" } });
   const origin = await new Promise((resolve, reject) => {
     let out = "";

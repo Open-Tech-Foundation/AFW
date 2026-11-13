@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Removed
+
+- The `mode` option (`spa`, `ssr`, `ssg`). Set how pages render in `app/_config.js`
+  (`export default defineRoute({ render: "server" })`); without one, pages render in the
+  browser. Passing `mode` is an error that says so. `startServer({ mode })` is now
+  `startServer({ render })`, taking `client`, `static` or `server`.
+
 ## [0.7.0] - 2026-11-13
 
 ### Added

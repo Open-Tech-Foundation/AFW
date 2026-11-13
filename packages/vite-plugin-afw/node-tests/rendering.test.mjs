@@ -12,8 +12,10 @@ import { copyFixture } from "./helpers.mjs";
 const exists = (p) => access(p).then(() => true, () => false);
 const html = { accept: "text/html" };
 
-async function buildApp(dir, options) {
+// `render`: how the app's pages render, written to app/_config.js as an app sets it.
+async function buildApp(dir, { render, ...options } = {}) {
   process.chdir(dir); // the fixture's loader reads data relative to the working directory
+  if (render) await writeFile(join(dir, "app", "_config.js"), `export default { render: "${render}" };\n`);
   await (await createBuilder({ logLevel: "silent", configFile: false, root: dir, plugins: [afw(options)] })).buildApp();
 }
 
@@ -27,12 +29,12 @@ function startBuiltServer(dir) {
   return { child, origin };
 }
 
-describe("mode: ssr", () => {
+describe("render: server", () => {
   let dir, cleanup, server, origin;
   before(async () => {
     ({ dir, cleanup } = await copyFixture("fullstack"));
     await writeFile(join(dir, "app", "404.jsx"), "export default function NotFound() { return <h1 id=\"missing\">Nothing here</h1>; }");
-    await buildApp(dir, { mode: "ssr", baseUrl: "https://example.test" });
+    await buildApp(dir, { render: "server", baseUrl: "https://example.test" });
     ({ child: server, origin } = startBuiltServer(dir));
     origin = await origin;
   });
@@ -84,11 +86,11 @@ describe("mode: ssr", () => {
   });
 });
 
-describe("mode: ssg", () => {
+describe("render: static", () => {
   test("a site without server files becomes static files in dist/", async () => {
     const { dir, cleanup } = await copyFixture("spa");
     try {
-      await buildApp(dir, { mode: "ssg", baseUrl: "https://example.test" });
+      await buildApp(dir, { render: "static", baseUrl: "https://example.test" });
       const about = await readFile(join(dir, "dist", "about", "index.html"), "utf8");
       assert.match(about, /<div id="app" data-afw-hydrate="\/about">/);
       assert.match(about, /Rendered from <strong>Markdown<\/strong>/);
@@ -105,8 +107,8 @@ describe("mode: ssg", () => {
     const { dir, cleanup } = await copyFixture("spa");
     let server;
     try {
-      await buildApp(dir, { mode: "ssg" });
-      server = await preview({ root: dir, logLevel: "silent", configFile: false, plugins: [afw({ mode: "ssg" })], preview: { port: 0, host: "127.0.0.1" } });
+      await buildApp(dir, { render: "static" });
+      server = await preview({ root: dir, logLevel: "silent", configFile: false, plugins: [afw({ render: "static" })], preview: { port: 0, host: "127.0.0.1" } });
       const origin = server.resolvedUrls.local[0].replace(/\/$/, "");
       for (const url of ["/about", "/about/"]) {
         const res = await fetch(`${origin}${url}`, { headers: html });
@@ -126,7 +128,7 @@ describe("mode: ssg", () => {
     const { dir, cleanup } = await copyFixture("fullstack");
     let child;
     try {
-      await buildApp(dir, { mode: "ssg" });
+      await buildApp(dir, { render: "static" });
       assert.match(await readFile(join(dir, "dist", "client", "todos", "index.html"), "utf8"), /write the Vite plugin/);
       assert.ok(await exists(join(dir, "dist", "client", "todos", "__data.json")));
       let origin;
@@ -151,7 +153,7 @@ describe("mode: ssg", () => {
       await mkdir(join(dir, "app", "locked"), { recursive: true });
       await writeFile(join(dir, "app", "locked", "page.jsx"), "export default function Locked() { return <p>locked</p>; }");
       await writeFile(join(dir, "app", "locked", "loader.js"), 'export default () => { throw new Response("Forbidden", { status: 403 }); };\n');
-      await buildApp(dir, { mode: "ssr" });
+      await buildApp(dir, { render: "server" });
       let origin;
       ({ child, origin } = startBuiltServer(dir));
       const url = await origin;
@@ -172,7 +174,7 @@ describe("mode: ssg", () => {
     const { dir, cleanup } = await copyFixture("fullstack");
     try {
       await writeFile(join(dir, "app", "todos", "loader.js"), 'import { notFound } from "@opentf/afw/server";\nexport default () => notFound();\n');
-      await assert.rejects(buildApp(dir, { mode: "ssg" }), /prerender failed for \/todos/);
+      await assert.rejects(buildApp(dir, { render: "static" }), /prerender failed for \/todos/);
     } finally {
       await cleanup();
     }
@@ -190,7 +192,7 @@ describe("i18n", () => {
     const { dir, cleanup } = await copyFixture("spa");
     try {
       await localize(dir);
-      await buildApp(dir, { mode: "ssg", i18n, baseUrl: "https://example.test" });
+      await buildApp(dir, { render: "static", i18n, baseUrl: "https://example.test" });
       const fr = await readFile(join(dir, "dist", "fr", "about", "index.html"), "utf8");
       assert.match(fr, /<html lang="fr">/);
       assert.match(fr, /data-afw-hydrate="\/fr\/about"/);
@@ -209,7 +211,7 @@ describe("i18n", () => {
     let child;
     try {
       await localize(dir);
-      await buildApp(dir, { mode: "ssr", i18n });
+      await buildApp(dir, { render: "server", i18n });
       let origin;
       ({ child, origin } = startBuiltServer(dir));
       origin = await origin;

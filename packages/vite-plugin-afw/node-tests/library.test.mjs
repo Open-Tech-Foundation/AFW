@@ -71,7 +71,8 @@ test("the dev server compiles the library instead of pre-bundling it", async () 
 });
 
 test("a prerendered build renders the library component on Node", async () => {
-  await (await createBuilder({ ...quiet, root: dir, plugins: [afw({ mode: "ssg" })] })).buildApp();
+  await writeFile(join(dir, "app", "_config.js"), 'export default { render: "static" };\n');
+  await (await createBuilder({ ...quiet, root: dir, plugins: [afw()] })).buildApp();
   const html = await readFile(join(dir, "dist", "index.html"), "utf8");
   assert.match(html, /Hello <!--[^>]*-->?Ada|Hello Ada/);
   assert.match(html, /from the library/);

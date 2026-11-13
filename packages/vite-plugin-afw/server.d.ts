@@ -14,7 +14,8 @@ export function startServer(options: {
   };
   createHandler?: (options: { files?: unknown; renderPage?: unknown; fallback?: unknown }) => Handler;
   clientDir: string | URL;
-  mode?: "spa" | "ssg" | "ssr";
+  /** How the app renders overall: `client` (default), `static` or `server`. */
+  render?: "client" | "static" | "server";
   baseUrl?: string;
   port?: number;
   host?: string;

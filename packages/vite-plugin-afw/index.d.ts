@@ -1,8 +1,8 @@
 import type { Plugin } from "vite";
 
 export interface AfwPluginOptions {
-  /** How pages render in release builds. Default `"spa"`. */
-  mode?: "spa" | "ssg" | "ssr";
+  /** Removed: set how pages render in `app/_config.js` (`defineRoute({ render })`). */
+  mode?: never;
   /** The routes folder. A bare name is found beside the importing entry. Default `"app"`. */
   appDir?: string;
   /** Folders under `appDir` that hold no routes. */

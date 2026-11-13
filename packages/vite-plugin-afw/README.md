@@ -24,8 +24,15 @@ npm install -D vite @opentf/vite-plugin-afw
 import afw from "@opentf/vite-plugin-afw";
 
 export default {
-  plugins: [afw({ mode: "spa" })],
+  plugins: [afw()],
 };
+```
+
+```js
+// app/_config.js — how pages render; any folder can have its own
+import { defineRoute } from "@opentf/afw";
+
+export default defineRoute({ render: "server" }); // or "static", "client" (the default)
 ```
 
 ```js
@@ -38,13 +45,20 @@ mountApp({ pages, guard, loaders: loaderRoutes, target: document.getElementById(
 
 Then `vite` for development and `vite build` for production.
 
-## Rendering modes
+## Rendering
 
-| `mode` | Development | `vite build` |
+Each folder's `_config.js` sets how its pages render; the nearest one wins (see
+[Rendering](https://afw.opentechf.org/docs/routing/rendering)).
+
+| Pages | `vite` (development) | `vite build` |
 | --- | --- | --- |
-| `spa` | Client-rendered | Client bundle; with server routes, also the Node server |
-| `ssr` | Client-rendered | Hydrating client plus a Node server that renders each page request |
-| `ssg` | Client-rendered | Every route prerendered to HTML. A static site in `dist/`, or `dist/client` beside the Node server when the app has server routes |
+| `client` | Rendered in the browser | In the client bundle; never in the server bundle |
+| `server` | Rendered by the dev server, adopted by the client | Rendered per request by the Node server |
+| `static` | Rendered by the dev server on request | Prerendered to HTML; a static site in `dist/`, or `dist/client` beside the Node server |
+
+- A Node server ships when any page renders per request, or the app has server routes.
+- The build prints a route table and writes `routes.json`; page responses carry
+  `x-afw-render`.
 
 Server-rendered and prerendered pages are marked for hydration, so the client adopts
 the server's DOM instead of rebuilding it. Loader data is inlined into the page.
@@ -79,7 +93,6 @@ export async function POST(request) {
 
 | Option | Default | Purpose |
 | --- | --- | --- |
-| `mode` | `"spa"` | `spa`, `ssg` or `ssr`: how pages render in release builds |
 | `appDir` | `"app"` | The routes folder. A bare name is found beside the importing entry |
 | `exclude` | `[]` | Folders under `appDir` that hold no routes |
 | `routes` | `true` | `false` drops the `@afw/routes` module |
@@ -101,8 +114,8 @@ export async function POST(request) {
   them under their folder's middleware.
 - Generates `@afw/routes` from `app/`: pages (lazy, code-split), loader route patterns
   and the route guard. Adding or removing a route file reloads the route table.
-- Development: with `mode: "ssr"` the dev server renders pages on the server and the
-  client adopts them, as in production. Components, pages and layouts refresh in place,
+- Development: the dev server renders `server` and `static` pages and the client adopts
+  them, as in production. Components, pages and layouts refresh in place,
   keeping their state when its shape is unchanged. Compile errors show in Vite's overlay with their
   position and code frame. Draft and scheduled Markdown pages are served.
 - Production: release builds carry no refresh code and leave drafts out.

@@ -70,7 +70,7 @@ test("an app's own envPrefix is kept", async () => {
 test("a build compiles PUBLIC_* in and leaves every other variable out", async () => {
   const { dir, cleanup } = await envApp();
   try {
-    await build({ ...quiet, root: dir, plugins: [afw({ mode: "spa" })], build: { outDir: join(dir, "dist") } });
+    await build({ ...quiet, root: dir, plugins: [afw()], build: { outDir: join(dir, "dist") } });
     const js = await readAssets(join(dir, "dist", "assets"));
     assert.match(js, /https:\/\/api\.example\.test/);
     assert.doesNotMatch(js, /do-not-ship-me/, "a non-public variable never reaches the bundle");
@@ -85,7 +85,7 @@ test("a shell variable beats the .env file", async () => {
   const { dir, cleanup } = await envApp();
   process.env.PUBLIC_API_URL = "https://from-the-shell.test";
   try {
-    await build({ ...quiet, root: dir, plugins: [afw({ mode: "spa" })], build: { outDir: join(dir, "dist") } });
+    await build({ ...quiet, root: dir, plugins: [afw()], build: { outDir: join(dir, "dist") } });
     const js = await readAssets(join(dir, "dist", "assets"));
     assert.match(js, /from-the-shell\.test/);
     assert.doesNotMatch(js, /api\.example\.test/);
@@ -98,7 +98,8 @@ test("a shell variable beats the .env file", async () => {
 test("SSG renders the same values the client bundle carries", async () => {
   const { dir, cleanup } = await envApp();
   try {
-    await (await createBuilder({ ...quiet, root: dir, plugins: [afw({ mode: "ssg" })] })).buildApp();
+    await writeFile(join(dir, "app", "_config.js"), 'export default { render: "static" };\n');
+    await (await createBuilder({ ...quiet, root: dir, plugins: [afw()] })).buildApp();
     const page = (await readFile(join(dir, "dist", "index.html"), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
     assert.match(page, /<a id="api" href="https:\/\/api\.example\.test">https:\/\/api\.example\.test<\/a>/);
     assert.match(page, /<p id="mode">production prod<\/p>/);
@@ -113,7 +114,7 @@ test("SSG renders the same values the client bundle carries", async () => {
 
 test("the dev server serves PUBLIC_* in development mode", async () => {
   const { dir, cleanup } = await envApp();
-  const server = await createServer({ ...quiet, root: dir, plugins: [afw({ mode: "spa" })], server: { port: 0, host: "127.0.0.1" } });
+  const server = await createServer({ ...quiet, root: dir, plugins: [afw()], server: { port: 0, host: "127.0.0.1" } });
   try {
     await server.listen();
     const origin = server.resolvedUrls.local[0].replace(/\/$/, "");

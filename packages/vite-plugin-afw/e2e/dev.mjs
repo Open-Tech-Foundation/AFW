@@ -1,8 +1,8 @@
 // Real-browser check of the Vite workflow's dev loop (`tsr test-e2e-vite`): Vite's dev
 // server on a copy of the full-stack fixture, driven in headless Chrome over CDP. Covers
 // first render, events, client navigation, loader data served by Node, and in-place
-// refresh of a component, a page and a layout. Runs twice: `mode: "spa"` (the client
-// renders) and `mode: "ssr"`, where the dev server renders pages and the client adopts
+// refresh of a component, a page and a layout. Runs twice: render "client" (the browser
+// renders) and render "server" (app/_config.js), where the dev server renders pages and the client adopts
 // them as in production, and the refreshes then edit adopted views.
 //
 // Run with Node: `node packages/vite-plugin-afw/e2e/dev.mjs`. Chrome comes from
@@ -37,15 +37,16 @@ const WATCH_ADOPTION = `
   }).observe(document, { childList: true, subtree: true });
 `;
 
-async function run(mode) {
-const check = (ok, label) => checkResult(ok, `[${mode}] ${label}`);
-const ssr = mode === "ssr";
+async function run(render) {
+const check = (ok, label) => checkResult(ok, `[${render}] ${label}`);
+const ssr = render === "server";
 const { dir, cleanup } = await copyFixture("fullstack");
 process.chdir(dir); // the fixture's loader reads data relative to the working directory
+if (render === "server") await writeFile(join(dir, "app", "_config.js"), 'export default { render: "server" };\n');
 const profile = await mkdtemp(join(tmpdir(), "afw-vite-chrome-"));
 let server, browser, ws;
 try {
-  server = await createServer({ logLevel: "silent", configFile: false, root: dir, plugins: [afw({ mode })], server: { port: 0, strictPort: false } });
+  server = await createServer({ logLevel: "silent", configFile: false, root: dir, plugins: [afw()], server: { port: 0, strictPort: false } });
   await server.listen();
   const origin = server.resolvedUrls.local[0].replace(/\/$/, "");
 
@@ -177,8 +178,8 @@ try {
 }
 }
 
-await run("spa");
-await run("ssr");
+await run("client");
+await run("server");
 
 const failed = results.filter(([ok]) => !ok).length;
 console.log(failed ? `\n${failed} of ${results.length} checks failed` : `\nAll ${results.length} checks passed`);

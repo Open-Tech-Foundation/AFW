@@ -4,7 +4,11 @@
 //
 //   // vite.config.js
 //   import afw from "@opentf/vite-plugin-afw";
-//   export default { plugins: [afw({ mode: "spa" })] };
+//   export default { plugins: [afw()] };
+//
+//   // app/_config.js — how pages render (each folder may have its own)
+//   import { defineRoute } from "@opentf/afw";
+//   export default defineRoute({ render: "server" });
 //
 //   // entry.js
 //   import { mountApp } from "@opentf/afw";
@@ -22,7 +26,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   CONFIG_FILE, FRAMEWORK_IMPORT, ROUTES_ID, SERVER_ID, SERVER_MODULE_FILE, SOURCE_FILTER, discoverServerModules, serverExports,
   serverFunctionStub,
-  chooseTarget, clientRouteFiles, compileModule, discoverPages, discoverRouteConfigs, discoverServerFiles, formatRouteTable,
+  appRender, chooseTarget, clientRouteFiles, compileModule, discoverPages, discoverRouteConfigs, discoverServerFiles, formatRouteTable,
   hasServerFiles, readRouteConfigs, resolveAppRoot, resolveCompiler, resolveRoutePolicies, routeManifest, routeRenders,
   prerender, routesModule, serverModule, stampHydrateSentinel, startCompilerServer, staticPathConfigs, usesServerEntry,
   validateOptions,
@@ -99,12 +103,10 @@ const viteHot = (code) => (HOT_REGISTRATION.test(code) ? `${code}\nif (import.me
 const slash = (p) => p.replaceAll("\\", "/");
 
 /**
- * @param {{ mode?: "spa" | "ssg" | "ssr", appDir?: string, exclude?: string[],
+ * @param {{ appDir?: string, exclude?: string[],
  *           routes?: boolean, server?: boolean | "auto", target?: "csr" | "ssg" | "hydrate",
  *           i18n?: { locales: string[], defaultLocale?: string } }} [options]
- *   `mode` — shorthand for the app's default render policy (`spa` → client, `ssg` →
- *   static, `ssr` → server) when there is no root `app/_config.js`; each folder's
- *   `_config.js` sets its own (as in the esdev plugin).
+ *   How pages render is set per folder in `_config.js` (as in the esdev plugin).
  *   `appDir` — the routes folder; a leaf name anchors beside the importing entry.
  *   `exclude` — folders under `appDir` that hold no routes. `routes: false` drops the
  *   `@afw/routes` module. `server` — build `dist/server` (default `"auto"`: when the
@@ -113,10 +115,10 @@ const slash = (p) => p.replaceAll("\\", "/");
  *   `baseUrl` — the site's absolute URL, for canonical links and `sitemap.xml`.
  */
 export default function afw({
-  mode: explicitMode, appDir = "app", exclude = [], routes = true, server: serverBuild = "auto", target, i18n = null,
+  mode, appDir = "app", exclude = [], routes = true, server: serverBuild = "auto", target, i18n = null,
   baseUrl = "",
 } = {}) {
-  validateOptions({ mode: explicitMode, target });
+  validateOptions({ mode, target });
   if (![true, false, "auto"].includes(serverBuild)) throw new Error(`AFW server option must be true, false or "auto"`);
 
   let command = "serve";
@@ -164,33 +166,31 @@ export default function afw({
   const isServer = (ctx, options) => !testing && (ctx.environment?.config?.consumer === "server" || !!options?.ssr);
 
   // The app's shape, from each route's resolved render policy (the nearest `_config.js`,
-  // then the root one or `mode`): `mode` is `ssr` when any route renders per request,
-  // else `ssg` when any is static, else `spa`. Cached; the dev server drops it when a
+  // then the root one): `app` is `server` when any route renders per request, else
+  // `static` when any is built, else `client`. Cached; the dev server drops it when a
   // route or config file comes or goes, or a config changes.
   let shapePromise = null;
   const shape = () => (shapePromise ??= computeShape().catch((e) => { shapePromise = null; throw e; }));
   async function computeShape() {
     const root = await serverRoot();
-    if (testing) return { root, mode: explicitMode ?? "spa", clientFiles: new Set(), renders: {}, staticPaths: [], staticRoutes: new Set(), resolved: null };
+    if (testing) return { root, app: "client", clientFiles: new Set(), renders: {}, staticPaths: [], staticRoutes: new Set(), resolved: null };
     const files = await discoverPages(nodeHost, root, { exclude, drafts: command === "serve" });
     const configs = await readRouteConfigs(nodeHost, await compiler(), await discoverRouteConfigs(nodeHost, root, { exclude }));
-    const resolved = resolveRoutePolicies({ root, pages: files, configs, mode: explicitMode });
-    const strategies = new Set(resolved.routes.map((r) => r.render));
-    if (strategies.size === 0) strategies.add(resolved.defaultRender);
+    const resolved = resolveRoutePolicies({ root, pages: files, configs });
     const renders = routeRenders(resolved);
     return {
       root, resolved, files,
-      mode: strategies.has("server") ? "ssr" : strategies.has("static") ? "ssg" : "spa",
+      app: appRender(resolved),
       clientFiles: clientRouteFiles(resolved, root, files),
       renders,
       staticPaths: staticPathConfigs(resolved, configs),
       staticRoutes: new Set(Object.keys(renders).filter((route) => renders[route] === "static")),
     };
   }
-  // Release server bundles render pages unless the app is an SPA; so does the dev
-  // server, as production does (the client adopts them). An SPA's `@afw/server` carries
-  // server routes only.
-  const serverPages = async () => (await shape()).mode !== "spa";
+  // Release server bundles render pages unless every page is client-rendered; so does
+  // the dev server, as production does (the client adopts them). A client app's
+  // `@afw/server` carries server routes only.
+  const serverPages = async () => (await shape()).app !== "client";
 
   // Static generation: render every route of the built server bundle into the client.
   // Other plugins take part through their `api`: `afwPrerenderData()` supplies the site
@@ -261,15 +261,15 @@ export default function afw({
       const app = await shape();
       for (const warning of app.resolved.warnings) console.warn(`⚠ ${warning}`);
       if (app.resolved.routes.length) console.log(`AFW routes\n${formatRouteTable(app.resolved.routes, app.root)}\n`);
-      const mode = app.mode;
+      const render = app.app;
       // Whether to ship a Node server: always when a route renders per request; otherwise
       // when asked, or ("auto") when the app has API routes, middleware or loaders.
       const appRoot = await serverRoot();
-      const ship = mode === "ssr" || serverBuild === true ||
+      const ship = render === "server" || serverBuild === true ||
         (serverBuild === "auto" && (hasServerFiles(await discoverServerFiles(nodeHost, appRoot, { exclude })) ||
           (await discoverServerModules(nodeHost, appRoot, { exclude })).length > 0));
       shipsServer = ship;
-      if (!ship && mode !== "ssg") return config;
+      if (!ship && render !== "static") return config;
       const outDir = nodeHost.path.resolve(projectRoot, userConfig.build?.outDir ?? "dist");
       const bundlerOptions = rolldown ? "rolldownOptions" : "rollupOptions";
       // A static site with no server keeps the client at dist/ and renders from a
@@ -288,7 +288,7 @@ export default function afw({
           async buildApp(builder) {
             await builder.build(builder.environments.client);
             await builder.build(builder.environments.ssr);
-            if (mode === "ssg") await prerenderSite({ clientOut, serverOut, plugins: builder.config.plugins });
+            if (render === "static") await prerenderSite({ clientOut, serverOut, plugins: builder.config.plugins });
             // A server app builds its static routes now and serves them as files.
             else if (app.staticRoutes.size) await prerenderSite({ clientOut, serverOut, plugins: builder.config.plugins, routes: app.staticRoutes });
             if (!ship) await rm(serverOut, { recursive: true, force: true });
@@ -329,8 +329,8 @@ export default function afw({
         invalidate(VIRTUAL_PREFIX, appRoots);
         devServer.ws.send({ type: "full-reload" });
         void (async () => {
-          const before = previous ? (await previous.catch(() => null))?.mode : null;
-          const after = await shape().then((app) => app.mode, (error) => {
+          const before = previous ? (await previous.catch(() => null))?.app : null;
+          const after = await shape().then((app) => app.app, (error) => {
             devServer.config.logger.error(String(error?.message ?? error));
             return null;
           });
@@ -398,7 +398,7 @@ export default function afw({
       const isFile = (file) => stat(file).then((s) => s.isFile(), () => false);
       previewServer.middlewares.use(async (req, res, next) => {
         try {
-          if ((await shape()).mode !== "ssg") return next();
+          if ((await shape()).app !== "static") return next();
           if (!["GET", "HEAD"].includes(req.method) || !(req.headers.accept ?? "").includes("text/html")) return next();
           const url = new URL(req.url, "http://preview");
           const pathname = decodeURIComponent(url.pathname);
@@ -470,7 +470,7 @@ export default function afw({
           `import * as app from ${JSON.stringify(SERVER_ID)};\n` +
           `import { startServer } from "@opentf/vite-plugin-afw/server";\n` +
           `export const { createHandler } = app;\n` +
-          `await startServer({ app, mode: ${JSON.stringify((await shape()).mode)}, baseUrl: ${JSON.stringify(baseUrl)}, clientDir: new URL("../client/", import.meta.url) });\n`
+          `await startServer({ app, render: ${JSON.stringify((await shape()).app)}, baseUrl: ${JSON.stringify(baseUrl)}, clientDir: new URL("../client/", import.meta.url) });\n`
         );
       }
       if (id.startsWith(SERVER_PREFIX)) {
@@ -500,7 +500,7 @@ export default function afw({
       const serverBuild = isServer(this, options);
       // The dev server renders every non-SPA app's pages, static ones on request.
       const moduleTarget = chooseTarget({
-        mode: (await shape()).mode, target, server: serverBuild, dev: command === "serve" && !serverBuild, test: testing, devRenders: true,
+        app: (await shape()).app, target, server: serverBuild, dev: command === "serve" && !serverBuild, test: testing, devRenders: true,
       });
       const client = await compiler();
       try {
