@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-11-13
+
 ### Changed
 
 - `@opentf/afw-test/test` resolves to esdev's `runtime:test` by default, and to Vitest

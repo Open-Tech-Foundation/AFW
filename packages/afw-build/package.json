@@ -1,6 +1,6 @@
 {
   "name": "@opentf/afw-build",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "The toolchain-neutral core of AFW's build: compiler client, compile targets and file-based routing.",
   "type": "module",
   "scripts": {

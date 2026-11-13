@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-13
+
 ### Added
 
 - `@opentf/esdev-plugin-afw/client` types: `@afw/routes`, and `.md`, `.mdx` and `.css`

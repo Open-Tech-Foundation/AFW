@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-13
+
 ### Added
 
 - Test runs resolve the `vitest` export condition (beside Vite's defaults), so

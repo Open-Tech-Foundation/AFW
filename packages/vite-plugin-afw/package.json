@@ -1,6 +1,6 @@
 {
   "name": "@opentf/vite-plugin-afw",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Compile AFW components and serve file-based routes in Vite.",
   "type": "module",
   "scripts": {
