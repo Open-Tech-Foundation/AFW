@@ -1,6 +1,6 @@
 {
   "name": "@opentf/esdev-plugin-afw",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Compile AFW components and serve file-based routes in esdev.",
   "type": "module",
   "scripts": {

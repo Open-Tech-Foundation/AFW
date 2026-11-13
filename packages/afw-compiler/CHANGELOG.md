@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-13
+
 ### Added
 
 - `route-config` (`afwc serve`): reads a folder's `_config.{js,ts}` render policy without

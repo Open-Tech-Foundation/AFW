@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-13
+
 ### Added
 
 - `defineRoute({ render, data, paths })`: the default export of a folder's `_config.js`,

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
 ### Changed
 
 - `chooseTarget` picks the hydrate target for a dev server's browser build in `mode: "ssr"`,

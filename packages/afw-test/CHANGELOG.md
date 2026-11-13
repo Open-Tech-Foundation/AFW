@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.34.0] - 2026-11-13
+
 ### Added
 
 - `@opentf/afw-test/test`: the test API (`test`, `it`, `describe`, `expect` and the
