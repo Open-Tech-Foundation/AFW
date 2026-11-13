@@ -3,7 +3,7 @@
 //
 //   import afw from "@opentf/vite-plugin-afw";
 //   import afwDocs from "@opentf/afw-docs/vite";
-//   export default { plugins: [afw({ mode: "ssg" }), afwDocs()] };
+//   export default { plugins: [afw(), afwDocs()] };   // app/_config.js: { render: "static" }
 //
 // It reads the same afw.config as the esdev workflow and serves the same virtual
 // modules: `@opentf/afw-docs/nav` (with a `docs` block), `/posts` (with `blog`) and

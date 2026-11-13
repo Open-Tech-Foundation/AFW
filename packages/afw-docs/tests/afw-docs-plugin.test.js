@@ -80,7 +80,7 @@ describe("one esdev.json entry", () => {
     ].join("\n"));
     await write(join(dir, "esdev.json"), JSON.stringify({
       plugins: [
-        { module: "@opentf/esdev-plugin-afw", options: { mode: "spa", appDir: "app" } },
+        { module: "@opentf/esdev-plugin-afw", options: { appDir: "app" } },
         { module: "@opentf/afw-docs/build", export: "afwDocsPlugin", options: { appDir: "app" } },
       ],
       build: { targets: { web: { entry: "main.js", out: "out.js", platform: "browser" } } },

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Removed
+
+- `mode` from the setup examples: a docs site sets `render: "static"` in `app/_config.js`.
+
 ## [0.37.0] - 2026-11-13
 
 _Dependency updates._

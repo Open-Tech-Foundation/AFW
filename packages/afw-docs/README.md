@@ -79,7 +79,7 @@ to an existing project, import its stylesheet and register the build plugins:
 ```json
 {
   "plugins": [
-    { "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssg" } },
+    { "module": "@opentf/esdev-plugin-afw" },
     { "module": "@opentf/afw-docs/build", "export": "afwDocsPlugin", "options": { "appDir": "app" } }
   ]
 }
@@ -122,7 +122,10 @@ pnpm add -D vite @opentf/vite-plugin-afw
 import afw from "@opentf/vite-plugin-afw";
 import afwDocs from "@opentf/afw-docs/vite";
 
-export default { plugins: [afw({ mode: "ssg" }), afwDocs()] };
+export default { plugins: [afw(), afwDocs()] };
+
+// app/_config.js: the site is prerendered
+// export default { render: "static" };
 ```
 
 `vite build` writes the static site to `dist/`; `vite preview` serves it.
