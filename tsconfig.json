@@ -43,6 +43,9 @@
     "benchmarks/**/dist",
     // Fixture apps for the Vite workflow: compiled by afwc inside their own Vite or
     // Vitest project, not part of the repository's own sources.
-    "**/node-tests/fixtures"
+    "**/node-tests/fixtures",
+    // The esdev starters create-afw generates: template sources for a new project,
+    // typechecked there against its own tsconfig (and by the starter matrix).
+    "packages/create-afw/esdev"
   ]
 }
