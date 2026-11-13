@@ -3,6 +3,8 @@ title: resource()
 description: Client-side async data: resource() wraps a fetcher in reactive data, loading and error, with abort, refetch and invalidation.
 ---
 
+import ResourceDemo from "./ResourceDemo.jsx";
+
 # `resource()`
 
 For client-side async data, `resource()` formalizes the fetch-into-signals
@@ -31,6 +33,9 @@ export default function UserProfile() {
   );
 }
 ```
+
+<ResourceDemo />
+
 
 - `resource(fetcher)` fetches once; `resource(source, fetcher)` re-fetches when
   the reactive `source` changes; `{ initial }` seeds `data`.

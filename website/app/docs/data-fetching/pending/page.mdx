@@ -3,6 +3,8 @@ title: Loading States
 description: One loading state for every resource inside a <Pending>: a fallback on first load, a refreshing view on refetch, a delay against flashes, and a section's own error view or the nearest ErrorBoundary.
 ---
 
+import PendingDemo from "./PendingDemo.jsx";
+
 # Loading States
 
 `<Pending>` shows one loading state for every resource inside it, instead of one
@@ -32,6 +34,9 @@ export default function Dashboard() {
   );
 }
 ```
+
+<PendingDemo />
+
 
 ## What it waits on
 

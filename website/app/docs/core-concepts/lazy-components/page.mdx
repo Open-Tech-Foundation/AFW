@@ -4,6 +4,7 @@ description: Load a component's code only when it first renders — const Chart 
 ---
 
 import { Callout } from "@opentf/afw-docs";
+import LazyDemo from "./LazyDemo.jsx";
 
 # Lazy Components
 
@@ -28,6 +29,9 @@ export default function Dashboard() {
   );
 }
 ```
+
+<LazyDemo />
+
 
 - **Use it like any component:** props, children, `on*` callbacks, custom events and `ref`.
 - **Its own chunk:** the bundler splits `Chart.jsx` out of the page, in both the esdev and the Vite workflow.

@@ -4,6 +4,7 @@ description: Animate elements as conditionals and lists add and remove them, wit
 ---
 
 import { Callout } from "@opentf/afw-docs";
+import TransitionsDemo from "./TransitionsDemo.jsx";
 
 # Transitions
 
@@ -22,6 +23,9 @@ export default function Notice() {
   );
 }
 ```
+
+<TransitionsDemo />
+
 
 - **Entering:** the element animates from hidden to shown when it is inserted.
 - **Leaving:** the element stays in place, plays the animation in reverse, and is removed when it ends.
