@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Removed
+
+- `MODES`, `RENDER_OF_MODE` and the `mode` input of `resolveRoutePolicies`: the app default
+  is the root `_config.js`, else `client`. `validateOptions({ mode })` refuses `mode` with
+  the way to set it. `chooseTarget` takes `app` (`client`, `static`, `server`, see
+  `APP_RENDERS` and the new `appRender`) instead of `mode`.
+
 ## [0.5.0] - 2026-11-13
 
 ### Changed

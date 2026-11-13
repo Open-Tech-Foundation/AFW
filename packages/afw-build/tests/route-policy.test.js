@@ -24,7 +24,7 @@ async function resolveApp(files, answers, options = {}) {
   const configs = await readRouteConfigs(host, compilerFor(Object.fromEntries(Object.entries(answers).map(([rel, a]) => [at(rel), a]))),
     await discoverRouteConfigs(host, ROOT, options));
   const pages = Object.keys(files).filter((rel) => /(^|\/)(page|layout|404)\.[a-z]+$/.test(rel)).map(at);
-  return resolveRoutePolicies({ root: ROOT, pages, configs, mode: options.mode });
+  return resolveRoutePolicies({ root: ROOT, pages, configs });
 }
 
 // The WordPress-like app from the design: server by default, static legal pages and
@@ -75,26 +75,22 @@ describe("route policies", () => {
     expect(policyOf("admin").render).toBe("client");
   });
 
-  test("without a root _config.js the plugin's mode is the default", async () => {
+  test("without a root _config.js every page is client-rendered unless its folder says otherwise", async () => {
     const files = { "page.jsx": "", "about/_config.js": "", "about/page.jsx": "" };
-    for (const [mode, render, from] of [["ssr", "server", 'mode: "ssr"'], ["ssg", "static", 'mode: "ssg"'], ["spa", "client", 'mode: "spa"'], [undefined, "client", "default"]]) {
-      const { routes } = await resolveApp(files, { "about/_config.js": { render: "static" } }, { mode });
-      expect(routes[0]).toEqual({ route: "/", folder: "", file: at("page.jsx"), render, data: render === "client" ? "server" : null, from });
-      expect(routes[1].render).toBe("static");
-    }
-  });
-
-  test("the app default is set in one place", async () => {
-    await expect(resolveApp(SITE, SITE_CONFIG, { mode: "ssr" })).rejects.toThrow("The app default is set twice");
-    // A root config without render leaves the default to mode.
-    const { defaultRender } = await resolveApp({ "_config.js": "", "page.jsx": "" }, { "_config.js": { data: "client" } }, { mode: "spa" });
+    const { defaultRender, routes } = await resolveApp(files, { "about/_config.js": { render: "static" } });
     expect(defaultRender).toBe("client");
+    expect(routes[0]).toEqual({ route: "/", folder: "", file: at("page.jsx"), render: "client", data: "server", from: "default" });
+    expect(routes[1].render).toBe("static");
+    // A root config without render leaves the default as it is.
+    const plain = await resolveApp({ "_config.js": "", "page.jsx": "" }, { "_config.js": { data: "client" } });
+    expect(plain.defaultRender).toBe("client");
+    expect(plain.routes[0].data).toBe("client");
   });
 
   test("a key is an error outside the strategy it belongs to", async () => {
     await expect(resolveApp({ "page.jsx": "", "_config.js": "" }, { "_config.js": { render: "server", paths: true } }))
       .rejects.toThrow('`paths` lists the pages a static route builds, but this folder renders "server"');
-    await expect(resolveApp({ "page.jsx": "", "a/_config.js": "", "a/page.jsx": "" }, { "a/_config.js": { data: "client" } }, { mode: "ssr" }))
+    await expect(resolveApp({ "_config.js": "", "page.jsx": "", "a/_config.js": "", "a/page.jsx": "" }, { "_config.js": { render: "server" }, "a/_config.js": { data: "client" } }))
       .rejects.toThrow("`data` applies to client routes");
     // paths inherits static from above.
     const ok = await resolveApp({ "_config.js": "", "[slug]/_config.js": "", "[slug]/page.jsx": "" },
@@ -141,11 +137,11 @@ describe("route policies", () => {
 describe("route policies and the bundles", () => {
   test("a server or static page inside a client layout is an error", async () => {
     const files = { "page.jsx": "", "admin/_config.js": "", "admin/layout.jsx": "", "admin/public/_config.js": "", "admin/public/page.jsx": "" };
-    await expect(resolveApp(files, { "admin/_config.js": { render: "client" }, "admin/public/_config.js": { render: "server" } }, { mode: "ssr" }))
+    await expect(resolveApp(files, { "admin/_config.js": { render: "client" }, "admin/public/_config.js": { render: "server" } }))
       .rejects.toThrow('renders "server", but the layout in app/admin/ renders "client"');
     // Without a layout of its own, the client folder only governs pages: no conflict.
     const ok = await resolveApp({ "page.jsx": "", "admin/_config.js": "", "admin/public/_config.js": "", "admin/public/page.jsx": "" },
-      { "admin/_config.js": { render: "client" }, "admin/public/_config.js": { render: "server" } }, { mode: "ssr" });
+      { "admin/_config.js": { render: "client" }, "admin/public/_config.js": { render: "server" } });
     expect(ok.routes.find((r) => r.route === "/admin/public").render).toBe("server");
   });
 

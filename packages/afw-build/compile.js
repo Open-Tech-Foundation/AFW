@@ -2,36 +2,45 @@
 // the build at hand, compile through `afwc`, and turn a failure into either a thrown
 // diagnostic or a visible stub module.
 
-/** Rendering modes a project chooses from. */
-export const MODES = new Set(["spa", "ssg", "ssr"]);
+/**
+ * How an app renders overall, from its routes' policies: `client` when every page renders
+ * in the browser, `static` when none renders per request but some are built, `server`
+ * when any renders per request. It decides the browser build's compiler target.
+ */
+export const APP_RENDERS = new Set(["client", "static", "server"]);
 /** Compiler backends: live DOM, HTML-string renderers, or the hydrating dual module. */
 export const TARGETS = new Set(["csr", "ssg", "hydrate"]);
 
 /** Source modules the compiler owns. */
 export const SOURCE_FILTER = /\.(mdx|md|[jt]sx)$/;
 
-/** Throw on an unknown mode or target, before any compiler starts. */
-export function validateOptions({ mode = "spa", target } = {}) {
-  if (!MODES.has(mode)) throw new Error(`Unknown AFW rendering mode: ${mode} (expected spa, ssg, or ssr)`);
+/**
+ * Throw on an unknown option, before any compiler starts. `mode` was removed: how pages
+ * render is set per folder in `_config.js`.
+ */
+export function validateOptions({ mode, target } = {}) {
+  if (mode !== undefined) {
+    throw new Error('The AFW plugin\'s `mode` option was removed: set how pages render in app/_config.js, e.g. `export default defineRoute({ render: "server" })` (or "static", "client").');
+  }
   if (target !== undefined && !TARGETS.has(target)) {
     throw new Error(`Unknown AFW compiler target: ${target} (expected csr, ssg, or hydrate)`);
   }
 }
 
 /**
- * The compiler target for one module. `server` — the module is bundled for the
- * server (string renderers). `test` — a test run, which renders on the client.
- * `dev` — a dev server's browser build: the hydrating dual module when the dev server
- * renders pages first, as production does (`devRenders`, by default only for `ssr`);
- * CSR otherwise. Otherwise a release browser build: CSR for an SPA, the hydrating dual
- * module when the server renders first.
+ * The compiler target for one module. `app` is how the app renders overall (see
+ * `APP_RENDERS`). `server` — the module is bundled for the server (string renderers).
+ * `test` — a test run, which renders on the client. `dev` — a dev server's browser build:
+ * the hydrating dual module when the dev server renders pages first, as production does
+ * (`devRenders`, by default only for a `server` app); CSR otherwise. Otherwise a release
+ * browser build: CSR for a client app, the hydrating dual module when pages render first.
  */
-export function chooseTarget({ mode = "spa", target, server = false, dev = false, test = false, devRenders = mode === "ssr" } = {}) {
+export function chooseTarget({ app = "client", target, server = false, dev = false, test = false, devRenders = app === "server" } = {}) {
   if (target) return target;
   if (server) return "ssg";
   if (test) return "csr";
-  if (dev) return devRenders && mode !== "spa" ? "hydrate" : "csr";
-  return mode === "spa" ? "csr" : "hydrate";
+  if (dev) return devRenders && app !== "client" ? "hydrate" : "csr";
+  return app === "client" ? "csr" : "hydrate";
 }
 
 /** The compiler backend token for `target`, with `hot` selecting its refresh build. */

@@ -6,21 +6,21 @@ import {
 import { memoryHost } from "./memory-host.js";
 
 describe("targets", () => {
-  test("server builds render strings, dev and releases follow the mode, tests render on the client", () => {
-    expect(chooseTarget({ mode: "ssr", server: true })).toBe("ssg");
+  test("server builds render strings, dev and releases follow how the app renders, tests render on the client", () => {
+    expect(chooseTarget({ app: "server", server: true })).toBe("ssg");
     // The ssr dev server renders pages first, so its browser build adopts them.
-    expect(chooseTarget({ mode: "ssr", dev: true })).toBe("hydrate");
-    expect(chooseTarget({ mode: "ssg", dev: true })).toBe("csr");
-    expect(chooseTarget({ mode: "spa", dev: true })).toBe("csr");
-    expect(chooseTarget({ mode: "ssr", test: true })).toBe("csr");
-    expect(chooseTarget({ mode: "ssr", dev: true, test: true })).toBe("csr");
-    expect(chooseTarget({ mode: "ssr", dev: true, target: "csr" })).toBe("csr");
+    expect(chooseTarget({ app: "server", dev: true })).toBe("hydrate");
+    expect(chooseTarget({ app: "static", dev: true })).toBe("csr");
+    expect(chooseTarget({ app: "client", dev: true })).toBe("csr");
+    expect(chooseTarget({ app: "server", test: true })).toBe("csr");
+    expect(chooseTarget({ app: "server", dev: true, test: true })).toBe("csr");
+    expect(chooseTarget({ app: "server", dev: true, target: "csr" })).toBe("csr");
     // A dev server that renders static pages on request (Vite) adopts them too.
-    expect(chooseTarget({ mode: "ssg", dev: true, devRenders: true })).toBe("hydrate");
-    expect(chooseTarget({ mode: "spa", dev: true, devRenders: true })).toBe("csr");
-    expect(chooseTarget({ mode: "spa" })).toBe("csr");
-    expect(chooseTarget({ mode: "ssg" })).toBe("hydrate");
-    expect(chooseTarget({ mode: "spa", target: "hydrate", server: true })).toBe("hydrate");
+    expect(chooseTarget({ app: "static", dev: true, devRenders: true })).toBe("hydrate");
+    expect(chooseTarget({ app: "client", dev: true, devRenders: true })).toBe("csr");
+    expect(chooseTarget({ app: "client" })).toBe("csr");
+    expect(chooseTarget({ app: "static" })).toBe("hydrate");
+    expect(chooseTarget({ app: "client", target: "hydrate", server: true })).toBe("hydrate");
   });
 
   test("framework imports use the server entry only for string renderers", () => {
@@ -29,8 +29,8 @@ describe("targets", () => {
     expect(usesServerEntry({})).toBe(false);
   });
 
-  test("unknown modes and targets fail early", () => {
-    expect(() => validateOptions({ mode: "isr" })).toThrow("Unknown AFW rendering mode");
+  test("the removed mode option and unknown targets fail early", () => {
+    for (const mode of ["spa", "ssr", "ssg"]) expect(() => validateOptions({ mode })).toThrow("`mode` option was removed: set how pages render in app/_config.js");
     expect(() => validateOptions({ target: "dom" })).toThrow("Unknown AFW compiler target");
   });
 

@@ -1,6 +1,6 @@
 // Per-route rendering: each folder's `_config.{js,ts}` declares how its pages render
 // (`server`, `static`, `client`), and the nearest one up the folder tree wins. The app
-// default is the root `_config.js`, else the plugin's `mode` shorthand. Resolution needs
+// default is the root `_config.js`, else `client`. Resolution needs
 // only the files: the compiler reads each config without running it (`route-config`), so
 // the result can decide what each bundle contains before any bundle exists.
 
@@ -9,9 +9,6 @@ export const CONFIG_FILE = /^_config\.(js|ts)$/;
 
 /** The render strategies. */
 export const RENDERS = ["server", "static", "client"];
-
-/** The plugin's `mode` shorthand, as the app default it stands for. */
-export const RENDER_OF_MODE = { spa: "client", ssg: "static", ssr: "server" };
 
 const PAGE = /^page\.(mdx|md|[jt]sx)$/;
 const LAYOUT = /^layout\.[jt]sx$/;
@@ -93,28 +90,20 @@ export async function readRouteConfigs(host, compiler, configs) {
 /**
  * Resolve every page's policy. `pages` are absolute page/layout/404/loading/error files
  * (as `discoverPages` returns); only `page.*` files are routes. `configs` is the map
- * `readRouteConfigs` returns. `mode` is the plugin option as the app passed it
- * (`undefined` when it did not).
+ * `readRouteConfigs` returns.
  *
  * Returns `{ defaultRender, routes, policyOf, warnings }`:
  * - `routes`: one entry per page, sorted by route — `{ route, folder, file, render, data,
- *   from }`, where `from` is the config file that decided `render` (or `mode` / the default).
+ *   from }`, where `from` is the config file that decided `render` ("default" without one).
  * - `policyOf(folder)`: the same resolution for any folder (a layout's, say).
  * - `warnings`: config files that govern no page.
- * Throws on a conflict the app must fix: a root `render` and a `mode` together, `paths`
- * outside a static folder, `data` outside a client folder.
+ * Throws on a conflict the app must fix: `paths` outside a static folder, `data` outside a
+ * client folder, a server or static page inside a client layout.
  */
-export function resolveRoutePolicies({ root, pages, configs, mode }) {
+export function resolveRoutePolicies({ root, pages, configs }) {
   const rootConfig = configs.get("");
-  if (rootConfig?.render && mode !== undefined) {
-    throw new Error(
-      `The app default is set twice: render "${rootConfig.render}" in ${rootConfig.file} and mode "${mode}" in the plugin options. ` +
-      `Set it in one place (the root _config.js).`,
-    );
-  }
-  if (mode !== undefined && !RENDER_OF_MODE[mode]) throw new Error(`Unknown AFW rendering mode: ${mode} (expected spa, ssg, or ssr)`);
-  const defaultRender = rootConfig?.render ?? RENDER_OF_MODE[mode ?? "spa"];
-  const defaultFrom = rootConfig?.render ? rootConfig.file : mode !== undefined ? `mode: "${mode}"` : "default";
+  const defaultRender = rootConfig?.render ?? "client";
+  const defaultFrom = rootConfig?.render ? rootConfig.file : "default";
 
   function policyOf(folder) {
     let render = null, from = null, data = null;
@@ -184,6 +173,16 @@ export function resolveRoutePolicies({ root, pages, configs, mode }) {
  */
 export function clientRouteFiles({ policyOf }, root, files) {
   return new Set(files.filter((abs) => policyOf(folderOf(relative(root, abs))).render === "client"));
+}
+
+/**
+ * How the app renders overall: `server` when any route renders per request, else `static`
+ * when any is built, else `client` (the default, also for an app without pages).
+ */
+export function appRender({ defaultRender, routes }) {
+  const strategies = new Set(routes.map((r) => r.render));
+  if (strategies.size === 0) strategies.add(defaultRender);
+  return strategies.has("server") ? "server" : strategies.has("static") ? "static" : "client";
 }
 
 /** The configs that declare `paths`, as `[routePattern, configFile]` for the server module. */

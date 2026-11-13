@@ -6,7 +6,7 @@
 export { assertHost } from "./host.js";
 export { compileError, closeCompilers, startCompilerServer } from "./compiler-client.js";
 export {
-  FRAMEWORK_IMPORT, MODES, SOURCE_FILTER, TARGETS,
+  APP_RENDERS, FRAMEWORK_IMPORT, SOURCE_FILTER, TARGETS,
   chooseTarget, compileModule, compilerTarget, errorStub, isRouteModule, usesServerEntry, validateOptions,
 } from "./compile.js";
 export { ensureCompiler, findUp, resolveCompiler } from "./resolve-compiler.js";
@@ -16,8 +16,8 @@ export {
   resolveAppRoot, routeKey, routesModule,
 } from "./routes.js";
 export {
-  CONFIG_FILE, RENDERS, RENDER_OF_MODE,
-  clientRouteFiles, discoverRouteConfigs, folderRoute, formatRouteTable, readRouteConfigs, resolveRoutePolicies, routeManifest, routeRenders, staticPathConfigs,
+  CONFIG_FILE, RENDERS,
+  clientRouteFiles, discoverRouteConfigs, folderRoute, formatRouteTable, readRouteConfigs, resolveRoutePolicies, routeManifest, routeRenders, staticPathConfigs, appRender,
 } from "./route-policy.js";
 export { SERVER_ID, discoverServerFiles, hasServerFiles, serverConflicts, serverModule } from "./server.js";
 export {
