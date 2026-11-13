@@ -34,11 +34,12 @@ async function readStatic(pathname) {
 const shell = await file(new URL("./index.html", outDir)).text();
 const html = (body) => new Response(body, { headers: { "content-type": "text/html; charset=utf-8" } });
 
-// Pages: rendered per route policy when the app renders any page on the server
-// (`app/_config.js`); otherwise every page is the shell and renders in the browser.
+// Pages: rendered per route policy when the app renders any page on the server or at
+// build time (`app/_config.js`); otherwise every page is the shell, rendered in the
+// browser, which shows its own 404 for an unknown path.
 const renderPage = app.createPageRenderer
   ? app.createPageRenderer({ shell, readStatic })
-  : async (request) => ((request.headers.get("accept") ?? "").includes("text/html") ? html(shell) : null);
+  : async (request) => (["GET", "HEAD"].includes(request.method.toUpperCase()) ? html(request.method.toUpperCase() === "HEAD" ? null : shell) : null);
 
 const server = serve(
   { port: Number(env.PORT ?? "3000") },

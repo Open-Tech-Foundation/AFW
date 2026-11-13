@@ -7,7 +7,7 @@
 //   <name>/template.json          label, description, group and the options (questions)
 //   <name>/<files>                 files every combination has, unchanged
 //   <name>/_option/<o>/<v>/…       files for combinations where option o is v
-//   <name>/_option/<o1>/<v1>+<o2>/<v2>/…  where every listed option has its value
+//   <name>/_option/<o1>/<v1>/_option/<o2>/<v2>/…  where every listed option has its value
 // Each file sits under the fewest options that decide its contents, so an overlay never
 // has to remove anything: a file appears only in the combinations that have it.
 // Placeholders: {{name}}, {{pm}}, {{registry:<package>}} (esdev writes the release).
@@ -25,7 +25,7 @@ const language = {
   choices: [choice("ts", "TypeScript", LANGUAGES_LABELS.ts), choice("js", "JavaScript", LANGUAGES_LABELS.js)],
 };
 const styling = {
-  name: "styling", question: "Select a styling:", kind: "choice", default: "css",
+  name: "styling", question: "Select a styling:", kind: "choice", unattended: "css",
   choices: Object.entries(STYLINGS).map(([value, label]) => choice(value, label, label)),
 };
 
@@ -94,8 +94,8 @@ export function combinationFiles(name, answers) {
   return files;
 }
 
-/** The overlay folder for a set of option values: `_option/language/ts+server/yes`. */
-export const overlayDir = (entries) => `_option/${entries.map(([o, v]) => `${o}/${v}`).join("+")}`;
+/** The overlay folder for a set of option values: `_option/server/yes/_option/language/ts`. */
+export const overlayDir = (entries) => entries.map(([o, v]) => `_option/${o}/${v}`).join("/");
 
 /** All subsets of `items` of size `k`, in order. */
 function subsets(items, k) {
@@ -173,10 +173,12 @@ export function applyEsdevTemplate(template, answers, { name, pm, registry }) {
   const overlays = [];
   for (const [path, contents] of Object.entries(template)) {
     if (path === "template.json") continue;
-    const m = /^_option\/((?:[^/+]+\/[^/+]+\+)*[^/+]+\/[^/+]+)\/(.*)$/.exec(path);
-    if (!m) { files[path] = fill(contents); continue; }
-    const conditions = m[1].split("+").map((pair) => pair.split("/"));
-    if (conditions.every(([o, v]) => answers[o] === v)) overlays.push([conditions.length, m[2], contents]);
+    // Leading `_option/<o>/<v>/` segments, one per condition, then the file's path.
+    const conditions = [];
+    let rest = path;
+    for (let m; (m = /^_option\/([^/]+)\/([^/]+)\/(.*)$/.exec(rest)); rest = m[3]) conditions.push([m[1], m[2]]);
+    if (!conditions.length) { files[path] = fill(contents); continue; }
+    if (conditions.every(([o, v]) => answers[o] === v)) overlays.push([conditions.length, rest, contents]);
   }
   for (const [, path, contents] of overlays.sort((a, b) => a[0] - b[0])) files[path] = fill(contents);
   if (files._gitignore !== undefined) {

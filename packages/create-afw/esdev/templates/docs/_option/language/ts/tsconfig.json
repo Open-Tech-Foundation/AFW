@@ -11,10 +11,8 @@
     "jsx": "preserve",
     "jsxImportSource": "@opentf/afw",
     "types": [
-      "@opentf/esrun-types"
-    ],
-    "customConditions": [
-      "esdev"
+      "@opentf/esrun-types",
+      "@opentf/esdev-plugin-afw/client"
     ],
     "strict": true,
     "noEmit": true,

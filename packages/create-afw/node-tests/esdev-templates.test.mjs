@@ -54,7 +54,8 @@ describe("generated esdev starters", () => {
     assert.ok("app/about/page.md" in app, "the same in every app");
     assert.ok("_gitignore" in app);
     assert.ok(Object.keys(app).some((p) => p.startsWith("_option/language/ts/")), "language alone decides some files");
-    assert.ok(Object.keys(app).some((p) => /^_option\/[^/]+\/[^/]+\+/.test(p)), "some need a combination");
+    assert.ok(Object.keys(app).some((p) => /^_option\/[^/]+\/[^/]+\/_option\//.test(p)), "some need a combination, nested");
+    assert.ok(!Object.keys(app).some((p) => p.includes("+")), "no + in any path");
     assert.ok(!Object.keys(app).some((p) => p.endsWith(".gitignore")));
     const json = JSON.parse(app["template.json"]);
     assert.equal(json.group, "AFW");

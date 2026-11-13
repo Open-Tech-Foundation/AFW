@@ -165,10 +165,11 @@ function tsconfig(ctx, include, { allowJs = false } = {}) {
       lib: ["ESNext", "DOM", "DOM.Iterable"],
       jsx: "preserve",
       jsxImportSource: "@opentf/afw",
-      // esdev: the runtime's types, and the `esdev` condition `@opentf/afw-test/test` uses.
+      // The toolchain's types (the runtime, `@afw/routes`, `.md`/`.css` imports). Under Vite,
+      // the `vitest` condition gives `@opentf/afw-test/test` Vitest's types.
       ...(ctx.esdev
-        ? { types: ["@opentf/esrun-types"], customConditions: ["esdev"] }
-        : { types: ["@opentf/vite-plugin-afw/client"] }),
+        ? { types: ["@opentf/esrun-types", "@opentf/esdev-plugin-afw/client"] }
+        : { types: ["@opentf/vite-plugin-afw/client"], customConditions: ["vitest"] }),
       strict: true,
       noEmit: true,
       isolatedModules: true,
@@ -291,7 +292,8 @@ function scripts(ctx, { server, client = false }) {
       dev: "esdev start",
       build: "esdev build",
       ...(server
-        ? { start: "esrun --allow-read --allow-net --allow-listen=3000 --allow-env=PORT --allow-imports dist/server.js" }
+        // Reads only its build (dist/), listens on 3000; it dials nothing, so no --allow-net.
+        ? { start: "esrun --allow-read=dist --allow-listen=0.0.0.0:3000 --allow-env=PORT --allow-imports dist/server.js" }
         : { preview: client ? "esdev preview --spa" : "esdev preview" }),
       test: testScript(ctx, { server }),
       ...(ctx.ts ? { typecheck: "esdev typecheck" } : {}),

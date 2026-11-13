@@ -8,7 +8,7 @@
       "name": "styling",
       "question": "Select a styling:",
       "kind": "choice",
-      "default": "css",
+      "unattended": "css",
       "choices": [
         {
           "value": "css",

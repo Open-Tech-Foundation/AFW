@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The esdev starters, which esdev 0.28 could not use:
+  - overlays for several options nest (`_option/server/yes/_option/language/ts/…`) instead
+    of joining with `+`, which esdev refuses;
+  - their tests load esdev's test API (`@opentf/afw-test/test` now defaults to it);
+  - TypeScript projects typecheck: `tsconfig.json` names `@opentf/esdev-plugin-afw/client`
+    for `@afw/routes` and `.css` imports;
+  - a client-rendered app with a server serves the app shell for every page request
+    (it answered `/` with 404 when the request did not ask for HTML);
+  - `start` grants `--allow-listen=0.0.0.0:3000` (esrun needs an address), reads only
+    `dist/`, and drops `--allow-net`, which the server does not use;
+  - the styling question takes CSS when unattended, instead of a default.
+- Vite TypeScript projects set `"customConditions": ["vitest"]`, for Vitest's test types.
+
 ### Removed
 
 - The rendering names of earlier releases (`--render spa|ssr|ssg`) and the template

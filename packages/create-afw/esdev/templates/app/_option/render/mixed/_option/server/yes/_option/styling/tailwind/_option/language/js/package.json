@@ -1,0 +1,20 @@
+{
+  "name": "{{name}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "esdev start",
+    "build": "esdev build",
+    "start": "esrun --allow-read=dist --allow-listen=0.0.0.0:3000 --allow-env=PORT --allow-imports dist/server.js",
+    "test": "esdev test tests/server && esdev test --dom --setup=@opentf/afw-test/setup tests/ui"
+  },
+  "dependencies": {
+    "@opentf/afw": "{{registry:@opentf/afw}}"
+  },
+  "devDependencies": {
+    "@opentf/afw-test": "{{registry:@opentf/afw-test}}",
+    "@opentf/esdev-plugin-afw": "{{registry:@opentf/esdev-plugin-afw}}",
+    "@opentf/esrun-types": "{{registry:@opentf/esrun-types}}",
+    "tailwindcss": "{{registry:tailwindcss}}"
+  }
+}
