@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The prerender step follows each folder's `_config.js`: pages that render in the
+  browser (`render: "client"`) are no longer loaded on the server, which failed the build
+  when one used `window` or `localStorage`; their layouts are written around an empty
+  region for the browser to fill. A config's `paths` lists a dynamic route's pages.
+
 ## [1.38.1] - 2026-11-13
 
 _Dependency updates._

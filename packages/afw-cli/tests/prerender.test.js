@@ -91,3 +91,32 @@ test("a page with state prerenders: the compiler's @opentf/afw/signals import re
     expect(await file(join(outDir, "index.html")).text()).toContain('<p id="n"><!--$-->2<!--/--> <!--$-->4<!--/--></p>');
   } finally { await discard(dir); }
 });
+
+test("a client page is never loaded by the prerender: its layout is written around an empty region", async () => {
+  const dir = await tempDir("client-prerender");
+  try {
+    await writeTree(dir, {
+      "package.json": '{"type":"module"}',
+      "app/_config.js": 'export default { render: "static" };',
+      "app/layout.jsx": "export default function L({ children }) { return <main>{children}</main>; }",
+      "app/page.jsx": "export default function Home() { return <h1>home</h1>; }",
+      "app/admin/_config.js": 'export default { render: "client" };',
+      // Reads localStorage as it loads: a server import would throw.
+      "app/admin/page.jsx": 'const visits = localStorage.getItem("v");\nexport default function Admin() { return <p>{visits}</p>; }',
+    });
+    const outDir = join(dir, "dist");
+    const result = await runPrerender({
+      root: dir,
+      pages: ["app/layout.jsx", "app/page.jsx", "app/admin/page.jsx"].map((p) => join(dir, p)),
+      afwEntry: join(root, "packages/afw/index.js"),
+      afwc: join(root, "target/debug/afwc"),
+      shellHtml: '<html><head></head><body><div id="app" data-afw-hydrate></div></body></html>',
+      outDir,
+    });
+    expect(result.failed).toEqual([]);
+    expect(await file(join(outDir, "index.html")).text()).toContain("<h1>home</h1>");
+    const admin = await file(join(outDir, "admin/index.html")).text();
+    expect(admin).toContain('<main><!--[--><!--]--></main>');
+    expect(admin).toContain('data-afw-hydrate="/admin"');
+  } finally { await discard(dir); }
+});

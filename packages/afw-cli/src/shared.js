@@ -15,7 +15,8 @@ import { exists, findUp, mkdirp, readEntries, readText, resolveFrom, rmrf, write
 // The afwc compiler service and the `runtime:build` transform plugin live in
 // `@opentf/esdev-plugin-afw`. Imported here for the server render bundle and
 // re-exported so the SSG entry keeps a single import site.
-import { closeCompilers, afwPlugin, isUnpublishedPage, resolveCompiler } from "@opentf/esdev-plugin-afw";
+import { closeCompilers, afwPlugin, esdevHost, isUnpublishedPage, resolveCompiler, startCompilerServer } from "@opentf/esdev-plugin-afw";
+import { clientRouteFiles, discoverRouteConfigs, readRouteConfigs, resolveRoutePolicies, staticPathConfigs } from "@opentf/afw-build";
 
 export { closeCompilers, resolveCompiler };
 
@@ -526,24 +527,33 @@ export function cssPlugin() {
 // sees real namespaces, enabling `getStaticPaths`) and re-export the render API.
 // Shared by the SSG pre-render and the SSR server — both render through the same
 // SSG-compiled bundle (ARCHITECTURE.md §6: "SSR … shares the SSG path").
-export function serverEntrySource(pages, i18n = null) {
-  const imports = pages.map((p, i) => `import * as p${i} from ${JSON.stringify(p)};`).join("\n");
-  const map = pages.map((p, i) => `  [${JSON.stringify(p)}]: p${i},`).join("\n");
+/**
+ * The prerender bundle's entry. `clientFiles` (route files whose folder's `_config.js`
+ * says `render: "client"`) are registered as `clientRoute()` and never imported, so their
+ * browser-only code stays out of the server bundle; `staticPaths` (`[route, configFile]`)
+ * registers each `_config.js`'s `paths`.
+ */
+export function serverEntrySource(pages, i18n = null, { clientFiles = new Set(), staticPaths = [] } = {}) {
+  const imports = pages.map((p, i) => (clientFiles.has(p) ? null : `import * as p${i} from ${JSON.stringify(p)};`)).filter(Boolean).join("\n");
+  const map = pages.map((p, i) => `  [${JSON.stringify(p)}]: ${clientFiles.has(p) ? "clientRoute()" : `p${i}`},`).join("\n");
+  const paths = staticPaths.map(([, file], i) => `import sp${i} from ${JSON.stringify(file)};`).join("\n");
   // i18n: the server-side router needs the locales too — so renderRoute can strip
   // a `/fr/...` prefix to match the route table and set router.locale for `t()`
   // (docs/I18N.md §6). Without this the prefix wouldn't match and pages would
   // render in the default locale (or 404).
   const i18nOn = i18n && Array.isArray(i18n.locales) && i18n.locales.length;
-  const named = i18nOn ? "registerRoutes, configureI18n" : "registerRoutes";
+  const named = ["clientRoute", "registerRoutes", "registerStaticPaths", ...(i18nOn ? ["configureI18n"] : [])].join(", ");
   const i18nCall = i18nOn
     ? `configureI18n(${JSON.stringify({ locales: i18n.locales, defaultLocale: i18n.defaultLocale })});\n`
     : "";
   return (
     `${imports}\n` +
+    (paths ? `${paths}\n` : "") +
     `import { ${named} } from "@opentf/afw/server";\n` +
     `export { renderRoute, renderHead, collectRoutePaths, resolveMetadata } from "@opentf/afw/server";\n` +
     i18nCall +
-    `registerRoutes({\n${map}\n});\n`
+    `registerRoutes({\n${map}\n});\n` +
+    (staticPaths.length ? `registerStaticPaths({\n${staticPaths.map(([route], i) => `  [${JSON.stringify(route)}]: sp${i}.paths,`).join("\n")}\n});\n` : "")
   );
 }
 
@@ -554,6 +564,18 @@ export function serverEntrySource(pages, i18n = null) {
  * temp build dir. The SSG pre-render calls `cleanup()` immediately after rendering
  * every route; the SSR server keeps the module live and cleans up on shutdown.
  */
+/**
+ * The route policies (each folder's `_config.js`) the prerender bundle needs: the route
+ * files that render in the browser, which it must not import, and the configs' `paths`.
+ */
+export async function routePolicies({ appDir, pages, afwc }) {
+  const found = await discoverRouteConfigs(esdevHost, appDir);
+  if (found.size === 0) return {};
+  const configs = await readRouteConfigs(esdevHost, startCompilerServer(afwc), found);
+  const resolved = resolveRoutePolicies({ root: appDir, pages, configs });
+  return { clientFiles: clientRouteFiles(resolved, appDir, pages), staticPaths: staticPathConfigs(resolved, configs) };
+}
+
 export async function buildServerBundle({
   root,
   pages,
@@ -563,11 +585,12 @@ export async function buildServerBundle({
   i18n = null,
   onCompile,
   tmpName = ".afw-ssg",
+  appDir = join(root, "app"),
 }) {
   const tmp = join(root, tmpName);
   await mkdirp(tmp);
   const entry = join(tmp, "ssg-entry.js");
-  await writeFile(entry, serverEntrySource(pages, i18n));
+  await writeFile(entry, serverEntrySource(pages, i18n, await routePolicies({ appDir, pages, afwc })));
 
   const bundle = await build({
     input: entry,

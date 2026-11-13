@@ -19,8 +19,10 @@ import { buildServerBundle } from "./shared.js";
  * The rendering itself is `prerender` from `@opentf/afw-build`, shared with the Vite
  * workflow; this builds the esdev server bundle it renders from.
  */
-export async function runPrerender({ root, pages, afwEntry, afwc, shellHtml, outDir, baseUrl = "", docsPlugins = [], lastUpdated = {}, i18n = null, loaders = null, chunkManifest = null, onCompile, onRender }) {
-  const { mod, cleanup } = await buildServerBundle({ root, pages, afwEntry, afwc, docsPlugins, i18n, onCompile });
+export async function runPrerender({ root, pages, afwEntry, afwc, shellHtml, outDir, baseUrl = "", docsPlugins = [], lastUpdated = {}, i18n = null, loaders = null, chunkManifest = null, onCompile, onRender, appDir }) {
+  // Pages whose folder's `_config.js` says `render: "client"` stay out of this bundle; the
+  // prerender writes their layouts around an empty region for the browser to fill.
+  const { mod, cleanup } = await buildServerBundle({ root, pages, afwEntry, afwc, docsPlugins, i18n, onCompile, appDir });
   try {
     const { count, skipped, failed, siteDescription } = await prerender(esdevHost, {
       render: mod, shellHtml, outDir, publicDir: join(root, "public"), baseUrl, lastUpdated, i18n, loaders,

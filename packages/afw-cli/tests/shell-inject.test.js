@@ -163,7 +163,7 @@ describe("serverEntrySource", () => {
     expect(src).toContain(`import * as p1 from "/app/about/page.jsx";`);
     expect(src).toContain(`["/app/page.jsx"]: p0,`);
     expect(src).toContain(`["/app/about/page.jsx"]: p1,`);
-    expect(src).toContain(`import { registerRoutes } from "@opentf/afw/server";`);
+    expect(src).toContain(`import { clientRoute, registerRoutes, registerStaticPaths } from "@opentf/afw/server";`);
     expect(src).toContain(`renderRoute, renderHead, collectRoutePaths`);
     // resolveMetadata is re-exported so the CSR build can resolve the root layout's
     // route-independent head via resolveLayoutShellHead.
@@ -172,8 +172,20 @@ describe("serverEntrySource", () => {
 
   test("configures the server-side router with i18n so prefixes match", () => {
     const src = serverEntrySource(["/app/page.jsx"], { locales: ["en", "fr"], defaultLocale: "en" });
-    expect(src).toContain(`import { registerRoutes, configureI18n } from "@opentf/afw/server";`);
+    expect(src).toContain(`import { clientRoute, registerRoutes, registerStaticPaths, configureI18n } from "@opentf/afw/server";`);
     expect(src).toContain(`configureI18n({"locales":["en","fr"],"defaultLocale":"en"});`);
+  });
+
+  test("client route files are registered, never imported, and config paths are registered", () => {
+    const src = serverEntrySource(["/app/page.jsx", "/app/admin/page.jsx", "/app/posts/[slug]/page.jsx"], null, {
+      clientFiles: new Set(["/app/admin/page.jsx"]),
+      staticPaths: [["/posts/[slug]", "/app/posts/[slug]/_config.js"]],
+    });
+    expect(src).not.toContain(`from "/app/admin/page.jsx"`);
+    expect(src).toContain(`["/app/admin/page.jsx"]: clientRoute(),`);
+    expect(src).toContain(`["/app/page.jsx"]: p0,`);
+    expect(src).toContain(`import sp0 from "/app/posts/[slug]/_config.js";`);
+    expect(src).toContain(`registerStaticPaths({\n  ["/posts/[slug]"]: sp0.paths,\n});`);
   });
 
   test("omits configureI18n when i18n is absent", () => {
