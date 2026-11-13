@@ -4,6 +4,12 @@
 
 ### Added
 
+- The AFW starters for `esdev create` (`app`, `docs`, `library`) ship in this package,
+  under `esdev/templates`, in esdev's template format. They are generated from the same
+  source as the Vite templates (`scripts/write-esdev-templates.mjs`, run by `build`), so
+  both workflows ask the same questions and write the same `app/` and `tests/`; only the
+  toolchain's own files differ. `package.json` points esdev at them; they need esdev 0.28
+  or later.
 - The app template asks "How should pages render by default?": **Client**, **Server**,
   **Static** or **Mixed** (server by default, with a prebuilt `/about` and a client
   `/dashboard` to copy). The answer is written to `app/_config.js`, which any folder

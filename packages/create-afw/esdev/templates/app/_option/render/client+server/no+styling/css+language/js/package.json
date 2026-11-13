@@ -1,0 +1,19 @@
+{
+  "name": "{{name}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "esdev start",
+    "build": "esdev build",
+    "preview": "esdev preview --spa",
+    "test": "esdev test --dom --setup=@opentf/afw-test/setup tests/ui"
+  },
+  "dependencies": {
+    "@opentf/afw": "{{registry:@opentf/afw}}"
+  },
+  "devDependencies": {
+    "@opentf/afw-test": "{{registry:@opentf/afw-test}}",
+    "@opentf/esdev-plugin-afw": "{{registry:@opentf/esdev-plugin-afw}}",
+    "@opentf/esrun-types": "{{registry:@opentf/esrun-types}}"
+  }
+}

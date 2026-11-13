@@ -1,0 +1,27 @@
+{
+  "name": "{{name}}",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "src"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "esdev start",
+    "test": "esdev test --dom --setup=@opentf/afw-test/setup tests/ui"
+  },
+  "peerDependencies": {
+    "@opentf/afw": "^{{registry:@opentf/afw}}"
+  },
+  "devDependencies": {
+    "@opentf/afw": "{{registry:@opentf/afw}}",
+    "@opentf/afw-test": "{{registry:@opentf/afw-test}}",
+    "@opentf/esdev-plugin-afw": "{{registry:@opentf/esdev-plugin-afw}}",
+    "@opentf/esrun-types": "{{registry:@opentf/esrun-types}}",
+    "tailwindcss": "{{registry:tailwindcss}}"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "label": "Component Library",
+  "description": "A component library published as JSX source",
+  "group": "AFW",
+  "run": "test",
+  "options": [
+    {
+      "name": "styling",
+      "question": "Select a styling:",
+      "kind": "choice",
+      "default": "css",
+      "choices": [
+        {
+          "value": "css",
+          "label": "CSS",
+          "description": "CSS"
+        },
+        {
+          "value": "tailwind",
+          "label": "Tailwind CSS",
+          "description": "Tailwind CSS"
+        }
+      ]
+    },
+    {
+      "name": "language",
+      "question": "Select a language:",
+      "kind": "choice",
+      "default": "ts",
+      "choices": [
+        {
+          "value": "ts",
+          "label": "TypeScript",
+          "description": "TypeScript: .tsx sources and a tsconfig.json"
+        },
+        {
+          "value": "js",
+          "label": "JavaScript",
+          "description": "JavaScript: .jsx sources"
+        }
+      ]
+    }
+  ]
+}

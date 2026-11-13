@@ -1,0 +1,96 @@
+{
+  "label": "App",
+  "description": "An app: choose how pages render and whether it has a server",
+  "group": "AFW",
+  "options": [
+    {
+      "name": "render",
+      "question": "How should pages render by default? (any folder can change it later with its own _config.js)",
+      "kind": "choice",
+      "default": "client",
+      "choices": [
+        {
+          "value": "client",
+          "label": "Client",
+          "description": "Rendered in the browser: apps behind a login"
+        },
+        {
+          "value": "server",
+          "label": "Server",
+          "description": "Rendered per request: content sites, search, anything with SEO"
+        },
+        {
+          "value": "static",
+          "label": "Static",
+          "description": "Built once at build time: marketing sites, docs, blogs"
+        },
+        {
+          "value": "mixed",
+          "label": "Mixed",
+          "description": "Server by default, plus a static page and a client section to copy"
+        }
+      ]
+    },
+    {
+      "name": "server",
+      "question": "Add a server? (API routes, middleware, loaders and server functions)",
+      "kind": "confirm",
+      "default": "no",
+      "when": {
+        "render": [
+          "client",
+          "static"
+        ]
+      },
+      "otherwise": "yes",
+      "choices": [
+        {
+          "value": "yes",
+          "label": "Yes",
+          "description": "API routes, middleware, loaders and server functions"
+        },
+        {
+          "value": "no",
+          "label": "No",
+          "description": "Pages only"
+        }
+      ]
+    },
+    {
+      "name": "styling",
+      "question": "Select a styling:",
+      "kind": "choice",
+      "default": "css",
+      "choices": [
+        {
+          "value": "css",
+          "label": "CSS",
+          "description": "CSS"
+        },
+        {
+          "value": "tailwind",
+          "label": "Tailwind CSS",
+          "description": "Tailwind CSS"
+        }
+      ]
+    },
+    {
+      "name": "language",
+      "question": "Select a language:",
+      "kind": "choice",
+      "default": "ts",
+      "choices": [
+        {
+          "value": "ts",
+          "label": "TypeScript",
+          "description": "TypeScript: .tsx sources and a tsconfig.json"
+        },
+        {
+          "value": "js",
+          "label": "JavaScript",
+          "description": "JavaScript: .jsx sources"
+        }
+      ]
+    }
+  ]
+}

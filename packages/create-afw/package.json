@@ -7,7 +7,7 @@
     "create-afw": "./index.js"
   },
   "scripts": {
-    "build": "cp ../../LICENSE LICENSE && node scripts/write-versions.mjs"
+    "build": "cp ../../LICENSE LICENSE && node scripts/write-versions.mjs && node scripts/write-esdev-templates.mjs"
   },
   "exports": {
     ".": "./index.js"
@@ -16,10 +16,15 @@
     "index.js",
     "templates.js",
     "versions.js",
-    "versions.json"
+    "versions.json",
+    "esdev"
   ],
   "engines": {
-    "node": ">=24"
+    "node": ">=24",
+    "esdev": ">=0.28.0"
+  },
+  "esdev": {
+    "templates": "esdev/templates"
   },
   "devDependencies": {
     "@opentf/afw": "workspace:*",

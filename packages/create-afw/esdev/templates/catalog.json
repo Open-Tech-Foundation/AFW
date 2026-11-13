@@ -1,0 +1,15 @@
+{
+  "groups": [
+    {
+      "name": "AFW",
+      "label": "AFW",
+      "description": "AFW starters: an app, a docs site or a component library",
+      "question": "Which AFW starter?",
+      "templates": [
+        "app",
+        "docs",
+        "library"
+      ]
+    }
+  ]
+}

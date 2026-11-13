@@ -1,0 +1,43 @@
+{
+  "label": "Docs",
+  "description": "A documentation site with search, and optionally a blog (afw-docs)",
+  "group": "AFW",
+  "options": [
+    {
+      "name": "blog",
+      "question": "Add a blog? (posts with RSS and Atom feeds)",
+      "kind": "confirm",
+      "default": "no",
+      "choices": [
+        {
+          "value": "yes",
+          "label": "Yes",
+          "description": "Posts with RSS and Atom feeds"
+        },
+        {
+          "value": "no",
+          "label": "No",
+          "description": "Docs only"
+        }
+      ]
+    },
+    {
+      "name": "language",
+      "question": "Select a language:",
+      "kind": "choice",
+      "default": "ts",
+      "choices": [
+        {
+          "value": "ts",
+          "label": "TypeScript",
+          "description": "TypeScript: .tsx sources and a tsconfig.json"
+        },
+        {
+          "value": "js",
+          "label": "JavaScript",
+          "description": "JavaScript: .jsx sources"
+        }
+      ]
+    }
+  ]
+}
