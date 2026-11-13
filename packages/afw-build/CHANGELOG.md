@@ -32,6 +32,12 @@
   `csr-hot` or `hydrate-hot`. `compileModule` uses it, so `hot` now applies to the hydrate
   target too.
 
+### Fixed
+
+- `routesModule` marks client entries inline instead of importing `clientRoute` from
+  `@opentf/afw`. Under esdev that import loaded a second copy of the runtime, whose
+  `afw-link` registration sent the dev server into a reload loop.
+
 ## [0.4.0] - 2026-11-12
 
 ### Added

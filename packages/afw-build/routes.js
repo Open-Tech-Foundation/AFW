@@ -203,11 +203,14 @@ export async function routesModule(host, root, { exclude = [], drafts = true, cl
     layoutLoaders: layoutLoaders.map(([route]) => route),
   });
   // Entries that render in the browser (`_config.js` → `client`) are marked, so a page
-  // server-rendered around them adopts its layouts and builds the rest.
-  const entry = (p) => (clientFiles.has(p) ? `clientRoute(() => import(${JSON.stringify(p)}))` : `() => import(${JSON.stringify(p)})`);
+  // server-rendered around them adopts its layouts and builds the rest. The mark is the
+  // flag `clientRoute()` sets, written inline: importing the runtime here would load a
+  // second copy of it where a toolchain resolves a virtual module's imports elsewhere.
+  const entry = (p) => (clientFiles.has(p)
+    ? `Object.assign(() => import(${JSON.stringify(p)}), { __afwClient: true })`
+    : `() => import(${JSON.stringify(p)})`);
   const map = pages.map((p) => `  [${JSON.stringify(routeKey(p, root))}]: ${entry(p)},`).join("\n");
   const code =
-    (pages.some((p) => clientFiles.has(p)) ? `import { clientRoute } from "@opentf/afw";\n` : "") +
     `export const pages = {\n${map}\n};\n` +
     `export const loaderRoutes = ${JSON.stringify(loaderRoutes)};\n` +
     (guard ? `export { default as guard } from ${JSON.stringify(guard)};\n` : `export const guard = undefined;\n`);
