@@ -34,6 +34,7 @@ function ReasonIcon({ name }) {
       {name === "box" ? <path d="M21 8 12 3 3 8v8l9 5 9-5V8ZM3 8l9 5 9-5M12 13v8" /> : null}
       {name === "bolt" ? <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" /> : null}
       {name === "server" ? <path d="M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01" /> : null}
+      {name === "layers" ? <path d="M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5M3 18l9 5 9-5" /> : null}
       {name === "split" ? <path d="M6 3v6a6 6 0 0 0 6 6h0a6 6 0 0 1 6 6M18 3v6a6 6 0 0 1-6 6" /> : null}
       {name === "form" ? <path d="M4 5h16M4 11h16M4 17h10M17 15l2 2 3-4" /> : null}
       {name === "globe" ? <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9Z" /> : null}

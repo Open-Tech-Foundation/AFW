@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="525" viewBox="0 0 1200 525" role="img" aria-label="Server, static and client pages in one app">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff851b"/>
+      <stop offset="1" stop-color="#febc2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="525" fill="url(#bg)"/>
+  <!-- one app tree: a root folder and three branches, each rendering its own way -->
+  <g stroke="#334155" stroke-width="3" fill="none">
+    <path d="M600 130 L600 200"/><path d="M600 200 L300 200 L300 260"/>
+    <path d="M600 200 L600 260"/><path d="M600 200 L900 200 L900 260"/>
+  </g>
+  <rect x="520" y="80" width="160" height="50" rx="10" fill="#111827" stroke="url(#accent)" stroke-width="3"/>
+  <text x="600" y="113" fill="#e2e8f0" font-family="ui-monospace, monospace" font-size="22" text-anchor="middle">app/</text>
+  <g font-family="ui-monospace, monospace" font-size="24" text-anchor="middle">
+    <rect x="190" y="260" width="220" height="120" rx="14" fill="#111827" stroke="#ff851b" stroke-width="3"/>
+    <text x="300" y="312" fill="#ff851b">server</text>
+    <text x="300" y="348" fill="#94a3b8" font-size="18">per request</text>
+    <rect x="490" y="260" width="220" height="120" rx="14" fill="#111827" stroke="#febc2e" stroke-width="3"/>
+    <text x="600" y="312" fill="#febc2e">static</text>
+    <text x="600" y="348" fill="#94a3b8" font-size="18">built once</text>
+    <rect x="790" y="260" width="220" height="120" rx="14" fill="#111827" stroke="#38bdf8" stroke-width="3"/>
+    <text x="900" y="312" fill="#38bdf8">client</text>
+    <text x="900" y="348" fill="#94a3b8" font-size="18">in the browser</text>
+  </g>
+  <text x="600" y="455" fill="#cbd5e1" font-family="system-ui, sans-serif" font-size="30" text-anchor="middle">One _config.js per folder</text>
+</svg>

@@ -1,0 +1,112 @@
+---
+title: Server, static and client pages in one app
+description: Each folder of an AFW app now picks how its pages render, with one _config.js. Plus the same starters in both workflows, server-rendered pages in development, PUBLIC_* environment variables and one test API.
+date: 2026-11-13
+author: AFW Team
+author_avatar: /blog/avatar-afw.svg
+author_role: Core
+cover: /blog/cover-rendering.svg
+tags: release, rendering, toolchain
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+Most real sites are not one kind of site. A publication renders its articles per request,
+builds its legal pages once, and runs its editor in the browser. Until now an AFW app chose
+one of those for every page. Now each folder chooses its own.
+
+## One file per folder
+
+```text
+app/
+├─ _config.js            { render: "server" }   articles, search, authors
+├─ (legal)/
+│  └─ _config.js         { render: "static" }   privacy, terms: built once
+└─ admin/
+   └─ _config.js         { render: "client" }   the editor: in the browser
+```
+
+```js
+// app/admin/_config.js
+import { defineRoute } from "@opentf/afw";
+
+export default defineRoute({ render: "client" });
+```
+
+The nearest `_config.js` up a page's folders wins, the same way `_middleware.js` already
+covers its folder. That is the whole configuration.
+
+## What each choice really does
+
+- **`client` pages never enter the server bundle.** The editor can import a library that
+  touches `window` when it loads. The site header still renders on the server, the page is
+  built into the layout's slot in the browser, and its loader data comes with it.
+- **`static` pages are built once and still go through middleware.** A prebuilt `/admin`
+  is still behind `app/admin/_middleware.js`. A dynamic route lists its pages with `paths`
+  (it can query a database); any page it does not list renders on request.
+- **`server` pages render per request and hydrate** as before.
+
+## You can always see why
+
+- **The build prints a route table**, with the file that decided each route:
+
+  ```text
+  AFW routes
+  Route            Render  From
+  /                server  app/_config.js
+  /privacy         static  app/(legal)/_config.js
+  /admin/editor    client  app/admin/_config.js
+  ```
+
+- **Every rendered response carries `x-afw-render`.** Open the network tab and the answer
+  is in the headers.
+- **The build checks what it cannot do.** `render: isAdmin ? "client" : "server"` is an
+  error (`render` decides what each bundle contains, so it must be a literal); so is a
+  server page inside a client layout, and a misspelled key never falls back silently.
+
+Read the [Rendering guide](/docs/routing/rendering) for every option.
+
+## The same starters in both workflows
+
+`npm create @opentf/afw` (Vite + Node) and `esdev create` (esdev + ES-Runtime) now ask the
+same questions and write the same `app/` and `tests/`, from one source. Only the
+toolchain's own files differ.
+
+```text
+◆  How should pages render by default?
+│  ● Client   Rendered in the browser: apps behind a login
+│  ○ Server   Rendered per request: content sites, search, anything with SEO
+│  ○ Static   Built once at build time: marketing sites, docs, blogs
+│  ○ Mixed    Server by default, plus a static page and a client section to copy
+```
+
+**Mixed** is the one to try: it is a working copy of the site above, with a prebuilt
+`/about` and a client `/dashboard` with its loader.
+
+## Development that matches production
+
+- **Server-rendered pages in development.** Both dev servers render pages on the server
+  and the browser adopts them, as production does, so hydration mismatches show up while
+  you work. Component, page and layout edits still refresh in place and keep their state.
+  The Vite dev server renders static pages on request too.
+- **`PUBLIC_*` environment variables**, as `import.meta.env.PUBLIC_API_URL`, the same names
+  in both toolchains, in the server render and in the browser. Everything else stays out of
+  the bundle. See [Environment Variables](/docs/core-concepts/environment-variables).
+- **One test API.** Tests import `test` and `expect` from `@opentf/afw-test/test`: esdev's
+  runner under esdev, Vitest under Vite. The same test file runs in both.
+
+## Upgrading
+
+<Callout type="warning" title="mode is gone">
+  The plugins' `mode` option (`"spa"`, `"ssr"`, `"ssg"`) was removed. Move it to
+  `app/_config.js`: `"ssr"` becomes `render: "server"`, `"ssg"` becomes `render: "static"`,
+  and `"spa"` needs nothing, since `client` is the default. Passing `mode` is an error that
+  tells you this.
+</Callout>
+
+- `npm create @opentf/afw` takes `--render client|server|static|mixed`; the old names are
+  gone, and it needs Node 24.
+- The Vite server's `startServer({ mode })` is now `startServer({ render })`.
+
+What is next: revalidation for static pages (on a schedule or on demand, by path or tag)
+and cache headers per route. The [roadmap](/docs/roadmap) tracks it.
