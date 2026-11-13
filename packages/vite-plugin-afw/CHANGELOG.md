@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-13
+
 ### Added
 
 - Per-route render policies: each folder's `_config.js` (`defineRoute({ render })`)

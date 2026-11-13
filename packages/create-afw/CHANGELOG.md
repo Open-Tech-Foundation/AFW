@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
 ### Added
 
 - The AFW starters for `esdev create` (`app`, `docs`, `library`) ship in this package,
