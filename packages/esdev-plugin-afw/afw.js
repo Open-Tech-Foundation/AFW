@@ -1,19 +1,35 @@
 import { createAfwPlugin, lazyCompiler } from "./plugin.js";
 import { createAfwRoutes } from "./routes.js";
 import { SERVER_LOAD_FILTER, SERVER_RESOLVE_IDS, createAfwServer } from "./server.js";
+import { createAppShape, devRenders } from "./policy.js";
+import { esdevHost } from "./host.js";
+import { resolveAppRoot } from "@opentf/afw-build";
 
 // The default package entry is the plugin a starter lists in esdev.json.
 // Named compiler/routes factories remain available for custom build drivers.
 export function createAfwAppPlugin({ appDir = "app", exclude = [], routes = true, failOnError = true, ...options } = {}) {
   if (typeof routes !== "boolean") throw new Error("AFW plugin routes must be a boolean");
   const getCompiler = lazyCompiler();
-  const compiler = createAfwPlugin({ ...options, failOnError, getCompiler });
-  if (!routes) return compiler;
-  const routing = createAfwRoutes({ appDir, exclude });
-  // Server-rendered apps get their pages registered in @afw/server.
-  const server = createAfwServer({ appDir, exclude, getCompiler, pages: options.mode === "ssr" });
+  if (!routes) return createAfwPlugin({ ...options, failOnError, getCompiler });
+  // Each folder's `_config.js` decides how its pages render; `mode` is the shorthand for
+  // the app default. One shape per app root and build, shared by every hook below.
+  const shapes = createAppShape({ exclude, mode: options.mode, getCompiler });
+  const shapeOfRoot = (root, ctx) => shapes.of(root, ctx?.command);
+  const shapeOfModule = async (id, ctx) => {
+    const shape = await shapeOfRoot(await resolveAppRoot(esdevHost, appDir, id.split("?")[0]), ctx);
+    return { mode: shape.mode, devRenders: devRenders(shape) };
+  };
+  const compiler = createAfwPlugin({ ...options, failOnError, getCompiler, shapeOf: shapeOfModule });
+  const routing = createAfwRoutes({ appDir, exclude, shapeOf: shapeOfRoot });
+  const server = createAfwServer({ appDir, exclude, getCompiler, shapeOf: shapeOfRoot });
   return {
     ...compiler,
+    // A new build reads the route policies again.
+    start: {
+      handler() {
+        shapes.reset();
+      },
+    },
     resolve: {
       filter: { id: /^(?:@afw\/routes|@afw\/server|@opentf\/afw-build\/document|@opentf\/afw(?:\/runtime)?)$/ },
       handler(source, importer, ctx) {

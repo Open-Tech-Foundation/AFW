@@ -37,7 +37,7 @@ export const SERVER_RESOLVE_IDS = [SERVER_ID, DOCUMENT_ID];
  * `resolve` / `load` handlers. `getCompiler()` returns the running `afwc serve`
  * client, shared with the JSX transform.
  */
-export function createAfwServer({ appDir = "app", exclude = [], getCompiler, pages = false }) {
+export function createAfwServer({ appDir = "app", exclude = [], getCompiler, pages = false, shapeOf = null }) {
   const listExports = async (file) => serverExports(await getCompiler(), file, await esdevHost.readText(file));
   return {
     async resolve(source, importer, ctx) {
@@ -53,8 +53,15 @@ export function createAfwServer({ appDir = "app", exclude = [], getCompiler, pag
         // the hydration marker there too: the dev browser build is the hydrate target with
         // component refresh, so it adopts the server DOM as production does.
         const dev = ctx?.command === "start";
-        const { code, files } = await serverModule(esdevHost, root, { exclude, listExports, pages, drafts: dev });
-        return { code, type: "js", dependsOn: files };
+        // With route policies (`shapeOf`), pages register unless the app is an SPA, client
+        // routes stay out, and each response says how its page was produced.
+        const shape = shapeOf ? await shapeOf(root, ctx) : null;
+        const { code, files } = await serverModule(esdevHost, root, {
+          exclude, listExports, drafts: dev,
+          pages: shape ? shape.mode !== "spa" : pages,
+          ...(shape ? { clientFiles: shape.clientFiles, renders: shape.renders, staticPaths: shape.staticPaths } : {}),
+        });
+        return { code, type: "js", dependsOn: [...files, ...(shape?.configFiles ?? [])] };
       }
       if (!SERVER_MODULE_FILE.test(id) || ctx?.platform !== "browser") return null;
       const root = await resolveAppRoot(esdevHost, appDir, id);

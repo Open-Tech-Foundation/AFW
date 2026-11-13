@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- Per-route render policies: each folder's `_config.js` decides how its pages render
+  (`server`, `static`, `client`); the nearest one wins, then the root `app/_config.js`,
+  then `mode`, now a shorthand for that default.
+  - The route table marks client entries; `@afw/server` leaves their pages out of the
+    server bundle, registers `_config.js` `paths`, and labels page responses with
+    `x-afw-render`. Server and static pages are registered whenever the app is not an SPA.
+  - Each module's compile target follows the app's shape; a dev build adopts
+    server-rendered pages when the app has a server to render them.
+  - A release build prints the route table. Configs are part of the generated modules'
+    `dependsOn`, so editing one rebuilds them.
+
 ### Changed
 
 - `esdev start` with `mode: "ssr"`: pages are rendered with the hydration marker and the

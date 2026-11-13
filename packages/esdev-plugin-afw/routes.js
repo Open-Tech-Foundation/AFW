@@ -42,7 +42,7 @@ export function isUnpublishedPage(path, now = Date.now()) {
   return isUnpublishedWith(esdevHost, path, now);
 }
 
-export function createAfwRoutes({ appDir = "app", exclude = [] } = {}) {
+export function createAfwRoutes({ appDir = "app", exclude = [], shapeOf = null } = {}) {
   return {
     name: "afw-routes",
     // The importer is only visible to `resolve` (as a positional), never to
@@ -60,10 +60,14 @@ export function createAfwRoutes({ appDir = "app", exclude = [] } = {}) {
       async handler(id, ctx) {
         const root = id.slice(ROUTES_ID.length + 1);
         // Drafts and scheduled pages are routes in the dev server only.
-        const { code, files } = await routesModule(esdevHost, root, { exclude, drafts: ctx?.command === "start" });
+        // Route policies (`_config.js`) mark the entries that render in the browser.
+        const shape = shapeOf ? await shapeOf(root, ctx) : null;
+        const { code, files } = await routesModule(esdevHost, root, {
+          exclude, drafts: ctx?.command === "start", clientFiles: shape?.clientFiles,
+        });
         // The discovered files, so an edit rebuilds the map. (Directories are
         // not listed: `dependsOn` names files the graph cannot discover.)
-        return { code, type: "js", dependsOn: files };
+        return { code, type: "js", dependsOn: [...files, ...(shape?.configFiles ?? [])] };
       },
     },
   };

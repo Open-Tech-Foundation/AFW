@@ -169,8 +169,8 @@ describe("a mixed app, in the dev server", () => {
     const code = await (await fetch(`${origin}/entry.js`)).text();
     assert.match(code, /@afw\/routes|\/@id\/__x00__@afw\/routes/);
     const mod = await server.environments.client.transformRequest(`\0@afw/routes:${dir}/app`);
-    assert.match(mod.code, /clientRoute\(\(\) => import\("[^"]*\/app\/dashboard\/page\.jsx"\)\)/);
-    assert.doesNotMatch(mod.code, /clientRoute\(\(\) => import\("[^"]*\/app\/about\/page\.md"\)\)/);
+    assert.match(mod.code, /Object\.assign\(\(\) => import\("[^"]*\/app\/dashboard\/page\.jsx"\), \{ __afwClient: true \}\)/);
+    assert.doesNotMatch(mod.code, /about\/page\.md"\), \{ __afwClient/);
   });
 
   test("a config edit that changes a folder's policy applies after the reload", async () => {

@@ -1,5 +1,6 @@
 // Real-browser check of server functions in the esdev workflow (`tsr test-e2e-esdev-fns`),
-// plus `PUBLIC_*` env vars rendered on the server and hydrated in the browser, and
+// plus `PUBLIC_*` env vars rendered on the server and hydrated in the browser,
+// per-route render policies (a static page and a client section, from `_config.js`), and
 // `esdev start` adopting its server-rendered pages with component refresh on top:
 // an installed-style project whose server target is the generated `@afw/server`
 // (`mode: "ssr"`), run by `esdev start` and driven in headless Chrome, then built with
@@ -116,6 +117,18 @@ export default function EnvPage() {
   return <div><EnvGreeting /><p id="env-mode">{import.meta.env.MODE}</p><p id="env-secret">[{import.meta.env.SECRET_TOKEN ?? "none"}]</p></div>;
 }`);
 
+// Per-route policies on top of mode "ssr": a static page, and a client section whose page
+// reads `window` as it loads, so the server must never import it.
+await mkdir(`${project}/app/about`, { recursive: true });
+await write(`${project}/app/about/_config.js`, 'export default { render: "static" };\n');
+await write(`${project}/app/about/page.jsx`, 'export default function About() { return <h1 id="about">About</h1>; }');
+await mkdir(`${project}/app/dashboard`, { recursive: true });
+await write(`${project}/app/dashboard/_config.js`, 'export default { render: "client" };\n');
+await write(`${project}/app/dashboard/loader.js`, "export default function loader() { return { visits: 42 }; }");
+await write(`${project}/app/dashboard/page.jsx`, `import { router } from "@opentf/afw";
+const wide = window.innerWidth > 0 ? "yes" : "no";
+export default function Dashboard() { return <p id="dash" data-wide={wide}>visits {router.data?.visits}</p>; }`);
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function launch(args, options = {}) {
   const child = await new Command(args[0], { args: args.slice(1), cwd: project, inheritEnv: true, stdout: "piped", stderr: "piped", ...options }).spawn();
@@ -150,7 +163,7 @@ try {
   };
   const send = (method, params = {}) => new Promise((resolve, reject) => { const n = ++id; pending.set(n, { resolve, reject }); ws.send(JSON.stringify({ id: n, method, params })); });
   const evaluate = async (expression) => { const r = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true }); if (r.exceptionDetails) throw Error(r.exceptionDetails.exception?.description); return r.result.value; };
-  async function until(expression) { for (let i = 0; i < 150; i++) { if (await evaluate(expression)) return true; await delay(100); } throw Error(`Browser timeout: ${expression}`); }
+  async function until(expression) { for (let i = 0; i < 150; i++) { if (await evaluate(expression)) return true; await delay(100); } throw Error(`Browser timeout: ${expression}; browser errors: ${JSON.stringify(errors)}`); }
   await send("Runtime.enable");
   await send("Page.enable");
 
@@ -183,8 +196,9 @@ try {
   assert((await evaluate("window.__fns.addTodo({}).catch((e) => e.name + ' ' + e.status)")) === "ServerFunctionError 400", "a refused call rejects with ServerFunctionError and its status");
   const source = `${project}/app/todos/todos.server.js`;
   await write(source, (await file(source).text()).replace('version: "A"', 'version: "B"'));
-  // The restart leaves a brief gap with no server; a call that lands in it is "not yet".
-  await until("window.__fns.listTodos().then((r) => r.version === 'B', () => false)");
+  // The restart leaves a brief gap with no server, and (pending esdev) the page reloads:
+  // a call that lands in either is "not yet".
+  await until("window.__fns?.listTodos().then((r) => r.version === 'B', () => false)");
   assert(true, "an edited server function answers after the restart");
   // PENDING esdev: a server-only restart should leave the page alone (as Vite's dev server
   // does); esdev 0.27 reloads it. Turn this back into an assert once esdev ships that.
@@ -213,6 +227,19 @@ try {
     "an adopted page's edit refreshes in place, keeping its components' state");
   const failures = errors.filter((e) => e && !e.includes("favicon") && !e.includes("400"));
   assert(failures.length === 0, "no browser errors: " + JSON.stringify(failures));
+  // Per-route policies under esdev start.
+  const policy = async (base) => {
+    const about = await fetch(`${base}/about`, { headers: { accept: "text/html" } });
+    assert(about.headers.get("x-afw-render") === "static", `${base}: the static page says so`);
+    const dash = await fetch(`${base}/dashboard`, { headers: { accept: "text/html" } });
+    const dashHtml = await dash.text();
+    assert(dash.headers.get("x-afw-render") === "client" && !dashHtml.includes("visits ") && dashHtml.includes('{"visits":42}'),
+      `${base}: a client route sends its loader data and no page HTML`);
+    await send("Page.navigate", { url: `${base}/dashboard` });
+    await until("document.getElementById('dash')?.textContent === 'visits 42' && document.getElementById('dash').dataset.wide === 'yes'");
+    assert(true, `${base}: the client page renders in the browser, with its browser-only code`);
+  };
+  await policy(origin);
   // Stop the dev server only; the browser stays for the production checks.
   try { devServer.kill(); await devServer.status; } catch {}
 
@@ -249,6 +276,8 @@ try {
   await evaluate("document.getElementById('env-greeting').click()");
   await until("document.getElementById('env-greeting').textContent === 'hello-from-env clicks 1'");
   assert(true, "the hydrated component keeps the PUBLIC_ value in production");
+  assert(!(await file(`${project}/dist/server.js`).text()).includes("window.innerWidth"), "the server bundle has no client page");
+  await policy(prod);
   passed = true;
 } finally {
   ws?.close();
