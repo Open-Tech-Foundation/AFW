@@ -3,7 +3,7 @@
 // per-route render policies (a static page and a client section, from `_config.js`), and
 // `esdev start` adopting its server-rendered pages with component refresh on top:
 // an installed-style project whose server target is the generated `@afw/server`
-// (`mode: "ssr"`), run by `esdev start` and driven in headless Chrome, then built with
+// (pages rendered on the server, app/_config.js), run by `esdev start` and driven in headless Chrome, then built with
 // `esdev build` and run as a production server.
 //
 //   esdev scripts/verify-server-functions.mjs
@@ -41,7 +41,7 @@ await copyPath(`${root}/target/debug/${binary}`, `${project}/node_modules/@opent
 const appPort = 25000 + Math.floor(Math.random() * 10000);
 await write(`${project}/package.json`, JSON.stringify({ private: true, type: "module" }));
 await write(`${project}/esdev.json`, JSON.stringify({
-  plugins: [{ module: "@opentf/esdev-plugin-afw", options: { mode: "ssr" } }],
+  plugins: [{ module: "@opentf/esdev-plugin-afw" }],
   build: { targets: {
     web: { entry: "index.html", outdir: "dist" },
     server: { entry: "server.js", out: "dist/server.js" },
@@ -72,6 +72,7 @@ const server = serve({ hostname: "127.0.0.1", port: Number(env.PORT ?? "${appPor
 console.log("listening on http://127.0.0.1:" + (await server.addr).port);
 `);
 await mkdir(`${project}/app/todos`, { recursive: true });
+await write(`${project}/app/_config.js`, 'export default { render: "server" };\n');
 await write(`${project}/app/_middleware.js`, `export default async function middleware(request, context, next) {
   context.locals.user = "ada";
   return next();
@@ -117,7 +118,7 @@ export default function EnvPage() {
   return <div><EnvGreeting /><p id="env-mode">{import.meta.env.MODE}</p><p id="env-secret">[{import.meta.env.SECRET_TOKEN ?? "none"}]</p></div>;
 }`);
 
-// Per-route policies on top of mode "ssr": a static page, and a client section whose page
+// The app renders on the server; per-route policies add a static page, and a client section whose page
 // reads `window` as it loads, so the server must never import it.
 await mkdir(`${project}/app/about`, { recursive: true });
 await write(`${project}/app/about/_config.js`, 'export default { render: "static" };\n');

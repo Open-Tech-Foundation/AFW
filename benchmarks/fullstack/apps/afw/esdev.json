@@ -1,5 +1,5 @@
 {
-  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "mode": "ssr" } }],
+  "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "appDir": "app" } }],
   "build": { "targets": {
     "web": { "entry": "index.html", "outdir": "dist" },
     "server": { "entry": "server.js", "out": "dist/server.js" }

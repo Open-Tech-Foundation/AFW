@@ -3,7 +3,6 @@
     {
       "module": "@opentf/esdev-plugin-afw",
       "options": {
-        "mode": "ssg",
         "appDir": "app"
       }
     },

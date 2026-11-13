@@ -3,7 +3,6 @@
     {
       "module": "@opentf/esdev-plugin-afw",
       "options": {
-        "mode": "spa",
         "appDir": "benchmarks/afw/app"
       }
     }
