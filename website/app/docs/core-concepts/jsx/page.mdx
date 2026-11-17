@@ -50,11 +50,17 @@ Self-closing tags work for both host elements and components:
 <Spinner />
 ```
 
-SVG and MathML namespaces are supported via the JSX namespace syntax:
+SVG needs no special syntax. Write plain `<svg>` and its children:
 
 ```jsx
-<svg:path d="M0 0 L10 10" />
+<svg viewBox="0 0 10 10">
+  <path d="M0 0 L10 10" stroke="currentColor" />
+</svg>
 ```
+
+- Everything inside `<svg>` is created in the SVG namespace.
+- `<foreignObject>` switches its children back to HTML.
+- Namespaced tags (`<svg:path>`) are not supported: they compile to a literal `svg:path` element, which the browser does not draw.
 
 ## Text and expressions
 
