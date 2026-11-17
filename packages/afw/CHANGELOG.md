@@ -4,6 +4,11 @@
 
 ### Added
 
+- In development, a server-only edit (a server function, loader, middleware or API
+  route) refetches the page's data in place: live resources and the current route's
+  loader data reload, and component state, form input and scroll stay. It listens for
+  esdev's `esdev:server-update` (esdev 0.28+) and vite-plugin-afw's `afw:server-update`.
+
 - Single-flight updates: an action calls `refresh(listTodos)` from its context, and the
   fresh data for every input the page shows comes back with the action's response. The
   page updates in one round trip. `refresh(getTodo, { id })` re-runs one input.

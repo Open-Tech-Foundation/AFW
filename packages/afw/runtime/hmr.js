@@ -5,7 +5,34 @@
 // current implementation rather than redefining an existing tag.
 import { scope } from "../core/signals.js";
 import { collectHotState, takeHotState, withHotCarry } from "./hot-carry.js";
+import { invalidate } from "./invalidate.js";
 import { refreshHotRoute } from "./router.js";
+
+// A server-only edit (a server function, loader, middleware or API route) restarts or
+// reloads the server but leaves the page alone: esdev sends `esdev:server-update` once
+// the new server listens, and vite-plugin-afw sends `afw:server-update`. The page then
+// refetches its data in place (`invalidate()`), keeping component state and scroll.
+const SERVER_EVENTS = ["esdev:server-update", "afw:server-update"];
+let refetchQueued = false;
+
+function serverUpdated() {
+  // Every route module listens; one refetch covers them all.
+  if (refetchQueued) return;
+  refetchQueued = true;
+  queueMicrotask(() => {
+    refetchQueued = false;
+    void invalidate();
+  });
+}
+
+/**
+ * Refetch the page's data when the dev server's code changes. Listeners belong to the
+ * module that added them and are dropped when it is replaced, so each version adds its own.
+ */
+export function watchServerUpdates(hot) {
+  if (typeof hot?.on !== "function") return;
+  for (const event of SERVER_EVENTS) hot.on(event, serverUpdated);
+}
 
 const components = new Map();
 
@@ -41,6 +68,7 @@ function keep(hot, key, make) {
  */
 export function registerHotRoute(hot, factory, shape = "", exports = "", data = {}) {
   if (!hot) return factory;
+  watchServerUpdates(hot);
   if (hot.data.afwRouteBoundary && hot.data.afwExports !== exports) {
     hot.data.afwExports = exports;
     hot.invalidate();

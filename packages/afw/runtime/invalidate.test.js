@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "runtime:test";
 
 import { scope } from "../core/signals.js";
+import { watchServerUpdates } from "./hmr.js";
 import { invalidate } from "./invalidate.js";
 import { resource } from "./resource.js";
 import { mountApp, routes, router, setRouteData } from "./router.js";
@@ -117,5 +118,35 @@ describe("invalidate", () => {
 
   test("rejects what is not a server function", async () => {
     await expect(invalidate(() => 1)).rejects.toThrow("server functions");
+  });
+});
+
+describe("dev server updates", () => {
+  // A stand-in for `import.meta.hot`: each route module registers its own listeners.
+  const fakeHot = () => {
+    const listeners = {};
+    return { on: (event, fn) => (listeners[event] ??= []).push(fn), emit: (event) => listeners[event]?.forEach((fn) => fn()), listeners };
+  };
+
+  test("esdev:server-update and afw:server-update refetch live data once, however many modules listen", async () => {
+    const [listTodos] = fns();
+    const todos = live(() => resource(() => listTodos()));
+    await settle();
+    const a = fakeHot();
+    const b = fakeHot();
+    watchServerUpdates(a);
+    watchServerUpdates(b);
+    a.emit("esdev:server-update");
+    b.emit("esdev:server-update");
+    await settle();
+    expect(todos.data.n).toBe(2);
+    a.emit("afw:server-update");
+    await settle();
+    expect(todos.data.n).toBe(3);
+  });
+
+  test("a hot API without on() is left alone", () => {
+    expect(() => watchServerUpdates({})).not.toThrow();
+    expect(() => watchServerUpdates(undefined)).not.toThrow();
   });
 });
