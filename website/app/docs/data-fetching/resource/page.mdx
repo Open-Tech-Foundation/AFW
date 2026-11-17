@@ -1,6 +1,6 @@
 ---
 title: resource()
-description: Client-side async data: resource() wraps a fetcher in reactive data, loading and error, with abort, refetch and invalidation.
+description: Client-side async data: resource() wraps a fetcher in reactive data, loading and error, with abort, refetch, caching and invalidation.
 ---
 
 import ResourceDemo from "./ResourceDemo.jsx";
@@ -42,17 +42,60 @@ export default function UserProfile() {
 - Each run aborts the previous run's `AbortController` (the fetcher receives
   `{ signal }`) and late, out-of-order resolutions are discarded.
 - A rejection sets `error` and keeps the last good `data`; the next success
-  clears it. `refetch()` re-runs manually.
+  clears it.
+- `refetch()` re-runs manually. It resolves with the new data and rejects when the
+  fetch fails, so `await user.refetch()` can be wrapped in `try`; a click handler can
+  ignore the promise, since the failure also shows on `error`.
 - A `source` returning `null`/`false` pauses fetching (conditional resources).
 - [`invalidate()`](/docs/server-functions#refetch-after-an-action) refetches every live
   resource and reloads the page's loader data; `invalidate(listTodos)` only the
   resources that called that server function.
-- During SSG/SSR nothing fetches and `loading` stays `true`, so the prerendered
-  HTML shows your loading branch and [hydration](/docs/deployment/hydration) stays aligned.
+- During SSG/SSR nothing fetches and `loading` stays `true` (`false` when the source
+  starts paused), so the prerendered HTML shows the branch the browser's first paint
+  shows and [hydration](/docs/deployment/hydration) stays aligned.
 - A resource created in a component stops when the component is removed: its fetch
   is aborted and it no longer refetches.
 - `{ errors: "inline" }` keeps failures on `error` only, even inside a
   [`<Pending>`](/docs/data-fetching/pending).
+
+## Caching
+
+A resource whose fetcher is a [server function](/docs/server-functions), or that names
+a `key`, keeps its result in a page-wide cache:
+
+```jsx
+import { resource, router } from "@opentf/afw";
+import { getUser, listTodos } from "./users.server.js";
+
+// Cached by the server function and its input.
+const user = resource(() => ({ id: router.params.id }), getUser);
+// A server function without input.
+const todos = resource(listTodos);
+// Any other fetcher: name a key (a value, or a function of the source value).
+const repo = resource(() => router.params.name, fetchRepo, {
+  key: (name) => ["repo", name],
+  staleTime: 30_000,
+});
+```
+
+- **Shared requests.** Every resource showing the same call or key shares one request
+  and the same data. A refetch in one updates all of them.
+- **Instant remounts.** A remounted resource shows the cached data at once, so a
+  `<Pending>` shows the content (with its `refreshing` view) instead of the fallback.
+- **`staleTime`** (default `0`): how long cached data answers without a request. At `0`
+  the cached data shows and is revalidated at once.
+- **`gcTime`** (default 5 minutes): how long an entry nothing shows is kept.
+- **Keys.** A server function's key is its endpoint and input. Object key order does not
+  matter: `{ a, b }` and `{ b, a }` are one entry.
+- **Shared data.** Every user of an entry gets the same object: treat it as read-only.
+- **Direct calls.** Identical query calls in flight share one request too
+  (`Promise.all([listTodos(), listTodos()])` makes one). Actions never do.
+- **Aborts.** A shared request is aborted only once every resource or caller using it
+  has aborted or unmounted.
+- `refetch()` and `invalidate()` always ask the server, whatever the `staleTime`.
+- A fetcher that calls a server function inside it (`() => listTodos({ done })`)
+  shares requests too. It shows cached data at once only when written as
+  `resource(source, listTodos)` or given a `key`.
 
 ## Related
 

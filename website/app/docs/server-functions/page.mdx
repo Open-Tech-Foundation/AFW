@@ -76,6 +76,10 @@ export default function Todos() {
 - `listTodos(input, { signal })` — pass an `AbortSignal` to cancel a call.
 - Works with [`resource()`](/docs/data-fetching/resource) as-is: it refetches when its
   arguments change and drops superseded responses.
+- `resource(() => ({ done: false }), listTodos)` caches the result by the input:
+  resources showing the same call share one request and a remount shows the data at
+  once (see [Caching](/docs/data-fetching/resource#caching)).
+- Identical query calls in flight share one request; actions never do.
 
 ## Refetch after an action
 
@@ -95,14 +99,19 @@ async function save(title) {
 
 - `invalidate(listTodos, listUsers)` — refetch the live resources that called these
   server functions. Other resources are left alone.
+- `invalidate(getTodo, { id: 1 })` — a value after a server function narrows it to
+  the call with that input. Mix both: `invalidate(getTodo, { id: 1 }, listTodos)`.
 - `invalidate()` — refetch every live resource and reload the current page's
   [loader data](/docs/data-fetching/route-loaders) into `router.data`. Use it when a page shows
   loader data, as the starter's todos page does.
 - A resource records the server functions its fetcher calls as it starts
   (`() => listTodos(args)`). For one called after an `await`, name it:
   `resource(fn, { invalidatedBy: [listTodos] })`.
-- Resources of unmounted components are not refetched.
-- It resolves when the refetches settle; on the server it does nothing.
+- Resources of unmounted components are not refetched. Their
+  [cached](/docs/data-fetching/resource#caching) data is marked stale, so it is fetched
+  again when they next mount.
+- It resolves when the refetches settle; a failed refetch shows on its resource's
+  `error` and does not reject. On the server it does nothing.
 
 ## Errors
 
