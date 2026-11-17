@@ -39,6 +39,10 @@ export function afterHydration(fn: any): void;
  * its prop signals, falling back to attributes/defaults when it returns `null`.
  */
 export function hydrationProps(el: any): any;
+/** Defer a hydrating component's adoption until its parent sets the function props the payload names. */
+export function awaitHydrationProps(host: HTMLElement): boolean;
+/** Resume a deferred adoption once the parent has set every awaited prop. */
+export function hydrationPropSet(host: HTMLElement, name: string): void;
 /** Reset the cached payload (tests only — a fresh document between cases). */
 export function __resetHydrationPayload(): void;
 /** A walker over `parent`'s children, positioned at the next node to claim. */

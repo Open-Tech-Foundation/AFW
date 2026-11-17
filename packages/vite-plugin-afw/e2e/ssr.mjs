@@ -69,6 +69,13 @@ export default function Slow() { return <p id="slow-page">{router.data?.ok}</p>;
   await page("links/page.jsx", `import { Link } from "@opentf/afw";
 export default function Links() { return <nav><Link href="/slow">slow</Link> <Link href="/broken">broken</Link> <Link href="/notes/missing">missing note</Link> <Link href="/notes/hello">note</Link></nav>; }
 `);
+  // Function props on server-rendered components: a callback and a render prop.
+  await page("props/Parts.jsx", `export function Press({ onPress, label }) { return <button id="press" onclick={onPress}>{label}</button>; }
+export function Each({ items, render }) { return <div id="each">{items.map((x) => render(x))}</div>; }
+`);
+  await page("props/page.jsx", `import { Press, Each } from "./Parts.jsx";
+export default function PropsPage() { let n = $state(0); return <div><Press label="press" onPress={() => n++} /><p id="presses">{n}</p><Each items={["a", "b"]} render={(x) => <b>{x}</b>} /></div>; }
+`);
   // notFound() from a loader under a nested layout, and the app's 404 page.
   await page("404.jsx", `export default function NotFound() { return <p id="not-found">no such page</p>; }\n`);
   await page("notes/layout.jsx", `export default function Notes({ children }) { return <section id="notes-shell">{children}</section>; }\n`);
@@ -244,6 +251,15 @@ export default function Dashboard() {
   await evaluate(`document.querySelector('a[href="/slow"]').click()`);
   check(await until(shows("slow-loading"), 800), "a slow navigation shows loading.jsx");
   check(await until(`document.getElementById('slow-page')?.textContent === 'loaded' && ${shows("slow-page")} && !${shows("slow-loading")}`), "the page replaces loading.jsx once its data arrives");
+
+  // Function props survive hydration: the parent sets them before the child adopts.
+  await send("Page.navigate", { url: `${origin}/props` });
+  check(await until("document.readyState === 'complete' && document.getElementById('each')?.textContent === 'ab'"), "a render prop renders on a server-rendered page");
+  await delay(300);
+  // The render prop's array of JSX values is rebuilt for now; the components' own DOM is adopted.
+  check(!(await evaluate("window.__removed.some((html) => /^<(button|div|afw-)/.test(html))")), `the components with function props adopt the server DOM (removed: ${await evaluate("JSON.stringify(window.__removed)")})`);
+  await evaluate("document.getElementById('press').click()");
+  check(await until("document.getElementById('presses').textContent === '1'"), "a callback prop works after hydration");
 
   // notFound() in a loader: the 404 page, on client navigation as on a page load.
   await send("Page.navigate", { url: `${origin}/links` });

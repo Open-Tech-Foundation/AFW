@@ -32,6 +32,8 @@ import {
   __resetHydrationPayload,
   adoptedChildren,
   afterHydration,
+  awaitHydrationProps,
+  hydrationPropSet,
   beginHydration,
   bindAttr,
   bindChild,
@@ -60,7 +62,7 @@ import {
 } from "./index.js";
 // Side effect: registers the real <afw-internal-portal> custom element used by the Portal test.
 import "./portal.js";
-import { reportError } from "../core/errors.js";
+import { onError, reportError } from "../core/errors.js";
 
 async function findUp(name, from) {
   let dir = from;
@@ -106,7 +108,7 @@ function loadComponent(code, name, bindings) {
     .replace(/^export default \w+;$/gm, "");
   // Helpers every hydrate build may reference, supplied unless a test overrides them.
   // Every component brackets its connect with the host stack (`enterHost`/`exitHost`).
-  bindings = { hydratableNode, adoptedChildren, enterHost, exitHost, ...bindings };
+  bindings = { hydratableNode, adoptedChildren, enterHost, exitHost, awaitHydrationProps, hydrationPropSet, ...bindings };
   const names = Object.keys(bindings);
   return new Function(...names, `${body}\n; return ${name};`)(...names.map((n) => bindings[n]));
 }
@@ -126,7 +128,7 @@ function loadModule(code, bindings) {
     .replace(/export class /g, "class ")
     .replace(/^export default \w+;$/gm, "");
   // Helpers every hydrate build may reference, supplied unless a test overrides them.
-  bindings = { hydratableNode, adoptedChildren, ...bindings };
+  bindings = { hydratableNode, adoptedChildren, awaitHydrationProps, hydrationPropSet, ...bindings };
   const names = Object.keys(bindings);
   const ret =
     "\n; return {" +
@@ -930,5 +932,135 @@ describe.skipIf(!hasBin)("JSX returned by callbacks (ssg → hydrate)", () => {
     } finally {
       container.remove();
     }
+  });
+});
+
+// Regression (sweep): a server-rendered component upgrades and adopts as soon as its
+// module loads, before the parent's hydrate pass sets its props. Functions cannot travel in
+// the payload, so a callback was bound as `undefined` (the button did nothing) and a render
+// prop threw mid-adoption. The payload now names them and the child waits for its parent.
+describe.skipIf(!hasBin)("function props on a server-rendered component (ssg → hydrate)", () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const source =
+    "function Btn({ onPress, label }) { return <button class=\"press\" onclick={onPress}>{label}</button>; }\n" +
+    "function List({ items, render }) { return <div class=\"list\">{items.map((x) => render(x))}</div>; }\n" +
+    "export default function P(){ let n = $state(0);" +
+    ' return <main><Btn label="press" onPress={() => n++} /><p class="count">{n}</p><List items={["a", "b"]} render={(x) => <b>{x}</b>} /></main>; }';
+
+  test("a callback prop works after hydration, and a render prop renders without errors", async () => {
+    const ssg = loadModule(await compile(source, "ssg"), { signal, ssgText, ssgComponent, ssgList, defineSSG });
+    beginHydrationCollect();
+    const html = ssg.default();
+    const payload = endHydrationCollect();
+    expect(JSON.parse(payload).some((p) => p.__afwFn?.includes("onPress"))).toBe(true);
+    expect(html).toContain("<b><!--$-->a<!--/--></b>");
+
+    const errors = [];
+    const off = onError((e) => errors.push(e.message));
+    const container = document.createElement("div");
+    const script = document.createElement("script");
+    script.type = "application/json";
+    script.id = "__afw_h";
+    script.textContent = payload;
+    document.body.append(script);
+    __resetHydrationPayload();
+    beginHydration();
+    try {
+      container.innerHTML = html;
+      document.body.append(container);
+      const mod = loadModule(await compile(source, "hydrate"), {
+        effect, signal, bindText, bindChild, setProp, cursor, claimElement, claimText, skipNode, hydrateSlot,
+        isHydrating, runBuild, HydrationMismatch, reportError, handleError, hydrationProps, template, enterHost, exitHost,
+      });
+      const button = container.querySelector(".press");
+      mod.hydrate(container);
+      endHydration();
+      await tick();
+      expect(container.querySelector(".press")).toBe(button); // adopted, not rebuilt
+      button.click();
+      await tick();
+      expect(container.querySelector(".count").textContent).toBe("1");
+      expect(container.querySelector(".list").textContent).toBe("ab");
+      expect(errors).toEqual([]);
+    } finally {
+      off();
+      endHydration();
+      container.remove();
+      script.remove();
+      __resetHydrationPayload();
+    }
+  });
+});
+
+describe("awaitHydrationProps", () => {
+  // A hand-written host shaped like a compiled hydratable component.
+  function host(payloadProps, declared) {
+    const el = document.createElement("div");
+    el.setAttribute("data-hp", JSON.stringify(payloadProps));
+    el._props = Object.fromEntries(declared.map((name) => [name, { value: null }]));
+    for (const name of declared) {
+      Object.defineProperty(el, name, {
+        get() { return this._props[name].value; },
+        set(v) { this._props[name].value = v; if (this.__afwAwait) hydrationPropSet(this, name); },
+      });
+    }
+    el.connects = 0;
+    el.connectedCallback = function () {
+      if (awaitHydrationProps(this)) return;
+      this.connects++;
+      this.mode = isHydrating() ? "adopt" : "build";
+    };
+    document.body.append(el);
+    return el;
+  }
+
+  test("waits for every declared function prop, then adopts inside the pass", () => {
+    beginHydration();
+    try {
+      const el = host({ label: "x", __afwFn: ["onSave", "onCancel"] }, ["label", "onSave", "onCancel"]);
+      el.connectedCallback();
+      expect(el.connects).toBe(0);
+      el.onSave = () => {};
+      expect(el.connects).toBe(0); // one still missing
+      el.onCancel = () => {};
+      expect([el.connects, el.mode]).toEqual([1, "adopt"]);
+      el.remove();
+    } finally {
+      endHydration();
+    }
+  });
+
+  test("ignores undeclared function props, and a host without any adopts at once", () => {
+    beginHydration();
+    try {
+      const el = host({ __afwFn: ["onUndeclared"] }, ["label"]);
+      el.connectedCallback();
+      expect([el.connects, el.mode]).toEqual([1, "adopt"]);
+      el.remove();
+    } finally {
+      endHydration();
+    }
+  });
+
+  test("a prop the parent never sets: the host builds once the pass ends", () => {
+    beginHydration();
+    let el;
+    try {
+      el = host({ __afwFn: ["onSave"] }, ["onSave"]);
+      el.textContent = "server";
+      el.connectedCallback();
+      expect(el.connects).toBe(0);
+    } finally {
+      endHydration();
+    }
+    expect([el.connects, el.mode, el.textContent]).toEqual([1, "build", ""]); // server nodes cleared first
+    el.remove();
+  });
+
+  test("outside hydration it never waits", () => {
+    const el = host({ __afwFn: ["onSave"] }, ["onSave"]);
+    el.connectedCallback();
+    expect([el.connects, el.mode]).toEqual([1, "build"]);
+    el.remove();
   });
 });

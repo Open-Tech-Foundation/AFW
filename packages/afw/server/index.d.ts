@@ -174,6 +174,10 @@ export function attr(name: string, value: unknown): string;
 export function ssgText(v: unknown): string;
 export function ssgList<T>(arr: T[], fn: (item: T, index: number) => string): string;
 export function ssgComponent(tag: string, props?: Record<string, unknown>, children?: unknown): string;
+/** Render `children()` with `context` provided as `value` (a server-rendered `<ContextProvider>`). */
+export function ssgProvide(context: unknown, value: unknown, children: () => string): string;
+/** `$context(context)` on the server: the nearest provided value, else the context's default. */
+export function ssgContext<T>(context: { fallback: { value: T } }): { value: T };
 
 // ── Server functions (server-functions.js, docs/SERVER_FUNCTIONS.md) ───────────
 /** A Standard Schema (https://standardschema.dev): zod, valibot, arktype… */

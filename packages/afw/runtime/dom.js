@@ -469,7 +469,19 @@ export function hydrateChild(cur, adoptFn, buildFn, depsFn) {
   claimRegionStart(cur);
   // Adopt inside a scope so the adopted branch owns its bindings' effects; the
   // region disposes it when a reactive change swaps the branch out.
-  const adoptedScope = scope(() => toNodes(adoptFn(cur)));
+  const adoptedScope = scope(() => {
+    const value = adoptFn(cur);
+    // A branch that evaluates to text — `{count && <b/>}` with `count` 0, or
+    // `{ok ? <b/> : "none"}` — was written by the server as a text node in the region:
+    // claim it rather than build a second one beside it.
+    const primitive = typeof value === "string" || typeof value === "number" || typeof value === "bigint";
+    if (primitive && cur.node?.nodeType === 3) {
+      const text = cur.node;
+      cur.node = text.nextSibling;
+      return [text];
+    }
+    return toNodes(value);
+  });
   const anchor = claimRegionEnd(cur);
   // Seed with the adopted nodes and skip the first effect run's DOM write: the branch is
   // already in place; from the second run on it swaps normally.

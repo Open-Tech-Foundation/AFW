@@ -94,6 +94,10 @@ function jsonSafeProps(props) {
   } catch {
     return null; // cyclic / non-serializable → client falls back to attributes/defaults
   }
+  // Function props (callbacks, render props) are named instead: the client component
+  // waits for its parent to set them before it adopts (`awaitHydrationProps`).
+  const fns = Object.keys(props).filter((key) => typeof props[key] === "function");
+  if (fns.length) safe = { ...(safe && typeof safe === "object" ? safe : {}), __afwFn: fns };
   if (!safe || typeof safe !== "object" || Object.keys(safe).length === 0) return null;
   return safe;
 }
@@ -267,6 +271,8 @@ export function ssgList(arr, fn) {
  */
 export function ssgComponent(tag, props, children) {
   const render = registry[tag];
+  // A `<ContextProvider>`'s children arrive as a thunk: render them with its value in scope.
+  if (typeof children === "function") children = ssgProvide(props?.context, props?.value, children);
   let inner;
   try {
     inner = render ? render(props || {}, children ?? "") : (children ?? "");
@@ -292,6 +298,32 @@ export function ssgComponent(tag, props, children) {
     if (inline) attrs += ` data-hp="${inline}"`;
   }
   return `<${tag}${attrs}>${inner}</${tag}>`;
+}
+
+/*
+ * Context on the server. A page renders synchronously to a string, so the providers
+ * enclosing the component being rendered are a stack: `<ContextProvider>` pushes while
+ * its children render, and `$context` reads the nearest entry for its context.
+ */
+const providers = [];
+
+/** Render `children()` with `context` provided as `value`. */
+export function ssgProvide(context, value, children) {
+  if (!context) return children();
+  providers.push([context, value]);
+  try {
+    return children();
+  } finally {
+    providers.pop();
+  }
+}
+
+/** `$context(context)` on the server: the nearest provided value, else the default. */
+export function ssgContext(context) {
+  for (let i = providers.length - 1; i >= 0; i--) {
+    if (providers[i][0] === context) return { value: providers[i][1] };
+  }
+  return context.fallback;
 }
 
 export { VOID };

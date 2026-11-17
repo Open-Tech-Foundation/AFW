@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- Server-rendered components receiving function props (`onPress={…}`,
+  `render={(x) => …}`) work after hydration. They adopted before the parent set them, so
+  a callback did nothing and a render prop threw. The payload names them (`__afwFn`) and
+  the component waits for its parent.
+- `{count && <b/>}` with `count` 0 hydrates: the region's server text is claimed.
+- `$context` in a server render reads the enclosing `<ContextProvider>`'s value
+  (`ssgProvide`, `ssgContext`), so first paint no longer shows the default.
+
+
 - Development refresh (`@opentf/afw/hmr`): a component whose export was renamed (or a
   module that gained a component) rendered as an unknown, empty element. The edited
   module invalidated its importers before defining the new tag, and they re-ran against it.

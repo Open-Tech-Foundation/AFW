@@ -15,6 +15,8 @@
 // to static text (which the HTML parser would otherwise merge into one text node).
 // Static structure carries no markers and is claimed by position.
 
+import { untracked } from "../core/signals.js";
+
 /** Comment markers bounding a dynamic text hole in server HTML. */
 export const HOLE_START = "$";
 export const HOLE_END = "/";
@@ -245,6 +247,48 @@ export function hydrationProps(el) {
   } catch {
     return null;
   }
+}
+
+/**
+ * The function props a parent passes to a server-rendered component (`onSave={…}`,
+ * `render={(x) => …}`) cannot travel in the payload, which names them instead
+ * (`__afwFn`). The component upgrades and would adopt as soon as its module loads, before
+ * the parent's hydrate pass sets them, so its adopt walk would bind `undefined` handlers
+ * and call missing functions. When any is still unset, this defers the adoption: the
+ * parent's assignment of the last one resumes it, still inside the pass. Returns whether
+ * the caller (the component's `connectedCallback`) must stop for now. The component's
+ * property setters report each assignment through {@link hydrationPropSet}.
+ */
+export function awaitHydrationProps(host) {
+  if (!_hydrating || host.__afwAwait) return !!host.__afwAwait;
+  const names = hydrationProps(host)?.__afwFn;
+  if (!Array.isArray(names)) return false;
+  // Only declared props: their setters report the assignment (an undeclared one never would).
+  const declared = host._props ?? {};
+  const missing = names.filter((name) => name in declared && host[name] == null);
+  if (missing.length === 0) return false;
+  host.__afwAwait = new Set(missing);
+  // A parent that never sets one: build from scratch once the pass is over.
+  afterHydration(() => {
+    if (!host.__afwAwait) return;
+    host.__afwAwait = null;
+    if (!host.isConnected) return;
+    host.replaceChildren();
+    untracked(() => host.connectedCallback());
+  });
+  return true;
+}
+
+/** A parent set `name` on `host` (its property setter): resume a deferred adoption once all are in. */
+export function hydrationPropSet(host, name) {
+  const waiting = host.__afwAwait;
+  if (!waiting) return;
+  waiting.delete(name);
+  if (waiting.size) return;
+  host.__afwAwait = null;
+  // Untracked: the parent calls this from its prop effect, which must not subscribe to
+  // what the child's adopt walk reads.
+  if (host.isConnected) untracked(() => host.connectedCallback());
 }
 
 /** Reset the cached payload (tests only — a fresh document between cases). */

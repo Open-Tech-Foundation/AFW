@@ -50,22 +50,29 @@ describe("ssgComponent + hydration collector", () => {
     expect(JSON.parse(payload)).toEqual([{ x: 1 }, { y: 2 }]);
   });
 
-  test("drops function props and stamps no id when nothing serializes", () => {
+  test("names function props, which cannot serialize, so the client waits for them", () => {
     const tag = register("afw-cb", () => "x");
     beginHydrationCollect();
     const html = ssgComponent(tag, { onClick: () => {}, onInput: () => {} }, "");
     const payload = endHydrationCollect();
 
-    // All props were callbacks (client-only, dropped by JSON) → no id, no payload.
-    expect(html).not.toContain("data-h");
-    expect(payload).toBe("");
+    // Only callbacks: the island still gets an id, and the payload lists their names.
+    expect(html).toContain('data-h="0"');
+    expect(JSON.parse(payload)).toEqual([{ __afwFn: ["onClick", "onInput"] }]);
   });
 
-  test("keeps serializable props and drops the callbacks alongside them", () => {
+  test("keeps serializable props and names the callbacks alongside them", () => {
     const tag = register("afw-mix", () => "x");
     beginHydrationCollect();
     ssgComponent(tag, { label: "hi", onClick: () => {} }, "");
-    expect(JSON.parse(endHydrationCollect())).toEqual([{ label: "hi" }]); // no onClick
+    expect(JSON.parse(endHydrationCollect())).toEqual([{ label: "hi", __afwFn: ["onClick"] }]);
+  });
+
+  test("a component without function props gets no __afwFn", () => {
+    const tag = register("afw-plain", () => "x");
+    beginHydrationCollect();
+    ssgComponent(tag, { label: "hi" }, "");
+    expect(JSON.parse(endHydrationCollect())).toEqual([{ label: "hi" }]);
   });
 
   test("carries props inline when rendered outside a render (no beginHydrationCollect)", () => {
