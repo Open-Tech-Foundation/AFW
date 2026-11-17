@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, test } from "runtime:test";
 
-import { configureI18n, setRouteState } from "@opentf/afw";
+import { configureI18n, effect, setRouteState } from "@opentf/afw";
+
+import { render } from "@opentf/afw-test";
 
 import { fmt } from "./format.js";
 import { createI18n, getLocale, loadLocale, setCatalog, t } from "./i18n.js";
@@ -119,5 +121,45 @@ describe("afw-i18n <html lang> mirror", () => {
     expect(document.documentElement.lang).toBe("en");
     setLocale("fr");
     expect(document.documentElement.lang).toBe("fr");
+  });
+});
+
+describe("translations bound before their catalog", () => {
+  test("update when createI18n registers the catalog", () => {
+    setRouteState({ locale: "en" });
+    createI18n({ locales: ["en"], defaultLocale: "en", messages: {} }); // nothing yet
+    const seen = [];
+    const stop = effect(() => seen.push(t("late")));
+    createI18n({ locales: ["en"], defaultLocale: "en", messages: { en: { late: "Arrived" } } });
+    stop();
+    expect(seen).toEqual(["late", "Arrived"]);
+  });
+
+  test("update when setCatalog or loadLocale fills a locale", async () => {
+    setRouteState({ locale: "fr" });
+    let release;
+    createI18n({
+      locales: ["en", "fr"], defaultLocale: "en", messages: { en: { hi: "Hi" } },
+      load: () => new Promise((resolve) => (release = () => resolve({ default: { hi: "Salut" } }))),
+    });
+    const seen = [];
+    const stop = effect(() => seen.push(t("hi")));
+    const loading = loadLocale("fr");
+    release();
+    await loading;
+    setCatalog("fr", { hi: "Coucou" });
+    stop();
+    expect(seen).toEqual(["Hi", "Salut", "Coucou"]); // the default's text until fr arrives
+  });
+
+  test("a <T> rendered before createI18n shows the message once it runs", async () => {
+    setRouteState({ locale: "en" });
+    createI18n({ locales: ["en"], defaultLocale: "en", messages: {} });
+    const { default: T } = await import("./T.jsx");
+    const { container, unmount } = render(T, { id: "welcome" });
+    expect(container.textContent).toBe("welcome");
+    createI18n({ locales: ["en"], defaultLocale: "en", messages: { en: { welcome: "Welcome" } } });
+    expect(container.textContent).toBe("Welcome");
+    unmount();
   });
 });

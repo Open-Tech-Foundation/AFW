@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `<T>` showed the raw key on first paint in Vite dev with server rendering, until the
+  locale changed. It bound `t(id)` while `@opentf/afw-i18n` was still being imported,
+  before the app's `createI18n` call. `t()` now re-runs when the catalogs change
+  (`createI18n`, `setCatalog`, a finished `loadLocale`), so a translation bound early
+  updates once its catalog arrives.
+
 ### Added
 
 - TypeScript declarations (`index.d.ts`) for `createI18n`, `t`, `getLocale`,
