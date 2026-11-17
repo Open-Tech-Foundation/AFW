@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- JSX returned by a callback reads the callback's parameters in server-rendered builds:
+  `const row = (item) => <li>{item.name}</li>`, or
+  `fallback={(error, reset) => <p onclick={reset}>{error.message}</p>}`.
+  - The `ssg` target wrote the arrow's body as `{ __html: … }`, a block, so it returned
+    `undefined` and the server rendered nothing. The marker is now parenthesized.
+  - The `hydrate` target defined the JSX's build and adopt functions above the
+    statement, outside the callback, so `build()` threw a `ReferenceError` for `item`,
+    `error` or `reset`. They are now defined where the JSX is written.
+
 ## [0.26.0] - 2026-11-13
 
 ### Added

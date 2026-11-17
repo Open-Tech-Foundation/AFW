@@ -288,7 +288,7 @@ impl<'a> Emitter<'a> {
             BodyItem::Raw(stmt) => out.push_str(&format!("{stmt}\n")),
             BodyItem::Jsx { template, nodes } => {
                 let calls: Vec<String> =
-                    nodes.iter().map(|n| format!("{{ __html: {} }}", self.html_expr(n))).collect();
+                    nodes.iter().map(|n| format!("({{ __html: {} }})", self.html_expr(n))).collect();
                 out.push_str(&format!("{}\n", substitute_branches(template, &calls)));
             }
         }
@@ -361,7 +361,7 @@ impl<'a> Emitter<'a> {
             ViewNode::DynamicNode { expr, branches } => {
                 let calls: Vec<String> = branches
                     .iter()
-                    .map(|b| format!("{{ __html: {} }}", self.html_expr(b)))
+                    .map(|b| format!("({{ __html: {} }})", self.html_expr(b)))
                     .collect();
                 let template = self.code(*expr);
                 self.server.insert("ssgText");
@@ -607,12 +607,12 @@ impl<'a> Emitter<'a> {
     }
 
     /// A prop value embedding JSX (`PropValue::DynamicNode`): render each branch to
-    /// its HTML string wrapped as `{ __html }` and substitute the calls into the
+    /// its HTML string wrapped as `({ __html })` and substitute the calls into the
     /// templated expression — mirroring how `ViewNode::DynamicNode` is emitted.
     fn node_prop_code(&mut self, expr: ExpressionId, branches: &[ViewNode]) -> String {
         let calls: Vec<String> = branches
             .iter()
-            .map(|b| format!("{{ __html: {} }}", self.html_expr(b)))
+            .map(|b| format!("({{ __html: {} }})", self.html_expr(b)))
             .collect();
         let template = self.code(expr);
         substitute_branches(&template, &calls)
@@ -827,6 +827,26 @@ mod tests {
     }
 
     #[test]
+    fn jsx_as_an_arrow_body_returns_its_html_marker() {
+        // `(item) => <li/>` became `(item) => { __html: … }`: a block with a label, which
+        // returns undefined, so `items.map(row)` server-rendered nothing. The marker is
+        // parenthesized, so it reads as an object literal in any expression position.
+        let m = emit(
+            "export default function P(){ const row = (item) => <li>{item.name}</li>; \
+             const items = [{ name: \"a\" }]; return <ul>{items.map(row)}</ul>; }",
+            true,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("const row = (item) => ({ __html: \"<li>"), "code:\n{}", m.code);
+        let m = emit(
+            "import { ErrorBoundary } from \"@opentf/afw\";\n\
+             export default function P(){ return <ErrorBoundary fallback={(e) => <p>x</p>}><i>ok</i></ErrorBoundary>; }",
+            true,
+        );
+        assert!(m.code.contains("fallback: ((e) => ({ __html: \"<p>x</p>\" }))"), "code:\n{}", m.code);
+    }
+
+    #[test]
     fn data_position_jsx_in_list_source_renders_as_html_marker() {
         // `[{ icon: <b/> }].map(…)`: JSX in the list's data expression crosses to the
         // server as an `{ __html }` marker (like a JSX-valued prop), which `ssgText`
@@ -837,7 +857,7 @@ mod tests {
         );
         assert!(m.is_complete(), "errors: {:?}", m.errors);
         assert!(
-            m.code.contains("ssgList([{icon: { __html:"),
+            m.code.contains("ssgList([{icon: ({ __html:"),
             "source __html marker:\n{}",
             m.code
         );

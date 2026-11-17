@@ -1426,17 +1426,36 @@ impl<'a> Emitter<'a> {
             self.list_counter += 1;
             let build_fn = format!("{}_pbuild{}", self.base, n);
             let adopt_fn = format!("{}_padopt{}", self.base, n);
-            let (build_lines, tmpls) = csr::emit_build_node_fn(self.lowered, &build_fn, branch);
-            self.templates.extend(tmpls);
-            for l in build_lines {
-                self.line(l);
-            }
-            self.emit_value_adopt_fn(&adopt_fn, branch);
-            values.push(format!("hydratableNode({build_fn}, {adopt_fn})"));
+            values.push(self.inline_hydratable(&build_fn, &adopt_fn, branch));
         }
         self.uses.hydratable_node = true;
         let template = self.code(expr);
         substitute_branches_pub(&template, &values)
+    }
+
+    /// `hydratableNode(build, adopt)` for one embedded JSX node, as an expression that
+    /// defines both functions where the JSX was written. The JSX may sit inside a
+    /// callback (`fallback={(error, reset) => <p>{error.message}</p>}`, `const row =
+    /// (item) => <li>{item.name}</li>`), and its bindings read that callback's
+    /// parameters: hoisting the functions above the statement would leave those names
+    /// undefined when `build` runs.
+    fn inline_hydratable(&mut self, build_fn: &str, adopt_fn: &str, node: &ViewNode) -> String {
+        let saved = std::mem::take(&mut self.lines);
+        let (build_lines, tmpls) = csr::emit_build_node_fn(self.lowered, build_fn, node);
+        self.templates.extend(tmpls);
+        for l in build_lines {
+            self.line(l);
+        }
+        self.emit_value_adopt_fn(adopt_fn, node);
+        let body = std::mem::replace(&mut self.lines, saved);
+        let mut out = String::from("(() => {\n");
+        for l in &body {
+            out.push_str("  ");
+            out.push_str(l);
+            out.push('\n');
+        }
+        out.push_str(&format!("  return hydratableNode({build_fn}, {adopt_fn});\n}})()"));
+        out
     }
 
     /// A JSX-embedding statement in a non-positional shape: each node becomes
@@ -1448,13 +1467,7 @@ impl<'a> Emitter<'a> {
             self.list_counter += 1;
             let build_fn = format!("{}_sbuild{}", self.base, n);
             let adopt_fn = format!("{}_sadopt{}", self.base, n);
-            let (build_lines, tmpls) = csr::emit_build_node_fn(self.lowered, &build_fn, node);
-            self.templates.extend(tmpls);
-            for l in build_lines {
-                self.line(l);
-            }
-            self.emit_value_adopt_fn(&adopt_fn, node);
-            values.push(format!("hydratableNode({build_fn}, {adopt_fn})"));
+            values.push(self.inline_hydratable(&build_fn, &adopt_fn, node));
         }
         self.uses.hydratable_node = true;
         self.line(substitute_branches_pub(template, &values));
@@ -2194,11 +2207,41 @@ mod tests {
              return <section>{tabs[0]}</section>; }",
         );
         assert!(m.errors.is_empty(), "adoptable:\n{:?}", m.errors);
-        assert!(
-            m.code.contains("const tabs = [hydratableNode(default_sbuild0, default_sadopt0), hydratableNode(default_sbuild1, default_sadopt1)];"),
-            "code:\n{}",
-            m.code
+        assert!(m.code.contains("const tabs = [(() => {"), "code:\n{}", m.code);
+        assert!(m.code.contains("return hydratableNode(default_sbuild0, default_sadopt0);\n})(), (() => {"), "code:\n{}", m.code);
+        assert!(m.code.contains("return hydratableNode(default_sbuild1, default_sadopt1);\n})()];"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn jsx_returned_by_a_local_callback_reads_its_parameters() {
+        // `const row = (item) => <li>{item.name}</li>`: the build and adopt functions are
+        // defined inside the arrow, where `item` is in scope. Hoisted above the statement,
+        // `build()` threw `ReferenceError: item is not defined`.
+        let m = emit_component(
+            "export default function C(){ const row = (item) => <li>{item.name}</li>; \
+             const items = [{ name: \"a\" }]; return <ul>{items.map(row)}</ul>; }",
         );
+        assert!(m.errors.is_empty(), "adoptable:\n{:?}", m.errors);
+        let arrow = m.code.find("const row = (item) => (() => {").expect(&m.code);
+        let build = m.code.find("function default_sbuild0() {").expect(&m.code);
+        let adopt = m.code.find("const default_sadopt0 = (__vc) => {").expect(&m.code);
+        assert!(arrow < build && arrow < adopt, "built inside the callback:\n{}", m.code);
+        assert!(m.code.contains("return hydratableNode(default_sbuild0, default_sadopt0);\n})();"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn jsx_returned_by_a_callback_prop_reads_its_parameters() {
+        // `fallback={(error, reset) => <p onclick={reset}>{error.message}</p>}`: the same
+        // scoping for a callback passed as a prop (ErrorBoundary, Pending's `error`).
+        let m = emit(
+            "import { ErrorBoundary } from \"@opentf/afw\";\n\
+             export default function P(){ return <ErrorBoundary fallback={(error, reset) => <p onclick={reset}>{error.message}</p>}><i>ok</i></ErrorBoundary>; }",
+        );
+        assert!(m.errors.is_empty(), "adoptable:\n{:?}", m.errors);
+        let arrow = m.code.rfind("((error, reset) => (() => {").expect(&m.code);
+        let build = m.code.find("function default_pbuild0() {").expect(&m.code);
+        assert!(arrow < build, "built inside the callback:\n{}", m.code);
+        assert!(m.code.contains("return hydratableNode(default_pbuild0, default_padopt0);\n})()));"), "code:\n{}", m.code);
     }
 
     #[test]
@@ -2210,7 +2253,8 @@ mod tests {
              return <section>{o.body}</section>; }",
         );
         assert!(m.errors.is_empty(), "adoptable:\n{:?}", m.errors);
-        assert!(m.code.contains("const o = { body: hydratableNode(default_sbuild0, default_sadopt0) };"), "code:\n{}", m.code);
+        assert!(m.code.contains("const o = { body: (() => {"), "code:\n{}", m.code);
+        assert!(m.code.contains("return hydratableNode(default_sbuild0, default_sadopt0);\n})() };"), "code:\n{}", m.code);
         assert!(m.code.contains("let children = [];"), "code:\n{}", m.code);
     }
 

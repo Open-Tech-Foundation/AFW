@@ -72,7 +72,7 @@ fn a_childless_boundary_still_signals_its_adoption() {
 fn server_output_renders_the_builtin_with_its_fallback() {
     let (_, _, code) = compile(SOURCE, true);
     assert!(code.contains("ssgComponent(\"afw-internal-pending\""), "{code}");
-    assert!(code.contains("fallback: ({ __html: \"<p class=\\\"sk\\\">Loading</p>\" })"), "{code}");
+    assert!(code.contains("fallback: (({ __html: \"<p class=\\\"sk\\\">Loading</p>\" }))"), "{code}");
     assert!(!code.contains("enterPending"), "{code}");
 }
 
