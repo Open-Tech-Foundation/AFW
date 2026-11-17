@@ -149,7 +149,9 @@ Guide with examples: [Lifecycle](/docs/core-concepts/lifecycle).
   variable access — the reactivity is wired at build time.
 </Callout>
 
-<Callout type="note" title="Optional imports">
-  `@opentf/afw` exports no-op stubs for all five hooks for TypeScript and editors.
-  The real behavior is compiler-injected; macros themselves are never imported at runtime.
+<Callout type="note" title="TypeScript">
+  - All five hooks are typed as globals next to the macros, so TypeScript projects need
+    no import and no local declarations.
+  - `@opentf/afw` also exports them, for code that prefers an explicit import.
+  - The real behavior is compiler-injected; macros themselves are never imported at runtime.
 </Callout>

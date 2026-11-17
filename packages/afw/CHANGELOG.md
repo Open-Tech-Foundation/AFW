@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- JSX types: `key` type-checks on host elements (`<li key={todo.id}>`), not only on
+  components, so keyed lists compile under `tsc` without a local shim.
+- JSX types: listener modifiers on host elements (`onclick:once`,
+  `onscroll:once-passive`) type-check, with the same event type as the plain prop. An
+  unknown modifier is a type error.
+- JSX types: `ref` type-checks on components (`<Modal ref={modal} />`).
+- The lifecycle hooks (`onMount`, `onCleanup`, `onResize`, `onMediaQuery`,
+  `onVisibilityChange`) are declared as globals next to the macros, as the docs say: no
+  import is needed in TypeScript either.
+
 ## [0.39.0] - 2026-11-13
 
 ### Added

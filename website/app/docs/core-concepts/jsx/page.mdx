@@ -225,6 +225,10 @@ subscribing to **dispatched CustomEvents** from child components:
 Without a modifier, `on*` props on host elements use the fast property/callback path.
 Listeners are torn down automatically on unmount.
 
+- In TypeScript, a modifier handler on a host element gets the same event type as the
+  plain prop: `onclick:once` receives a `MouseEvent` whose `currentTarget` is the button.
+- An unknown modifier (`onclick:twice`) is a type error.
+
 ### Component callback props
 
 PascalCase components also accept `on*` props as **callback props** — direct function
@@ -278,7 +282,8 @@ return user ? <Dashboard user={user} /> : <Login />;
 ## Lists
 
 Render arrays with `.map`. Each item should carry a stable `key` so reordering moves
-existing DOM nodes instead of recreating them:
+existing DOM nodes instead of recreating them. `key` is a string or a number, and
+type-checks on host elements and components alike:
 
 ```jsx
 <ul>
@@ -363,6 +368,9 @@ return <input ref={input} />;
 Read `$ref` inside `$effect` to re-run when a conditional swaps the element. For parent →
 child commands, use [`$expose`](/docs/core-concepts/imperative-api) instead of handing
 out raw DOM. Callback refs (`ref={(el) => …}`) are rejected at compile time.
+
+- `ref` type-checks on components too: `<Modal ref={modal} />` with
+  `const modal = $ref<{ show(): void }>()`.
 
 ## Whitespace and entities
 

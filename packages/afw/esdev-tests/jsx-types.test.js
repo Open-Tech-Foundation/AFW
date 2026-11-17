@@ -117,6 +117,37 @@ test("published framework types support strict TS starters and reject invalid JS
         const wrong: number = $context(Theme);
         return <div ref={box}>{greeting}{theme}{maybe}</div>;
       }
+      // Lifecycle hooks are globals too: no import needed.
+      export function Hooks() {
+        onMount(() => () => {}); onCleanup(() => {});
+        onResize((entry) => { const height: number = entry.contentRect.height; });
+        onMediaQuery("(min-width: 768px)", (matches, event) => { const m: boolean = matches; const e: MediaQueryListEvent | undefined = event; });
+        onVisibilityChange((visible, entry) => { const v: boolean = visible; const ratio: number = entry.intersectionRatio; });
+        // @ts-expect-error hook callbacks keep their parameter types
+        onResize((entry: string) => {});
+        return <p/>;
+      }
+      // key on host elements and components, as keyed lists use it.
+      const todos = [{ id: 1, title: "a" }];
+      const keyedHost = <ul>{todos.map((todo) => <li key={todo.id} transition={slide()}>{todo.title}</li>)}</ul>;
+      const keyedComponent = <ul>{todos.map((todo) => <Counter key={String(todo.id)} initial={todo.id}/>)}</ul>;
+      // @ts-expect-error key is a string or a number
+      const badKey = <li key={{}}/>;
+      // ref on a component receives its element with what it publishes through $expose.
+      const modal = $ref<{ show(): void }>();
+      const withRef = <Counter ref={modal} initial={1}/>;
+      // @ts-expect-error a host element's ref stays typed
+      const badHostRef = <h1 ref={42}/>;
+      // Listener modifiers keep the event's types.
+      const modifiers = <div>
+        <button onclick:once={(event) => { const button: HTMLButtonElement = event.currentTarget; const x: number = event.clientX; }}/>
+        <input onKeydown:passive={(event) => { const key: string = event.key; }}/>
+        <div onscroll:once-passive={() => {}} onclick:capture-listen={() => {}}/>
+      </div>;
+      // @ts-expect-error a modifier handler's currentTarget is the element
+      const badModifierTarget = <button onclick:once={(event) => event.currentTarget.noSuchProperty}/>;
+      // @ts-expect-error unknown modifiers are rejected
+      const badModifier = <button onclick:twice={() => {}}/>;
     `);
     const checked = await new Command("pnpm", {
       args: ["exec", "tsc", "-p", join(scratch, "tsconfig.json")], inheritEnv: true,

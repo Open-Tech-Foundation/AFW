@@ -15,15 +15,35 @@ export namespace JSX {
   type ElementType = string | ((props: any, ...rest: any[]) => unknown) | (new (props: any, ...rest: any[]) => unknown) | LazyLoader;
   /** A lazy loader's props are the props of the component it loads. */
   type LibraryManagedAttributes<C, P> = C extends LazyLoader ? PropsOf<LazyTarget<C>> : P;
-  interface IntrinsicAttributes { key?: string | number }
+  /**
+   * Props every component accepts: `key` for keyed lists, and `ref` for a `$ref()`
+   * variable or a signal that receives the component's element (with anything it
+   * publishes through `$expose`).
+   */
+  interface IntrinsicAttributes {
+    key?: string | number;
+    ref?: unknown;
+  }
 
   type Handler<E, T extends Event> = (event: T & { currentTarget: E }) => void;
   type Events<E> = {
     [K in keyof GlobalEventHandlersEventMap as `on${K}`]?: Handler<E, GlobalEventHandlersEventMap[K]>;
   } & {
     [K in keyof GlobalEventHandlersEventMap as `on${Capitalize<K>}`]?: Handler<E, GlobalEventHandlersEventMap[K]>;
+  } & {
+    [K in keyof GlobalEventHandlersEventMap as `on${K}:${ListenerModifiers}`]?: Handler<E, GlobalEventHandlersEventMap[K]>;
+  } & {
+    [K in keyof GlobalEventHandlersEventMap as `on${Capitalize<K>}:${ListenerModifiers}`]?: Handler<E, GlobalEventHandlersEventMap[K]>;
   };
+  /**
+   * Listener modifiers after a `:`: `capture`, `passive`, `once` or `listen`, combined
+   * with `-` (`onclick:once`, `onscroll:once-passive`). Kept as a pattern rather than
+   * every combination so each element's props stay small.
+   */
+  type ListenerModifiers = `${"capture" | "passive" | "once" | "listen"}${string}`;
   type Common<E> = Events<E> & {
+    /** Identifies a row in a keyed list, so an update moves it instead of rebuilding it. */
+    key?: string | number;
     children?: unknown;
     class?: string | Record<string, unknown> | unknown[];
     className?: string;
