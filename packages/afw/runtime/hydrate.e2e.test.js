@@ -1064,3 +1064,59 @@ describe("awaitHydrationProps", () => {
     el.remove();
   });
 });
+
+// Regressions (sweep): the client build of patterns that threw or rendered nothing.
+describe.skipIf(!hasBin)("client builds of JSX inside callbacks and lists", () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const render = async (source) => {
+    const mod = loadModule(await compile(source, "csr"), { signal, bindText, bindAttr, bindChild, bindList, template });
+    const host = document.createElement("div");
+    host.append(mod.default());
+    document.body.append(host);
+    return host;
+  };
+
+  test("JSX returned by flatMap, Array.from, reduce and an IIFE renders", async () => {
+    const host = await render(
+      "export default function P(){ const xs = [1, 2]; return <div>" +
+        "{xs.flatMap((x) => [<a>{x}</a>])}" +
+        "{Array.from({ length: 2 }, (_, i) => <b>{i}</b>)}" +
+        "{xs.reduce((acc, x) => [...acc, <i>{x * 10}</i>], [])}" +
+        "{(() => { const y = 7; return <u>{y}</u>; })()}" +
+        "{xs.map((x) => (x > 1 ? <s>{x}</s> : null)).filter(Boolean)}" +
+        "</div>; }",
+    );
+    expect(host.textContent).toBe("1201102072");
+    host.remove();
+  });
+
+  test("a map with a destructured item renders, and follows a keyed update", async () => {
+    const host = await render(
+      "export default function P(){ let xs = $state([{ id: 1, done: false }]);" +
+        ' return <div><button onclick={() => (xs = [{ id: 1, done: true }, { id: 2, done: false }])}>t</button>' +
+        '<ul>{xs.map(({ id, done }) => <li key={id} class={done ? "y" : "n"}>{id}:{done ? "done" : "todo"}</li>)}</ul></div>; }',
+    );
+    const first = host.querySelector("li");
+    expect(host.querySelector("ul").textContent).toBe("1:todo");
+    host.querySelector("button").click();
+    await tick();
+    expect(host.querySelector("ul").textContent).toBe("1:done2:todo");
+    expect(host.querySelector("li")).toBe(first); // same key, same element, updated in place
+    expect(first.className).toBe("y");
+    host.remove();
+  });
+
+  test("a list of fragments renders, reorders and shrinks", async () => {
+    const host = await render(
+      'export default function P(){ let xs = $state(["a", "b", "c"]);' +
+        " return <div><button onclick={() => (xs = xs.length === 3 ? [\"c\", \"a\"] : xs)}>r</button>" +
+        "<dl>{xs.map((x) => <><dt>{x}</dt><dd>{x}!</dd></>)}</dl></div>; }",
+    );
+    const dl = host.querySelector("dl");
+    expect([...dl.children].map((n) => n.textContent).join(" ")).toBe("a a! b b! c c!");
+    host.querySelector("button").click();
+    await tick();
+    expect([...dl.children].map((n) => n.textContent).join(" ")).toBe("c c! a a!");
+    host.remove();
+  });
+});

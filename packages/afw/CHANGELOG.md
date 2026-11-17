@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- A list whose items are fragments (`xs.map((x) => <><dt/><dd/></>)`) renders, reorders
+  and shrinks. Each item is now tracked as the nodes it rendered; the list used to throw
+  `NotFoundError` once a fragment had emptied itself into the DOM.
+
+
 - Server-rendered components receiving function props (`onPress={…}`,
   `render={(x) => …}`) work after hydration. They adopted before the parent set them, so
   a callback did nothing and a render prop threw. The payload names them (`__afwFn`) and

@@ -624,19 +624,20 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
         // signal every row's class reads). Without this every discarded row
         // leaves a zombie effect that all later writes keep re-running.
         const s = scope(() => renderItem(sig, index));
-        entry = { sig, node: s.result, dispose: s.dispose };
+        entry = { sig, node: s.result, nodes: itemNodes(s.result), dispose: s.dispose };
         prevIndex[index] = -1;
       }
       next.set(key, entry);
       newKeys[index] = key;
-      nodes[index] = entry.node;
+      nodes[index] = entry.nodes ??= itemNodes(entry.node);
     }
 
     // Remove nodes whose keys disappeared, and dispose their bindings.
     for (const entry of cache.values()) {
       if (entry.dispose) entry.dispose();
-      const node = entry.node;
-      if (node.parentNode && !(tx.leave && tx.leave(node))) node.parentNode.removeChild(node);
+      for (const node of entry.nodes ?? itemNodes(entry.node)) {
+        if (node.parentNode && !(tx.leave && tx.leave(node))) node.parentNode.removeChild(node);
+      }
     }
     cache = next;
     prevKeys = newKeys;
@@ -650,13 +651,16 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
     const keep = longestIncreasingRun(prevIndex);
     const host = anchor.parentNode;
     if (!host) return; // anchor detached (list torn down) — nothing to place
+    // Each item is the nodes it rendered: one element, or a fragment's children.
     for (let i = nodes.length - 1; i >= 0; i--) {
       if (keep.has(i)) continue;
-      const ref = i + 1 < nodes.length ? nodes[i + 1] : anchor;
-      if (nodes[i].nextSibling !== ref) host.insertBefore(nodes[i], ref);
+      const ref = i + 1 < nodes.length ? nodes[i + 1][0] : anchor;
+      const item = nodes[i];
+      if (item[item.length - 1].nextSibling === ref && item.every((n, j) => j === 0 || n.previousSibling === item[j - 1])) continue;
+      for (const n of item) host.insertBefore(n, ref);
     }
     if (tx.enter) {
-      for (let i = 0; i < nodes.length; i++) if (prevIndex[i] === -1) tx.enter(nodes[i], initial);
+      for (let i = 0; i < nodes.length; i++) if (prevIndex[i] === -1) for (const n of nodes[i]) tx.enter(n, initial);
     }
     initial = false;
   });
@@ -667,6 +671,21 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
     }
     cache.clear();
   };
+}
+
+/**
+ * The nodes a list item occupies, taken when it is built (a fragment empties itself into
+ * the DOM on insertion, so its children are recorded first). An item that renders nothing
+ * holds an empty comment, so it still has a place for its neighbours to be ordered against.
+ */
+function itemNodes(result) {
+  if (result != null && result.nodeType === 11) {
+    const children = [...result.childNodes];
+    return children.length ? children : [document.createComment("")];
+  }
+  if (result instanceof Node) return [result];
+  const built = toNodes(result);
+  return built.length ? built : [document.createComment("")];
 }
 
 /**

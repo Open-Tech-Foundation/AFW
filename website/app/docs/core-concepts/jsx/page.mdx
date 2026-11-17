@@ -303,6 +303,10 @@ type-checks on host elements and components alike:
 </ul>
 ```
 
+- **Destructure the item if you like:** `todos.map(({ id, text, done }) => …)` and `Object.entries(o).map(([key, value]) => …)`. The names follow the item when a keyed update changes it.
+- **An item can be a fragment:** `items.map((x) => <><dt>{x.term}</dt><dd>{x.def}</dd></>)`.
+- **Other array methods work too:** JSX returned by `flatMap`, `Array.from`, `reduce` or an inline function renders where you call it, and `xs.map(…).filter(Boolean)` keeps working on the array.
+
 Both arrow and `function` callbacks are supported. Locals declared inside the callback
 body stay in scope in the generated item builder.
 
