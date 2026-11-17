@@ -4,15 +4,20 @@
   "description": "ICU messages, Intl formatters and locale routing for AFW.",
   "main": "index.js",
   "module": "index.js",
+  "types": "./index.d.ts",
   "type": "module",
   "scripts": {
     "build": "cp ../../LICENSE LICENSE"
   },
   "exports": {
-    ".": "./index.js"
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
   },
   "files": [
     "index.js",
+    "index.d.ts",
     "i18n.js",
     "format.js",
     "T.jsx",

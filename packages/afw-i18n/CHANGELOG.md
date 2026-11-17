@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- TypeScript declarations (`index.d.ts`) for `createI18n`, `t`, `getLocale`,
+  `loadLocale`, `locales`, `setCatalog`, `fmt` and `<T>`, with the `Catalog` and
+  `I18nOptions` types.
+
 ## [1.34.0] - 2026-11-13
 
 _Dependency updates._
