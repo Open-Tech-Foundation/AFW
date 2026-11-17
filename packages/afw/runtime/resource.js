@@ -16,16 +16,21 @@
 // (passed to the fetcher as `{ signal }`), so an out-of-order resolution can never
 // overwrite newer data — even for fetchers that ignore the signal.
 //
+// Caching: a server function fetcher (`resource(() => ({ id }), getTodo)`) or a `key`
+// option puts the result in the query cache (query-cache.js). Every user of the key
+// shares one request and shows the same data; a remount shows the cached data at once
+// and revalidates it (or skips the request while it is younger than `staleTime`).
+//
 // Server (SSG/SSR): no effect is created and nothing is fetched — `loading` stays
-// `true`, so the prerendered HTML shows the loading branch. That is exactly what
-// the client's first paint renders before its own fetch resolves, keeping
-// hydration adoption aligned.
+// `true` (or `false` for a source that starts paused), so the prerendered HTML shows
+// the branch the client's first paint renders, keeping hydration adoption aligned.
 
 import { getCurrentInstance } from "../core/context.js";
 import { reportError } from "../core/errors.js";
 import { batch, effect, signal, untracked } from "../core/signals.js";
 import { endpointOf, registerResource, unregisterResource, withTracking } from "./invalidate.js";
 import { buildingPending, closestPending } from "./pending-scope.js";
+import { DEFAULT_GC_TIME, callKey, customKey, fetchShared, isFresh, peek, subscribe } from "./query-cache.js";
 
 // Test override: the DOM suites run in esdev's `--dom` realm (a `document`
 // always exists), so server behavior is opted into explicitly.
@@ -38,6 +43,8 @@ export function __setResourceServer(v) {
 
 const isServer = () => serverOverride ?? typeof document === "undefined";
 
+const paused = (value) => value == null || value === false;
+
 /**
  * Create a resource. Two call shapes:
  *
@@ -45,17 +52,27 @@ const isServer = () => serverOverride ?? typeof document === "undefined";
  *   resource(source, fetcher, options?)  — re-fetch when the reactive `source`
  *                                          changes; `null`/`false` pauses
  *
+ * A server function as the fetcher (`resource(() => ({ id }), getTodo)`, or
+ * `resource(listTodos)` for one without input) is cached by its endpoint and input; a
+ * `key` option caches any other fetcher. A cached resource shows the entry's data at
+ * once, shares requests with every other user of the key, and follows their updates.
+ *
  * @param {Function} source  reactive source read inside the tracking effect; its
  *        value is passed to the fetcher.
  * @param {Function} fetcher  `(sourceValue, { signal }) => data | Promise<data>`.
- * @param {{ initial?: unknown, invalidatedBy?: Function[], errors?: "inline" }} [options]
+ * @param {{ initial?: unknown, invalidatedBy?: Function[], errors?: "inline",
+ *           key?: unknown, staleTime?: number, gcTime?: number }} [options]
  *        `initial` seeds `data` before the first resolution. `invalidatedBy` names
  *        server functions whose `invalidate()` refetches this resource, beyond those
  *        its fetcher calls as it starts (which are recorded automatically).
  *        `errors: "inline"` keeps failures on `error` only, even under `<Pending>`.
+ *        `key` (a value, or a function of the source value) caches the fetcher's result.
+ *        `staleTime` (ms, default 0): how long cached data answers without a request.
+ *        `gcTime` (ms, default 5 minutes): how long an unused cache entry is kept.
  * @returns {{ data: unknown, loading: boolean, error: unknown,
  *             refetch: () => Promise<unknown> | undefined }}  reactive getters —
- *        read them inside bindings/effects to subscribe.
+ *        read them inside bindings/effects to subscribe. `refetch()` resolves with the
+ *        new data and rejects when the fetch fails.
  */
 export function resource(source, fetcher, options = {}) {
   if (typeof fetcher !== "function") {
@@ -66,7 +83,9 @@ export function resource(source, fetcher, options = {}) {
   const src = typeof source === "function" ? source : () => true;
   const data = signal(options.initial);
   const error = signal(undefined);
-  const loading = signal(true); // a fetch is intended; the server leaves it true
+  // A fetch is intended. The server settles it as the browser's first paint will: still
+  // loading, unless the source starts paused (hydration adopts the same branch).
+  const loading = signal(isServer() ? !startsPaused(src) : true);
   // Has a run succeeded at least once? A `<Pending>` shows its fallback while a
   // resource it waits on is loading and has never loaded, so retrying a failed first
   // load shows the fallback again.
@@ -74,47 +93,123 @@ export function resource(source, fetcher, options = {}) {
   let token = 0;
   let controller = null;
   // This resource in the `invalidate()` registry (runtime/invalidate.js).
-  const entry = { refetch: () => refetch() };
+  const entry = { refetch: () => reload() };
   const named = (options.invalidatedBy ?? []).map(endpointOf).filter(Boolean);
 
-  function run(value) {
+  // --- The query cache (query-cache.js) ---------------------------------------
+  const staleTime = Math.max(0, Number(options.staleTime) || 0);
+  const gcTime = options.gcTime ?? DEFAULT_GC_TIME;
+  const stub = typeof fetcher.endpoint === "string" ? fetcher.endpoint : null;
+  const custom = "key" in options;
+  // `resource(listTodos)`: a server function without a source takes no input.
+  const input = (value) => (stub && !source ? undefined : value);
+  const keyOf = (value) => {
+    if (custom) return customKey(typeof options.key === "function" ? options.key(value) : options.key);
+    return stub ? callKey(stub, input(value)) : null;
+  };
+  let followed = null; // the key this resource shows
+  let unfollow = null;
+  function follow(key) {
+    if (key === followed) return;
+    unfollow?.();
+    followed = key;
+    unfollow = key ? subscribe(key, onWrite, { gcTime }) : null;
+  }
+  // Another user of the key stored new data.
+  function onWrite(value) {
+    batch(() => {
+      data.value = value;
+      error.value = undefined;
+      settled.value = true;
+    });
+  }
+  // A cached resource's dependencies for `invalidate()`: its own call, or what the
+  // fetcher behind its custom key called.
+  function register(key, endpoints = new Set(), keys = new Set()) {
+    if (key && stub && !custom) {
+      endpoints.add(stub);
+      keys.add(key);
+    }
+    const deps = key && custom ? peek(key)?.deps : null;
+    if (deps) {
+      for (const endpoint of deps.endpoints) endpoints.add(endpoint);
+      for (const k of deps.keys) keys.add(k);
+    }
+    registerResource(entry, endpoints, keys, named);
+  }
+
+  // One run of the fetcher. Resolves with its outcome, never rejects:
+  // `{ ok: true, value }`, `{ ok: false, error }`, or `{ superseded: true }`.
+  function run(value, { force = false } = {}) {
     controller?.abort();
     // Captured per-run: by the time a superseded run's promise settles, the
     // module-level `controller` already belongs to a newer run.
     const c = (controller = typeof AbortController !== "undefined" ? new AbortController() : null);
     const t = ++token;
+    // `refetch()` and `invalidate()` always ask the server.
+    const age = force ? 0 : staleTime;
+    let key = null;
+    let keyError = null;
+    try {
+      key = keyOf(value);
+    } catch (e) {
+      keyError = e; // a key or input the codec refuses
+    }
+    follow(key);
+    const cached = key ? peek(key) : undefined;
+    if (cached?.hasData) {
+      // Show the cached data at once; a stale entry revalidates behind it.
+      batch(() => {
+        data.value = cached.data;
+        error.value = undefined;
+        settled.value = true;
+        if (isFresh(cached, age)) loading.value = false;
+      });
+      if (isFresh(cached, age)) {
+        register(key);
+        return Promise.resolve({ ok: true, value: cached.data });
+      }
+    }
     batch(() => {
       loading.value = true;
       error.value = undefined;
     });
     // The async IIFE starts the fetcher *synchronously* (no wasted microtask)
     // while converting a synchronous throw into a rejection.
+    const start = (s) => (async () => fetcher(input(value), { signal: s }))();
     // Started under tracking: the server functions the fetcher calls register it.
-    const { result, endpoints } = withTracking(() => (async () => fetcher(value, { signal: c?.signal }))());
-    for (const endpoint of named) endpoints.add(endpoint);
-    registerResource(entry, endpoints);
-    return result
-      .then(
-        (v) => {
-          if (t !== token) return; // superseded — a newer run owns the signals
-          batch(() => {
-            data.value = v;
-            loading.value = false;
-            settled.value = true;
-          });
-          return v;
-        },
-        (e) => {
-          if (t !== token) return;
-          // Keep the last good `data` (stale-while-error); only `error` flips.
-          const first = !settled.value;
-          batch(() => {
-            error.value = e;
-            loading.value = false;
-          });
-          failed(e, first);
-        },
-      );
+    let tracked = null;
+    const { result, endpoints, keys } = withTracking(() => {
+      if (keyError) return Promise.reject(keyError);
+      if (!custom) return start(c?.signal);
+      return fetchShared(key, start, { signal: c?.signal, staleTime: age, deps: () => tracked });
+    }, { staleTime: age });
+    tracked = { endpoints, keys };
+    register(key, endpoints, keys);
+    return result.then(
+      (v) => {
+        if (t !== token) return { superseded: true };
+        batch(() => {
+          data.value = v;
+          loading.value = false;
+          settled.value = true;
+        });
+        // A custom key joined a request someone else started: register what it called.
+        if (custom && endpoints.size === 0) register(key, endpoints, keys);
+        return { ok: true, value: v };
+      },
+      (e) => {
+        if (t !== token) return { superseded: true };
+        // Keep the last good `data` (stale-while-error); only `error` flips.
+        const first = !settled.value;
+        batch(() => {
+          error.value = e;
+          loading.value = false;
+        });
+        failed(e, first);
+        return { ok: false, error: e };
+      },
+    );
   }
 
   // --- `<Pending>` boundaries (pending.js) ------------------------------------
@@ -125,7 +220,7 @@ export function resource(source, fetcher, options = {}) {
   const handle = {
     loading: () => loading.value,
     settled: () => settled.value,
-    refetch: () => (disposed ? undefined : refetch()),
+    refetch: () => (disposed ? undefined : reload()),
   };
   function track(boundary) {
     if (!boundary || boundaries.has(boundary)) return;
@@ -155,7 +250,7 @@ export function resource(source, fetcher, options = {}) {
     });
     const disposeFetching = effect(() => {
       const value = src(); // the effect's ONLY tracked read
-      if (value == null || value === false) {
+      if (paused(value)) {
         // Paused: cancel anything in flight and settle as "not loading".
         untracked(() => {
           token++;
@@ -164,6 +259,7 @@ export function resource(source, fetcher, options = {}) {
           loading.value = false;
         });
         unregisterResource(entry);
+        follow(null);
         return;
       }
       untracked(() => run(value));
@@ -173,6 +269,7 @@ export function resource(source, fetcher, options = {}) {
         token++;
         controller?.abort();
         unregisterResource(entry);
+        follow(null);
       };
     });
     // A component body runs outside any scope; its host tears down `_cleanups` on
@@ -181,10 +278,27 @@ export function resource(source, fetcher, options = {}) {
     if (host && Array.isArray(host._cleanups)) host._cleanups.push(disposeTracking, disposeFetching);
   }
 
-  function refetch() {
+  // Re-run with the current source value, bypassing `staleTime`. Paused: undefined.
+  function rerun() {
     const value = untracked(src);
-    if (value == null || value === false) return undefined;
-    return run(value);
+    return paused(value) ? undefined : run(value, { force: true });
+  }
+  // For `invalidate()`, `<Pending>` and error-boundary retries: never rejects, since
+  // the failure already shows on `error` (or goes to a boundary).
+  function reload() {
+    return rerun()?.then(() => undefined);
+  }
+  // Public: resolves with the new data (undefined if a newer run superseded it) and
+  // rejects when the fetch fails. The failure also shows on `error`, so a caller that
+  // ignores the promise (`onclick={() => r.refetch()}`) is not an unhandled rejection;
+  // one that awaits it still sees the rejection.
+  function refetch() {
+    const result = rerun()?.then((outcome) => {
+      if (outcome.ok === false) throw outcome.error;
+      return outcome.value;
+    });
+    result?.catch(() => {});
+    return result;
   }
 
   // A read while a boundary's children are being built makes that boundary wait on
@@ -207,7 +321,19 @@ export function resource(source, fetcher, options = {}) {
       reading();
       return error.value;
     },
-    /** Re-run the fetcher with the current source value (no-op while paused). */
+    /**
+     * Re-run the fetcher with the current source value (no-op while paused). Resolves
+     * with the new data; rejects when the fetch fails.
+     */
     refetch,
   };
+}
+
+/** Is the source paused on the server? A source that throws there counts as running. */
+function startsPaused(src) {
+  try {
+    return paused(untracked(src));
+  } catch {
+    return false;
+  }
 }

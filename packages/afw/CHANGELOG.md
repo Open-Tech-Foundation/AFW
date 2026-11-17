@@ -2,8 +2,30 @@
 
 ## [Unreleased]
 
+### Added
+
+- A query cache for server functions and keyed resources. Resources that show the same
+  call share one request and the same data, and a refetch in one updates them all.
+- A remounted cached resource shows its data at once (a `<Pending>` shows the content
+  with its `refreshing` view, not the fallback), then revalidates it.
+- New resource options: `staleTime` (default 0) skips the request while cached data is
+  younger than it, and `gcTime` (default 5 minutes) drops unused entries.
+- `resource(source, getTodo)` caches by the server function's input,
+  `resource(listTodos)` calls one without input, and `{ key }` caches any fetcher.
+- Identical query calls in flight share one request, even outside a resource; actions
+  never do. A shared request is aborted only once every caller has aborted.
+- `invalidate(getTodo, { id: 1 })` refetches only the resources that made that call. It
+  also marks cached entries that are not on screen as stale, so they are fetched again
+  when they next mount.
+
 ### Changed
 
+- **Breaking:** `resource().refetch()` rejects when the fetch fails (it resolved
+  `undefined` before), so `await r.refetch()` can be wrapped in `try`. A call whose
+  promise is ignored is still not an unhandled rejection, and the failure still shows
+  on `error`. `invalidate()` still does not reject.
+- The `ServerFunction` type takes `{ signal }` as its second argument, as the browser
+  stub always did.
 - Keyed list reorders and `<Portal>` move nodes with `moveBefore()` where the browser has
   it (`moveNode`), so a moved row keeps its state: focus, a playing video, an iframe,
   running animations. Older browsers insert as before.
@@ -14,6 +36,9 @@
 
 ### Fixed
 
+- A resource whose source starts paused (`null`/`false`) is no longer `loading` in a
+  server render, matching the browser's first paint, so hydration adopts the same
+  branch.
 - A list whose items are fragments (`xs.map((x) => <><dt/><dd/></>)`) renders, reorders
   and shrinks. Each item is now tracked as the nodes it rendered; the list used to throw
   `NotFoundError` once a fragment had emptied itself into the DOM.

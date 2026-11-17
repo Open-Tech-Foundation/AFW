@@ -158,8 +158,11 @@ Functions receive `(input, context)`:
 - Works with `resource()` as-is: `resource(() => listTodos(args))` refetches when `args`
   change and aborts superseded calls.
 - `afw-form`: `handleSubmit(addTodo)` works with no adapter.
-- `invalidate(listTodos)` refetches every live resource that called it; `invalidate()`
+- `invalidate(listTodos)` refetches every live resource that called it;
+  `invalidate(getTodo, { id })` only those that made that call; `invalidate()`
   refetches every resource and the page's loader data (phase 3).
+- Query calls go through the query cache (docs/DATA.md §3): identical calls in flight
+  share one request, and `resource(source, listTodos)` caches by input.
 - Later (§6): single-flight mutations that return fresh query data with the action's
   response.
 
@@ -197,7 +200,7 @@ What phase 1 runs:
 | --- | --- |
 | **1** ✅ | `query`/`action` in `.server` files; protocol, encoding, validation, security, middleware scoping; both toolchains in dev and production; direct server calls; docs |
 | **2** | Forms: `<form action={addTodo}>` that works without JavaScript under SSR (POST → redirect back), with `afw-form` integration; redirects from actions |
-| **3** | 🟡 `invalidate(query)` ✅; single-flight updates (an action returns the queries it changed) and optional query caching headers remain |
+| **3** | 🟡 `invalidate(query)` ✅; per-input `invalidate(query, input)` and the client query cache (dedupe, `staleTime`, `gcTime`) ✅; single-flight updates (an action returns the queries it changed) and optional query caching headers remain |
 | **4** | Compiler co-location: server functions declared inside a page or component, split by the Server IR (ARCHITECTURE §4.4); revisit `"use server"` only if demand appears |
 
 ## 7. Phase 1 coverage

@@ -106,7 +106,7 @@ describe("resource()", () => {
     await tick();
     expect(r.data).toBe("ok");
     fail = true;
-    await r.refetch();
+    await expect(r.refetch()).rejects.toThrow("down"); // refetch() reports the failure
     expect(r.error?.message).toBe("down");
     expect(r.data).toBe("ok"); // stale-while-error
     expect(r.loading).toBe(false);
@@ -162,5 +162,89 @@ describe("resource()", () => {
     expect(calls).toEqual([]);
     expect(r.loading).toBe(true);
     expect(r.data).toBe(undefined);
+  });
+  test("server mode: a source that starts paused settles as not loading (matches the client)", () => {
+    __setResourceServer(true);
+    const r = resource(() => null, () => Promise.resolve("x"));
+    expect(r.loading).toBe(false);
+    __setResourceServer(false);
+    const client = resource(() => null, () => Promise.resolve("x"));
+    expect(client.loading).toBe(r.loading);
+  });
+
+  test("server mode: a source that throws there still renders the loading branch", () => {
+    __setResourceServer(true);
+    const r = resource(() => { throw new Error("no window"); }, () => Promise.resolve("x"));
+    expect(r.loading).toBe(true);
+  });
+
+  test("refetch() resolves with the new data", async () => {
+    let n = 0;
+    const r = resource(() => Promise.resolve(++n));
+    await tick();
+    expect(await r.refetch()).toBe(2);
+  });
+
+  test("a refetch superseded by a newer run resolves undefined and does not reject", async () => {
+    const id = signal(1);
+    const slow = deferred();
+    const r = resource(() => id.value, (v) => (v === 1 ? slow.promise : Promise.resolve("two")));
+    const first = r.refetch();
+    id.value = 2;
+    slow.reject(new Error("too late"));
+    expect(await first).toBe(undefined);
+    await tick();
+    expect(r.data).toBe("two");
+    expect(r.error).toBe(undefined);
+  });
+
+  test("pausing during a fetch drops its late result", async () => {
+    const id = signal(1);
+    const slow = deferred();
+    const r = resource(() => id.value, () => slow.promise);
+    expect(r.loading).toBe(true);
+    id.value = null;
+    expect(r.loading).toBe(false);
+    slow.resolve("late");
+    await tick();
+    expect(r.data).toBe(undefined);
+    expect(r.loading).toBe(false);
+  });
+
+  test("disposing during a fetch drops its late result", async () => {
+    const slow = deferred();
+    const s = scope(() => resource(() => slow.promise));
+    s.dispose();
+    slow.resolve("late");
+    await tick();
+    expect(s.result.data).toBe(undefined);
+  });
+
+  test("a fetcher that throws synchronously sets error", async () => {
+    const r = resource(() => { throw new Error("sync"); });
+    await tick();
+    expect(r.error?.message).toBe("sync");
+    expect(r.loading).toBe(false);
+  });
+  test("an ignored failing refetch() is not an unhandled rejection", async () => {
+    const unhandled = [];
+    const onUnhandled = (e) => {
+      unhandled.push(e);
+      e.preventDefault?.();
+    };
+    window.addEventListener("unhandledrejection", onUnhandled);
+    try {
+      let fail = false;
+      const r = resource(() => (fail ? Promise.reject(new Error("down")) : Promise.resolve("ok")));
+      await tick();
+      fail = true;
+      r.refetch(); // fire and forget, as a click handler does
+      await tick();
+      await tick();
+      expect(r.error?.message).toBe("down");
+      expect(unhandled).toHaveLength(0);
+    } finally {
+      window.removeEventListener("unhandledrejection", onUnhandled);
+    }
   });
 });

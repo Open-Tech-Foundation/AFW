@@ -205,8 +205,11 @@ export interface ServerFunctionContext {
   ctx?: unknown;
 }
 
-/** A server function: called with its input (and, from server code, a context). */
-export type ServerFunction<Input, Output> = (input: Input, context?: Partial<ServerFunctionContext>) => Promise<Awaited<Output>>;
+/**
+ * A server function: called with its input, and a context from server code. In the
+ * browser the stub takes `{ signal }` to abort the call (and `resource()` passes one).
+ */
+export type ServerFunction<Input, Output> = (input: Input, context?: Partial<ServerFunctionContext> & { signal?: AbortSignal }) => Promise<Awaited<Output>>;
 
 /** A read: idempotent, callable with GET or POST. */
 export function query<Output, Input = void>(fn: (input: Input, context: ServerFunctionContext) => Output): ServerFunction<Input, Output>;

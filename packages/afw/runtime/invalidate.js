@@ -3,32 +3,51 @@
 //
 //   const todos = resource(() => listTodos({ done: false }));
 //   await addTodo({ title });
-//   invalidate(listTodos); // every live resource that called listTodos refetches
-//   invalidate();          // every live resource, and the current page's loader data
+//   invalidate(listTodos);             // every live resource that called listTodos
+//   invalidate(getTodo, { id: 1 });    // only those that called getTodo({ id: 1 })
+//   invalidate();                      // every live resource, and the page's loader data
 //
-// A resource records the server functions its fetcher calls while it starts (the
-// synchronous part, which is where `() => listTodos(args)` calls them). A fetcher
-// that calls one after an `await` names it with `resource(fn, { invalidatedBy: [...] })`.
+// A resource records the server function calls its fetcher makes while it starts (the
+// synchronous part, which is where `() => listTodos(args)` calls them). A fetcher that
+// calls one after an `await` names it with `resource(fn, { invalidatedBy: [...] })`.
+//
+// Cached entries (query-cache.js) are marked stale too, so a view that is not on
+// screen fetches again when it next mounts instead of showing the old data.
 //
 // Browser only: on the server nothing is live, and `invalidate()` resolves at once.
 
+import { callKey, endpointOfKey, markStale } from "./query-cache.js";
+
 const byEndpoint = new Map(); // endpoint → Set of live resource entries
+const byKey = new Map(); // call key → Set of live resource entries
+// endpoint → resources that name it in `invalidatedBy`: they cannot know the input, so
+// any call of it refetches them.
+const byNamed = new Map();
 const live = new Set(); // every live resource entry
-let tracking = null; // endpoints called while a fetcher starts
+let tracking = null; // what a starting fetcher calls: { endpoints, keys, staleTime }
 let refreshRoute = null; // the router's loader-data reload, once an app is mounted
 
-/** Record a server function call by the fetcher that is starting (the browser stub). */
-export function trackServerCall(endpoint) {
-  tracking?.add(endpoint);
+/**
+ * Record a server function call by the fetcher that is starting (the browser stub).
+ * Returns the starting resource's `staleTime`, or undefined outside a resource.
+ */
+export function trackServerCall(endpoint, key) {
+  if (!tracking) return undefined;
+  tracking.endpoints.add(endpoint);
+  if (key) tracking.keys.add(key);
+  return tracking.staleTime;
 }
 
-/** Run `start` and return its result with the server function endpoints it called. */
-export function withTracking(start) {
+/**
+ * Run `start` and return its result with the server function calls it made: their
+ * `endpoints` and call `keys`. `staleTime` is what those calls may serve from cache.
+ */
+export function withTracking(start, { staleTime = 0 } = {}) {
   const previous = tracking;
-  const endpoints = new Set();
-  tracking = endpoints;
+  const deps = { endpoints: new Set(), keys: new Set(), staleTime };
+  tracking = deps;
   try {
-    return { result: start(), endpoints };
+    return { result: start(), endpoints: deps.endpoints, keys: deps.keys };
   } finally {
     tracking = previous;
   }
@@ -40,27 +59,42 @@ export function endpointOf(fn) {
   return typeof fn === "function" && typeof fn.endpoint === "string" ? fn.endpoint : null;
 }
 
-/** A live resource `entry` (`{ refetch }`) now depends on `endpoints`. */
-export function registerResource(entry, endpoints) {
+function add(map, k, entry) {
+  let set = map.get(k);
+  if (!set) map.set(k, (set = new Set()));
+  set.add(entry);
+}
+
+function remove(map, k, entry) {
+  const set = map.get(k);
+  set?.delete(entry);
+  if (set?.size === 0) map.delete(k);
+}
+
+/**
+ * A live resource `entry` (`{ refetch }`) now depends on `endpoints` and call `keys`,
+ * plus the `named` endpoints of its `invalidatedBy`.
+ */
+export function registerResource(entry, endpoints, keys = new Set(), named = []) {
   unregisterResource(entry);
-  entry.endpoints = endpoints;
+  entry.endpoints = new Set([...endpoints, ...named]);
+  entry.keys = keys;
+  entry.named = named;
   live.add(entry);
-  for (const endpoint of endpoints) {
-    let set = byEndpoint.get(endpoint);
-    if (!set) byEndpoint.set(endpoint, (set = new Set()));
-    set.add(entry);
-  }
+  for (const endpoint of entry.endpoints) add(byEndpoint, endpoint, entry);
+  for (const key of keys) add(byKey, key, entry);
+  for (const endpoint of named) add(byNamed, endpoint, entry);
 }
 
 /** A resource stopped (paused or disposed). */
 export function unregisterResource(entry) {
   live.delete(entry);
-  for (const endpoint of entry.endpoints ?? []) {
-    const set = byEndpoint.get(endpoint);
-    set?.delete(entry);
-    if (set?.size === 0) byEndpoint.delete(endpoint);
-  }
+  for (const endpoint of entry.endpoints ?? []) remove(byEndpoint, endpoint, entry);
+  for (const key of entry.keys ?? []) remove(byKey, key, entry);
+  for (const endpoint of entry.named ?? []) remove(byNamed, endpoint, entry);
   entry.endpoints = undefined;
+  entry.keys = undefined;
+  entry.named = undefined;
 }
 
 /** The router's hook for reloading the current page's loader data (`mountApp`). */
@@ -69,21 +103,48 @@ export function setRouteDataRefresher(fn) {
 }
 
 /**
- * Refetch the live resources that called any of `fns` (server functions, as imported
- * from a `.server` module). With no arguments: every live resource, and the current
- * page's loader data. Resolves when the refetches settle.
+ * Split `invalidate()`'s arguments into targets: a server function alone means all of
+ * its calls; a value right after one narrows it to the call with that input.
  */
-export async function invalidate(...fns) {
+function targetsOf(args) {
+  const targets = [];
+  for (let i = 0; i < args.length; i++) {
+    const endpoint = endpointOf(args[i]);
+    if (!endpoint) throw new TypeError("invalidate() takes server functions imported from a .server module, each optionally followed by its input");
+    if (i + 1 < args.length && typeof args[i + 1] !== "function") {
+      targets.push({ endpoint, key: callKey(endpoint, args[++i]) });
+    } else {
+      targets.push({ endpoint, key: null });
+    }
+  }
+  return targets;
+}
+
+/** Does a cached entry depend on a target? Its own key, or what its fetcher called. */
+function hits(target, key, entry) {
+  if (target.key) return key === target.key || !!entry.deps?.keys.has(target.key);
+  return endpointOfKey(key) === target.endpoint || !!entry.deps?.endpoints.has(target.endpoint);
+}
+
+/**
+ * Refetch the live resources that called the given server functions (as imported from a
+ * `.server` module), each optionally followed by its input to target one call. With no
+ * arguments: every live resource, and the current page's loader data. Resolves when the
+ * refetches settle; a failed refetch shows on its resource, it does not reject here.
+ */
+export async function invalidate(...args) {
   if (typeof document === "undefined") return;
-  if (fns.length === 0) {
+  if (args.length === 0) {
+    markStale();
     await Promise.all([...[...live].map((entry) => entry.refetch()), refreshRoute?.()]);
     return;
   }
-  const targets = new Set();
-  for (const fn of fns) {
-    const endpoint = endpointOf(fn);
-    if (!endpoint) throw new TypeError("invalidate() takes server functions imported from a .server module");
-    for (const entry of byEndpoint.get(endpoint) ?? []) targets.add(entry);
+  const targets = targetsOf(args);
+  markStale((key, entry) => targets.some((target) => hits(target, key, entry)));
+  const resources = new Set();
+  for (const { endpoint, key } of targets) {
+    const found = key ? [...(byKey.get(key) ?? []), ...(byNamed.get(endpoint) ?? [])] : byEndpoint.get(endpoint) ?? [];
+    for (const entry of found) resources.add(entry);
   }
-  await Promise.all([...targets].map((entry) => entry.refetch()));
+  await Promise.all([...resources].map((entry) => entry.refetch()));
 }

@@ -86,16 +86,18 @@ export const addTodo = action(async ({ title } = {}, { locals }) => {
   todos.push(title);
   return { todos, user: locals.user };
 });
+let hitCount = 0;
+export const hits = query(async () => ({ n: ++hitCount }));
 export const SECRET = "server-only-secret-5d1e";`);
 await write(`${project}/app/todos/loader.js`, `import { listTodos } from "./todos.server.js";
 export default async function loader({ locals }) { return listTodos(undefined, { locals }); }`);
 await write(`${project}/app/todos/page.jsx`, `import { router } from "@opentf/afw";
-import { addTodo, listTodos } from "./todos.server.js";
+import { addTodo, hits, listTodos } from "./todos.server.js";
 
 export default function Todos() {
   let added = $state(null);
   const todos = $derived(added ?? router.data?.todos ?? []);
-  if (typeof window !== "undefined") window.__fns = { addTodo, listTodos };
+  if (typeof window !== "undefined") window.__fns = { addTodo, hits, listTodos };
   return (
     <section>
       <p id="user">{router.data?.user}</p>
@@ -195,6 +197,8 @@ try {
   assert(true, "a click calls the action through its stub and the list updates");
   assert((await evaluate("window.__fns.listTodos().then((r) => r.user + ' ' + r.todos.length)")) === "ada 3", "a query sees the middleware's locals and the action's write");
   assert((await evaluate("window.__fns.addTodo({}).catch((e) => e.name + ' ' + e.status)")) === "ServerFunctionError 400", "a refused call rejects with ServerFunctionError and its status");
+  assert((await evaluate("Promise.all([window.__fns.hits(), window.__fns.hits()]).then(([a, b]) => a.n + ' ' + b.n)")) === "1 1", "identical query calls in flight share one request");
+  assert((await evaluate("window.__fns.hits().then((r) => r.n)")) === 2, "a later query call makes a new request");
   const source = `${project}/app/todos/todos.server.js`;
   await write(source, (await file(source).text()).replace('version: "A"', 'version: "B"'));
   // The restart leaves a brief gap with no server, and (pending esdev) the page reloads:

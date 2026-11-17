@@ -4,6 +4,7 @@
 
 import { CONTENT_TYPE, decode, encode } from "../core/fn-codec.js";
 import { trackServerCall } from "./invalidate.js";
+import { callKey, fetchShared } from "./query-cache.js";
 
 // Queries go by GET while the encoded arguments fit comfortably in a URL.
 const MAX_GET_ARGS = 2000;
@@ -23,10 +24,27 @@ export class ServerFunctionError extends Error {
  * A stub for the server function at `endpoint`. `kind` is `"query"` (GET, or POST for
  * large arguments) or `"action"` (POST). The stub takes the input and an optional
  * `{ signal }` to abort the call.
+ *
+ * Query calls go through the query cache: identical calls in flight share one request,
+ * and a call made by a starting resource may answer from a fresh entry (`staleTime`).
+ * Actions always make their own request.
  */
 export function serverFunction(endpoint, kind) {
-  async function call(input, { signal } = {}) {
-    trackServerCall(endpoint); // a resource starting this call depends on it (invalidate)
+  function call(input, { signal } = {}) {
+    if (kind !== "query") {
+      trackServerCall(endpoint); // a resource starting this call depends on it (invalidate)
+      return send(input, signal);
+    }
+    let key;
+    try {
+      key = callKey(endpoint, input);
+    } catch (error) {
+      return Promise.reject(error); // an input the codec refuses (a function, a symbol)
+    }
+    const staleTime = trackServerCall(endpoint, key) ?? 0;
+    return fetchShared(key, (shared) => send(input, shared), { signal, staleTime });
+  }
+  async function send(input, signal) {
     const args = encode(input);
     const init = { signal, credentials: "same-origin", redirect: "manual", headers: { accept: CONTENT_TYPE } };
     const response = kind === "query" && args.length <= MAX_GET_ARGS

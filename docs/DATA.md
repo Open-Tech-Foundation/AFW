@@ -139,8 +139,52 @@ run's `AbortController` and bumps a token so out-of-order resolutions are
 discarded; a rejection sets `error` and keeps the last good `data`; a `null`/
 `false` source pauses fetching; effect disposal (region teardown via `scope()`)
 aborts in-flight work. On the server no effect is created and `loading` stays
-`true`, so SSG renders the loading branch — identical to the client's first
-paint, keeping hydration adoption aligned.
+`true` (`false` for a source that starts paused, evaluated untracked; a source that
+throws there counts as running), so SSG renders the branch the client's first paint
+renders, keeping hydration adoption aligned.
+
+* **`refetch()`.** Re-runs with `force` (ignores `staleTime`). Resolves with the data,
+  `undefined` when superseded, and rejects on failure. A no-op `catch` is attached, so
+  an ignored call is not an unhandled rejection.
+* **Internal reloads.** `invalidate()`, `<Pending>` retries and `ErrorBoundary` resets use
+  `reload()`, which never rejects: the failure is already on `error` or sent to a boundary.
+* **Run outcome.** `run()` resolves `{ ok, value }`, `{ ok: false, error }` or
+  `{ superseded: true }` and never rejects.
+
+### Query cache
+
+`runtime/query-cache.js`, used by the browser stub (`server-function.js`) and `resource()`.
+
+* **Keys.** `callKey(endpoint, input)` is `endpoint + "\0" + encode(input)` with plain-object
+  keys sorted recursively (`__proto__` kept as an own key). `customKey(key)` is the `key`
+  option, encoded the same way under a `key` prefix.
+* **Entries.** `{ data, hasData, updatedAt, stale, flight, listeners, users, idleSince,
+  gcTime, deps }`. `deps` holds the endpoints and call keys a custom-key fetcher called.
+* **Dedupe.** `fetchShared(key, start, { signal, staleTime })` answers from a fresh entry,
+  joins the flight in progress, or starts one. Each caller's signal rejects only that
+  caller; the flight's own controller aborts when its last caller leaves.
+* **Freshness.** `isFresh` is `hasData && !stale && age < staleTime`. `markStale()` sets
+  `stale` and detaches the flight, so the next read fetches again and a detached flight
+  writes nothing.
+* **Stub.** Query calls go through `fetchShared`. A call made while a resource starts
+  uses that resource's `staleTime` (passed through `withTracking`); others use `0`.
+  Actions skip the cache.
+* **Resources.** A two-argument resource with a stub fetcher, `resource(stub)` (called
+  with `undefined`), or one with `key` knows its key before running. It subscribes to the
+  entry (`users++`, hears writes), seeds `data` from it at once and skips the request
+  while fresh. A custom key wraps the fetcher in `fetchShared`.
+* **GC.** No timers: `sweep()` runs at most once a second as entries are looked up and
+  drops entries with no users and no flight once `idleSince + gcTime` has passed.
+
+### Invalidation
+
+* **Tracking.** `withTracking` records the endpoints and call keys a fetcher calls while
+  it starts. `registerResource(entry, endpoints, keys, named)` indexes the resource by
+  each, plus `named` (`invalidatedBy`) endpoints.
+* **Targets.** `invalidate(fn)` targets an endpoint; `invalidate(fn, input)` one call key.
+  `invalidatedBy` resources match any input of their named endpoint.
+* **Cache.** Matching entries are marked stale: by key, by endpoint, or through a
+  custom entry's `deps`. `invalidate()` marks every entry stale.
 
 ### `<Pending>` boundaries
 

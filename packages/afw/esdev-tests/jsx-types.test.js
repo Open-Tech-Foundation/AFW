@@ -32,7 +32,7 @@ test("published framework types support strict TS starters and reject invalid JS
       }, include: ["*.tsx"],
     }));
     await write(join(scratch, "pages.tsx"), `
-      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps, type Lazy } from "@opentf/afw";
+      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, invalidate, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps, type Lazy } from "@opentf/afw";
       import { registerRoutes, query, action, type StandardSchemaV1 } from "@opentf/afw/server";
       import { fade, fly, slide, type Transition } from "@opentf/afw/transition";
       export function Counter({ initial = 0 }: { initial?: number }) {
@@ -98,6 +98,18 @@ test("published framework types support strict TS starters and reject invalid JS
         await addTodo({ title: 1 });
         // @ts-expect-error query input types are checked too
         await listTodos("yes");
+        // Cached resources: a server function as the fetcher, keyed by its input.
+        const todos = resource(() => true, listTodos, { staleTime: 30_000, gcTime: 60_000 });
+        const firstDone: boolean | undefined = todos.data?.[0].done;
+        const allTodos = query(async () => [{ id: 1 }]);
+        const all = resource(allTodos);
+        const firstId: number | undefined = all.data?.[0].id;
+        const keyed = resource(() => 3, async (id) => ({ id }), { key: (id: number) => ["user", id] });
+        const keyedId: number | undefined = keyed.data?.id;
+        const fresh: { id: number } | undefined = await keyed.refetch();
+        await invalidate(listTodos, true, allTodos);
+        // @ts-expect-error staleTime is a number of milliseconds
+        resource(async () => 1, { staleTime: "soon" });
         return { added, listed };
       }
       // Compiler macros are typed globals: no import, no local declarations.

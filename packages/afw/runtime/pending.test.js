@@ -6,6 +6,7 @@ import { scope } from "../core/signals.js";
 import "./error-boundary.js";
 import "./pending.js";
 import { enterPending, exitPending } from "./pending-scope.js";
+import { __resetQueryCache } from "./query-cache.js";
 import { resource } from "./resource.js";
 import { bindChild } from "./dom.js";
 import { signal } from "../core/signals.js";
@@ -45,7 +46,10 @@ const text = (t) => {
   return p;
 };
 
-afterEach(() => document.body.replaceChildren());
+afterEach(() => {
+  document.body.replaceChildren();
+  __resetQueryCache();
+});
 
 describe("first load", () => {
   test("shows the fallback until a resource read by the children resolves", async () => {
@@ -283,8 +287,7 @@ describe("errors", () => {
     const r = resource(() => (++attempt === 1 ? Promise.resolve("v1") : Promise.reject(new Error("flaky"))));
     const el = boundary({ fallback: text("…") }, () => r.data);
     await tick();
-    r.refetch();
-    await tick();
+    await expect(r.refetch()).rejects.toThrow("flaky");
     off();
     expect(phases).toEqual(["resource"]);
     expect(r.data).toBe("v1");
@@ -435,5 +438,53 @@ describe("server-rendered boundary", () => {
     d.last().resolve(1);
     await tick();
     expect(shown(el)).toEqual(["content"]);
+  });
+});
+
+describe("cached resources", () => {
+  test("a remount with cached data shows the content, refreshing beside it, not the fallback", async () => {
+    const d = deferred();
+    const make = () => resource(d.fetcher, { key: "users" });
+    const s1 = scope(() => {
+      const users = make();
+      return boundary({ fallback: text("Loading"), refreshing: text("…") }, (b) => b.append(text(String(users.data))));
+    });
+    d.last().resolve("ada");
+    await tick();
+    expect(shown(s1.result)).toEqual(["content"]);
+    s1.result.remove();
+    s1.dispose();
+    const s2 = scope(() => {
+      const users = make();
+      return boundary({ fallback: text("Loading"), refreshing: text("…") }, (b) => b.append(text(String(users.data))));
+    });
+    await tick();
+    expect(shown(s2.result)).toEqual(["refreshing", "content"]);
+    expect(s2.result.textContent).toContain("ada");
+    d.last().resolve("grace");
+    await tick();
+    expect(shown(s2.result)).toEqual(["content"]);
+    s2.dispose();
+  });
+
+  test("within staleTime a remount shows the content with no refetch", async () => {
+    const d = deferred();
+    const make = () => resource(d.fetcher, { key: "fresh", staleTime: 60_000 });
+    const s1 = scope(() => {
+      const r = make();
+      return boundary({ fallback: text("Loading") }, () => r.data);
+    });
+    d.last().resolve("v");
+    await tick();
+    s1.result.remove();
+    s1.dispose();
+    const s2 = scope(() => {
+      const r = make();
+      return boundary({ fallback: text("Loading") }, () => r.data);
+    });
+    await tick();
+    expect(shown(s2.result)).toEqual(["content"]);
+    expect(d.calls.length).toBe(1);
+    s2.dispose();
   });
 });

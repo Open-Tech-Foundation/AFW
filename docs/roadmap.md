@@ -25,7 +25,8 @@
 * [x] Phase B.1: typed server functions (`query`/`action` in `*.server.{js,ts}`), validated with Standard Schema, under folder middleware, encoded with `@opentf/serialize`; both toolchains, dev and production — see [docs/SERVER_FUNCTIONS.md](SERVER_FUNCTIONS.md).
 * [ ] Phase B.2: forms that submit to an action without JavaScript; redirects from actions.
 * [x] Phase B.3a: `invalidate(query)` / `invalidate()` refetch live resources and the page's loader data.
-* [ ] Phase B.3b: single-flight updates; opt-in query caching.
+* [x] Phase B.3c: client query cache: shared requests, cached remounts (`staleTime`, `gcTime`, `key`), per-input `invalidate(query, input)`.
+* [ ] Phase B.3b: single-flight updates; opt-in HTTP caching headers for queries.
 * [ ] Phase B.4: compiler co-location of server functions via the Server IR.
 
 ## Data Fetching — see [docs/DATA.md](DATA.md)
