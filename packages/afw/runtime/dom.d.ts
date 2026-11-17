@@ -37,6 +37,8 @@ export function clsx(value: any): any;
  * else falls back to `setAttribute`.
  */
 export function setAttr(el: any, name: any, value: any): void;
+/** Put `node` before `ref` in `parent`, moving it with `moveBefore()` (keeping its state) where supported. */
+export function moveNode(parent: Node, node: Node, ref?: Node | null): void;
 /**
  * Apply a named prop to a *child component* element. Set it as a property when the
  * element exposes one (custom-element prop setters, `value`, `checked`, …) so rich

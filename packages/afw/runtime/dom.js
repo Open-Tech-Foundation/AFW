@@ -418,6 +418,24 @@ function htmlToNodes(html) {
   return [...tpl.content.childNodes];
 }
 
+/**
+ * Put `node` before `ref` in `parent` (at the end when `ref` is null). A node that is
+ * already in the document moves with `moveBefore()` where the browser has it, so it keeps
+ * its state: focus, a playing video, an iframe's page, running animations. Anything else
+ * (a new node, a detached parent, an older browser) is inserted as before.
+ */
+export function moveNode(parent, node, ref = null) {
+  if (typeof parent.moveBefore === "function" && node.isConnected && parent.isConnected) {
+    try {
+      parent.moveBefore(node, ref);
+      return;
+    } catch {
+      // A move the browser refuses (across documents, an ancestor into itself): insert.
+    }
+  }
+  parent.insertBefore(node, ref);
+}
+
 /** Flatten a reactive child value into DOM nodes: nodes pass through, arrays
  * recurse, nullish/booleans render nothing, `{__html}` markers are parsed back into
  * the nodes the server rendered, and primitives become text nodes. */
@@ -657,7 +675,7 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
       const ref = i + 1 < nodes.length ? nodes[i + 1][0] : anchor;
       const item = nodes[i];
       if (item[item.length - 1].nextSibling === ref && item.every((n, j) => j === 0 || n.previousSibling === item[j - 1])) continue;
-      for (const n of item) host.insertBefore(n, ref);
+      for (const n of item) moveNode(host, n, ref);
     }
     if (tx.enter) {
       for (let i = 0; i < nodes.length; i++) if (prevIndex[i] === -1) for (const n of nodes[i]) tx.enter(n, initial);

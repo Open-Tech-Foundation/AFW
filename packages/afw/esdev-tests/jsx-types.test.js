@@ -146,6 +146,22 @@ test("published framework types support strict TS starters and reject invalid JS
       </div>;
       // @ts-expect-error a modifier handler's currentTarget is the element
       const badModifierTarget = <button onclick:once={(event) => event.currentTarget.noSuchProperty}/>;
+      // Dialogs, popovers and invoker commands, written as attributes.
+      const overlays = <div>
+        <button commandfor="dlg" command="show-modal">Open</button>
+        <dialog id="dlg" closedby="any" aria-labelledby="dlg-title" onclose={(event) => { const d: HTMLDialogElement = event.currentTarget; }}>
+          <h2 id="dlg-title">Title</h2><button commandfor="dlg" command="close" autofocus>Close</button>
+        </dialog>
+        <button popovertarget="menu" popovertargetaction="toggle">Menu</button><div id="menu" popover="auto" />
+        <button interestfor="tip">?</button><div id="tip" popover="hint" />
+        <div popover /><input type="checkbox" switch />
+      </div>;
+      // @ts-expect-error an unknown command
+      const badCommand = <button command="explode"/>;
+      // @ts-expect-error closedby values are checked
+      const badClosedby = <dialog closedby="sometimes"/>;
+      // @ts-expect-error popover values are checked
+      const badPopover = <div popover="always"/>;
       // @ts-expect-error unknown modifiers are rejected
       const badModifier = <button onclick:twice={() => {}}/>;
     `);

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Keyed list reorders and `<Portal>` move nodes with `moveBefore()` where the browser has
+  it (`moveNode`), so a moved row keeps its state: focus, a playing video, an iframe,
+  running animations. Older browsers insert as before.
+- JSX types: invoker commands (`commandfor`, `command`), `popovertarget`,
+  `popovertargetaction`, `interestfor`, `<dialog closedby>`, `<input switch>` and the
+  `popover` values type-check.
+
+
 ### Fixed
 
 - A list whose items are fragments (`xs.map((x) => <><dt/><dd/></>)`) renders, reorders

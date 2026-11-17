@@ -72,7 +72,31 @@ export namespace JSX {
     in?: Transition | null | false;
     out?: Transition | null | false;
   };
-  type HTML = { [K in keyof HTMLElementTagNameMap]: Properties<HTMLElementTagNameMap[K]> & Common<HTMLElementTagNameMap[K]> & Transitions };
+  /** Invoker commands (`<button commandfor="dialog" command="show-modal">`). */
+  type Command = "show-modal" | "close" | "request-close" | "show-popover" | "hide-popover" | "toggle-popover" | `--${string}`;
+  /** Controls another element: a popover, a dialog, or an interest target. */
+  type Invoker = {
+    commandfor?: string;
+    command?: Command;
+    popovertarget?: string;
+    popovertargetaction?: "toggle" | "show" | "hide";
+    interestfor?: string;
+  };
+  /**
+   * HTML attributes that have no matching DOM property in TypeScript's DOM types yet
+   * (they are written as attributes, as the compiler does for any non-property name).
+   */
+  type Attributes = {
+    button: Invoker;
+    input: Invoker & { switch?: boolean };
+    dialog: { closedby?: "any" | "closerequest" | "none" };
+  };
+  /** `popover` on any element: `auto` (light dismiss), `manual`, or `hint`. */
+  type Popover = { popover?: "auto" | "manual" | "hint" | "" | boolean | null };
+  type HTML = {
+    [K in keyof HTMLElementTagNameMap]: Omit<Properties<HTMLElementTagNameMap[K]>, "popover"> & Common<HTMLElementTagNameMap[K]> & Transitions & Popover
+      & (K extends keyof Attributes ? Attributes[K] : {});
+  };
   type SVG = { [K in Exclude<keyof SVGElementTagNameMap, keyof HTML>]: Common<SVGElementTagNameMap[K]> & { [attribute: string]: unknown } };
   type IntrinsicElements = HTML & SVG & {
     [tag: `${string}-${string}`]: Common<HTMLElement> & { [attribute: string]: unknown };

@@ -14,6 +14,7 @@
 // native top layer (`<dialog>.showModal()`, the popover API) is usually a better
 // fit than a portal — Portal is the general escape hatch for everything else.
 
+import { moveNode } from "./dom.js";
 import { afterHydration } from "./hydrate.js";
 
 function resolveTarget(to) {
@@ -54,7 +55,8 @@ export class PortalElement extends HTMLElement {
         n.setAttribute("data-afw-portal", "");
       }
     }
-    for (const n of this._moved) target.appendChild(n);
+    // Moved, not re-inserted, where the browser can: the children keep their state.
+    for (const n of this._moved) moveNode(target, n, null);
   }
 
   disconnectedCallback() {
