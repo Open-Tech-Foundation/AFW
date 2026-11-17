@@ -365,6 +365,29 @@ it was written. On a server-rendered page, the receiving component adopts that m
 place during hydration, wherever it renders the value. Treat such values as render-only:
 render them with `{value}` rather than calling DOM methods on them.
 
+## Dialogs and popovers
+
+The platform's own overlays work as written: `<dialog>`, `popover`, and invoker commands
+(`commandfor`, `command`), all type-checked in TypeScript.
+
+```jsx
+<button commandfor="confirm" command="show-modal">Delete…</button>
+<dialog id="confirm" aria-labelledby="confirm-title" closedby="any" onclose={(e) => save(e.currentTarget.returnValue)}>
+  <h2 id="confirm-title">Delete this note?</h2>
+  <form method="dialog">
+    <button value="cancel" autofocus>Cancel</button>
+    <button value="delete">Delete</button>
+  </form>
+</dialog>
+
+<button popovertarget="menu">Menu</button>
+<div id="menu" popover="auto">…</div>
+```
+
+- **No JavaScript needed** to open or close them: the browser handles focus, Escape and the top layer.
+- **A modal `<dialog>`** (`command="show-modal"`, or `dialog.showModal()` through a `$ref`) makes the rest of the page inert. Don't add `role="dialog"`, `aria-modal` or a focus trap yourself.
+- **Name every dialog** with `aria-labelledby` or `aria-label`, and put `autofocus` on its first control.
+
 ## Refs
 
 Assign a `$ref()` signal to `ref` — not a callback function. The compiler sets
