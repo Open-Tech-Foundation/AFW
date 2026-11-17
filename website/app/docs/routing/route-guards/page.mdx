@@ -47,3 +47,27 @@ export default async function routeGuard(to, { next, redirect }) {
   Mirror the same rules in `app/_middleware.js` so direct URL hits and SSR are guarded
   before HTML is sent. See [Middleware](/docs/routing/middleware).
 </Callout>
+
+## Guards and loader data
+
+The guard runs **before** the target route's loader data is fetched:
+
+- **`router.data` is not the target's data.** It holds the page you are leaving, or nothing on first paint.
+- **First paint has no data yet.** A guard that redirects when `router.data?.user` is missing sends a signed-in user to `/login`. If the login page redirects signed-in users back, the two loop.
+- **Middleware already decided the first page.** On a direct request, `app/_middleware.js` ran on the server before any HTML was sent. The guard adds nothing there.
+
+Keep the boundary in middleware, and let the guard read session state that does not depend on the next page's data:
+
+```js
+// app/routeGuard.js
+import { session } from "./session.js"; // client-side state: a cookie read, or a store set at sign-in
+
+export default function routeGuard(to, { next, redirect }) {
+  if (to.pathname.startsWith("/admin") && !session.signedIn) {
+    return redirect("/login?next=" + encodeURIComponent(to.fullPath));
+  }
+  return next();
+}
+```
+
+- **Data checks belong in the loader.** A loader that throws a redirect `Response` sends client navigation to the target too; see [Loader errors](/docs/data-fetching/loader-errors).
