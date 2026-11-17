@@ -47,43 +47,55 @@ Checks run for this verification:
 
 Use esdev 0.26 or newer for the browser tier (`esdev upgrade`).
 
-## Open upstream esdev issues (esdev 0.27.0, 2026-11-11)
+## esdev 0.28.0 (verified 2026-11-18, with esrun 0.48.0)
 
-Found by scaffolding every AFW template with `esdev create` (spa, fullstack, docs with
-and without blog, library; JS and TS; CSS and Tailwind; pnpm, plus npm for docs) and
-running each project's `build`, `test`, `typecheck`, `esdev start` and `preview`/`start`
-in headless Chrome.
+Checks run:
 
-| Issue | Effect | Status |
-| --- | --- | --- |
-| Tailwind `@import` of a package stylesheet resolves a nested `@import` from the project root, not from the importing stylesheet's package | Under pnpm (isolated `node_modules`), the `docs` template fails `esdev build` and `esdev start`: `cannot find the stylesheet "@opentf/syntax-highlighter/themes/shared.css"` (imported by `@opentf/afw-docs/theme`). npm's hoisted layout works | Waiting for esdev. This site lists `@opentf/syntax-highlighter` as a direct dependency |
-| `esdev start` reports "ready" after a target fails to build, then answers every route with 404 | The error is only in the terminal; the browser shows a blank 404, with no overlay | Waiting for esdev |
-| After restarting a server target, esdev sends every page `{"type":"reload"}`, even when the browser build is unchanged (intermittent) | Editing a `.server.js` function reloads the page in the esdev workflow; the Vite workflow keeps it | Waiting for esdev; `tsr test-e2e-esdev-fns` fails when it happens |
-| A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | A request in that window is refused (`Failed to fetch`); the Vite workflow never restarts its server | Waiting for esdev; `tsr test-e2e-esdev-fns` fails when it happens |
-| `esdev start` walks directories its root `.gitignore` excludes, and `.git` (docs: ".gitignore rules exclude matching paths") | One playground start touched 445,392 paths: 436,748 inside gitignored folders (`node_modules`, `target`, `.cache`, `.dev`), 7,092 in `.git`, 1,496 of real source. Warm: 2.4–3.6s. Cold, on a spinning disk: 24–67s | Waiting for esdev |
-| `esdev preview` serves `.xml` files as `application/octet-stream` | `rss.xml`, `atom.xml` and `sitemap.xml` download instead of displaying; feed readers may reject them | Waiting for esdev |
-
-## Open esdev template issues (templates are baked into esdev 0.27.0)
-
-| Template | Issue |
+| Check | Result |
 | --- | --- |
-| `docs` | Does not build under pnpm because of the `@import` resolution bug above. |
-| `docs` | Wires `docsNavPlugin` (and `blogPostsPlugin` with `--blog`) one by one; the afw-docs README recommends the single `afwDocsPlugin` entry (esdev 0.27+), which also adds last-updated dates. |
-| `fullstack` | The `start` script grants `--allow-listen=3000`, but `server.js` listens on `PORT`: `PORT=8080 npm start` fails with "0.0.0.0:8080 is not an allowed address". |
-| `fullstack` | `server.js` treats a directory under `dist/` (e.g. `/assets/`) as a file: streaming it throws "Is a directory" and the request gets no response, instead of a 404. |
-| `fullstack` | No `@opentf/afw-test` dependency or `test.setup`, unlike `spa` and `library`, though it has a `test` script. |
-| `library` | `peerDependencies` pins `@opentf/afw` to an exact version (`"0.37.0"`); a published library needs a range. |
+| `tsr typecheck`, `tsr test`, `tsr test-e2e`, `tsr check-web`, `tsr site-build` | Pass |
+| `esdev create` from the registry (`@opentf/create-afw` 0.7.0) and from `packages/create-afw` (`--from`): `app` in every render mode, with and without a server, CSS and Tailwind, JS and TS; `library` CSS/JS and Tailwind/TS; `docs` with and without blog; pnpm | Each scaffold's `build`, `test` and `typecheck` pass; each server build's `start` serves `/` |
+| `scripts/verify-server-functions.mjs` (`tsr test-e2e-esdev-fns`) | A server function or loader edit keeps the page and refetches its data in place |
+
+Fixed in 0.28, each checked here:
+
+| Issue (seen in 0.27) | How it was checked |
+| --- | --- |
+| A server-target restart reloaded every page, even with the browser build unchanged | `tsr test-e2e-esdev-fns` asserts the page survives a server function and a loader edit (`esdev:server-update`, D219) |
+| `esdev start` said "ready" after a failed build and answered 404 | A scaffold with a syntax error: "the build failed; fix it and save", the page answers 500 with the error, then 200 once fixed |
+| Tailwind resolved a package stylesheet's nested `@import` from the project root | Both `docs` scaffolds build under pnpm |
+| `esdev preview` sent `.xml` as `application/octet-stream` | `blog/rss.xml` and `sitemap.xml` are `application/xml` |
+
+Breaking in esrun 0.48: a network grant names an address (`--allow-listen=0.0.0.0:3000`,
+D221) and has no wildcards. The starters already grant an address; their README says a
+different `PORT` needs the same port in `--allow-listen`.
+
+Still open (not in the 0.28 notes, not re-measured):
+
+| Issue | Effect |
+| --- | --- |
+| A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | A request in that window is refused (`Failed to fetch`); `tsr test-e2e-esdev-fns` waits it out |
+| `esdev start` walks directories its root `.gitignore` excludes, and `.git` | 0.27: one playground start touched 445,392 paths, 1,496 of them real source; cold on a spinning disk, 24–67s |
+
+## Starter templates
+
+Since esdev 0.28 the AFW starters are `@opentf/create-afw`'s (`esdev/templates`, generated
+from `templates.js` by `scripts/write-esdev-templates.mjs`); `esdev create` reads them from
+the published package. The 0.27 template issues are resolved there:
+
+- `docs` uses the single `afwDocsPlugin` entry and builds under pnpm.
+- The server app's `start` grants an address, reads `PORT` (documented above), answers a
+  directory under `dist/` with a 404, and has `@opentf/afw-test` with a test setup.
+- `library` peers on `@opentf/afw` with a `^` range.
 
 ## Framework follow-ups
 
 - Done: `esdev start` and the Vite dev server render server pages on the server
   and the client adopts them; the dev browser build is the compiler's `hydrate-hot` target.
-- Pending esdev: any server-only edit under `esdev start` (`_middleware.js`, `loader.js`,
-  a `*.server.js` function body) restarts the server and then reloads the page, because no
-  browser module accepted the change. The Vite dev server leaves the page alone. Asked of
-  esdev: no reload when the browser output is unchanged, plus a hot event after a server
-  restart so the router can refetch the current route's loader data (then in both
-  workflows). `scripts/verify-server-functions.mjs` reports it as `PENDING (esdev)`.
+- Done: a server-only edit (`*.server.*`, `loader.*`, `_middleware.*`, `route.*`) keeps
+  the page in both workflows and refetches its data in place: esdev 0.28 sends
+  `esdev:server-update`, vite-plugin-afw sends `afw:server-update`, and the runtime calls
+  `invalidate()` (`runtime/hmr.js`).
 - Original Markdown/MDX source maps (current maps target generated JSX).
 - MDX 404 routes are rejected; use `404.jsx`/`404.tsx`.
 - Benchmarks: the published tables predate the migration. Re-run all four engines

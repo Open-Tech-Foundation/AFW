@@ -102,6 +102,7 @@ import { addCounted, addTodo, countTodos, hits, listTodos } from "./todos.server
 
 export default function Todos() {
   const count = resource(countTodos);
+  const live = resource(listTodos);
   if (typeof window !== "undefined") window.__count = () => count.data;
   let added = $state(null);
   const todos = $derived(added ?? router.data?.todos ?? []);
@@ -109,6 +110,8 @@ export default function Todos() {
   return (
     <section>
       <p id="user">{router.data?.user}</p>
+      <p id="version">{live.data?.version}</p>
+      <p id="loader-from">{router.data?.from ?? "loader"}</p>
       <ul id="list">{todos.map((todo) => <li>{todo}</li>)}</ul>
       <button id="add" onclick={async () => { added = (await addTodo({ title: "ship it" })).todos; }}>Add</button>
     </section>
@@ -220,14 +223,17 @@ try {
   assert(singleFlight === "true 1", `an action's refresh() updates the shown query in its own response, one request (got ${singleFlight})`);
   const source = `${project}/app/todos/todos.server.js`;
   await write(source, (await file(source).text()).replace('version: "A"', 'version: "B"'));
-  // The restart leaves a brief gap with no server, and (pending esdev) the page reloads:
-  // a call that lands in either is "not yet".
+  // The restart leaves a brief gap with no server: a call that lands in it is "not yet".
   await until("window.__fns?.listTodos().then((r) => r.version === 'B', () => false)");
   assert(true, "an edited server function answers after the restart");
-  // PENDING esdev: a server-only restart should leave the page alone (as Vite's dev server
-  // does); esdev 0.27 reloads it. Turn this back into an assert once esdev ships that.
-  if ((await evaluate("window.__doc")) === doc) console.log("PASS the server function edit does not reload the page");
-  else console.log("PENDING (esdev) the server function edit reloads the page; it should not");
+  assert((await evaluate("window.__doc")) === doc, "the server function edit does not reload the page");
+  // A loader is server-only: the page loads nothing from it, so esdev 0.28 leaves the page
+  // alone and sends esdev:server-update, and the page refetches its loader data in place.
+  const loaderFile = `${project}/app/todos/loader.js`;
+  await write(loaderFile, (await file(loaderFile).text()).replace("return listTodos(undefined, { locals });", 'return { ...(await listTodos(undefined, { locals })), from: "edited" };'));
+  await until("document.getElementById('loader-from')?.textContent === 'edited'");
+  assert(true, "a loader edit refetches the page's loader data in place (esdev:server-update)");
+  assert((await evaluate("window.__doc")) === doc, "the loader edit does not reload the page");
   const plain = async (url) => (await (await fetch(url, { headers: { accept: "text/html" } })).text()).replace(/<!--[\s\S]*?-->/g, "");
   const envDev = await plain(`${origin}/env`);
   assert(envDev.includes(">hello-from-env 0</button>") && envDev.includes(">development</p>") && envDev.includes("[none]") && !envDev.includes("do-not-ship-me"), "esdev start renders PUBLIC_* and MODE on the server, and no other variable");

@@ -1,4 +1,4 @@
-// Modern web platform check (`tsr check-web`, part of `tsr test`, so CI runs it).
+// Modern web platform check (`tsr check-web`; CI runs it as its own step).
 //
 // Runs the pinned `modern-web-guidance` scanner (a root devDependency) over the code
 // that ships HTML, CSS and client JS, and fails on any finding not in
@@ -12,26 +12,24 @@
 // The scanner covers the subset of the guidance with deterministic rules; it does not
 // replace reading the guide for the feature you are building.
 
-import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+// Runs on esdev (`runtime:` modules). The scanner is a Node CLI of its own; its bin is
+// run as a program.
+import { file } from "runtime:fs";
+import { exit } from "runtime:process";
+import { Command } from "runtime:system";
 
-const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const bin = join(root, "node_modules", ".bin", "modern-web-guidance");
-try {
-  await access(bin);
-} catch {
+const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const bin = `${root}/node_modules/.bin/modern-web-guidance`;
+if (!(await file(bin).exists())) {
   console.error("✗ modern-web-guidance is not installed. Pin it at the root: pnpm add -D -w modern-web-guidance@1.0.1");
-  process.exit(1);
+  exit(1);
 }
 
 // What ships to browsers: the runtime and its components, the docs theme, the form
 // package, the starter templates and the site.
 const TARGETS = ["packages/afw", "packages/afw-docs", "packages/afw-form", "packages/afw-i18n", "packages/create-afw", "website/app"];
 
-const allow = JSON.parse(await readFile(join(root, "scripts", "modern-web-allow.json"), "utf8"));
+const allow = JSON.parse(await file(`${root}/scripts/modern-web-allow.json`).text());
 const used = new Set();
 const allowed = (target, ruleId, file) => {
   const entry = allow.find((a) => a.target === target && a.rule === ruleId && a.file === file);
@@ -39,12 +37,16 @@ const allowed = (target, ruleId, file) => {
   return !!entry;
 };
 
-const run = promisify(execFile);
+const decoder = new TextDecoder();
 let failures = 0;
 let reviewed = 0;
 for (const target of TARGETS) {
-  const { stdout } = await run(bin, ["legacy-scan", target, "--json"], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
-  const report = JSON.parse(stdout);
+  const result = await new Command(bin, { args: ["legacy-scan", target, "--json"], cwd: root, inheritEnv: true }).output();
+  if (!result.success) {
+    console.error(`✗ the scanner failed on ${target}:\n${decoder.decode(result.stderr)}`);
+    exit(1);
+  }
+  const report = JSON.parse(decoder.decode(result.stdout));
   for (const guide of report.guides ?? []) {
     for (const rule of guide.rules ?? []) {
       for (const finding of rule.findings ?? []) {
@@ -71,6 +73,6 @@ for (const entry of allow) {
 }
 if (failures) {
   console.error(`\n${failures} modern web finding(s). Modernize the code, or record a verified false positive in scripts/modern-web-allow.json.`);
-  process.exit(1);
+  exit(1);
 }
 console.log(`✓ modern web check: no new findings in ${TARGETS.length} targets (${reviewed} reviewed exception(s))`);

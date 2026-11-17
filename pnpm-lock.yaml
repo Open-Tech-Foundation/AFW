@@ -21,8 +21,8 @@ importers:
         specifier: workspace:*
         version: link:packages/esdev-plugin-afw
       '@opentf/esrun-types':
-        specifier: ^0.4.0
-        version: 0.4.0
+        specifier: ^0.23.0
+        version: 0.23.0
       '@opentf/std':
         specifier: ^0.19.0
         version: 0.19.0
@@ -997,8 +997,8 @@ packages:
   '@monaco-editor/loader@1.7.0':
     resolution: {integrity: sha512-gIwR1HrJrrx+vfyOhYmCZ0/JcWqG5kbfG7+d3f/C1LXk2EvzAbHSg3MQ5lO2sMlo9izoAZ04shohfKLVT6crVA==}
 
-  '@opentf/esrun-types@0.4.0':
-    resolution: {integrity: sha512-MEjKuFur/3zBP8xY05tLD7GKI07NWTMcmbyJjnL8g/Mt5Qu0Beetj+MjMDlog/Lbdr3krziGAQIBbRqtXd60Dg==}
+  '@opentf/esrun-types@0.23.0':
+    resolution: {integrity: sha512-RR3/J4KcBXV7ShLin9oIMELXwcNtHYorzZu52cm7NX2aYgvCp18kg3xOnbDwvs+n58E+R0es/ESqmwjulWScvA==}
 
   '@opentf/serialize@0.1.0':
     resolution: {integrity: sha512-kRyYKuQHahHpVMfX1QtxohJuEd/iUkp9VYYUT3w/Oo64K+ONmvx3JB/nFJALHwfDsWKfmDIBMHBUULBWdltaog==}
@@ -2640,7 +2640,7 @@ snapshots:
     dependencies:
       state-local: 1.0.7
 
-  '@opentf/esrun-types@0.4.0': {}
+  '@opentf/esrun-types@0.23.0': {}
 
   '@opentf/serialize@0.1.0': {}
 
