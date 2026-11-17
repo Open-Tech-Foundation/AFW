@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Search excerpts sort their omitted ranges and highlights with `toSorted()` instead of
+  copying the array first.
+
 ## [0.38.0] - 2026-11-13
 
 ### Removed

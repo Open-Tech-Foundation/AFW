@@ -83,7 +83,7 @@ function excerptFor(fragment, groups, match) {
     clean += text.slice(source, end);
     source = end;
   };
-  for (const [from, to] of [...excerptOmit].sort((a, b) => a[0] - b[0])) {
+  for (const [from, to] of excerptOmit.toSorted((a, b) => a[0] - b[0])) {
     if (to <= source || from >= sectionEnd) continue;
     append(Math.max(source, from));
     source = Math.min(to, sectionEnd);
@@ -111,7 +111,7 @@ function excerptFor(fragment, groups, match) {
 export function excerptParts(excerpt, highlights = []) {
   const parts = [];
   let position = 0;
-  for (const [start, end] of [...highlights].sort((a, b) => a[0] - b[0])) {
+  for (const [start, end] of highlights.toSorted((a, b) => a[0] - b[0])) {
     if (start < position || end <= start || end > excerpt.length) continue;
     if (start > position) parts.push({ text: excerpt.slice(position, start), match: false });
     parts.push({ text: excerpt.slice(start, end), match: true });
