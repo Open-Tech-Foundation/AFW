@@ -197,7 +197,22 @@ export function registerHotModule(hot, entries, accept = true, exports = "") {
   const signature = entries.map(([component, shape]) => [component.tag, shape]);
   const previous = hot?.data.afwSignature;
   if (previous && (JSON.stringify(previous) !== JSON.stringify(signature) || hot.data.afwExports !== exports)) {
+    // A defined element keeps its class, so a component whose shape changed (a prop
+    // added, a state declaration renamed) cannot take the new version in place: the
+    // page's elements would keep running the old code. Reload instead.
+    const before = new Map(previous);
+    const reshaped = entries.some(([component, shape]) =>
+      before.has(component.tag) && before.get(component.tag) !== shape && customElements.get(component.tag));
+    if (reshaped) {
+      hotReload();
+      return;
+    }
+    // The importers re-run against *this* module instance, so install its components
+    // first: a renamed or added component's tag must be defined before they render it.
+    hot.data.afwSignature = signature;
+    hot.data.afwExports = exports;
     hot.data.afwInvalidated = true;
+    install(entries);
     hot.invalidate();
     return;
   }
@@ -206,6 +221,32 @@ export function registerHotModule(hot, entries, accept = true, exports = "") {
     hot.data.afwExports = exports;
     hot.data.afwInvalidated = false;
   }
+  const changed = install(entries, hot);
+  // Install all implementations first. Refresh existing ancestors before their
+  // descendants, so children recreated by a parent don't mount twice per update.
+  const jobs = changed.flatMap(record => [...record.instances].map(host => {
+    let depth = 0;
+    for (let parent = host.parentElement; parent; parent = parent.parentElement) depth++;
+    return { record, host, depth };
+  }));
+  jobs.sort((a, b) => a.depth - b.depth);
+  for (const { record, host } of jobs) refresh(record, [host]);
+  if (accept) hot?.accept();
+}
+
+/** A full page load, for an edit a refresh cannot apply. Replaceable in tests. */
+let hotReload = () => globalThis.location?.reload();
+/** Tests only: observe reloads instead of performing them. */
+export function __setHotReload(fn) {
+  hotReload = fn;
+}
+
+/**
+ * Point each component's tag at its latest implementation: an already registered tag
+ * gets the new callbacks (returned, for the caller to refresh its instances), a new tag
+ * is defined. `hot`, when given, is invalidated for a tag defined outside this runtime.
+ */
+function install(entries, hot = null) {
   const changed = [];
   for (const [component] of entries) {
     const tag = component.tag;
@@ -240,14 +281,5 @@ export function registerHotModule(hot, entries, accept = true, exports = "") {
     };
     customElements.define(tag, component);
   }
-  // Install all implementations first. Refresh existing ancestors before their
-  // descendants, so children recreated by a parent don't mount twice per update.
-  const jobs = changed.flatMap(record => [...record.instances].map(host => {
-    let depth = 0;
-    for (let parent = host.parentElement; parent; parent = parent.parentElement) depth++;
-    return { record, host, depth };
-  }));
-  jobs.sort((a, b) => a.depth - b.depth);
-  for (const { record, host } of jobs) refresh(record, [host]);
-  if (accept) hot?.accept();
+  return changed;
 }

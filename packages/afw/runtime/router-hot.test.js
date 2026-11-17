@@ -4,7 +4,7 @@
 
 import { afterEach, expect, test } from "runtime:test";
 import { effect, signal } from "../core/signals.js";
-import { hotRouteState, hotState, registerHotHydrate, registerHotModule, registerHotRoute } from "./hmr.js";
+import { __setHotReload, hotRouteState, hotState, registerHotHydrate, registerHotModule, registerHotRoute } from "./hmr.js";
 import { mountApp, router, routes } from "./router.js";
 
 const tick = async (n = 4) => { for (let i = 0; i < n; i++) await new Promise((r) => setTimeout(r, 0)); };
@@ -403,4 +403,67 @@ test("without registerHotHydrate the route refresh cannot find an adopted page",
 test("registerHotHydrate returns the adopt factory unchanged without a hot API", () => {
   const adopt = () => null;
   expect(registerHotHydrate(undefined, adopt)).toBe(adopt);
+});
+
+// A minimal compiled-style component: renders `text` into a <p> on connect.
+function labelled(tag, text) {
+  return class extends HTMLElement {
+    static tag = tag;
+    connectedCallback() {
+      if (this._mounted) return;
+      this._mounted = true;
+      const p = document.createElement("p");
+      p.textContent = text;
+      this.replaceChildren(p);
+    }
+  };
+}
+
+test("a renamed component is defined before the importers re-render it", () => {
+  const hot = fakeHot();
+  const reloads = [];
+  __setHotReload(() => reloads.push("reload"));
+  try {
+    registerHotModule(hot, [[labelled("x-hot-before-rename", "old"), "shape"]]);
+    // The edit renames the export, so the module's components change: its importers
+    // must re-run, and the tag they now render has to exist.
+    registerHotModule(hot, [[labelled("x-hot-after-rename", "renamed"), "shape"]]);
+    expect(hot.invalidated).toBe(1);
+    expect(reloads).toEqual([]);
+    expect(customElements.get("x-hot-after-rename") !== undefined).toBe(true);
+    const el = document.createElement("x-hot-after-rename");
+    document.body.append(el);
+    expect(el.textContent).toBe("renamed");
+    el.remove();
+    // A later edit of the renamed component refreshes in place again.
+    registerHotModule(hot, [[labelled("x-hot-after-rename", "edited"), "shape"]]);
+    expect(hot.invalidated).toBe(1);
+  } finally {
+    __setHotReload(() => globalThis.location?.reload());
+  }
+});
+
+test("a component whose shape changed reloads: its defined element cannot take the new class", () => {
+  const hot = fakeHot();
+  const reloads = [];
+  __setHotReload(() => reloads.push("reload"));
+  try {
+    registerHotModule(hot, [[labelled("x-hot-reshaped", "v1"), "props:[]"]]);
+    registerHotModule(hot, [[labelled("x-hot-reshaped", "v2"), "props:[label]"]]);
+    expect(reloads).toEqual(["reload"]);
+    expect(hot.invalidated).toBe(0); // re-running importers would keep the old element
+  } finally {
+    __setHotReload(() => globalThis.location?.reload());
+  }
+});
+
+test("a changed helper export beside a component invalidates, and new elements get the new version", () => {
+  const hot = fakeHot();
+  registerHotModule(hot, [[labelled("x-hot-with-helper", "v1"), "shape"]], true, "export const a = 1;");
+  registerHotModule(hot, [[labelled("x-hot-with-helper", "v2"), "shape"]], true, "export const a = 2;");
+  expect(hot.invalidated).toBe(1);
+  const el = document.createElement("x-hot-with-helper");
+  document.body.append(el);
+  expect(el.textContent).toBe("v2"); // what the re-run importers render
+  el.remove();
 });

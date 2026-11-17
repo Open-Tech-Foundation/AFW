@@ -60,6 +60,7 @@ SVG needs no special syntax. Write plain `<svg>` and its children:
 
 - Everything inside `<svg>` is created in the SVG namespace.
 - `<foreignObject>` switches its children back to HTML.
+- MathML works the same way: everything inside `<math>` is created in the MathML namespace, and an `<svg>` inside it is SVG.
 - Namespaced tags (`<svg:path>`) are not supported: they compile to a literal `svg:path` element, which the browser does not draw.
 
 ## Text and expressions

@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- Development refresh (`@opentf/afw/hmr`): a component whose export was renamed (or a
+  module that gained a component) rendered as an unknown, empty element. The edited
+  module invalidated its importers before defining the new tag, and they re-ran against it.
+  It now defines its components first.
+- Development refresh: a component whose shape changed (a prop added, a state
+  declaration renamed) kept running its old code in the page, since a defined element
+  keeps its class. The page now reloads instead.
+
 - `notFound()` in a loader shows the 404 page on client navigation (`<Link>`,
   `navigate()`, `invalidate()`), as a full page load does. The router used to render
   the target page with `undefined` data. A loader that returns nothing still renders its
