@@ -1,6 +1,6 @@
 ---
 title: Assets & Workers
-description: Bundle module workers and configure public assets in esdev.
+description: Bundle module workers, configure public assets, and reference files from JavaScript in esdev and Vite.
 ---
 
 import { Callout } from "@opentf/afw-docs";
@@ -56,6 +56,8 @@ export default function WorkerStatus() {
 
 ## Ordinary files referenced from JavaScript
 
+### esdev
+
 Name a file relative to the module with `new URL("./icon.svg", import.meta.url)`.
 esdev (0.17 or newer) copies it into the output with a content hash and rewrites the
 URL to the copy. The path must be a literal starting with `./` or `../`. See
@@ -71,3 +73,23 @@ export default function Logo() {
 
 HTML/CSS references use esdev's own browser pipeline. See the official
 [browser build guide](https://esrun.opentechf.org/esdev/build/browser).
+
+### Vite
+
+Import the file. The import is its public URL (`/assets/icon-[hash].svg`), the same in
+the server render and in the browser:
+
+```jsx
+import icon from "./icon.svg";
+
+export default function Logo() {
+  return <img src={icon} alt="" />;
+}
+```
+
+<Callout type="warning" title="Not new URL() on a server-rendered page">
+  - In Vite's server build, `new URL("./icon.svg", import.meta.url)` is a `file://` URL on the server.
+  - The server HTML then points at a local file, which the browser blocks until hydration replaces it.
+  - Vite documents this: the pattern works in the browser only. Import the file instead.
+  - Files smaller than 4 KiB are inlined as `data:` URLs, which work in both places.
+</Callout>
