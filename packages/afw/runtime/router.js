@@ -23,7 +23,7 @@ import { prepareRouteHead, updateRouteHead } from "./head.js";
 import { beginHydration, cursor, endHydration, renderedForPath, runBuild } from "./hydrate.js";
 import { collectHotState, withHotCarry } from "./hot-carry.js";
 import { buildScopedView, runCleanup, runMount } from "./mount.js";
-import { RouteRedirect, fetchRouteData, readInlineRouteData, routeErrorFrom } from "./route-data.js";
+import { RouteNotFound, RouteRedirect, fetchRouteData, isNotFoundPayload, readInlineRouteData, routeErrorFrom } from "./route-data.js";
 import { enterPending, exitPending } from "./pending-scope.js";
 import { setRouteErrorHandler } from "./route-errors.js";
 import { enterEntry, manageScroll, rememberScroll, restoreScroll } from "./scroll.js";
@@ -864,6 +864,8 @@ export async function refreshRouteData() {
     const data = await fetchRouteData(pathname, window.location.search);
     if (seq !== navSeq) return; // a navigation since owns the data
     if (data instanceof RouteRedirect) return followRedirect(data);
+    // The data is gone (`notFound()` now): navigate again, which shows the 404 page.
+    if (data instanceof RouteNotFound) return navigate(pathname + window.location.search, true);
     state.data.value = data;
   } catch (e) {
     reportError(e, { phase: "data", path: pathname });
@@ -995,9 +997,8 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
     if (redirected) return;
   }
 
-  const match =
-    matchRoute(url.pathname) ||
-    (routes.notFound ? { entry: routes.notFound, params: {}, route: null } : null);
+  const notFoundMatch = () => (routes.notFound ? { entry: routes.notFound, params: {}, route: null } : null);
+  let match = matchRoute(url.pathname) || notFoundMatch();
 
   // Loader data (docs/DATA.md): resolved before any state write / history push /
   // DOM swap, mirroring the guard's "settle before commit" flow. First paint over
@@ -1021,6 +1022,12 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
       // The server rendered this page's `error.jsx` (its loader failed).
       dataError = routeErrorFrom(data);
       if (dataError) data = undefined;
+      // The server answered with the 404 page (the loader called `notFound()`): adopt
+      // that markup, inside the root layout, not this route's layout chain.
+      if (isNotFoundPayload(data)) {
+        data = undefined;
+        match = notFoundMatch();
+      }
     } else {
       try {
         const warmed = takePrefetched(url.pathname + url.search);
@@ -1031,6 +1038,12 @@ export async function navigate(path, replace = false, isPop = false, hydrate = f
       }
       if (seq !== navSeq) return; // a newer navigation superseded this one
       if (data instanceof RouteRedirect) return followRedirect(data);
+      // The loader called `notFound()`: show the 404 page, as the server does for a
+      // full page load of this URL, instead of the page with no data.
+      if (data instanceof RouteNotFound) {
+        data = undefined;
+        match = notFoundMatch();
+      }
     }
   }
 

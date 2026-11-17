@@ -123,12 +123,46 @@ describe("navigate + loader data", () => {
     expect(router.data).toEqual({ id: "7" });
   });
 
-  test("a 404 from the endpoint commits with data === undefined", async () => {
-    globalThis.fetch = async () => new Response("null", { status: 404 });
+  test("a loader that returns nothing (200 null) commits the page with null data", async () => {
+    globalThis.fetch = async () => new Response("null", { status: 200 });
     const app = await mountFixture();
     await navigate("/todos");
+    expect(router.data).toBe(null);
+    expect(app.textContent).toContain("todos");
+  });
+
+  test("notFound() in a loader (a 404) shows the 404 page on navigation, not the page", async () => {
+    globalThis.fetch = async () => new Response("null", { status: 404 });
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    const pages = {
+      "/proj/app/page.jsx": { default: page("home") },
+      "/proj/app/notes/[slug]/page.jsx": { default: page("note") },
+      "/proj/app/404.jsx": { default: page("custom 404") },
+    };
+    window.history.replaceState({}, "", "/");
+    mountApp({ pages, target: app, loaders: ["/notes/[slug]"] });
+    await tick();
+    await navigate("/notes/missing");
+    expect(app.textContent).toBe("custom 404");
+    expect(app.textContent).not.toContain("note");
+    expect(router.pathname).toBe("/notes/missing"); // the URL is kept, as on a page load
     expect(router.data).toBe(undefined);
-    expect(app.textContent).toContain("todos"); // navigation still committed
+    expect(router.params).toEqual({});
+
+    // A later navigation to a found page renders normally.
+    globalThis.fetch = async () => Response.json({ slug: "hello" });
+    await navigate("/notes/hello");
+    expect(app.textContent).toBe("note");
+    expect(router.data).toEqual({ slug: "hello" });
+  });
+
+  test("without a 404.jsx, notFound() on navigation shows the built-in 404", async () => {
+    globalThis.fetch = async () => new Response("null", { status: 404 });
+    const app = await mountFixture();
+    await navigate("/items/404");
+    expect(app.textContent).toContain("404");
+    expect(app.textContent).not.toContain("item");
   });
 
   test("a failed fetch is reported and the navigation commits", async () => {

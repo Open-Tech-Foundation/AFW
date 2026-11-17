@@ -8,9 +8,10 @@
 //     servers answer dynamically);
 //   • dev/CSR first load — the same fetch, since there is no server markup.
 //
-// The endpoint returns the raw loader JSON (no envelope): 404 means "no data for
-// this route" (no loader, or the loader called `notFound()`) and maps to
-// `undefined` so the page renders its empty state.
+// The endpoint returns the raw loader JSON (no envelope). A loader that returns
+// nothing answers 200 `null` (and a prerendered page's file holds `null`), so a 404
+// means the loader called `notFound()` or the path has no page: the router shows
+// the 404 page, as a full page load of that URL does.
 
 /** The reserved per-route data filename/URL suffix (`/todos` → `/todos/__data.json`). */
 export const DATA_FILE = "__data.json";
@@ -41,9 +42,15 @@ export class RouteRedirect {
 }
 
 /**
- * Fetch a route's loader data. 200 → the parsed JSON; 404 → `undefined` (no
- * loader / `notFound()`); a redirect → a {@link RouteRedirect}; anything else throws
- * (the router reports it and commits the navigation with no data).
+ * What `fetchRouteData` returns when the endpoint answers 404: the loader called
+ * `notFound()`, or (on a static host) the path was never prerendered.
+ */
+export class RouteNotFound {}
+
+/**
+ * Fetch a route's loader data. 200 → the parsed JSON; 404 → a {@link RouteNotFound};
+ * a redirect → a {@link RouteRedirect}; anything else throws (the router reports it
+ * and commits the navigation with no data).
  */
 export async function fetchRouteData(pathname, search = "") {
   // "manual": a redirect is not data. Following it would fetch an HTML page.
@@ -55,7 +62,7 @@ export async function fetchRouteData(pathname, search = "") {
   if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
     return new RouteRedirect(pathname + search, { reload: true });
   }
-  if (res.status === 404) return undefined;
+  if (res.status === 404) return new RouteNotFound();
   if (!res.ok) {
     const error = Object.assign(new Error(`route data request for ${pathname} failed (${res.status})`), { status: res.status });
     // The endpoint names the layout whose loader failed (see the server's loader registry).
@@ -87,6 +94,20 @@ export function routeErrorPayload(error) {
   // A failed layout loader: the error view replaces that layout, not just the page.
   if (error.afwLayoutRoute) marker[ROUTE_ERROR].layout = error.afwLayoutRoute;
   return JSON.stringify(marker).replace(/</g, "\\u003c");
+}
+
+const NOT_FOUND = "__afwNotFound";
+
+/**
+ * The inline-data payload marking a page the server answered with the 404 page (a
+ * loader called `notFound()`): the URL matches a route, but the markup is the 404
+ * page's, so first paint must adopt that instead of the route's layouts.
+ */
+export const NOT_FOUND_PAYLOAD = JSON.stringify({ [NOT_FOUND]: true });
+
+/** Does the inline data mark a server-rendered 404 page? */
+export function isNotFoundPayload(data) {
+  return !!data && typeof data === "object" && data[NOT_FOUND] === true;
 }
 
 /** The error a {@link routeErrorPayload} carries, as an `Error` with `status`, or null. */

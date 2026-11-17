@@ -18,6 +18,7 @@ import {
   skipNode,
 } from "./hydrate.js";
 import { clientRoute, mountApp, navigate, registerRoutes, routes } from "./router.js";
+import { __resetInlineRouteData, NOT_FOUND_PAYLOAD } from "./route-data.js";
 
 afterEach(() => {
   routes.pages = {};
@@ -145,6 +146,40 @@ describe("router boot — hydrate vs build", () => {
     serverButton.click();
     expect(serverText.data).toBe("4"); // reactivity is live on the adopted node
     expect(serverButton.childNodes[2]).toBe(serverText); // identity unchanged
+  });
+
+  test("a 404 page the server sent for a loader's notFound() adopts as the 404 page, not the route", async () => {
+    // /notes/[slug] has a layout and a loader; the loader called notFound(), so the
+    // server sent the 404 page (inside the root layout) with the not-found marker.
+    const calls404 = {};
+    const routeCalls = [];
+    const recorder = (name) => ({
+      default() { routeCalls.push(`${name} build`); return document.createElement("i"); },
+      hydrateAt() { routeCalls.push(`${name} adopt`); return null; },
+    });
+    registerRoutes({
+      "/proj/app/notes/layout.jsx": recorder("layout"),
+      "/proj/app/notes/[slug]/page.jsx": recorder("page"),
+      "/proj/app/404.jsx": makeModule(calls404),
+    });
+    const root = serverRoot(true);
+    const serverDiv = root.firstChild;
+    window.history.replaceState({}, "", "/notes/missing");
+    const payload = document.createElement("script");
+    payload.type = "application/json";
+    payload.id = "__afw_data";
+    payload.textContent = NOT_FOUND_PAYLOAD;
+    document.body.appendChild(payload);
+    __resetInlineRouteData();
+    try {
+      await mountApp({ target: root, loaders: ["/notes/[slug]"] });
+      expect(calls404.hydrate).toBe(true);
+      expect(calls404.build).toBeUndefined();
+      expect(routeCalls).toEqual([]); // the route's layout and page never ran
+      expect(root.firstChild).toBe(serverDiv); // the server's 404 markup, adopted in place
+    } finally {
+      __resetInlineRouteData();
+    }
   });
 
   test("threads one cursor through a layout chain — layout + page both adopt (2.1c)", async () => {

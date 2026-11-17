@@ -98,8 +98,10 @@ string, so membership is a Set lookup. In `navigate()`:
    DOM swap, the data resolves (inline payload on hydration, endpoint fetch
    otherwise) — fetch-then-commit, like guards;
 2. a navigation-sequence token discards a superseded navigation's late data;
-3. a 404 maps to `data === undefined`; a failed fetch is `reportError`ed
-   (`phase: "data"`) and the navigation still commits with `undefined`.
+3. a 404 (`notFound()`, or a path a static host has no file for) shows the 404
+   page at the requested URL, as a full page load does; `invalidate()` getting a
+   404 does the same. A failed fetch is `reportError`ed (`phase: "data"`) and the
+   navigation still commits with `undefined`.
 
 Pages read the reactive **`router.data`** (the compiler does not emit page props
 yet — same reason as `router.params`).
@@ -107,7 +109,10 @@ yet — same reason as `router.params`).
 ### Error semantics
 
 `notFound()` (`@opentf/afw/server`) → SSR renders the registered 404 page with
-HTTP 404; the data endpoint 404s; prerender records the path as failed. Any
+HTTP 404, its inline data marked `{"__afwNotFound":true}` so first paint adopts it
+as the 404 page (inside the root layout, not the route's layouts); the data
+endpoint 404s, and client navigation shows the 404 page; prerender records the
+path as failed. Any
 other throw → 500 (page and endpoint). Redirects from loaders are **out of
 scope** until actions/Phase B.
 

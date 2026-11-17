@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- `notFound()` in a loader shows the 404 page on client navigation (`<Link>`,
+  `navigate()`, `invalidate()`), as a full page load does. The router used to render
+  the target page with `undefined` data. A loader that returns nothing still renders its
+  page.
+- A server-rendered 404 page for a loader's `notFound()` hydrates under a nested layout.
+  The router adopted the route's layout chain, hit a mismatch against the root layout's
+  markup and left the content blank. The 404 page's inline data now marks it
+  (`isNotFoundPayload`), and first paint adopts it as the 404 page.
+
 - `<ErrorBoundary>` renders a JSX fallback (`fallback={(error, reset) => <div>…</div>}`) on
   server-rendered pages. Their build passes the JSX as a compiled value rather than a
   DOM node, and the boundary showed its built-in alert instead. Any value a JSX hole

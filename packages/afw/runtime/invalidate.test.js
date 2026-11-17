@@ -95,6 +95,26 @@ describe("invalidate", () => {
     expect(plain.data.v.n).toBe(2);
   });
 
+  test("invalidate() shows the 404 page once the page's loader calls notFound()", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    routes.pages = {}; routes.layouts = {}; routes.loaderRoutes = new Set();
+    window.history.replaceState({}, "", "/notes/a");
+    const view = (text) => () => Object.assign(document.createElement("p"), { textContent: text });
+    mountApp({
+      pages: { "/p/app/notes/[slug]/page.jsx": { default: view("note") }, "/p/app/404.jsx": { default: view("gone") } },
+      target: app, loaders: ["/notes/[slug]"],
+    });
+    await settle();
+    expect(app.textContent).toBe("note");
+    globalThis.fetch = async () => new Response("null", { status: 404 }); // the note was deleted
+    await invalidate();
+    await settle();
+    expect(app.textContent).toBe("gone");
+    expect(router.pathname).toBe("/notes/a");
+    routes.notFound = null;
+  });
+
   test("rejects what is not a server function", async () => {
     await expect(invalidate(() => 1)).rejects.toThrow("server functions");
   });

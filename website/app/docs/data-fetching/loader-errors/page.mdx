@@ -23,6 +23,10 @@ export default function loader({ params }) {
 }
 ```
 
+- A full page load gets the 404 page with status 404, inside the root layout. The route's own layouts are left out.
+- Client navigation (a `<Link>`, `navigate()`) shows the same 404 page and keeps the URL. The page never renders without its data.
+- `invalidate()` shows the 404 page too, once the loader calls `notFound()`.
+
 ## Redirects and refusals
 
 A loader can throw a `Response`, as API routes and server functions can:
