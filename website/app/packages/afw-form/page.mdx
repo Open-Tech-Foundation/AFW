@@ -28,6 +28,10 @@ Install the package from npm with your preferred package manager:
 pnpm add @opentf/afw-form
 ```
 
+- The package ships TypeScript declarations.
+- `createForm<T>()` types `form.values`, `reset()` and the `handleSubmit` callback from
+  `T` (or from `initialValues` when it can infer them).
+
 ## createForm
 
 `createForm` returns a stable form object holding reactive `values`, `errors`, and

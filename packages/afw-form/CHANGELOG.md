@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- TypeScript declarations (`index.d.ts`): `createForm<T>` types `values`, `reset` and the
+  `handleSubmit` callback from the form's value shape, plus the options, the `register`
+  binding, the status flags and `FormErrors`.
+
 ## [1.34.0] - 2026-11-13
 
 _Dependency updates._
