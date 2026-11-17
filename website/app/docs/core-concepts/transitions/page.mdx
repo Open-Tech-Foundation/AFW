@@ -31,10 +31,6 @@ export default function Notice() {
 - **Leaving:** the element stays in place, plays the animation in reverse, and is removed when it ends.
 - **No runtime cost when unused:** apps without transitions load none of the transition code.
 
-<Callout type="info" title="New in the next release">
-  Transitions ship in the `@opentf/afw` and `@opentf/afw-compiler` releases after 0.37.0 and 0.24.0.
-</Callout>
-
 ## The props
 
 | Prop | Animates |
@@ -51,6 +47,30 @@ export default function Notice() {
 - **SVG filter inputs.** `<feBlend in="SourceGraphic">` keeps `in` as an attribute.
 - **Expressions only.** `transition="fade"` is a compile error; write `transition={fade()}`.
 - **No transition.** A `null`, `undefined` or `false` value turns it off, for example `transition={reduced ? null : fade()}`.
+
+### Changing the transition re-creates the element
+
+The transition is chosen when the element is created. State read in the expression
+belongs to the conditional or list item that creates the element, so a change to that
+state replaces the element:
+
+```jsx
+let fast = $state(false);
+// Each change of `fast` removes this <div> and inserts a new one.
+{open && <div transition={fast ? fade({ duration: 80 }) : slide()}>…</div>}
+```
+
+- **Two elements for a moment.** The old element plays its exit while the new one plays its entry.
+- **Stale text.** The leaving element's bindings have stopped updating, so it may show an old value until it is gone.
+- **Lost state.** Focus, scroll and input state in the old element do not carry over.
+- **Keep the value steady.** Choose the transition once, in a plain constant, so no state change rebuilds the element:
+
+```jsx
+const enter = slide({ duration: 200 });
+{open && <div transition={enter}>…</div>}
+```
+
+- **Reduced motion needs no check.** Transitions already skip animating under `prefers-reduced-motion: reduce`.
 
 ## Built-in transitions
 
