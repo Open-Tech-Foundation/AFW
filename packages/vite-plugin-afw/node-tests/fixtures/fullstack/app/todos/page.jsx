@@ -11,6 +11,7 @@ export default function Todos() {
     <section>
       <ul id="todos">{(router.data?.todos ?? []).map((t) => <li>{t}</li>)}</ul>
       <p id="live-count">{live.data ? live.data.todos.length : ""}</p>
+      <p id="loader-from">{router.data?.from ?? "loader"}</p>
     </section>
   );
 }

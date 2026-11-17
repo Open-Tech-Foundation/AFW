@@ -43,6 +43,9 @@ const SERVER_PREFIX = `\0${SERVER_ID}:`;
 // The built server's entry: starts the Node server around `@afw/server`.
 const NODE_SERVER_ID = "@afw/node-server";
 const ROUTE_FILE = /(?:^|\/)(?:(?:page|layout|404|loading|error)\.(?:mdx|md|jsx|tsx)|loader\.(?:js|ts)|routeGuard\.(?:js|ts)|_config\.(?:js|ts))$/;
+// Files only the server runs (a `.server` module's browser stub is HMR'd as usual).
+const SERVER_ONLY_FILE = /(?:^|\/)(?:route\.(?:jsx?|tsx?)|_middleware\.(?:jsx?|tsx?)|(?:layout\.)?loader\.(?:js|ts)|[^/]+\.server\.(?:[cm]?js|[cm]?ts))$/;
+const LOADER_FILE = /(?:^|\/)(?:layout\.)?loader\.(?:js|ts)$/;
 const SERVER_FILE = /(?:^|\/)(?:route\.(?:jsx?|tsx?)|_middleware\.(?:jsx?|tsx?)|loader\.(?:js|ts)|page\.(?:mdx|md|jsx|tsx)|[^/]+\.server\.(?:[cm]?js|[cm]?ts))$/;
 // The dev server's fallback: nothing on the app's server answered, so Vite serves it.
 const PASS_HEADER = "x-afw-vite-pass";
@@ -124,6 +127,7 @@ export default function afw({
   if (![true, false, "auto"].includes(serverBuild)) throw new Error(`AFW server option must be true, false or "auto"`);
 
   let command = "serve";
+  let liveServer = null; // the dev server, for `afw:server-update`
   // Under Vitest (mode "test"), modules compile for the test's DOM environment:
   // client rendering, no refresh code, framework imports left as they are.
   let testing = false;
@@ -319,7 +323,26 @@ export default function afw({
       projectRoot = slash(config.root);
     },
 
+    // A server-only edit: once the SSR graph has dropped the old module (Vite calls this
+    // after invalidating it), tell the page, which refetches its data in place
+    // (runtime/hmr.js), and return no modules, so Vite does not reload the page for code
+    // the browser never runs. esdev sends `esdev:server-update` for the same edits.
+    hotUpdate({ file }) {
+      if (!liveServer) return;
+      const path = slash(file);
+      if (!SERVER_ONLY_FILE.test(path)) return;
+      if (this.environment?.name === "ssr") {
+        const client = liveServer.environments?.client?.hot ?? liveServer.ws;
+        client.send({ type: "custom", event: "afw:server-update", data: { files: [path] } });
+        return [];
+      }
+      // The browser's route table watches loader files for their paths only (a loader
+      // that comes or goes rebuilds it): an edit to one changes nothing in the browser.
+      if (this.environment?.name === "client" && LOADER_FILE.test(path)) return [];
+    },
+
     configureServer(devServer) {
+      liveServer = devServer;
       devServer.httpServer?.once("close", closeCompiler);
       // A new or deleted route file changes the route table, not just one module; a
       // new or deleted server file changes `@afw/server`.

@@ -137,6 +137,11 @@ try {
   const fnsFile = join(dir, "app", "todos", "todos.server.js");
   await writeFile(fnsFile, (await readFile(fnsFile, "utf8")).replace("return { added: title,", "return { added: title.toUpperCase(),"));
   check(await until("__todosFns.addTodo({ title: 'y' }).then((r) => r.added === 'Y')"), "an edited server function answers without a restart");
+  // A loader is server-only: the page loads nothing from it, so only afw:server-update
+  // tells the page, which refetches its loader data in place.
+  const loaderFile = join(dir, "app", "todos", "loader.js");
+  await writeFile(loaderFile, (await readFile(loaderFile, "utf8")).replace("return listTodos({}, { locals });", 'return { ...(await listTodos({}, { locals })), from: "edited" };'));
+  check(await until("document.getElementById('loader-from')?.textContent === 'edited'"), "a loader edit refetches the page's loader data in place");
   check((await evaluate("window.__marker")) === "kept", "calling server functions does not reload");
   if (ssr) {
     // A fresh load, so the edits below refresh views the client adopted.

@@ -2,7 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- A server-only edit in the dev server (`*.server.*`, `loader.*`, `layout.loader.*`,
+  `_middleware.*`, `route.*`) sends `afw:server-update` once Vite has dropped the old
+  module, and the page refetches its data in place.
+
 ### Fixed
+
+- Editing a `loader.*` no longer reloads the page in the dev server. The browser's
+  route table watches loader files for their paths only, and Vite reloaded for them as
+  for any module nothing accepted.
 
 - `vite build` prints the route table, and the route-policy warnings, once. Vite resolves
   the config again for each environment it builds, so they appeared three times.
