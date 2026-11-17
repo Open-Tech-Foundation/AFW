@@ -245,6 +245,14 @@ export async function renderDocument(render, {
   return { status, html: document, dataJson, loaded: !!match, metadata, route: result.route ?? null };
 }
 
+/**
+ * The inline route data of a 404 page, so the client adopts it as the 404 page even
+ * where the URL matches a route (a loader's `notFound()`, or a static host serving
+ * 404.html for a path it has no file for). Mirrors `NOT_FOUND_PAYLOAD` in the
+ * `@opentf/afw` runtime (runtime/route-data.js).
+ */
+export const NOT_FOUND_DATA = '{"__afwNotFound":true}';
+
 /** The 404 page as a document (`noindex`), or `null` when the app has none. */
 export async function renderNotFound(render, { shell, baseUrl = "", preload = "" } = {}) {
   const result = await render.renderRoute("/__afw_404__");
@@ -253,7 +261,7 @@ export async function renderNotFound(render, { shell, baseUrl = "", preload = ""
   if (preload) head += `\n${preload}`;
   return {
     status: 404,
-    html: injectHydrationData(injectMarkup(injectHead(shell, head), result.html), result.hydration),
+    html: injectRouteData(injectHydrationData(injectMarkup(injectHead(shell, head), result.html), result.hydration), NOT_FOUND_DATA),
     dataJson: "",
     loaded: false,
     metadata: result.metadata ?? {},

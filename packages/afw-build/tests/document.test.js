@@ -1,7 +1,15 @@
 import { describe, expect, test } from "runtime:test";
 
 import { alternateLinks, localizePath, renderDocument, renderNotFound, splitLocale, stampHydrateSentinel } from "../index.js";
-import { injectHead } from "../document.js";
+import { injectHead, NOT_FOUND_DATA } from "../document.js";
+import { isNotFoundPayload, NOT_FOUND_PAYLOAD } from "../../afw/runtime/route-data.js";
+
+test("the 404 marker matches the runtime's", () => {
+  expect(NOT_FOUND_DATA).toBe(NOT_FOUND_PAYLOAD);
+  expect(isNotFoundPayload(JSON.parse(NOT_FOUND_DATA))).toBe(true);
+  expect(isNotFoundPayload({ title: "x" })).toBe(false);
+  expect(isNotFoundPayload(null)).toBe(false);
+});
 
 const SHELL = `<!doctype html><html><head><title>Shell</title></head><body><div id="app"></div></body></html>`;
 
@@ -68,6 +76,8 @@ describe("renderDocument", () => {
     const doc = await renderDocument(fakeRender(), { shell: SHELL, url: "/todos", loaders: fakeLoaders("notFound") });
     expect(doc.status).toBe(404);
     expect(doc.html).toContain("Not found");
+    // Marked, so the client adopts it as the 404 page rather than the /todos route.
+    expect(doc.html).toContain(`<script type="application/json" id="__afw_data">${NOT_FOUND_DATA}</script>`);
     await expect(renderDocument(fakeRender(), { shell: SHELL, url: "/todos", loaders: fakeLoaders("notFound"), notFound: "throw" })).rejects.toThrow("nf");
   });
 

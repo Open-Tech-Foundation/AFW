@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `renderNotFound` marks the 404 document's inline route data (`NOT_FOUND_DATA`, the
+  runtime's not-found marker). The client then adopts it as the 404 page where the URL
+  matches a route: a loader's `notFound()`, or a static host serving `404.html` for a path
+  it has no file for. Without the marker, hydration under a nested layout left the page blank.
+
 ## [0.6.0] - 2026-11-13
 
 ### Removed
