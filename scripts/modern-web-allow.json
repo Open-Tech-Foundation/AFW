@@ -1,0 +1,8 @@
+[
+  {
+    "target": "packages/afw",
+    "rule": "js/structured-clone",
+    "file": "server/ssg-runtime.js",
+    "reason": "Not a deep copy: the JSON round-trip filters island props to what the hydration payload can carry, dropping functions and undefined. structuredClone() would throw on a function prop (the rubric's drop case)."
+  }
+]

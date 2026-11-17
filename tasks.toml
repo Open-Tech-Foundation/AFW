@@ -56,6 +56,14 @@ run = "esdev typecheck"
 [tasks.build-compiler]
 run = "cargo build"
 
+# Modern web platform patterns in the code that ships HTML, CSS and client JS: the
+# pinned `modern-web-guidance` scanner, with verified exceptions in
+# scripts/modern-web-allow.json. It joins `tsr test` (and so CI) once the scanner is
+# pinned as a root devDependency: 1.0.1 clears pnpm's minimum release age on 2026-11-17
+# (1.0.0 carries no scan rules).
+[tasks.check-web]
+run = "node scripts/check-modern-web.mjs"
+
 [tasks.test-rust]
 deps = ["build-compiler"]
 run = "cargo test"
