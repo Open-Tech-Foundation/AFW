@@ -67,7 +67,16 @@ export default function PendingPage() {
 export default function Slow() { return <p id="slow-page">{router.data?.ok}</p>; }
 `);
   await page("links/page.jsx", `import { Link } from "@opentf/afw";
-export default function Links() { return <nav><Link href="/slow">slow</Link> <Link href="/broken">broken</Link></nav>; }
+export default function Links() { return <nav><Link href="/slow">slow</Link> <Link href="/broken">broken</Link> <Link href="/notes/missing">missing note</Link> <Link href="/notes/hello">note</Link></nav>; }
+`);
+  // notFound() from a loader under a nested layout, and the app's 404 page.
+  await page("404.jsx", `export default function NotFound() { return <p id="not-found">no such page</p>; }\n`);
+  await page("notes/layout.jsx", `export default function Notes({ children }) { return <section id="notes-shell">{children}</section>; }\n`);
+  await page("notes/[slug]/loader.js", `import { notFound } from "@opentf/afw/server";
+export default function loader({ params }) { if (params.slug !== "hello") notFound(); return { title: "Hello note" }; }
+`);
+  await page("notes/[slug]/page.jsx", `import { router } from "@opentf/afw";
+export default function Note() { return <p id="note-page">{router.data?.title}</p>; }
 `);
   // Layout loaders: one feeding a shell and two pages (one without a loader of its own),
   // and one that fails under an error.jsx above it.
@@ -228,6 +237,29 @@ export default function Dashboard() {
   await evaluate(`document.querySelector('a[href="/slow"]').click()`);
   check(await until(shows("slow-loading"), 800), "a slow navigation shows loading.jsx");
   check(await until(`document.getElementById('slow-page')?.textContent === 'loaded' && ${shows("slow-page")} && !${shows("slow-loading")}`), "the page replaces loading.jsx once its data arrives");
+
+  // notFound() in a loader: the 404 page, on client navigation as on a page load.
+  await send("Page.navigate", { url: `${origin}/links` });
+  check(await until("document.readyState === 'complete' && !!document.querySelector('a[href=\"/notes/missing\"]')"), "the links page loads again");
+  await evaluate("window.__marker = 'links'");
+  await evaluate(`document.querySelector('a[href="/notes/missing"]').click()`);
+  check(await until("!!document.getElementById('not-found') && location.pathname === '/notes/missing'"), "notFound() on client navigation shows the 404 page at the URL");
+  check(!(await evaluate("!!document.getElementById('note-page') || !!document.getElementById('notes-shell')")), "the page and its layout are not rendered with no data");
+  check((await evaluate("window.__marker")) === "links", "the 404 navigation does not reload");
+  await evaluate("history.back()");
+  check(await until("!!document.querySelector('a[href=\"/notes/hello\"]')"), "back returns to the links page");
+  await evaluate(`document.querySelector('a[href="/notes/hello"]').click()`);
+  check(await until("document.getElementById('note-page')?.textContent === 'Hello note' && !!document.getElementById('notes-shell')"), "a found note renders inside its layout on client navigation");
+  const missing = await fetch(`${origin}/notes/missing`, { headers: { accept: "text/html" } });
+  const missingHtml = await missing.text();
+  check(missing.status === 404 && missingHtml.includes('id="not-found"') && !missingHtml.includes('id="notes-shell"'), `notFound() under a nested layout renders the 404 page with status 404 (got ${missing.status})`);
+  await send("Page.navigate", { url: `${origin}/notes/missing` });
+  check(await until("document.readyState === 'complete' && !!document.getElementById('not-found')"), "the 404 page shows in the browser");
+  await delay(300);
+  check(await evaluate("document.getElementById('not-found')?.textContent === 'no such page' && !document.getElementById('note-page')"), "hydration keeps the 404 view under a nested layout");
+  check((await evaluate("JSON.stringify(window.__removed)")) === "[]", `the 404 page adopts the server DOM (removed: ${await evaluate("JSON.stringify(window.__removed)")})`);
+  await send("Page.navigate", { url: `${origin}/notes/hello` });
+  check(await until("document.readyState === 'complete' && document.getElementById('note-page')?.textContent === 'Hello note'"), "a found note loads directly");
 
   // Layout loaders: the merged data reaches the shell and the page on the server.
   const shellHtml = await (await fetch(`${origin}/shell`)).text();
