@@ -48,6 +48,9 @@ jobs:
       # What `tsr test` runs lives in tasks.toml (Rust + esdev suites).
       - name: Typecheck
         run: tsr typecheck
+      # The pinned modern-web-guidance scanner over browser code (scripts/check-modern-web.mjs).
+      - name: Modern web check
+        run: tsr check-web
       - run: tsr test
       - name: Release site build with prerendering and search
         run: tsr site-build

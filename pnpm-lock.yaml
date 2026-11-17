@@ -26,6 +26,9 @@ importers:
       '@opentf/std':
         specifier: ^0.19.0
         version: 0.19.0
+      modern-web-guidance:
+        specifier: 1.0.1
+        version: 1.0.1
       tailwindcss:
         specifier: ^4.2.2
         version: 4.2.2
@@ -1713,6 +1716,11 @@ packages:
     resolution: {integrity: sha512-V41TxLjX1Dq4pys8X5GAl/CrUY0//QcXCIdYwy01Cev+JdsWOWzzN0IP45lojgw+fEVY9QdepzVIziT2IxhbUQ==}
     engines: {node: '>=22.0.0'}
 
+  modern-web-guidance@1.0.1:
+    resolution: {integrity: sha512-5ztUh5F1p2PewnSkA6EhsGUXqomaZY9qe6iWJCU4JbIQxHTky7s5lMJcPE4EbD1uhbQZIhl0HROH0+s6fIiGzg==}
+    engines: {node: '>=22.0.0', vscode: ^1.90.0}
+    hasBin: true
+
   monaco-editor@0.52.2:
     resolution: {integrity: sha512-GEQWEZmfkOGLdd3XK8ryrfWz3AIP8YymVXiPHEdewrUq7mh0qrKrfHLNCXcbB6sTnMLnOZ3ztSiKcciFUkIJwQ==}
 
@@ -3208,6 +3216,8 @@ snapshots:
       - '@types/node'
       - bufferutil
       - utf-8-validate
+
+  modern-web-guidance@1.0.1: {}
 
   monaco-editor@0.52.2: {}
 
