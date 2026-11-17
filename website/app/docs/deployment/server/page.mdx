@@ -29,6 +29,9 @@ The AFW plugin generates `@afw/server` from `app/`, in both workflows:
 serves the client, answers the app's server code and renders pages. For your own
 server, import `createHandler` from `dist/server/app.js`.
 
+- **Start it** with `node dist/server/index.js`, the starter's `start` script. `PORT` and `HOST` come from the environment.
+- **Bun runs it too:** `bun dist/server/index.js`, for a deploy without Node. The starter's `start` script keeps `node`; call Bun directly, or change the script.
+
 **esdev + ES-Runtime** — the app owns its server entry, a server target:
 
 ```js

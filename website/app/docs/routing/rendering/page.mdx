@@ -93,6 +93,10 @@ app/
 - **Dynamic routes:** the pages `paths` lists are prebuilt; any other matching URL is
   rendered when it is requested.
 - In a fully static app, client pages are prebuilt as their layouts around an empty slot.
+- **No sitemap or `robots.txt` in an app with a server.** Only its static pages are
+  prebuilt, so a generated sitemap would list just those. Put your own in
+  `public/sitemap.xml` and `public/robots.txt`, or answer them from an
+  [API route](/docs/routing/api-routes). A fully static app generates both (with a site URL).
 
 <Callout type="note" title="esdev apps with a server">
   The esdev workflow prebuilds the static pages of a fully static site. In an app with a
@@ -125,6 +129,9 @@ app/
 - **Development works like production:** both dev servers render each page by its policy,
   static pages on request. A fully static esdev site (no server) renders in the browser in
   development.
+- **The Vite dev server renders pages for browser requests only,** those that accept
+  `text/html`. A plain `curl` gets the client shell; send the header to see the server
+  render: `curl -H "accept: text/html" http://localhost:5173/todos`.
 
 ## One browser-only widget
 
