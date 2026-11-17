@@ -11,6 +11,22 @@ describe("compareRoutes", () => {
     ]);
   });
 
+  test("a page outranks its sibling optional catch-all, which matches its URL too", () => {
+    expect(rank("/qa/routing/[[...filters]]", "/qa/routing")).toEqual(["/qa/routing", "/qa/routing/[[...filters]]"]);
+    expect(rank("/qa/routing", "/qa/routing/[[...filters]]")).toEqual(["/qa/routing", "/qa/routing/[[...filters]]"]);
+    expect(rank("/shop/[[page]]", "/shop")).toEqual(["/shop", "/shop/[[page]]"]);
+    expect(rank("/a/[[b]]/[[...c]]", "/a")).toEqual(["/a", "/a/[[b]]/[[...c]]"]);
+    // Groups are dropped before ranking.
+    expect(rank("/(shop)/shop/[[...f]]", "/shop")).toEqual(["/shop", "/(shop)/shop/[[...f]]"]);
+  });
+
+  test("a required extra segment still makes the longer route more specific", () => {
+    expect(rank("/docs", "/docs/[slug]")).toEqual(["/docs/[slug]", "/docs"]);
+    expect(rank("/docs", "/docs/[...rest]")).toEqual(["/docs/[...rest]", "/docs"]);
+    // A required segment after an optional one is not optional as a whole.
+    expect(rank("/a", "/a/[[b]]/c")).toEqual(["/a/[[b]]/c", "/a"]);
+  });
+
   test("ranking ignores param name length", () => {
     expect(rank("/api/[...r]", "/api/[identifier]")).toEqual(["/api/[identifier]", "/api/[...r]"]);
     expect(rank("/api/[...everything]", "/api/[id]")).toEqual(["/api/[id]", "/api/[...everything]"]);

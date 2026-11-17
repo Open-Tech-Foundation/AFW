@@ -62,6 +62,17 @@ describe("route groups and optional segments on the server", () => {
   });
 });
 
+describe("route precedence on the server", () => {
+  test("a page answers its own URL ahead of a sibling optional catch-all", async () => {
+    registerRoutes({
+      "/app/qa/routing/[[...filters]]/page.jsx": page(({ params }) => `<p>filters ${params.filters.join(",")}</p>`),
+      "/app/qa/routing/page.jsx": page("<p>routing</p>"),
+    });
+    expect((await renderRoute("/qa/routing")).html).toBe("<p>routing</p>");
+    expect((await renderRoute("/qa/routing/red/large")).html).toBe("<p>filters red,large</p>");
+  });
+});
+
 describe("error.jsx on the server", () => {
   test("a failure renders the nearest error.jsx inside the layouts, status 500, with the client marker", async () => {
     registerRoutes({

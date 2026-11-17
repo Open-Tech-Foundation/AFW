@@ -198,6 +198,27 @@ describe("router", () => {
     expect(router.query.q).toBe("1");
   });
 
+  test("a page answers its own URL ahead of a sibling optional catch-all", async () => {
+    const app = document.createElement("div");
+    document.body.appendChild(app);
+    const pages = {
+      "/proj/app/qa/routing/[[...filters]]/page.jsx": { default: page("filters") },
+      "/proj/app/qa/routing/page.jsx": { default: page("routing") },
+    };
+    window.history.replaceState({}, "", "/qa/routing");
+    mountApp({ pages, target: app });
+    await tick();
+    expect(app.textContent).toBe("routing");
+
+    await navigate("/qa/routing/red/large");
+    expect(app.textContent).toBe("filters");
+    expect(router.params.filters).toEqual(["red", "large"]);
+
+    await navigate("/qa/routing");
+    expect(app.textContent).toBe("routing");
+    app.remove();
+  });
+
   test("route guard receives pathname, fullPath, params, and query", async () => {
     const app = document.createElement("div");
     document.body.appendChild(app);

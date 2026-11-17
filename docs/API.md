@@ -36,7 +36,8 @@ convention as pages:
 | `app/api/files/[...path]/route.js` | `/api/files/*` (rest → array) |
 
 Static routes take precedence over dynamic ones; a longer (more specific) match
-wins. A folder may hold a `page.*` **or** a `route.*`, not both — the toolchain
+wins, unless its extra segments are all optional: `/shop` answers `/shop` ahead of
+`/shop/[[...filters]]`. A folder may hold a `page.*` **or** a `route.*`, not both — the toolchain
 errors on the conflict (as in Next.js's App Router).
 
 ## 3. Method handlers

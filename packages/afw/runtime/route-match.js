@@ -125,17 +125,24 @@ const segmentKind = (seg) => {
 /**
  * Sort comparator: more specific routes first, by URL (groups dropped). Compares
  * segment kinds left to right (static < `[param]` < `[[param]]` < `[...rest]` <
- * `[[...rest]]`); with equal kinds the route with more segments is more specific; the
- * final tie-break is lexical, for a deterministic order.
+ * `[[...rest]]`). With equal kinds, the route with more segments is more specific —
+ * unless every extra segment is optional: then both match the shorter URL, and the
+ * route that names it exactly wins (`/shop` before `/shop/[[...filters]]`). The final
+ * tie-break is lexical, for a deterministic order.
  */
 export function compareRoutes(a, b) {
   const sa = urlOf(a).split("/").filter(Boolean);
   const sb = urlOf(b).split("/").filter(Boolean);
-  for (let i = 0; i < Math.min(sa.length, sb.length); i++) {
+  const shared = Math.min(sa.length, sb.length);
+  for (let i = 0; i < shared; i++) {
     const d = segmentKind(sa[i]) - segmentKind(sb[i]);
     if (d !== 0) return d;
   }
-  if (sa.length !== sb.length) return sb.length - sa.length;
+  if (sa.length !== sb.length) {
+    const extra = (sa.length > sb.length ? sa : sb).slice(shared);
+    const longerFirst = sb.length - sa.length;
+    return extra.every((seg) => OPTIONAL.test(seg)) ? -longerFirst : longerFirst;
+  }
   return a < b ? -1 : a > b ? 1 : 0;
 }
 

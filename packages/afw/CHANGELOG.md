@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- Route ranking: a page answers its own URL ahead of a sibling optional route.
+  `/shop` used to lose to `/shop/[[...filters]]` (or `/shop/[[page]]`), since both match
+  `/shop` and the longer one ranked first. This applies to the router and the server alike.
+
 - JSX types: `key` type-checks on host elements (`<li key={todo.id}>`), not only on
   components, so keyed lists compile under `tsc` without a local shim.
 - JSX types: listener modifiers on host elements (`onclick:once`,

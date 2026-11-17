@@ -17,6 +17,7 @@ Wrap a folder name in brackets to capture a path segment.
 - **`[param]`** matches one segment; **`[...rest]`** is a catch-all matching the remainder.
 - **`[[param]]`** and **`[[...rest]]`** are optional: the URL matches with or without them, and an absent one is `undefined`.
 - **Ranking:** static beats `[param]`, then `[[param]]`, then `[...rest]`, then `[[...rest]]`, segment by segment. So `/guide/intro` wins over `/guide/[[...slug]]`.
+- **A page beats its optional sibling:** `app/shop/page.jsx` answers `/shop` even when `app/shop/[[...filters]]/page.jsx` exists, since both match that URL. The optional route still answers `/shop/red/large`.
 - **Folders in parentheses** are [route groups](/docs/routing/route-groups): not part of the URL.
 
 ## Reading params
