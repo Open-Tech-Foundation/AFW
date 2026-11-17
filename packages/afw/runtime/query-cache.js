@@ -12,6 +12,10 @@
 //
 // Keys: `endpoint + encoded input`, with plain-object keys sorted, so `{ a, b }` and
 // `{ b, a }` are the same entry. Cached data is shared: treat it as immutable.
+//
+// Overlays: `optimistic()` stacks an updater on an entry while an action runs. Readers
+// see the entry's *view* (its data through every overlay); fetches and writes replace
+// the data underneath, and the overlay comes off when the action settles.
 
 import { encode } from "../core/fn-codec.js";
 
@@ -88,6 +92,10 @@ function entryFor(key) {
       // What the fetcher behind a custom key called (endpoints and call keys), so a
       // cache hit, which runs no fetcher, still registers for `invalidate()`.
       deps: null,
+      // The server function call behind the entry, `[endpoint, input]` (an action sends
+      // the shown calls so it can refresh them), or null for a custom key.
+      call: null,
+      overlays: [],
     };
     entries.set(key, e);
   }
@@ -97,6 +105,25 @@ function entryFor(key) {
 /** The entry for `key`, if one exists (no entry is created). */
 export function peek(key) {
   return entries.get(key);
+}
+
+/** What readers see of `e`: its data through every optimistic overlay. */
+export function viewOf(e) {
+  let value = e.data;
+  for (const overlay of e.overlays) value = overlay(value);
+  return value;
+}
+
+/** Tell the resources showing `e` that its view changed. */
+function notify(e) {
+  if (e.listeners.size === 0) return;
+  const value = viewOf(e);
+  for (const listener of [...e.listeners]) listener(value);
+}
+
+/** Every entry, for invalidation and optimistic updates (`[key, entry]`). */
+export function allEntries() {
+  return entries.entries();
 }
 
 /** Does `e` hold data younger than `staleTime`? */
@@ -113,7 +140,20 @@ export function write(key, data, deps) {
   e.stale = false;
   if (deps) e.deps = deps;
   if (e.users === 0) e.idleSince = e.updatedAt;
-  for (const listener of [...e.listeners]) listener(data);
+  notify(e);
+  return e;
+}
+
+/** Stack `overlay` on `e` (an optimistic update); returns its removal. */
+export function addOverlay(e, overlay) {
+  e.overlays.push(overlay);
+  notify(e);
+  return () => {
+    const i = e.overlays.indexOf(overlay);
+    if (i === -1) return;
+    e.overlays.splice(i, 1);
+    notify(e);
+  };
 }
 
 /**
@@ -121,9 +161,10 @@ export function write(key, data, deps) {
  * request made with `start(signal)`. `signal` aborts this caller only; the request
  * stops once every caller has aborted.
  */
-export function fetchShared(key, start, { signal, staleTime = 0, deps } = {}) {
+export function fetchShared(key, start, { signal, staleTime = 0, deps, call } = {}) {
   const e = entryFor(key);
-  if (isFresh(e, staleTime)) return Promise.resolve(e.data);
+  if (call) e.call ??= call;
+  if (isFresh(e, staleTime)) return Promise.resolve(viewOf(e));
   if (!e.flight) {
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     const flight = { controller, active: 0, entry: e, promise: null };
@@ -134,6 +175,7 @@ export function fetchShared(key, start, { signal, staleTime = 0, deps } = {}) {
         if (e.flight === flight) {
           e.flight = null;
           write(key, data, deps?.());
+          return viewOf(e); // through any optimistic overlay still on it
         }
         return data;
       },

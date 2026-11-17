@@ -4,6 +4,20 @@
 
 ### Added
 
+- Single-flight updates: an action calls `refresh(listTodos)` from its context, and the
+  fresh data for every input the page shows comes back with the action's response. The
+  page updates in one round trip. `refresh(getTodo, { id })` re-runs one input.
+- Only queries in the action's folder or a parent folder are re-run in the action's
+  request; the browser refetches the others through their own middleware.
+- `optimistic(promise, query, update)` shows `update(data)` on the cached query until the
+  action settles: the refreshed data shows on success, the previous data on failure.
+- `setQueryData(query, input, value)` writes one cached call, for realtime pushes.
+- Query calls whose request never reached the server are retried twice (300 ms, 1 s).
+  HTTP errors and actions are not retried.
+- New resource options: `timeout` aborts a slow run with a `TimeoutError`, and
+  `revalidateOn: "focus" | "online"` refetches stale data when the tab is shown again or
+  the browser reconnects.
+
 - A query cache for server functions and keyed resources. Resources that show the same
   call share one request and the same data, and a refetch in one updates them all.
 - A remounted cached resource shows its data at once (a `<Pending>` shows the content

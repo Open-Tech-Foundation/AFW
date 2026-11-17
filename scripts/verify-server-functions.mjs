@@ -88,16 +88,24 @@ export const addTodo = action(async ({ title } = {}, { locals }) => {
 });
 let hitCount = 0;
 export const hits = query(async () => ({ n: ++hitCount }));
+export const countTodos = query(async () => todos.length);
+export const addCounted = action(async ({ title }, { refresh }) => {
+  todos.push(title);
+  refresh(countTodos);
+  return true;
+});
 export const SECRET = "server-only-secret-5d1e";`);
 await write(`${project}/app/todos/loader.js`, `import { listTodos } from "./todos.server.js";
 export default async function loader({ locals }) { return listTodos(undefined, { locals }); }`);
-await write(`${project}/app/todos/page.jsx`, `import { router } from "@opentf/afw";
-import { addTodo, hits, listTodos } from "./todos.server.js";
+await write(`${project}/app/todos/page.jsx`, `import { resource, router } from "@opentf/afw";
+import { addCounted, addTodo, countTodos, hits, listTodos } from "./todos.server.js";
 
 export default function Todos() {
+  const count = resource(countTodos);
+  if (typeof window !== "undefined") window.__count = () => count.data;
   let added = $state(null);
   const todos = $derived(added ?? router.data?.todos ?? []);
-  if (typeof window !== "undefined") window.__fns = { addTodo, hits, listTodos };
+  if (typeof window !== "undefined") window.__fns = { addCounted, addTodo, hits, listTodos };
   return (
     <section>
       <p id="user">{router.data?.user}</p>
@@ -199,6 +207,17 @@ try {
   assert((await evaluate("window.__fns.addTodo({}).catch((e) => e.name + ' ' + e.status)")) === "ServerFunctionError 400", "a refused call rejects with ServerFunctionError and its status");
   assert((await evaluate("Promise.all([window.__fns.hits(), window.__fns.hits()]).then(([a, b]) => a.n + ' ' + b.n)")) === "1 1", "identical query calls in flight share one request");
   assert((await evaluate("window.__fns.hits().then((r) => r.n)")) === 2, "a later query call makes a new request");
+  await until("typeof window.__count?.() === 'number'");
+  const singleFlight = await evaluate(`(async () => {
+    const fnRequests = () => performance.getEntriesByType("resource").filter((e) => e.name.includes("/__fn/")).length;
+    const requests = fnRequests();
+    await window.__fns.addCounted({ title: "counted" });
+    await new Promise((r) => setTimeout(r, 300));
+    const sent = fnRequests() - requests;
+    const total = (await window.__fns.listTodos()).todos.length;
+    return [window.__count() === total, sent].join(" ");
+  })()`);
+  assert(singleFlight === "true 1", `an action's refresh() updates the shown query in its own response, one request (got ${singleFlight})`);
   const source = `${project}/app/todos/todos.server.js`;
   await write(source, (await file(source).text()).replace('version: "A"', 'version: "B"'));
   // The restart leaves a brief gap with no server, and (pending esdev) the page reloads:

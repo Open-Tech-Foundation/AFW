@@ -30,6 +30,13 @@ export interface ResourceOptions<T> {
   staleTime?: number;
   /** Milliseconds an unused cache entry is kept. Default 5 minutes. */
   gcTime?: number;
+  /** Abort a run that takes longer than this many milliseconds; `error` is a TimeoutError. */
+  timeout?: number;
+  /**
+   * Refetch when the tab becomes visible again (`"focus"`) or the browser reconnects
+   * (`"online"`), once the data is older than `staleTime`. Off by default.
+   */
+  revalidateOn?: "focus" | "online" | Array<"focus" | "online">;
 }
 /** A server function without input: `resource(listTodos)`. */
 export function resource<T>(fetcher: (input: undefined, options?: { signal?: AbortSignal }) => Promise<T>, options?: ResourceOptions<T>): Resource<T>;

@@ -7,6 +7,7 @@ export * from "./router.js";
 export * from "./route-data.js";
 export * from "./resource.js";
 export { invalidate } from "./invalidate.js";
+export { optimistic, setQueryData } from "./mutate.js";
 export { ServerFunctionError, serverFunction } from "./server-function.js";
 export * from "./context.js";
 export * from "./error-boundary.js";

@@ -176,6 +176,44 @@ renders, keeping hydration adoption aligned.
 * **GC.** No timers: `sweep()` runs at most once a second as entries are looked up and
   drops entries with no users and no flight once `idleSince + gcTime` has passed.
 
+### Writes (runtime/mutate.js)
+
+* **Overlays.** An entry holds `overlays`; `viewOf(e)` applies them to `data`. Listeners,
+  cache hits and a flight's result all see the view. `addOverlay` returns its removal.
+* **`setQueryData(fn, input, value)`.** Writes the entry (`value(current)` for a function),
+  records its `call`, then `cacheChanged(key)`.
+* **`optimistic(promise, fn, [input], update)`.** Adds `update` as an overlay to every
+  matching entry with data, and removes it in `promise.finally`.
+* **`cacheChanged(key)`.** Resources registered under the key call `fromCache`: they
+  re-run the fetcher with `inner` staleTime `Infinity`, so its stub calls answer from the
+  cache, without a loading state. A resource that follows the key heard the write already.
+
+### Single-flight refresh
+
+* **Request.** An action stub sends `liveCalls(MAX_REFRESH)` (the `call` of every key in the
+  registry) as `{ input, live }` with `x-afw-live: 1`. Nothing shown: the plain input.
+* **Server.** `context.refresh(...targets)` records queries (a value after one is its
+  input). After the action, `runRefresh` re-runs each in scope for its inputs (given, or the
+  live ones for that endpoint), at most `MAX_REFRESH`, through the query's schema.
+* **Scope.** A query runs only when its folder is the action's or a parent (`inScope`); its
+  middleware already ran. Otherwise it goes back in `stale`.
+* **Response.** `x-afw-refresh: 1` and `{ result, refresh: { fresh, stale, endpoints } }`.
+  `endpoints` lists queries refreshed without an input.
+* **Client.** `applyRefresh` calls `settleRefresh` (marks `endpoints`' other entries and the
+  `stale` targets stale, refetches live resources the response did not cover), then writes
+  each fresh call and `cacheChanged`s it. The action resolves after those refetches.
+* **Direct calls.** `define` gives handlers a no-op `refresh` when the context has none.
+
+### Resilience
+
+* **Retry.** `request()` in the stub retries a query whose `fetch` rejects (not an abort)
+  after `retryDelays` (300 ms, 1 s). HTTP errors and actions are not retried; an abort
+  during the wait rejects at once.
+* **Timeout.** `timeout` combines the run's controller with `AbortSignal.timeout()` through
+  `AbortSignal.any()`.
+* **Revalidation.** `runtime/revalidate.js` installs one `visibilitychange` and one `online`
+  listener on first use. A watching resource reloads when `now - loadedAt >= staleTime`.
+
 ### Invalidation
 
 * **Tracking.** `withTracking` records the endpoints and call keys a fetcher calls while

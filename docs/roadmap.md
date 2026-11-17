@@ -26,7 +26,8 @@
 * [ ] Phase B.2: forms that submit to an action without JavaScript; redirects from actions.
 * [x] Phase B.3a: `invalidate(query)` / `invalidate()` refetch live resources and the page's loader data.
 * [x] Phase B.3c: client query cache: shared requests, cached remounts (`staleTime`, `gcTime`, `key`), per-input `invalidate(query, input)`.
-* [ ] Phase B.3b: single-flight updates; opt-in HTTP caching headers for queries.
+* [x] Phase B.3b: single-flight updates (`refresh()` in actions), `optimistic()`, `setQueryData()`; query retries on network failure, `timeout`, `revalidateOn`.
+* [ ] Phase B.3d: opt-in HTTP caching headers for queries (when a public-data use case appears).
 * [ ] Phase B.4: compiler co-location of server functions via the Server IR.
 
 ## Data Fetching — see [docs/DATA.md](DATA.md)

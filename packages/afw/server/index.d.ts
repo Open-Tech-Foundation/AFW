@@ -203,6 +203,14 @@ export interface ServerFunctionContext {
   locals: Record<string, unknown>;
   env?: unknown;
   ctx?: unknown;
+  /**
+   * In an action called from the browser: re-run these queries after the action and send
+   * their fresh data with its response (single-flight updates). A query alone refreshes
+   * every input the page shows; a value after it, that one input:
+   * `refresh(listTodos, getTodo, { id })`. Queries outside the action's folder (or its
+   * parents) are refetched by the browser instead. A no-op elsewhere.
+   */
+  refresh: (...targets: unknown[]) => void;
 }
 
 /**

@@ -149,3 +149,100 @@ describe("createServerFunctions", () => {
     expect(error.issues[0].message).toBe("bad");
   });
 });
+
+describe("refresh() — single-flight updates", () => {
+  let version = 0;
+  const todos = [];
+  const listTodos = query(z.object({ done: z.boolean() }), async ({ done }, { locals }) => ({ done, todos: [...todos], v: ++version, user: locals.user }));
+  const getTodo = query(async ({ id }) => ({ id, title: todos[id] }));
+  const flaky = query(async () => { throw new Error("down"); });
+  const adminList = query(async () => "admin");
+  const nested = query(async () => "nested");
+  const addTodo = action(async ({ title, also }, { refresh }) => {
+    todos.push(title);
+    refresh(listTodos);
+    if (also) refresh(getTodo, { id: todos.length - 1 });
+    return { added: title };
+  });
+  const quiet = action(async () => "no refresh");
+  const outOfScope = action(async (_, { refresh }) => { refresh(adminList, nested); return "ok"; });
+  const failing = action(async (_, { refresh }) => { refresh(flaky); return "ok"; });
+  const many = action(async (_, { refresh }) => { for (let id = 0; id < 25; id++) refresh(getTodo, { id }); return "ok"; });
+  const misuse = action(async (_, { refresh }) => { refresh(quiet); return "ok"; });
+  const fns = createServerFunctions({
+    "/todos/__fn/list": listTodos, "/__fn/todo": getTodo, "/todos/__fn/flaky": flaky,
+    "/admin/__fn/list": adminList, "/todos/archive/__fn/list": nested,
+    "/todos/__fn/add": addTodo, "/todos/__fn/quiet": quiet, "/todos/__fn/out": outOfScope,
+    "/todos/__fn/failing": failing, "/todos/__fn/many": many, "/todos/__fn/misuse": misuse,
+  });
+  const live = (calls, input = {}) => stringify({ input, live: calls });
+  const act = (path, body, headers = { "x-afw-live": "1" }) => fns.handle(post(path, body, headers), { locals: { user: "ada" } });
+
+  test("re-runs the refreshed query for each input the page shows, after the write", async () => {
+    const res = await act("/todos/__fn/add", live([["/todos/__fn/list", { done: false }], ["/todos/__fn/list", { done: true }], ["/__fn/todo", { id: 9 }]], { title: "a" }));
+    expect(res.headers.get("x-afw-refresh")).toBe("1");
+    const { result, refresh } = await read(res);
+    expect(result).toEqual({ added: "a" });
+    expect(refresh.endpoints).toEqual(["/todos/__fn/list"]);
+    expect(refresh.fresh.map(([path, input, data]) => [path, input.done, data.todos, data.user])).toEqual([
+      ["/todos/__fn/list", false, ["a"], "ada"],
+      ["/todos/__fn/list", true, ["a"], "ada"],
+    ]);
+    expect(refresh.stale).toEqual([]);
+  });
+
+  test("a query with an input runs for that input, shown or not; a parent folder's query is in scope", async () => {
+    const { refresh } = await read(await act("/todos/__fn/add", live([], { title: "b", also: true })));
+    expect(refresh.endpoints).toEqual(["/todos/__fn/list"], "a query refreshed with an input covers that call only");
+    expect(refresh.fresh).toEqual([["/__fn/todo", { id: todos.length - 1 }, { id: todos.length - 1, title: "b" }]]);
+  });
+
+  test("queries under other middleware are not run there: they go back stale", async () => {
+    const { refresh } = await read(await act("/todos/__fn/out", live([["/admin/__fn/list", undefined], ["/todos/archive/__fn/list", undefined]])));
+    expect(refresh.fresh).toEqual([]);
+    expect(refresh.stale).toEqual([["/admin/__fn/list"], ["/todos/archive/__fn/list"]]);
+  });
+
+  test("a refreshed query that fails goes back stale and the action still succeeds", async () => {
+    const res = await act("/todos/__fn/failing", live([["/todos/__fn/flaky", undefined]]));
+    expect(res.status).toBe(200);
+    const { result, refresh } = await read(res);
+    expect(result).toBe("ok");
+    expect(refresh.stale).toEqual([["/todos/__fn/flaky", undefined]]);
+  });
+
+  test("a shown input the query's schema refuses goes back stale", async () => {
+    const { refresh } = await read(await act("/todos/__fn/add", live([["/todos/__fn/list", { done: "yes" }]], { title: "c" })));
+    expect(refresh.fresh).toEqual([]);
+    expect(refresh.stale).toEqual([["/todos/__fn/list", { done: "yes" }]]);
+  });
+
+  test(`at most 20 calls run; the rest go back stale`, async () => {
+    const { refresh } = await read(await act("/todos/__fn/many", live([])));
+    expect(refresh.fresh.length).toBe(20);
+    expect(refresh.stale.length).toBe(5);
+  });
+
+  test("an action without refresh() answers its plain result, envelope or not", async () => {
+    const res = await act("/todos/__fn/quiet", live([["/todos/__fn/list", { done: false }]]));
+    expect(res.headers.get("x-afw-refresh")).toBe(null);
+    expect(await read(res)).toBe("no refresh");
+    expect(await read(await act("/todos/__fn/quiet", stringify(undefined), {}))).toBe("no refresh");
+  });
+
+  test("a malformed or oversized envelope is a 400", async () => {
+    expect((await act("/todos/__fn/quiet", stringify({ input: 1, live: "x" }))).status).toBe(400);
+    expect((await act("/todos/__fn/quiet", stringify({ live: [] }))).status).toBe(400);
+    const tooMany = Array.from({ length: 21 }, () => ["/todos/__fn/list", { done: false }]);
+    expect((await act("/todos/__fn/quiet", live(tooMany))).status).toBe(400);
+  });
+
+  test("refresh() of something other than a query is a server bug (500)", async () => {
+    expect((await act("/todos/__fn/misuse", live([]))).status).toBe(500);
+  });
+
+  test("called directly from server code, refresh() does nothing", async () => {
+    expect(await addTodo({ title: "direct" })).toEqual({ added: "direct" });
+    expect(await addTodo({ title: "direct" }, { locals: {} })).toEqual({ added: "direct" });
+  });
+});

@@ -32,7 +32,7 @@ test("published framework types support strict TS starters and reject invalid JS
       }, include: ["*.tsx"],
     }));
     await write(join(scratch, "pages.tsx"), `
-      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, invalidate, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps, type Lazy } from "@opentf/afw";
+      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, invalidate, optimistic, setQueryData, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps, type Lazy } from "@opentf/afw";
       import { registerRoutes, query, action, type StandardSchemaV1 } from "@opentf/afw/server";
       import { fade, fly, slide, type Transition } from "@opentf/afw/transition";
       export function Counter({ initial = 0 }: { initial?: number }) {
@@ -110,6 +110,16 @@ test("published framework types support strict TS starters and reject invalid JS
         await invalidate(listTodos, true, allTodos);
         // @ts-expect-error staleTime is a number of milliseconds
         resource(async () => 1, { staleTime: "soon" });
+        // Writes: an action refreshes queries from its context; the browser writes the cache.
+        const markDone = action(async (id: number, { refresh }) => { refresh(listTodos, true); return id; });
+        setQueryData(listTodos, true, (current) => current ?? []);
+        const id: number = await optimistic(markDone(1), listTodos, (list) => list.map((t) => ({ ...t, done: true })));
+        const one: number = await optimistic(markDone(2), listTodos, false, (list) => list);
+        resource(async () => 1, { timeout: 5_000, revalidateOn: ["focus", "online"] });
+        // @ts-expect-error revalidateOn takes "focus" or "online"
+        resource(async () => 1, { revalidateOn: "hover" });
+        // @ts-expect-error setQueryData checks the query's output type
+        setQueryData(listTodos, true, "nope");
         return { added, listed };
       }
       // Compiler macros are typed globals: no import, no local declarations.

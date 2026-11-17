@@ -16,7 +16,7 @@
 //
 // Browser only: on the server nothing is live, and `invalidate()` resolves at once.
 
-import { callKey, endpointOfKey, markStale } from "./query-cache.js";
+import { callKey, endpointOfKey, markStale, peek } from "./query-cache.js";
 
 const byEndpoint = new Map(); // endpoint → Set of live resource entries
 const byKey = new Map(); // call key → Set of live resource entries
@@ -95,6 +95,57 @@ export function unregisterResource(entry) {
   entry.endpoints = undefined;
   entry.keys = undefined;
   entry.named = undefined;
+}
+
+/**
+ * The server function calls live resources show, `[endpoint, input]`, at most `max`
+ * (an action sends them so it can refresh them in its response).
+ */
+export function liveCalls(max) {
+  const calls = [];
+  for (const key of byKey.keys()) {
+    const call = peek(key)?.call;
+    if (call) calls.push(call);
+    if (calls.length >= max) break;
+  }
+  return calls;
+}
+
+/**
+ * The cached data for `key` changed outside a fetch (`setQueryData`, an optimistic
+ * overlay, an action's refresh): resources whose fetcher made that call re-run it
+ * against the cache. Resources that show the entry directly already heard the write.
+ */
+export function cacheChanged(key) {
+  for (const entry of [...(byKey.get(key) ?? [])]) entry.fromCache?.(key);
+}
+
+/**
+ * After an action refreshed `endpoints` and sent `freshKeys` back: everything else those
+ * endpoints cached is stale, and live resources the response did not cover refetch, as
+ * do the `stale` targets (`{ endpoint, key }`) it could not run.
+ */
+export async function settleRefresh(endpoints, freshKeys, stale) {
+  const eps = new Set(endpoints);
+  const targets = stale.map(({ endpoint, key }) => ({ endpoint, key }));
+  markStale((key, entry) => {
+    if (freshKeys.has(key)) return false;
+    if (targets.some((target) => hits(target, key, entry))) return true;
+    const endpoint = endpointOfKey(key);
+    return (endpoint && eps.has(endpoint)) || [...eps].some((ep) => entry.deps?.endpoints.has(ep));
+  });
+  const resources = new Set();
+  for (const ep of eps) {
+    for (const entry of byEndpoint.get(ep) ?? []) {
+      const own = [...(entry.keys ?? [])].filter((k) => endpointOfKey(k) === ep);
+      if (own.length === 0 || own.some((k) => !freshKeys.has(k))) resources.add(entry);
+    }
+  }
+  for (const { endpoint, key } of targets) {
+    const found = key ? [...(byKey.get(key) ?? []), ...(byNamed.get(endpoint) ?? [])] : byEndpoint.get(endpoint) ?? [];
+    for (const entry of found) resources.add(entry);
+  }
+  await Promise.all([...resources].map((entry) => entry.refetch()));
 }
 
 /** The router's hook for reloading the current page's loader data (`mountApp`). */

@@ -10,6 +10,15 @@ export { SerializeError };
 
 export const CONTENT_TYPE = "application/json";
 
+/** The most query calls one action refreshes in its response; the rest go back stale. */
+export const MAX_REFRESH = 20;
+
+/** Action request header: the body is `{ input, live }`, `live` the calls the page shows. */
+export const LIVE_HEADER = "x-afw-live";
+
+/** Action response header: the body is `{ result, refresh }` (single-flight updates). */
+export const REFRESH_HEADER = "x-afw-refresh";
+
 /** Deepest nesting accepted from a request (`[[1]]` is depth 2). */
 export const MAX_DEPTH = 64;
 
