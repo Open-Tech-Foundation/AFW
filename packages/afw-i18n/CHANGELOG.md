@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-11-17
+
 ### Fixed
 
 - `<T>` showed the raw key on first paint in Vite dev with server rendering, until the

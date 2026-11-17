@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-17
+
 ### Changed
 
 - The server starters' README says the server listens on port 3000, and that another

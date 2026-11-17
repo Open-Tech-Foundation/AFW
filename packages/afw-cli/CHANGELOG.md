@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-11-17
+
 ### Fixed
 
 - The prerender step follows each folder's `_config.js`: pages that render in the

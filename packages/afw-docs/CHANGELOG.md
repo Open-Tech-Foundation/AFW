@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-17
+
 ### Changed
 
 - The search is a modal `<dialog>` (`showModal()`): the page behind it is inert, focus

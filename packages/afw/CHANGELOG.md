@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-11-17
+
 ### Added
 
 - In development, a server-only edit (a server function, loader, middleware or API

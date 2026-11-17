@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-11-17
+
 ### Added
 
 - TypeScript declarations (`index.d.ts`): `createForm<T>` types `values`, `reset` and the

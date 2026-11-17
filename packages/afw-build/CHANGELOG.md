@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-17
+
 ### Fixed
 
 - `renderNotFound` marks the 404 document's inline route data (`NOT_FOUND_DATA`, the
