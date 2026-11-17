@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The server starters' README says the server listens on port 3000, and that another
+  `PORT` needs the same port in the `start` script's `--allow-listen`: esrun 0.48 grants
+  an address, with no wildcards, so `PORT=8080` alone is refused.
+
 ## [0.7.0] - 2026-11-13
 
 ### Fixed

@@ -316,7 +316,7 @@ function commandRows(ctx, { server }) {
     [`${pm} run dev`, "Start the dev server"],
     [`${pm} run build`, "Build for production"],
     server
-      ? [`${pm} run start`, ctx.esdev ? "Run the built server on ES-Runtime (`PORT`)" : "Run the built Node server (`PORT`, `HOST`)"]
+      ? [`${pm} run start`, ctx.esdev ? "Run the built server on ES-Runtime, on port 3000 (another `PORT` needs the same port in `--allow-listen`)" : "Run the built Node server (`PORT`, `HOST`)"]
       : [`${pm} run preview`, "Preview the production build"],
     [`${pm} run test`, `Run the tests with ${runner(ctx)}`],
     ...(ctx.ts ? [[`${pm} run typecheck`, "Check types"]] : []),

@@ -6,7 +6,7 @@ An [AFW](https://afw.opentechf.org) app on esdev and ES-Runtime: pages prerender
 | --- | --- |
 | `{{pm}} run dev` | Start the dev server |
 | `{{pm}} run build` | Build for production |
-| `{{pm}} run start` | Run the built server on ES-Runtime (`PORT`) |
+| `{{pm}} run start` | Run the built server on ES-Runtime, on port 3000 (another `PORT` needs the same port in `--allow-listen`) |
 | `{{pm}} run test` | Run the tests with esdev |
 
 - Pages live in `app/`: `app/about/page.md` is served at `/about`.
