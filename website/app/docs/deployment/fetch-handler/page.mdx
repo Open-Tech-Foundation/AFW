@@ -31,47 +31,37 @@ export default {
   functions.
 - Bundle the entry for the platform with your toolchain (an esdev server target, or the
   platform's own bundler).
-- The rest of this page builds the same pipeline by hand from `dist/server/api.js`,
-  which a build script writes with `emitApiBundle` from `@opentf/afw-cli/ssg`.
+- On Vite, `vite build` writes the same handler to `dist/server/app.js`: import
+  `createHandler` from there instead of `@afw/server`.
 
 <Callout type="info" title="This guide, in one line">
   In **dev**, run your API on the platform's local runtime and proxy `/api/*` (or the
-  whole backend) to it. In **production**, ship one Fetch handler: pipeline
-  [middleware](/docs/routing/middleware) + `apiRoutes` for API and guarded pages, and a
-  `fallback` for static files and the SPA shell.
+  whole backend) to it. In **production**, ship one Fetch handler: `createHandler`, which
+  runs [middleware](/docs/routing/middleware), API routes, server functions and loader
+  data, with a `fallback` for static files and the SPA shell.
 </Callout>
 
 ## The production entry
 
-`dist/server/api.js` exports `middleware`, `apiRoutes`, and `apiHandler`. For a full-stack
-app — [middleware](/docs/routing/middleware) on pages, loader data, and API routes — pair
-`apiRoutes` with the pipeline `middleware` runner and fall back to your static layer:
+| Workflow | Import `createHandler` from |
+| --- | --- |
+| esdev + ES-Runtime | `@afw/server`, in the entry the platform bundle is built from |
+| Vite + Node | `./dist/server/app.js`, written by `vite build` |
 
 ```js
 // server.js — adapt the filename to your platform
-import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/afw/server";
+import { createHandler } from "@afw/server";
 
 export default {
-  fetch: createFetchHandler(apiRoutes, {
-    middleware,
-    // Unmatched requests are static assets or SPA routes — delegate to your host.
-    fallback: (request, env) => env.ASSETS.fetch(request),
-  }),
+  // Unmatched requests are static assets or SPA routes — delegate to your host.
+  fetch: createHandler({ fallback: (request, env) => env.ASSETS.fetch(request) }),
 };
 ```
 
-This entry handles APIs and delegates other requests to static assets. It does not
-run route loaders or SSR. Add those to the fallback when your app needs them.
-`createFetchHandler` threads the runtime's `env` and `ctx` through
-middleware, handlers, **and** the `fallback`, so platform bindings are available everywhere
-you need them.
-
-<Callout type="warning" title="`/api` middleware only">
-  `apiHandler` composes `app/api/_middleware.js` only — use it when you have no
-  `app/_middleware.js` outside `app/api/`. Do **not** pass pipeline `middleware` as well or
-  the chain runs twice. See [Server](/docs/server).
-</Callout>
+- **API-only entry.** This entry answers middleware, API routes, server functions and loader data, and delegates everything else. It does not render pages.
+- **Server-rendered pages.** Add `renderPage: createPageRenderer({ shell })`; see [Server](/docs/deployment/server).
+- **Bindings everywhere.** The runtime's `env` and `ctx` reach middleware, handlers **and** the `fallback`.
+- **Custom pipelines.** `apiRoutes`, `middleware`, `loaders` and `serverFunctions` are exported too, for composing your own handler with `createFetchHandler` from `@opentf/afw/server`.
 
 ## Static assets and SPA fallback
 
@@ -80,7 +70,7 @@ Full-stack deployments usually split **two outputs** from one build:
 | Output | Role |
 | --- | --- |
 | `dist/` | Hashed JS/CSS, `index.html`, optional prerendered HTML from an explicit build target |
-| `dist/server/api.js` | Middleware + API dispatch |
+| The server bundle | The Fetch handler: middleware, API routes, server functions and loader data |
 
 Your platform serves `dist/` from its CDN or **assets binding**. Configure SPA fallback
 so unknown paths return `index.html` for client-side routes. For a fully pre-rendered site
@@ -197,14 +187,10 @@ the same `fetch` handler.
 **`worker.js`**
 
 ```js
-import { apiRoutes, middleware } from "./dist/server/api.js";
-import { createFetchHandler } from "@opentf/afw/server";
+import { createHandler } from "@afw/server";
 
 export default {
-  fetch: createFetchHandler(apiRoutes, {
-    middleware,
-    fallback: (request, env) => env.ASSETS.fetch(request),
-  }),
+  fetch: createHandler({ fallback: (request, env) => env.ASSETS.fetch(request) }),
 };
 ```
 
@@ -242,7 +228,7 @@ Keep server bundles out of public assets. For this layout, copy a
 /server/
 ```
 
-That excludes `dist/server/api.js` and loader bundles from asset uploads; Wrangler
+That excludes server bundles from asset uploads; Wrangler
 still bundles imports from the Worker entry. Prefer a separate server output
 directory when possible. See Cloudflare's official
 [asset configuration](https://developers.cloudflare.com/workers/static-assets/binding/).
@@ -256,6 +242,6 @@ in your app-owned server or an external proxy. Adding a legacy `proxy` block to
 
 ### Other Fetch-native hosts
 
-The same `createFetchHandler` entry works on **Bun** and **Deno** when you export `fetch`.
+The same `createHandler` entry works on **Bun** and **Deno** when you export `fetch`.
 Map your static `dist/` through the host's asset serving or a `fallback` that reads from
 disk. Bindings and env access follow each platform's docs — handlers stay unchanged.
