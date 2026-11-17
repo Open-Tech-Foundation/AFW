@@ -232,6 +232,12 @@ impl<'a> Emitter<'a> {
         out.push_str(&format!("defineSSG({name}_ssg.tag, {name}_ssg);\n"));
         if lowered.is_default_export {
             out.push_str(&format!("export default {name}_ssg;\n"));
+        } else if lowered.is_named_export {
+            // `export function Badge()`: a page's `import { Badge }` and `<Badge/>` read
+            // `Badge.tag` off this binding, as they do off the client build's
+            // `export { BadgeElement as Badge }`. Without it the import is undefined and
+            // every server render of the page throws.
+            out.push_str(&format!("export {{ {name}_ssg as {name} }};\n"));
         }
         out
     }
@@ -824,6 +830,23 @@ mod tests {
         let m = crate::lower::lower_module(path, &parsed.program, source, is_page)
             .expect("lowered module");
         emit_module(&m.components, &m.module_stmts, &m.module_exprs)
+    }
+
+    #[test]
+    fn a_named_export_component_is_exported_under_its_name() {
+        // `export function Other()`: a page's `import { Other }` reads `Other.tag` in
+        // its server render. The SSG module used to export only default components.
+        let m = emit(
+            "export function Other(){ return <p>other</p>; }\nexport function Two(){ return <i>two</i>; }\nexport default function Main(){ return <b/>; }",
+            false,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("export { Other_ssg as Other };"), "code:\n{}", m.code);
+        assert!(m.code.contains("export { Two_ssg as Two };"), "code:\n{}", m.code);
+        assert!(m.code.contains("export default Main_ssg;"), "code:\n{}", m.code);
+        // A component that is not exported stays private.
+        let m = emit("function Local(){ return <p/>; }\nexport default function P(){ return <Local/>; }", false);
+        assert!(!m.code.contains("as Local }"), "code:\n{}", m.code);
     }
 
     #[test]

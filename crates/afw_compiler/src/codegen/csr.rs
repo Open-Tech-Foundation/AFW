@@ -43,6 +43,7 @@ fn templates_disabled() -> bool {
 /// The SVG namespace; elements under `<svg>` are created with `createElementNS`
 /// (SPEC §5.8).
 const SVG_NS: &str = "http://www.w3.org/2000/svg";
+const MATHML_NS: &str = "http://www.w3.org/1998/Math/MathML";
 
 /// The CSR output for one component.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1100,6 +1101,9 @@ struct Emitter<'a> {
     /// Whether the current element context is inside an `<svg>` subtree, so
     /// descendants are created with `createElementNS` (SPEC §5.8).
     in_svg: bool,
+    /// Whether the current element context is inside a `<math>` subtree (MathML
+    /// namespace), the same way.
+    in_math: bool,
     hot: bool,
     /// Development page/layout output: `$state` lives in the route view's slots.
     hot_route: bool,
@@ -1166,6 +1170,7 @@ impl<'a> Emitter<'a> {
             base,
             list_counter: 0,
             in_svg: false,
+            in_math: false,
             hot: false,
             hot_route: false,
             templates: Vec::new(),
@@ -1477,7 +1482,7 @@ impl<'a> Emitter<'a> {
     /// `createElementNS` and the HTML parser would not.
     fn template_expr(&mut self, node: &ViewNode) -> Option<String> {
         let too_small = static_tree::build_stmt_count(node) < TEMPLATE_MIN_STMTS;
-        if templates_disabled() || self.in_svg || too_small {
+        if templates_disabled() || self.in_svg || self.in_math || too_small {
             return None;
         }
         let html = static_tree::template_html(node)?;
@@ -1502,9 +1507,14 @@ impl<'a> Emitter<'a> {
                 let var = self.fresh("el");
                 // `<svg>` (or any element within one) is created in the SVG
                 // namespace; `<foreignObject>` switches descendants back to HTML.
+                // `<math>` and its descendants are MathML the same way; an `<svg>`
+                // inside one starts an SVG subtree.
                 let is_svg = self.in_svg || tag == "svg";
+                let is_math = !is_svg && (self.in_math || tag == "math");
                 let create = if is_svg {
                     format!("document.createElementNS(\"{SVG_NS}\", {})", js_string(tag))
+                } else if is_math {
+                    format!("document.createElementNS(\"{MATHML_NS}\", {})", js_string(tag))
                 } else {
                     format!("document.createElement({})", js_string(tag))
                 };
@@ -1512,12 +1522,14 @@ impl<'a> Emitter<'a> {
                 for prop in props {
                     self.emit_element_prop(&var, prop);
                 }
-                let prev = self.in_svg;
+                let (prev, prev_math) = (self.in_svg, self.in_math);
                 self.in_svg = is_svg && tag != "foreignObject";
+                self.in_math = is_math;
                 for child in children {
                     self.emit_append(&var, child);
                 }
                 self.in_svg = prev;
+                self.in_math = prev_math;
                 var
             }
             ViewNode::Text(text) => {
@@ -3050,6 +3062,25 @@ mod tests {
         // `<foreignObject>` is SVG, but its `<div>` child switches back to HTML.
         assert!(m.code.contains("document.createElementNS(\"http://www.w3.org/2000/svg\", \"foreignObject\")"), "code: {}", m.code);
         assert!(m.code.contains("document.createElement(\"div\")"), "code: {}", m.code);
+    }
+
+    #[test]
+    fn emits_mathml_with_namespace() {
+        let m = emit_page(&lower(
+            "export function F() { let on = $state(true); return <p><math><mi>x</mi>{on && <mo>+</mo>}<svg><circle/><foreignObject><b>y</b></foreignObject></svg></math><i>z</i></p>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        let math = "document.createElementNS(\"http://www.w3.org/1998/Math/MathML\", ";
+        assert!(m.code.contains(&format!("{math}\"math\")")), "code: {}", m.code);
+        assert!(m.code.contains(&format!("{math}\"mi\")")), "code: {}", m.code);
+        // A conditional's branch inside <math> is MathML too.
+        assert!(m.code.contains(&format!("{math}\"mo\")")), "code: {}", m.code);
+        // <svg> inside <math> is SVG, and <foreignObject> inside it is HTML again.
+        assert!(m.code.contains("document.createElementNS(\"http://www.w3.org/2000/svg\", \"circle\")"), "code: {}", m.code);
+        assert!(m.code.contains("document.createElement(\"b\")"), "code: {}", m.code);
+        // Outside <math>, HTML.
+        assert!(m.code.contains("document.createElement(\"i\")"), "code: {}", m.code);
+        assert!(m.code.contains("document.createElement(\"p\")"), "code: {}", m.code);
     }
 
     #[test]

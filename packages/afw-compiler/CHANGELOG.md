@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- The `ssg` target exports a component declared with a named export
+  (`export function Badge()`) under its name. A page importing `{ Badge }` got
+  `undefined`, and every server render of that page threw reading `Badge.tag`.
+- `<math>` and its descendants are created in the MathML namespace on the client and
+  hydrate targets (an `<svg>` inside one is SVG). They were HTML elements, so the browser
+  did not render the formula.
+
 - JSX returned by a callback reads the callback's parameters in server-rendered builds:
   `const row = (item) => <li>{item.name}</li>`, or
   `fallback={(error, reset) => <p onclick={reset}>{error.message}</p>}`.
