@@ -129,6 +129,13 @@ export default function LazyPage() {
 }
 `);
   await page("browse/[[...filters]]/page.jsx", `export default function Browse({ params }) { return <p id="browse">{(params.filters ?? ["all"]).join("+")}</p>; }\n`);
+  // An imported asset: the same public URL on the server and in the browser. (A
+  // `new URL("./logo.svg", import.meta.url)` is a file:// URL on the server, by Vite's design.)
+  // Past Vite's 4 KiB inline limit, so it is emitted as a file rather than a data: URL.
+  await page("asset/logo.svg", `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><!-- ${"pad ".repeat(1200)}--><rect width="8" height="8"/></svg>\n`);
+  await page("asset/page.jsx", `import logo from "./logo.svg";
+export default function AssetPage() { return <img id="logo" src={logo} alt="logo" />; }
+`);
   // PUBLIC_* env: the server render and the hydrated component read the same value;
   // a secret from the same .env never reaches either.
   await writeFile(join(dir, ".env"), "PUBLIC_GREETING=hello-from-env\nSECRET_TOKEN=do-not-ship-me\n");
@@ -310,6 +317,14 @@ export default function Dashboard() {
   await evaluate("document.getElementById('open-map').click()");
   check(await until("document.querySelectorAll('#lazy-map').length === 2"), "a second use renders from the same chunk");
   check((await chunks()) === 1, "no second download");
+
+  // An imported asset's URL is the client's, in the server HTML too.
+  const assetHtml = await text("/asset");
+  const assetSrc = assetHtml.match(/<img id="logo"[^>]*\ssrc="([^"]+)"/)?.[1] ?? "";
+  check(/^\/assets\/logo-[\w-]+\.svg$/.test(assetSrc), `an imported asset renders its public URL on the server (got ${assetSrc.slice(0, 60)})`);
+  await send("Page.navigate", { url: `${origin}/asset` });
+  check(await until("document.readyState === 'complete' && document.getElementById('logo')?.complete && document.getElementById('logo').naturalWidth === 8"), "the imported asset loads in the browser");
+  check((await evaluate("document.getElementById('logo').getAttribute('src')")) === assetSrc, "the hydrated image keeps the server's URL");
 
   // PUBLIC_* env vars, rendered on the server and adopted by the client.
   const envHtml = await text("/env");
