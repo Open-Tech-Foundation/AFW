@@ -15,7 +15,7 @@ import { Command } from "runtime:system";
 import { describe, expect, test } from "runtime:test";
 
 import { enterHost, exitHost } from "../core/context.js";
-import { signal } from "../core/signals.js";
+import { effect, signal } from "../core/signals.js";
 import {
   attr,
   beginHydrationCollect,
@@ -53,6 +53,7 @@ import {
   hydrationProps,
   isHydrating,
   runBuild,
+  setProp,
   skipNode,
   skipSlot,
   template,
@@ -867,6 +868,67 @@ describe.skipIf(!hasBin)("hydration construct matrix (ssg → hydrate, no rebuil
       expect(probe.parentNode).toBe(host.querySelector(".slot"));
     } finally {
       host.remove();
+    }
+  });
+});
+
+// Regression (feedback): JSX returned by a callback reads the callback's parameters.
+// The SSG build wrote `(item) => { __html: … }` (a block with a label, so it returned
+// undefined and the server rendered nothing), and the hydrate build hoisted the JSX's
+// build/adopt functions above the statement, where `item` / `error` / `reset` are
+// undefined. ErrorBoundary also dropped any fallback that was not a plain DOM node.
+describe.skipIf(!hasBin)("JSX returned by callbacks (ssg → hydrate)", () => {
+  const tick = () => new Promise((resolve) => queueMicrotask(resolve));
+
+  test("a local render helper server-renders its rows, and hydration adopts them", async () => {
+    const source =
+      "export default function P(){ const row = (item) => <li>{item.name}</li>;" +
+      ' const items = [{ name: "Ada" }, { name: "Grace" }]; return <ul>{items.map(row)}</ul>; }';
+    const html = loadModule(await compile(source, "ssg"), { ssgText }).default();
+    expect(html).toContain("<li><!--$-->Ada<!--/--></li>");
+    expect(html).toContain("<li><!--$-->Grace<!--/--></li>");
+
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const serverRows = [...container.querySelectorAll("li")];
+    const mod = loadModule(await compile(source, "hydrate"), { bindText, cursor, claimElement, claimText, skipNode });
+    mod.hydrate(container);
+    expect([...container.querySelectorAll("li")]).toEqual(serverRows); // adopted, not rebuilt
+    expect(container.textContent).toBe("AdaGrace");
+
+    // The client build (navigation) renders the rows too.
+    const built = document.createElement("div");
+    built.append(mod.default());
+    expect([...built.querySelectorAll("li")].map((li) => li.textContent)).toEqual(["Ada", "Grace"]);
+  });
+
+  test("an ErrorBoundary's JSX fallback renders on a hydrated page, with error and reset", async () => {
+    const source =
+      'import { ErrorBoundary } from "@opentf/afw";\n' +
+      "export default function P(){ return <main><ErrorBoundary fallback={(error, reset) =>" +
+      ' <div class="fb">Oops {error.message}<button onclick={reset}>Retry</button></div>}><p>ok</p></ErrorBoundary></main>; }';
+    const html = loadModule(await compile(source, "ssg"), { ssgText, ssgComponent }).default();
+    expect(html).toContain("<p>ok</p>");
+
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    try {
+      const mod = loadModule(await compile(source, "hydrate"), {
+        effect, bindText, setProp, cursor, claimElement, claimText, skipNode, hydrateSlot,
+      });
+      mod.hydrate(container);
+      const boundary = container.querySelector("afw-internal-error-boundary");
+      boundary.catch(new Error("boom"));
+      await tick();
+      expect(boundary.querySelector("[data-afw-fallback]")).toBe(null); // not the built-in alert
+      expect(boundary.querySelector(".fb").textContent).toBe("Oops boomRetry");
+      let reset = 0;
+      boundary.reset = () => reset++;
+      boundary.querySelector(".fb button").click();
+      expect(reset).toBe(1);
+    } finally {
+      container.remove();
     }
   });
 });

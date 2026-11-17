@@ -34,7 +34,8 @@ Click **Fix the error**, then **Retry** in the fallback to watch the boundary re
 | Return value | What renders |
 | --- | --- |
 | **String** | Inline message plus a built-in **Retry** button (styled alert) |
-| **DOM node** | Appended as-is — build your own layout and wire `reset` to a button |
+| **JSX** | Rendered as is, on client-rendered and server-rendered pages alike — build your own layout and wire `reset` to a button |
+| **DOM node, or an array of them** | Appended as-is |
 | **Omitted / falsy** | Default alert using `error.message` and **Retry** |
 
 ```jsx

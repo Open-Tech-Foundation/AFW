@@ -16,6 +16,7 @@
 
 import { reportError } from "../core/errors.js";
 import { routeErrorHandler } from "./route-errors.js";
+import { toNodes } from "./dom.js";
 
 /**
  * Report a caught render/mount error and route it to the nearest enclosing
@@ -100,8 +101,17 @@ export class ErrorBoundaryElement extends HTMLElement {
     } catch (e) {
       reportError(e, { phase: "fallback" });
     }
+    // A string reads as the message inside the built-in fallback. Anything else renders
+    // the way a JSX hole would: a node, an array or fragment, or a compiled JSX value
+    // (`hydratableNode`, what a server-rendered page's build emits for
+    // `fallback={(error, reset) => <div>…</div>}`).
+    const nodes = typeof view === "string" ? [] : toNodes(view);
+    if (nodes.length) {
+      this.append(...nodes);
+      return;
+    }
     const message = typeof view === "string" ? view : (error && error.message) || "Something went wrong";
-    this.appendChild(view instanceof Node ? view : defaultFallback(message, reset));
+    this.appendChild(defaultFallback(message, reset));
   }
 
   reset() {

@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- `<ErrorBoundary>` renders a JSX fallback (`fallback={(error, reset) => <div>…</div>}`) on
+  server-rendered pages. Their build passes the JSX as a compiled value rather than a
+  DOM node, and the boundary showed its built-in alert instead. Any value a JSX hole
+  renders now works: a node, an array, or compiled JSX.
+
 - Route ranking: a page answers its own URL ahead of a sibling optional route.
   `/shop` used to lose to `/shop/[[...filters]]` (or `/shop/[[page]]`), since both match
   `/shop` and the longer one ranked first. This applies to the router and the server alike.
