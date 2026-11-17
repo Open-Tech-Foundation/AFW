@@ -12,7 +12,7 @@ export default function EngineBenchmarkTable(props) {
   const label = (engine) => report.labels?.[engine] ?? engine;
   const key = report.rows.find((row) => row.label.startsWith(props.sortBy ?? "")) ?? report.rows[0];
   const sortValue = (engine) => (typeof key.values[engine] === "number" ? key.values[engine] : Infinity);
-  const engines = [...report.engines].sort((a, b) => sortValue(a) - sortValue(b));
+  const engines = report.engines.toSorted((a, b) => sortValue(a) - sortValue(b));
   const columns = report.rows.map((row) => ({
     label: row.label,
     cls: `${HEAD_CLS} ${row === key ? "text-[var(--text-main)]" : "text-[var(--text-muted)]"}`,
