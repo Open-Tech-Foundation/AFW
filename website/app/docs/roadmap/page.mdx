@@ -24,19 +24,19 @@ These items need compiler or runtime support, so a third-party package cannot ad
 ### Components and rendering
 
 - [x] **Enter and exit transitions.**
-  - Animate elements as conditionals and lists add or remove them: [Transitions](/docs/core-concepts/transitions), in the next release.
+  - Animate elements as conditionals and lists add or remove them: [Transitions](/docs/core-concepts/transitions).
   - Others: Vue `<Transition>`, Svelte `transition:`, Framer Motion `AnimatePresence`.
 - [ ] **List reorder animation and out-in mode.**
   - Animate items that move within a list, and let the old element finish leaving before the new one enters.
   - Others: Svelte `animate:flip`, Vue `<TransitionGroup>` and `mode="out-in"`.
 - [x] **Async pending boundaries.**
-  - [`<Pending>`](/docs/data-fetching/pending) shows one fallback while the resources inside load, keeps the content during a refetch, and sends a failed first load to the nearest `<ErrorBoundary>`. In the next release.
+  - [`<Pending>`](/docs/data-fetching/pending) shows one fallback while the resources inside load, keeps the content during a refetch, and sends a failed first load to the nearest `<ErrorBoundary>`.
   - Others: React and Solid `<Suspense>` and transitions, Svelte `{#await}` and `<svelte:boundary>`.
 - [ ] **Typed data after loading.**
   - Inside `<Pending>`, `resource.data` is still typed `T | undefined`.
   - Others: React `use()`, TanStack `useSuspenseQuery`.
 - [x] **Lazy components.**
-  - [`const Chart = () => import("./Chart.jsx")`](/docs/core-concepts/lazy-components), in the next release.
+  - [`const Chart = () => import("./Chart.jsx")`](/docs/core-concepts/lazy-components).
   - Others: React `lazy()`, Solid `lazy()`, Vue `defineAsyncComponent`.
 - [x] **Server, static and client pages in one app.**
   - Each folder's [`_config.js`](/docs/routing/rendering) picks how its pages render; the build prints a route table and each response says what produced it.
@@ -59,17 +59,17 @@ These items need compiler or runtime support, so a third-party package cannot ad
 ### Routing
 
 - [x] **Per-route loading and error files.**
-  - [`loading.jsx` and `error.jsx`](/docs/routing/loading-and-errors), in the next release.
+  - [`loading.jsx` and `error.jsx`](/docs/routing/loading-and-errors).
 - [x] **Layout errors.**
-  - A broken layout shows the [`error.jsx` above it](/docs/routing/loading-and-errors#layout-errors), in the next release.
+  - A broken layout shows the [`error.jsx` above it](/docs/routing/loading-and-errors#layout-errors).
 - [x] **Layout loaders.**
-  - [`layout.loader.js`](/docs/data-fetching/route-loaders#layout-loaders), in the next release.
+  - [`layout.loader.js`](/docs/data-fetching/route-loaders#layout-loaders).
 - [ ] **Layout loaders that rerun only when needed.**
   - Today they rerun on every navigation beneath their layout.
 - [ ] **Root layout errors.**
   - The root layout has nothing above it, so its errors are reported, not caught.
 - [x] **Route groups and optional segments.**
-  - [Route groups](/docs/routing/route-groups) and [`[[param]]` / `[[...rest]]`](/docs/routing/dynamic-routes), in the next release.
+  - [Route groups](/docs/routing/route-groups) and [`[[param]]` / `[[...rest]]`](/docs/routing/dynamic-routes).
 - [ ] **Typed routes.**
   - Check `<Link href>` and `navigate()` paths, and type `params`, against the `app/` folder.
   - Others: TanStack Router, React Router type generation.
@@ -78,9 +78,9 @@ These items need compiler or runtime support, so a third-party package cannot ad
   - Others: TanStack Router `validateSearch`, Nuxt `useRoute().query`.
   - Today: pages receive `query` as a plain string map.
 - [x] **Scroll restoration for async pages.**
-  - Each history entry's position is restored after the page renders, retrying while it grows: [Navigation](/docs/routing/navigation#scroll-position), in the next release.
+  - Each history entry's position is restored after the page renders, retrying while it grows: [Navigation](/docs/routing/navigation#scroll-position).
 - [x] **View transitions.**
-  - `mountApp({ viewTransitions: true })`: [Navigation](/docs/routing/navigation#view-transitions), in the next release.
+  - `mountApp({ viewTransitions: true })`: [Navigation](/docs/routing/navigation#view-transitions).
 
 ### Data and forms
 
