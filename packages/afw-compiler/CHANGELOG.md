@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-17
+
 ### Fixed
 
 - JSX returned by a callback inside a hole (`flatMap`, `Array.from`, `reduce`, an inline

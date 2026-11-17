@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-17
+
 ### Added
 
 - A server-only edit in the dev server (`*.server.*`, `loader.*`, `layout.loader.*`,
