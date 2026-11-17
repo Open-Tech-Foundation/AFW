@@ -9,7 +9,7 @@
 // CHROME_BIN / CHROMIUM_BIN, else /usr/bin/chromium.
 
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -43,6 +43,10 @@ const ssr = render === "server";
 const { dir, cleanup } = await copyFixture("fullstack");
 process.chdir(dir); // the fixture's loader reads data relative to the working directory
 if (render === "server") await writeFile(join(dir, "app", "_config.js"), 'export default { render: "server" };\n');
+// A page that renders components from another module by their named exports.
+await mkdir(join(dir, "app", "parts"), { recursive: true });
+await writeFile(join(dir, "app", "parts", "Parts.jsx"), 'export function Badge() { return <p id="part">badge</p>; }\n');
+await writeFile(join(dir, "app", "parts", "page.jsx"), 'import { Badge } from "./Parts.jsx";\nexport default function PartsPage() { return <div id="parts"><Badge /></div>; }\n');
 const profile = await mkdtemp(join(tmpdir(), "afw-vite-chrome-"));
 let server, browser, ws;
 try {
@@ -165,6 +169,22 @@ try {
   check(await until(`document.querySelector('a[href="/about"]')?.textContent === 'About us'`), "a layout edit refreshes in place");
   check((await text("#title")) === "Home edited", "the layout edit keeps the page");
   check((await evaluate("window.__marker")) === "kept", "the layout edit does not reload");
+
+  // Named-export components: rendered on the page (and by the dev server), then the
+  // export renamed, then a prop added, which a defined element cannot take in place.
+  await send("Page.navigate", { url: `${origin}/parts` });
+  check(await until("document.readyState === 'complete' && document.getElementById('part')?.textContent === 'badge'"), "a page renders a component imported by its named export");
+  await evaluate("window.__marker = 'parts'");
+  const partsFile = join(dir, "app", "parts", "Parts.jsx");
+  const partsPage = join(dir, "app", "parts", "page.jsx");
+  await writeFile(partsFile, 'export function Tag() { return <p id="part">tag</p>; }\n');
+  await writeFile(partsPage, 'import { Tag } from "./Parts.jsx";\nexport default function PartsPage() { return <div id="parts"><Tag /></div>; }\n');
+  check(await until("document.getElementById('part')?.textContent === 'tag'"), "renaming a component's export renders the renamed component");
+  check((await evaluate("window.__marker")) === "parts", "the rename does not reload");
+  await writeFile(partsFile, 'export function Tag({ label = "none" }) { return <p id="part">tag {label}</p>; }\n');
+  await writeFile(partsPage, 'import { Tag } from "./Parts.jsx";\nexport default function PartsPage() { return <div id="parts"><Tag label="set" /></div>; }\n');
+  check(await until("document.getElementById('part')?.textContent === 'tag set'"), "a component that gains a prop shows its new version");
+  check((await evaluate("window.__marker")) !== "parts", "the new prop reloads the page, since the defined element keeps its class");
 
   check(errors.length === 0, `no browser errors: ${JSON.stringify(errors)}`);
 } catch (error) {

@@ -75,6 +75,8 @@ describe("a mixed app, built", () => {
 
   test("the build prints each route's policy and writes the route manifest", async () => {
     assert.match(logged, /AFW routes\nRoute\s+Render\s+From/);
+    // Once per build, though Vite resolves the config again for each environment.
+    assert.equal(logged.match(/AFW routes/g).length, 1);
     assert.match(logged, /\/dashboard\s+client\s+app\/dashboard\/_config\.js/);
     assert.match(logged, /\/about\s+static\s+app\/about\/_config\.js/);
     assert.match(logged, /\/todos\s+server\s+app\/_config\.js/);

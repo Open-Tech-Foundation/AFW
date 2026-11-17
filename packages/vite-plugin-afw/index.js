@@ -130,6 +130,9 @@ export default function afw({
   // Whether this build has a server to answer server functions (a prerendered site
   // built with \`server: false\` has none).
   let shipsServer = true;
+  // Vite resolves the config again for each environment it builds, so the `config` hook
+  // runs several times per build: report the routes and their warnings once.
+  let reported = false;
   let projectRoot = nodeHost.cwd();
   let server = null; // the afwc client, started on the first compiled module
   let serverPromise = null;
@@ -269,8 +272,11 @@ export default function afw({
       projectRoot = slash(userConfig.root ? nodeHost.path.resolve(nodeHost.cwd(), userConfig.root) : nodeHost.cwd());
       command = "build";
       const app = await shape();
-      for (const warning of app.resolved.warnings) console.warn(`⚠ ${warning}`);
-      if (app.resolved.routes.length) console.log(`AFW routes\n${formatRouteTable(app.resolved.routes, app.root)}\n`);
+      if (!reported) {
+        reported = true;
+        for (const warning of app.resolved.warnings) console.warn(`⚠ ${warning}`);
+        if (app.resolved.routes.length) console.log(`AFW routes\n${formatRouteTable(app.resolved.routes, app.root)}\n`);
+      }
       const render = app.app;
       // Whether to ship a Node server: always when a route renders per request; otherwise
       // when asked, or ("auto") when the app has API routes, middleware or loaders.

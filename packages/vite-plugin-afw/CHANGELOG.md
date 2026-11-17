@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `vite build` prints the route table, and the route-policy warnings, once. Vite resolves
+  the config again for each environment it builds, so they appeared three times.
+
 ## [0.8.0] - 2026-11-13
 
 ### Added
