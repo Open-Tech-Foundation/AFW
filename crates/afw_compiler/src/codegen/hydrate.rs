@@ -1941,12 +1941,18 @@ mod tests {
             m.code
         );
         assert!(
-            m.code.contains("import { signal, bindText, handleError, enterHost, exitHost, isHydrating, runBuild, HydrationMismatch, reportError }"),
+            m.code.contains("import { signal, bindText, handleError, enterHost, exitHost, isHydrating, runBuild, HydrationMismatch, reportError, awaitHydrationProps }"),
             "hydration helpers imported:\n{}",
             m.code
         );
         // No standalone `hydrate` export — a component hydrates via its class, not a factory.
         assert!(!m.code.contains("export function hydrate"), "no page factory:\n{}", m.code);
+        // A server-rendered host waits for function props its parent sets (callbacks).
+        assert!(
+            m.code.contains("    if (this._mounted) return;\n    if (awaitHydrationProps(this)) return;\n    this._mounted = true;"),
+            "awaits function props:\n{}",
+            m.code
+        );
     }
 
     #[test]

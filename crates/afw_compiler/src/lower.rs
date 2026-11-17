@@ -2182,6 +2182,9 @@ struct Lowerer<'a, 'r> {
 /// injection but is not a component-level signal (deps are codegen-irrelevant).
 const ITEM_PARAM_SIGNAL: SignalId = SignalId(u32::MAX);
 
+/// The item parameter of a list whose callback destructures its item.
+const DESTRUCTURED_ITEM: &str = "__afw_item";
+
 impl<'a, 'r> Lowerer<'a, 'r> {
     fn new(
         source: &'a str,
@@ -2585,13 +2588,14 @@ impl<'a, 'r> Lowerer<'a, 'r> {
             return None;
         }
         let cb = map_callback(call.arguments.first()?)?;
-        // Item parameter (required, simple identifier) + optional index parameter.
-        let item_bi = match cb.params.items.first().map(|p| &p.pattern) {
-            Some(BindingPattern::BindingIdentifier(bi)) => bi,
-            _ => return None,
+        // Item parameter (required) + optional index parameter. A destructured item
+        // (`({ id, done }) =>`, `([key, value]) =>`) binds a synthetic item parameter; each
+        // name it destructures reads that item afresh (see `destructured` below).
+        let item_pattern = &cb.params.items.first()?.pattern;
+        let (item_param, item_symbol, destructured) = match item_pattern {
+            BindingPattern::BindingIdentifier(bi) => (bi.name.as_str().to_string(), bi.symbol_id.get(), None),
+            pattern => (DESTRUCTURED_ITEM.to_string(), None, Some(pattern)),
         };
-        let item_param = item_bi.name.as_str().to_string();
-        let item_symbol = item_bi.symbol_id.get();
         let index_param = match cb.params.items.get(1).map(|p| &p.pattern) {
             Some(BindingPattern::BindingIdentifier(bi)) => Some(bi.name.as_str().to_string()),
             _ => None,
@@ -2619,21 +2623,40 @@ impl<'a, 'r> Lowerer<'a, 'r> {
 
         // Key is evaluated against the *plain* item, so intern it before the item
         // parameter becomes a signal.
-        let key = self.extract_key(body_jsx);
+        let mut key = self.extract_key(body_jsx);
+        let pattern_src = destructured.map(|pattern| self.slice(pattern.span()).to_string());
+        if let (Some(pattern), Some(id)) = (&pattern_src, key) {
+            // The key function receives the plain item under the synthetic name: apply
+            // the callback's own pattern to it.
+            let code = format!("(({pattern}) => ({}))({DESTRUCTURED_ITEM})", self.exprs.code(id).unwrap_or("undefined"));
+            key = Some(self.exprs.intern(ExprInfo { code, deps: Vec::new() }));
+        }
 
         // Scope the item parameter in as a signal while lowering the item view *and*
         // the callback's preamble locals — both run inside the item builder where the
         // item is a per-item signal (so references to it get `.value`).
         let restore = item_symbol.map(|s| (s, self.signals.insert(s, ITEM_PARAM_SIGNAL)));
-        let preamble = cb
-            .preamble
-            .iter()
-            .map(|stmt| {
-                inject_stmt(self.source, self.scoping, &self.signals, self.props_symbol, stmt, self.source_map)
-            })
-            .collect();
+        // Each destructured name is a getter over the current item, registered like the
+        // item parameter so its reads become `.value`: a keyed item whose object changes
+        // under the same key (`done` toggled) updates them, as `item.done` would.
+        let mut preamble: Vec<String> = Vec::new();
+        let mut restore_destructured = Vec::new();
+        if let (Some(pattern), Some(src)) = (destructured, &pattern_src) {
+            for bi in pattern.get_binding_identifiers() {
+                let name = bi.name.as_str();
+                preamble.push(format!(
+                    "const {name} = {{ get value() {{ const {src} = {DESTRUCTURED_ITEM}.value; return {name}; }} }};"
+                ));
+                if let Some(sym) = bi.symbol_id.get() {
+                    restore_destructured.push((sym, self.signals.insert(sym, ITEM_PARAM_SIGNAL)));
+                }
+            }
+        }
+        preamble.extend(cb.preamble.iter().map(|stmt| {
+            inject_stmt(self.source, self.scoping, &self.signals, self.props_symbol, stmt, self.source_map)
+        }));
         let item = self.lower_root(body_jsx);
-        if let Some((s, prev)) = restore {
+        for (s, prev) in restore.into_iter().chain(restore_destructured.into_iter().rev()) {
             match prev {
                 Some(v) => self.signals.insert(s, v),
                 None => self.signals.remove(&s),

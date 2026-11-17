@@ -95,6 +95,8 @@ struct Uses {
     /// The constructor reads rich island props from the serialized payload (hydrate
     /// target only; a CSR `Build` component reads attributes as before).
     hydration_props: bool,
+    await_hydration_props: bool,
+    hydration_prop_set: bool,
     hot: bool,
     /// An element declares an enter/exit transition (`setTransition`).
     transition: bool,
@@ -124,6 +126,8 @@ impl Uses {
         self.run_build |= o.run_build;
         self.slot_children |= o.slot_children;
         self.hydration_props |= o.hydration_props;
+        self.await_hydration_props |= o.await_hydration_props;
+        self.hydration_prop_set |= o.hydration_prop_set;
         self.hot |= o.hot;
         self.transition |= o.transition;
         self.pending |= o.pending;
@@ -191,6 +195,12 @@ fn import_header(uses: &Uses, runtime_imports: &[String]) -> String {
     }
     if uses.hydration_props {
         names.push("hydrationProps");
+    }
+    if uses.await_hydration_props {
+        names.push("awaitHydrationProps");
+    }
+    if uses.hydration_prop_set {
+        names.push("hydrationPropSet");
     }
     if uses.transition {
         names.push("setTransition");
@@ -474,11 +484,20 @@ fn component_body_ex<'a>(
         }
         code.push_str("  }\n");
 
-        // Property get/set bridge so `el.attr = x` updates the signal.
+        // Property get/set bridge so `el.attr = x` updates the signal. A hydratable
+        // host waiting for its parent's function props (`awaitHydrationProps`) resumes
+        // its adoption from the setter: the parent assigns event props directly
+        // (`el.onSave = …`) and others through `setProp`, and both land here.
         for p in props {
             let k = js_string(&p.attr);
+            let resume = if hydratable {
+                e.uses.hydration_prop_set = true;
+                format!(" if (this.__afwAwait) hydrationPropSet(this, {k});")
+            } else {
+                String::new()
+            };
             code.push_str(&format!(
-                "  get {attr}() {{ return this._props[{k}].value; }}\n  set {attr}(v) {{ this._props[{k}].value = v; }}\n",
+                "  get {attr}() {{ return this._props[{k}].value; }}\n  set {attr}(v) {{ this._props[{k}].value = v;{resume} }}\n",
                 attr = p.attr
             ));
         }
@@ -501,6 +520,13 @@ fn component_body_ex<'a>(
     // survives the move instead of being torn down and left mounted-but-dead.
     code.push_str("    this._pendingTeardown = false;\n");
     code.push_str("    if (this._mounted) return;\n");
+    if hydratable {
+        // A server-rendered host whose parent passes it functions (callbacks, render
+        // props) adopts once the parent's hydrate pass has set them: they cannot travel
+        // in the payload, and the adopt walk reads them.
+        e.uses.await_hydration_props = true;
+        code.push_str("    if (awaitHydrationProps(this)) return;\n");
+    }
     code.push_str("    this._mounted = true;\n");
     code.push_str("    this._cleanups = [];\n");
     if hot {

@@ -320,8 +320,10 @@ impl<'a> Emitter<'a> {
                 out.push_str(&format!("const {} = computed({});\n", decl.name, body));
             }
             SignalKind::Context => {
-                // SSG has no DOM provider chain; resolve to the context default.
-                out.push_str(&format!("const {} = ({}).fallback;\n", decl.name, decl.init));
+                // The nearest `<ContextProvider>` rendering around this one, else the
+                // context default (the server has no DOM provider chain to walk).
+                self.server.insert("ssgContext");
+                out.push_str(&format!("const {} = ssgContext({});\n", decl.name, decl.init));
             }
             SignalKind::Prop => {
                 self.errors.push(format!("prop signal not supported yet: {}", decl.name));
@@ -607,7 +609,12 @@ impl<'a> Emitter<'a> {
         // A component boundary is a real call argument, so its children must be joined
         // into one expression here rather than spliced into the parent's term list.
         let children_terms = self.concat(children);
-        let children_html = join_plus(&children_terms);
+        let mut children_html = join_plus(&children_terms);
+        // A `<ContextProvider>`'s children render inside it: passed as a thunk, so the
+        // provider's value is in scope for their `$context` reads (`ssgContext`).
+        if tag_expr == "\"afw-internal-context-provider\"" {
+            children_html = format!("() => ({children_html})");
+        }
         self.server.insert("ssgComponent");
         format!("ssgComponent({tag_expr}, {props_obj}, {children_html})")
     }

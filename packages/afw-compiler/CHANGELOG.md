@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- `.map` callbacks that destructure their item (`({ id, done }) =>`, `([key, value]) =>`)
+  compile to lists. They compiled to an empty fragment, so the list rendered nothing.
+  Destructured names follow keyed item updates.
+- Hydratable components wait for function props (callbacks, render props) before they
+  adopt (`awaitHydrationProps`), and their property setters resume them.
+- `$context` on the server reads the enclosing `<ContextProvider>` (`ssgContext`), not the
+  context default.
+
+
 - The `ssg` target exports a component declared with a named export
   (`export function Badge()`) under its name. A page importing `{ Badge }` got
   `undefined`, and every server render of that page threw reading `Badge.tag`.
