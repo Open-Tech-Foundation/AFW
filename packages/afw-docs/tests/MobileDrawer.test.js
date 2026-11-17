@@ -2,7 +2,8 @@
 // <SidebarToggle> (the navbar burger). The unit DOM evaluates no CSS, so the *visual*
 // off-canvas/responsive behavior is covered by the browser e2e
 // (tests/e2e/mobile-drawer.mjs); here we assert the JS-observable wiring: open/close
-// state, the `is-open` classes, the body-scroll lock, the root flags, the
+// state, the `is-open` classes, the drawer's modality (dialog role, `aria-modal`, the
+// rest of the page `inert`, focus in and back out), the root flags, the
 // cross-component event bridge, and teardown.
 //
 // esdev.test.json compiles imports with the afwc plugin, so we mount
@@ -28,6 +29,8 @@ const NAV_LINKS = [
 ];
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
+// Focus moves into the drawer once it renders (two animation frames after opening).
+const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 const root = () => document.documentElement;
 const aside = () => document.querySelector("#afw-sidebar");
 const backdrop = () => document.querySelector(".afwd-sidebar-backdrop");
@@ -48,11 +51,17 @@ function mount(nav = NAV) {
   return { container, unmount: () => (container.remove(), mounted.delete(container)) };
 }
 
+// A phone-sized viewport: below the 768px breakpoint the sidebar is a drawer.
+const realMatchMedia = window.matchMedia;
 beforeEach(() => {
   setRouteState({ pathname: "/docs" });
+  window.matchMedia = (query) => ({
+    matches: false, media: query, addEventListener() {}, removeEventListener() {},
+  });
 });
 
 afterEach(() => {
+  window.matchMedia = realMatchMedia;
   // Remove any still-mounted trees so each test sees exactly one drawer/burger (the
   // globals and the root flags are per-mount; disconnect runs their cleanup).
   for (const c of mounted) c.remove();
@@ -162,33 +171,60 @@ describe("mobile sidebar drawer", () => {
     expect(links.map((a) => a.textContent.trim())).toEqual(["Home", "Docs", "API"]);
   });
 
-  test("burger opens the drawer, locks scroll, and syncs aria-expanded", async () => {
+  test("burger opens the drawer as a modal dialog and syncs aria-expanded", async () => {
     mount();
     await tick();
+    expect(aside().getAttribute("role")).toBe("dialog"); // a drawer below the breakpoint
+    expect(aside().getAttribute("aria-label")).toBe("Navigation");
+    expect(aside().hasAttribute("aria-modal")).toBe(false); // closed: not modal
 
+    burger().focus();
     burger().click();
     await tick();
 
     expect(aside().classList.contains("is-open")).toBe(true);
     expect(backdrop().classList.contains("is-open")).toBe(true);
     expect(root().hasAttribute("data-afw-sidebar-open")).toBe(true);
-    expect(document.body.style.overflow).toBe("hidden");
+    expect(aside().getAttribute("aria-modal")).toBe("true");
+    // The rest of the page is inert; the drawer's own shell (panel + backdrop) is not.
+    expect(burger().closest("[inert]")).not.toBe(null);
+    expect(aside().closest("[inert]")).toBe(null);
+    expect(backdrop().closest("[inert]")).toBe(null);
+    await frames();
+    expect(document.activeElement).toBe(document.querySelector(".afwd-sidebar-close"));
+    // No page scroll lock: scroll is contained by CSS (`overscroll-behavior`).
+    expect(document.body.style.overflow).toBe("");
     // aria-expanded is mirrored across components via the afw:sidebar event.
     expect(burger().getAttribute("aria-expanded")).toBe("true");
   });
 
-  test("burger toggles closed again and releases the scroll lock", async () => {
+  test("on a desktop viewport the sidebar is not a dialog and never holds the page", async () => {
+    window.matchMedia = (query) => ({ matches: true, media: query, addEventListener() {}, removeEventListener() {} });
+    mount();
+    await tick();
+    expect(aside().hasAttribute("role")).toBe(false);
+    expect(aside().hasAttribute("aria-label")).toBe(false);
+    window.__afwToggleSidebar();
+    await tick();
+    expect(aside().hasAttribute("aria-modal")).toBe(false);
+    expect(document.querySelector("[inert]")).toBe(null);
+  });
+
+  test("the close button closes it, releases the page and returns focus to the burger", async () => {
     mount();
     await tick();
 
+    burger().focus();
     burger().click();
     await tick();
-    burger().click();
+    document.querySelector(".afwd-sidebar-close").click();
     await tick();
 
     expect(aside().classList.contains("is-open")).toBe(false);
     expect(root().hasAttribute("data-afw-sidebar-open")).toBe(false);
-    expect(document.body.style.overflow).toBe("");
+    expect(aside().hasAttribute("aria-modal")).toBe(false);
+    expect(document.querySelector("[inert]")).toBe(null);
+    expect(document.activeElement).toBe(burger());
     expect(burger().getAttribute("aria-expanded")).toBe("false");
   });
 
@@ -215,7 +251,7 @@ describe("mobile sidebar drawer", () => {
     await tick();
 
     expect(aside().classList.contains("is-open")).toBe(false);
-    expect(document.body.style.overflow).toBe("");
+    expect(document.querySelector("[inert]")).toBe(null);
   });
 
   test("navigating closes the drawer", async () => {
@@ -232,23 +268,23 @@ describe("mobile sidebar drawer", () => {
 
     expect(router.pathname).toBe("/docs/routing");
     expect(aside().classList.contains("is-open")).toBe(false);
-    expect(document.body.style.overflow).toBe("");
+    expect(document.querySelector("[inert]")).toBe(null);
   });
 
-  test("unmounting clears the root flag, global, and scroll lock", async () => {
+  test("unmounting clears the root flag, the global and the inert page", async () => {
     const { unmount } = mount();
     await tick();
 
     burger().click();
     await tick();
-    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.querySelector("[inert]")).not.toBe(null);
 
     unmount();
     await tick();
 
     expect(root().hasAttribute("data-afw-has-sidebar")).toBe(false);
     expect(window.__afwToggleSidebar).toBeUndefined();
-    expect(document.body.style.overflow).toBe("");
+    expect(document.querySelector("[inert]")).toBe(null);
   });
 
   test("the burger survives an overlapping remount (SPA navigation)", async () => {

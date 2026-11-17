@@ -6,7 +6,7 @@
 //
 // Note: results only exist against a built site (`dist/`). In dev there is no index,
 // so the modal opens but reports no results — expected.
-import { onCleanup, onMount, router, Portal } from "@opentf/afw";
+import { onCleanup, onMount, router } from "@opentf/afw";
 import { createSearch, excerptParts } from "../search.js";
 
 const search = createSearch({ base: "/_search/" });
@@ -20,6 +20,7 @@ export default function Search() {
   let error = $state("");
   let controller;
   const inputRef = $ref();
+  const dialogRef = $ref();
 
   let timer;
   let token = 0;
@@ -56,15 +57,17 @@ export default function Search() {
     timer = setTimeout(() => runSearch(q), 150);
   });
 
-  const focusInput = () => {
-    const el = inputRef;
-    if (el && typeof requestAnimationFrame !== "undefined") requestAnimationFrame(() => el.focus());
-  };
+  // A native modal <dialog>: the browser makes the page behind it inert, keeps focus
+  // inside, closes it on Escape (and other platform close requests) and returns focus to
+  // whatever opened it. `autofocus` on the field puts the cursor there on open.
   const openModal = () => {
+    const dialog = dialogRef;
+    if (!dialog || dialog.open) return;
     open = true;
-    focusInput();
+    dialog.showModal();
   };
-  const close = () => {
+  // Every way the dialog closes (Escape, a result, the backdrop) ends here, via `close`.
+  const reset = () => {
     ++token;
     controller?.abort();
     clearTimeout(timer);
@@ -74,6 +77,10 @@ export default function Search() {
     query = "";
     results = [];
     active = 0;
+  };
+  const close = () => {
+    if (dialogRef?.open) dialogRef.close();
+    else reset();
   };
   const go = (url) => {
     close();
@@ -91,8 +98,7 @@ export default function Search() {
         return;
       }
       if (!open) return;
-      if (k === "Escape") close();
-      else if (k === "ArrowDown") {
+      if (k === "ArrowDown") {
         e.preventDefault();
         active = results.length ? (active + 1) % results.length : 0;
       } else if (k === "ArrowUp") {
@@ -116,18 +122,20 @@ export default function Search() {
     controller?.abort();
   });
 
-  // Portal to <body>: the navbar (our render parent) sets `backdrop-filter`, which
-  // establishes a containing block for fixed-position descendants — so without this the
-  // `position: fixed` overlay would collapse to the navbar's box instead of the viewport.
+  // A modal <dialog> renders in the top layer, above the navbar's `backdrop-filter`
+  // containing block, so it needs no portal. A click outside the panel lands on the
+  // dialog itself (it fills the viewport) and closes it.
   return (
-    <Portal>
-    <div
-      class={open ? "afwd-search-modal is-open" : "afwd-search-modal"}
+    <dialog
+      ref={dialogRef}
+      class="afwd-search-modal"
+      aria-label="Search docs"
+      onclose={reset}
       onclick={(e) => {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div class="afwd-search-panel" role="dialog" aria-label="Search docs">
+      <div class="afwd-search-panel">
         <div class="afwd-search-field">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
@@ -139,6 +147,7 @@ export default function Search() {
             type="search"
             placeholder="Search docs…"
             aria-label="Search docs"
+            autofocus
             value={query}
             oninput={(e) => (query = e.target.value)}
           />
@@ -185,7 +194,6 @@ export default function Search() {
           </span>
         </div>
       </div>
-    </div>
-    </Portal>
+    </dialog>
   );
 }

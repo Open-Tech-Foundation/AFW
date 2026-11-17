@@ -609,19 +609,31 @@
   .afw-search {
     display: contents;
   }
+  /* A modal <dialog> that fills the viewport; the panel sits inside it, and a click on
+     the dialog around the panel closes it. */
   .afwd-search-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    display: none;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    border: none;
+    padding: 12vh 1rem 1rem;
+    background: transparent;
+    color: inherit;
+    /* Scroll gestures inside the dialog, or over its backdrop, stay out of the page. */
+    overscroll-behavior: contain;
+  }
+  .afwd-search-modal[open] {
+    display: flex;
     align-items: flex-start;
     justify-content: center;
-    padding: 12vh 1rem 1rem;
+  }
+  .afwd-search-modal::backdrop {
     background: color-mix(in srgb, #000 45%, transparent);
     backdrop-filter: blur(2px);
-  }
-  .afwd-search-modal.is-open {
-    display: flex;
+    overflow: hidden;
+    overscroll-behavior: contain;
   }
   .afwd-search-panel {
     width: 100%;
@@ -800,6 +812,24 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s ease;
+    /* A non-scrolling scroll container, so gestures over it do not scroll the page. */
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+  .afwd-sidebar-close {
+    display: flex;
+    margin: 0 0 0.75rem auto;
+    padding: 0.35rem;
+    border: none;
+    border-radius: 0.4rem;
+    background: none;
+    color: var(--afw-text-muted);
+    cursor: pointer;
+  }
+  .afwd-sidebar-close:hover,
+  .afwd-sidebar-close:focus-visible {
+    color: var(--afw-text);
+    background: var(--afw-bg-elevated);
   }
   .afwd-sidebar-backdrop.is-open {
     opacity: 1;
@@ -822,7 +852,8 @@
       transform: none;
       visibility: visible;
     }
-    .afwd-sidebar-backdrop {
+    .afwd-sidebar-backdrop,
+    .afwd-sidebar-close {
       display: none;
     }
   }

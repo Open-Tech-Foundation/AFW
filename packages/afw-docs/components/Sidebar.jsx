@@ -13,8 +13,11 @@
 //     mounted, so the burger shows only on pages that actually have one.
 //   • a `afw:sidebar` CustomEvent (`{ open }`) — lets the burger mirror `aria-expanded`.
 //
-// The drawer closes on navigation, Escape, backdrop click, or a viewport resize up to
-// the desktop breakpoint, and locks body scroll while open.
+// The drawer closes on navigation, Escape, backdrop click, its close button, or a viewport
+// resize up to the desktop breakpoint. While it is a drawer it is a dialog (`role`,
+// `aria-label`); while open it is modal: `aria-modal`, the rest of the page `inert`, focus
+// moved to its close button and given back to the opener on close. Scroll stays in the
+// drawer through `overscroll-behavior`, not by locking the page's overflow.
 //
 // Above the tree sits a single icon button that collapses (or re-expands) every group at
 // once — it drives the nodes through the shared `collapseAll` signal, since they are
@@ -43,7 +46,11 @@ export default function Sidebar(props) {
   // The collapse-all button is only meaningful when the tree actually has groups.
   const hasGroups = nav.some((item) => item.items && item.items.length > 0);
   let open = $state(false);
+  // A drawer below the desktop breakpoint; the sticky column above it (not a dialog then).
+  let drawer = $state(false);
   const asideRef = $ref();
+  const shellRef = $ref();
+  const closeRef = $ref();
 
   const close = () => (open = false);
   // Stable per-instance toggle so cleanup can tell whether the global still points at us.
@@ -66,13 +73,17 @@ export default function Sidebar(props) {
     // (CSS turns the element back into the sticky column; this releases the scroll lock
     // and resyncs the burger).
     const mql = window.matchMedia(DESKTOP_QUERY);
-    const onDesktop = (e) => e.matches && close();
+    drawer = !mql.matches;
+    const onDesktop = (e) => {
+      drawer = !e.matches;
+      if (e.matches) close();
+    };
     mql.addEventListener?.("change", onDesktop);
 
     return () => {
       window.removeEventListener("keydown", onKey);
       mql.removeEventListener?.("change", onDesktop);
-      document.body.style.removeProperty("overflow");
+      releasePage();
       root.removeAttribute("data-afw-sidebar-open");
       // Only drop the flag/globals if we're the last Sidebar and still the owner — an
       // arriving instance may already have taken over during navigation.
@@ -89,11 +100,46 @@ export default function Sidebar(props) {
   // Reflect open state: lock body scroll, mark the root (for styling), and notify the
   // burger so it can mirror `aria-expanded`. Reading `open` (not writing it) keeps this
   // effect free of the route/resize effects.
+  // Modality for the open drawer: everything outside the drawer's shell (its panel and
+  // backdrop) goes `inert` — each sibling on the way up to <body>, restored on close.
+  let inerted = [];
+  let opener = null;
+  function holdPage() {
+    const shell = shellRef;
+    if (!shell || inerted.length) return;
+    for (let node = shell; node && node !== document.body; node = node.parentElement) {
+      for (const sibling of node.parentElement?.children ?? []) {
+        if (sibling === node || sibling.inert || sibling.tagName === "SCRIPT") continue;
+        sibling.inert = true;
+        inerted.push(sibling);
+      }
+    }
+  }
+  function releasePage() {
+    for (const el of inerted) el.inert = false;
+    inerted = [];
+  }
+
+  // Reflect open state: modality, the root mark (for styling), and the burger's
+  // `aria-expanded` (via `afw:sidebar`). Reading `open` (not writing it) keeps this effect
+  // free of the route/resize effects.
   $effect(() => {
     const isOpen = open;
     if (typeof document === "undefined") return;
     document.documentElement.toggleAttribute("data-afw-sidebar-open", isOpen);
-    document.body.style.overflow = isOpen ? "hidden" : "";
+    if (isOpen && drawer) {
+      opener = document.activeElement;
+      holdPage();
+      // The panel is `visibility: hidden` until its slide-in starts, and a hidden element
+      // cannot take focus: move focus once it renders.
+      const focusClose = () => closeRef?.focus({ preventScroll: true });
+      if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => requestAnimationFrame(focusClose));
+      else focusClose();
+    } else if (inerted.length) {
+      releasePage();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+      opener = null;
+    }
     window.dispatchEvent(new CustomEvent("afw:sidebar", { detail: { open: isOpen } }));
   });
 
@@ -125,13 +171,26 @@ export default function Sidebar(props) {
   });
 
   return (
-    <div class="afwd-sidebar-shell">
+    <div class="afwd-sidebar-shell" ref={shellRef}>
       <div
         class={open ? "afwd-sidebar-backdrop is-open" : "afwd-sidebar-backdrop"}
         onclick={close}
         aria-hidden="true"
       ></div>
-      <aside id="afw-sidebar" ref={asideRef} class={open ? "afwd-sidebar is-open" : "afwd-sidebar"}>
+      <aside
+        id="afw-sidebar"
+        ref={asideRef}
+        class={open ? "afwd-sidebar is-open" : "afwd-sidebar"}
+        role={drawer ? "dialog" : undefined}
+        aria-label={drawer ? "Navigation" : undefined}
+        aria-modal={drawer && open ? "true" : undefined}
+      >
+        <button type="button" class="afwd-sidebar-close" ref={closeRef} onclick={close} aria-label="Close navigation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
         {navLinks.length ? (
           <nav class="afwd-drawer-links" aria-label="Site">
             {navLinks.map((link) => (

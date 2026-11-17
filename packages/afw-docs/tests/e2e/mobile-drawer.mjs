@@ -156,6 +156,11 @@ const PROBE = `(() => {
     burgerDisplay: burger ? cs(burger).display : null,
     burgerExpanded: burger ? burger.getAttribute('aria-expanded') : null,
     bodyOverflow: getComputedStyle(document.body).overflow,
+    asideRole: aside ? aside.getAttribute('role') : null,
+    asideModal: aside ? aside.getAttribute('aria-modal') : null,
+    pageInert: !!document.querySelector('[inert]'),
+    shellInert: aside ? !!aside.closest('[inert]') : null,
+    focus: document.activeElement ? (document.activeElement.className || document.activeElement.tagName) : null,
     hasSidebar: document.documentElement.hasAttribute('data-afw-has-sidebar'),
     linkCount: aside ? aside.querySelectorAll('.afwd-sidebar-link').length : 0,
     navNavDisplay: navNav ? cs(navNav).display : null,
@@ -196,8 +201,11 @@ async function run() {
   assert(s.asideVisibility === "hidden", "drawer is visibility:hidden while closed");
   assert(s.backdropOpacity === "0", "backdrop is hidden");
 
-  // Open via the burger.
-  await evalJS(client, `document.querySelector('.afwd-navbar-burger').click()`);
+  assert(s.asideRole === "dialog", "the mobile drawer is a dialog");
+  assert(s.asideModal === null, "the closed drawer is not modal");
+
+  // Open via the burger (focused first, as a keyboard user would have it).
+  await evalJS(client, `(() => { const b = document.querySelector('.afwd-navbar-burger'); b.focus(); b.click(); })()`);
   s = await waitForProbe(
     client,
     (s) => s.asideOpen === true && s.backdropOpacity === "1" && s.asideVisibility === "visible" && s.asideRect.left >= -1,
@@ -207,18 +215,25 @@ async function run() {
   assert(s.asideRect.left >= -1 && s.asideRect.width > 0, "drawer slid into view");
   assert(s.asideVisibility === "visible", "drawer is visible when open");
   assert(s.backdropOpacity === "1", "backdrop is shown");
-  assert(s.bodyOverflow === "hidden", "body scroll is locked");
+  assert(s.asideModal === "true", "the open drawer is modal (aria-modal)");
+  assert(s.pageInert && s.shellInert === false, "the rest of the page is inert, the drawer is not");
+  assert(String(s.focus).includes("afwd-sidebar-close"), "focus moves to the drawer's close button");
+  assert(s.bodyOverflow !== "hidden", "the page's overflow is not locked (scroll is contained by CSS)");
+  // Inert content outside the drawer cannot take focus.
+  const outside = await evalJS(client, `(() => { const a = document.querySelector('main a, footer a, .afwd-navbar a'); a?.focus(); return a ? document.activeElement === a : null; })()`);
+  assert(outside === false, "the inert page behind the drawer cannot be focused");
   assert(s.burgerExpanded === "true", "burger aria-expanded is true");
 
-  // Backdrop click closes and releases the lock.
+  // Backdrop click closes and releases the page.
   await evalJS(client, `document.querySelector('.afwd-sidebar-backdrop').click()`);
   s = await waitForProbe(
     client,
-    (s) => s.asideOpen === false && s.bodyOverflow !== "hidden" && s.burgerExpanded === "false",
-    "the drawer to close via the backdrop (scroll lock released)",
+    (s) => s.asideOpen === false && !s.pageInert && s.burgerExpanded === "false",
+    "the drawer to close via the backdrop (page released)",
   );
   assert(s.asideOpen === false, "backdrop click closes the drawer");
-  assert(s.bodyOverflow !== "hidden", "scroll lock released after close");
+  assert(!s.pageInert && s.asideModal === null, "the page is released after close");
+  assert(String(s.focus).includes("afwd-navbar-burger"), "focus returns to the burger");
   assert(s.burgerExpanded === "false", "burger aria-expanded back to false");
 
   // Re-open, then Escape closes.

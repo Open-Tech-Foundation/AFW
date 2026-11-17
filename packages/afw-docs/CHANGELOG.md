@@ -4,6 +4,15 @@
 
 ### Changed
 
+- The search is a modal `<dialog>` (`showModal()`): the page behind it is inert, focus
+  stays inside and returns to the trigger, and Escape and other close requests close it.
+  It no longer needs a portal.
+- The mobile sidebar drawer is a modal dialog while open (`role="dialog"`,
+  `aria-modal`, the rest of the page `inert`), with its own close button that takes focus
+  and gives it back to the burger on close. Scroll stays in the drawer through
+  `overscroll-behavior` instead of locking `body` overflow.
+
+
 - Search excerpts sort their omitted ranges and highlights with `toSorted()` instead of
   copying the array first.
 

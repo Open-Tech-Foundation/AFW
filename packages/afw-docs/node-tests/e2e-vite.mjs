@@ -85,9 +85,20 @@ try {
   check(await until(`document.querySelector('.afwd-sidebar-link.afwd-active')?.textContent.includes('Advanced guide')`), "the active sidebar link follows the route");
 
   await evaluate("document.querySelector('.afwd-search-trigger').click()");
-  check(await until("document.querySelector('.afwd-search-modal')?.classList.contains('is-open')"), "the search dialog opens");
+  check(await until("document.querySelector('.afwd-search-modal')?.open === true"), "the search dialog opens");
+  check(await until("document.querySelector('.afwd-search-modal')?.matches(':modal') && document.activeElement?.classList.contains('afwd-search-input-field')"), "the search opens as a modal, with focus in its field");
   await evaluate(`(() => { const input = document.querySelector('.afwd-search-input-field'); input.value = 'quixotic'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   check(await until(`[...document.querySelectorAll('.afwd-search-result')].some((r) => r.getAttribute('href')?.startsWith('/docs/guides/advanced'))`), "search finds the page through the built index");
+  // Real Escape key presses. In a search field with text the first one clears the field
+  // (native behaviour); the next is the dialog's close request, and `close` resets it.
+  const escape = async () => {
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  };
+  await escape();
+  check(await until("document.querySelector('.afwd-search-input-field').value === ''"), "Escape first clears the search field");
+  await escape();
+  check(await until("document.querySelector('.afwd-search-modal')?.open === false && !document.querySelector('.afwd-search-result')"), "the next Escape closes the search and clears its results");
 
   check(errors.length === 0, `no browser errors: ${JSON.stringify(errors)}`);
 } catch (error) {
