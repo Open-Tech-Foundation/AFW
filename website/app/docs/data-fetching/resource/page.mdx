@@ -93,9 +93,96 @@ const repo = resource(() => router.params.name, fetchRepo, {
 - **Aborts.** A shared request is aborted only once every resource or caller using it
   has aborted or unmounted.
 - `refetch()` and `invalidate()` always ask the server, whatever the `staleTime`.
+- After an action, the [single-flight `refresh()`](/docs/server-functions#update-in-the-same-request)
+  updates cached calls in the action's own response.
 - A fetcher that calls a server function inside it (`() => listTodos({ done })`)
   shares requests too. It shows cached data at once only when written as
   `resource(source, listTodos)` or given a `key`.
+
+## Resilience
+
+```jsx
+const feed = resource(() => ({ page }), listPosts, {
+  timeout: 8_000,
+  revalidateOn: ["focus", "online"],
+  staleTime: 60_000,
+});
+```
+
+- **Retries.** A server function query whose request never reached the server
+  (offline, a dropped connection) is retried twice, after 300 ms and 1 s. An HTTP error
+  is the server's answer and is not retried. Actions are never retried.
+- **`timeout`** (ms): a run that takes longer is aborted; `error` is a `TimeoutError`.
+- **`revalidateOn`**: `"focus"` refetches when the tab becomes visible again, `"online"`
+  when the browser reconnects. It skips data younger than `staleTime`. Off by default.
+
+## Recipes
+
+### Prefetch
+
+A query call fills the cache, so call it before the view needs it:
+
+```jsx
+<a href={`/todos/${todo.id}`} onpointerenter={() => getTodo({ id: todo.id })}>{todo.title}</a>
+```
+
+- The resource on the next page shows the data at once. Give it a `staleTime` to skip
+  the revalidation request too.
+
+### Pagination and infinite scroll
+
+```jsx
+// Pages: the previous page stays shown while the next one loads.
+let page = $state(1);
+const posts = resource(() => ({ page }), listPosts);
+
+// Infinite scroll: one component per loaded page, each with its own resource.
+function PostPage({ page, last, onmore }) {
+  const posts = resource(() => ({ page }), listPosts);
+  return (
+    <>
+      {(posts.data ?? []).map((post) => <PostCard key={post.id} post={post} />)}
+      {/* After the last page loads: ask for more while the end is in view. */}
+      {last && posts.data?.length > 0 && <Sentinel onvisible={onmore} />}
+    </>
+  );
+}
+
+// Calls `onvisible` whenever it is in view, including when it mounts in view.
+function Sentinel({ onvisible }) {
+  onVisibilityChange((visible) => visible && onvisible());
+  return <div aria-hidden="true" />;
+}
+
+export default function Feed() {
+  let pages = $state(1);
+  const numbers = $derived(Array.from({ length: pages }, (_, i) => i + 1));
+  return (
+    <section>
+      {numbers.map((n) => <PostPage key={n} page={n} last={n === pages} onmore={() => pages++} />)}
+    </section>
+  );
+}
+```
+
+- `key={n}` keeps loaded pages mounted as pages are added, so they are not fetched again.
+- Each page is its own cache entry, so remounting the feed shows it at once.
+- The sentinel renders only once the last page has data. It mounts fresh each time, so
+  [`onVisibilityChange`](/docs/macros) reports it at once when it is already in view, and
+  loading continues until the screen is full. An empty page ends the feed.
+- A "Load more" button can replace the sentinel: `onclick={onmore}`.
+
+### Polling
+
+```js
+onMount(() => {
+  const id = setInterval(() => todos.refetch(), 10_000);
+  return () => clearInterval(id);
+});
+```
+
+- For data the server pushes, prefer server-sent events or a WebSocket with
+  `setQueryData`.
 
 ## Related
 

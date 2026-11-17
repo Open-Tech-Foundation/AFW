@@ -113,6 +113,77 @@ async function save(title) {
 - It resolves when the refetches settle; a failed refetch shows on its resource's
   `error` and does not reject. On the server it does nothing.
 
+## Update in the same request
+
+An action can send the queries it changed back with its own response, so the page
+updates without a second request:
+
+```js
+// app/todos/todos.server.js
+export const addTodo = action(schema, async ({ title }, { locals, refresh }) => {
+  await db.todos.insert({ title, owner: locals.user });
+  refresh(listTodos, todoStats); // every input of these the page shows
+  return { ok: true };
+});
+
+export const renameTodo = action(renameSchema, async ({ id, title }, { refresh }) => {
+  await db.todos.update(id, { title });
+  refresh(getTodo, { id }); // a value after a query: just that input
+});
+```
+
+- **One call.** `refresh()` takes any number of queries. A query alone covers every
+  input the page shows. A value after a query covers that one input.
+- **What the browser sends.** The stub adds the query calls the page shows to the action
+  request (at most 20). The server re-runs the refreshed ones after the action.
+- **What comes back.** The fresh results arrive with the action's result. They are in the
+  cache before `await addTodo(…)` resolves, and every resource showing them updates.
+- **Folders.** Only queries in the action's folder or a parent folder run in the
+  action's request, since their middleware already ran. Others are refetched by the
+  browser through their own endpoint.
+- **Fallbacks.** A refreshed query that fails, or a call over the limit, is refetched
+  normally. Cached calls the page does not show are marked stale.
+- **Schemas and errors.** Each re-run goes through the query's schema. A failed refresh
+  never fails the action.
+- **Elsewhere.** `refresh()` does nothing when the action is called from server code.
+
+### Optimistic updates
+
+Show the result before the server answers; it comes off when the action settles:
+
+```jsx
+import { optimistic, resource } from "@opentf/afw";
+import { addTodo, listTodos } from "./todos.server.js";
+
+const todos = resource(() => ({ done: false }), listTodos);
+
+function add(title) {
+  return optimistic(addTodo({ title }), listTodos, (list) => [...list, { title, saving: true }]);
+}
+```
+
+- `optimistic(promise, query, update)` shows `update(data)` on every cached call of the
+  query until `promise` settles. `optimistic(promise, query, input, update)` covers one call.
+- On success, the data the action's `refresh()` sent shows. On failure, the previous data
+  shows again and the returned promise rejects with the action's error.
+- Keep `update` pure: it runs again whenever the data under it changes.
+
+### Write the cache
+
+```js
+import { setQueryData } from "@opentf/afw";
+
+socket.addEventListener("message", (event) => {
+  const todo = JSON.parse(event.data);
+  setQueryData(getTodo, { id: todo.id }, todo);
+});
+```
+
+- `setQueryData(query, input, value)` stores data for one call; `value` can be
+  `(current) => next`. Resources showing the call update, and nothing is fetched.
+- Use it for realtime pushes (WebSocket, server-sent events) and for data you already
+  have from another response.
+
 ## Errors
 
 A failed call rejects with a `ServerFunctionError` (from `@opentf/afw`):
