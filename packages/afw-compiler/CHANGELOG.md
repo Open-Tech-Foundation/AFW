@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- JSX returned by a callback inside a hole (`flatMap`, `Array.from`, `reduce`, an inline
+  function) builds where it is written, on the client and hydrate targets. It was hoisted
+  out of the callback and threw `ReferenceError` for the callback's parameters.
+- `xs.map(…).filter(Boolean)` (a `.map` whose result the expression keeps using) is a
+  plain array. It was lowered as a list region, and the next method call threw on it.
+
+
 - `.map` callbacks that destructure their item (`({ id, done }) =>`, `([key, value]) =>`)
   compile to lists. They compiled to an empty fragment, so the list rendered nothing.
   Destructured names follow keyed item updates.

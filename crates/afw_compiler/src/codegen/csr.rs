@@ -1726,8 +1726,11 @@ impl<'a> Emitter<'a> {
     }
 
     /// Emit a dynamic node region (conditional/element-valued hole) into `parent`:
-    /// a comment anchor, a node-builder per embedded JSX branch, and a `bindChild`
-    /// over the templated expression with each placeholder calling its builder.
+    /// a comment anchor and a `bindChild` over the templated expression, with each
+    /// embedded JSX branch built inline where it was written. Inline, not hoisted: a
+    /// branch may sit inside a callback (`xs.flatMap((x) => [<a>{x}</a>])`,
+    /// `Array.from(…, (_, i) => <b>{i}</b>)`, an IIFE) whose parameters and locals
+    /// it reads.
     fn emit_dynamic_node(&mut self, parent: &str, expr: ExpressionId, branches: &[ViewNode]) {
         let anchor = self.fresh("a");
         self.line(format!("const {anchor} = document.createComment(\"\");"));
@@ -1735,10 +1738,7 @@ impl<'a> Emitter<'a> {
 
         let mut calls = Vec::with_capacity(branches.len());
         for branch in branches {
-            let fn_name = format!("{}_node{}", self.base, self.list_counter);
-            self.list_counter += 1;
-            self.build_fn(&fn_name, branch, "", &[]);
-            calls.push(format!("{fn_name}()"));
+            calls.push(self.inline_node_expr(branch));
         }
 
         let template = self.lowered.exprs.code(expr).unwrap_or("null").to_string();
@@ -3061,18 +3061,43 @@ mod tests {
         ));
         assert!(m.is_complete(), "errors: {:?}", m.errors);
         assert!(m.code.contains("import { signal, bindText, bindChild, handleError, enterHost, exitHost }"), "code: {}", m.code);
-        // Builders are LOCAL (inside connectedCallback) so they close over `label`.
-        assert!(m.code.contains("function C_node0() {"), "code: {}", m.code);
-        assert!(m.code.contains("function C_node1() {"), "code: {}", m.code);
         // Inner reactive text inside a branch still wired.
         assert!(m.code.contains("bindText(t1, () => (label.value))"), "code: {}", m.code);
-        // Anchor + bindChild over the templated expression with builder calls.
+        // Anchor + bindChild over the templated expression, each branch built inline.
         assert!(m.code.contains("const a1 = document.createComment(\"\");"), "code: {}", m.code);
-        assert!(
-            m.code.contains("bindChild(a1, () => (on.value ? C_node0() : C_node1()))"),
-            "code: {}",
-            m.code
-        );
+        assert!(m.code.contains("bindChild(a1, () => (on.value ? (() => {"), "code: {}", m.code);
+        assert!(m.code.contains(" : (() => {"), "code: {}", m.code);
+        assert!(!m.code.contains("C_node0"), "no hoisted builder: {}", m.code);
+    }
+
+    #[test]
+    fn a_map_whose_result_is_used_further_is_a_plain_array() {
+        // `xs.map(…).filter(Boolean)`: the map was lowered as a list region (a fragment),
+        // and `.filter` then threw on it. Its result is an array of inline-built nodes.
+        let m = emit_page(&lower(
+            "export default function P(){ const xs = [1, 2]; return <div>{xs.map((x) => (x > 1 ? <b>{x}</b> : null)).filter(Boolean)}</div>; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(!m.code.contains("bindList"), "no list region:\n{}", m.code);
+        assert!(m.code.contains("xs.map((x) => (x > 1 ? (() => {"), "inline builder in the callback:\n{}", m.code);
+        assert!(m.code.contains(".filter(Boolean)"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn jsx_returned_by_a_callback_in_a_hole_reads_its_parameters() {
+        // `flatMap` / `Array.from` / an IIFE: the branch builds where the JSX is written,
+        // inside the callback, so `x` / `i` / locals are in scope (they used to be
+        // hoisted into a builder above the callback and threw `ReferenceError`).
+        for src in [
+            "export default function P(){ const xs=[1]; return <div>{xs.flatMap((x) => [<a>{x}</a>])}</div>; }",
+            "export default function P(){ return <div>{Array.from({ length: 2 }, (_, i) => <b>{i}</b>)}</div>; }",
+            "export default function P(){ return <div>{(() => { const x = 2; return <i>{x}</i>; })()}</div>; }",
+        ] {
+            let m = emit_page(&lower(src));
+            assert!(m.is_complete(), "errors: {:?}", m.errors);
+            assert!(!m.code.contains("_node0()"), "no hoisted builder:\n{}", m.code);
+            assert!(m.code.contains("(() => {\nconst el0 = document.createElement("), "inline builder:\n{}", m.code);
+        }
     }
 
     #[test]

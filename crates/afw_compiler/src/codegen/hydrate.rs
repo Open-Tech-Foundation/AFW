@@ -1210,20 +1210,23 @@ impl<'a> Emitter<'a> {
             self.list_counter += 1;
             let adopt_fn = format!("{}_hnode{}", self.base, n);
             let build_fn = format!("{}_node{}", self.base, n);
+            // Defined where the branch is written, not above the statement: it may sit
+            // inside a callback (`xs.flatMap((x) => [<a>{x}</a>])`) whose parameters it reads.
+            let saved = std::mem::take(&mut self.lines);
             self.emit_adopt_node_fn(&adopt_fn, branch);
+            let adopt_lines = std::mem::replace(&mut self.lines, saved);
             let (build_lines, tmpls) = emit_build_node_fn(self.lowered, &build_fn, branch);
             self.templates.extend(tmpls);
-            for l in build_lines {
-                self.line(l);
-            }
             // The adopt fn claims off the shared region cursor `__ic`; the build fn takes none.
-            adopt_calls.push(format!("{adopt_fn}(__ic)"));
-            build_calls.push(format!("{build_fn}()"));
+            adopt_calls.push(format!("(() => {{\n{}\nreturn {adopt_fn}(__ic);\n}})()", adopt_lines.join("\n")));
+            build_calls.push(format!("(() => {{\n{}\nreturn {build_fn}();\n}})()", build_lines.join("\n")));
         }
 
         let template = self.code(expr);
-        let adopt_expr = substitute_branches_pub(&template, &adopt_calls);
-        let build_expr = substitute_branches_pub(&template, &build_calls);
+        // Value locals are substituted in the template, before the branch builders are
+        // spliced in: the builders are inline code that must keep their own references.
+        let adopt_expr = substitute_branches_pub(&self.substitute_value_locals(&template, Subst::Adopt), &adopt_calls);
+        let build_expr = substitute_branches_pub(&self.substitute_value_locals(&template, Subst::Build), &build_calls);
         // The deps template: the same expression with every branch replaced by `null`.
         // `hydrateChild`'s region effect must run *something* on first paint to subscribe to
         // the condition's reads, but running the real build there constructs a subtree only to
@@ -1231,14 +1234,11 @@ impl<'a> Emitter<'a> {
         // moves those live server nodes into the discarded tree, emptying the slot. Evaluating
         // the condition alone subscribes to the same reads and touches no DOM. (Reactivity
         // *inside* a branch rides that branch's own bindText/bindAttr effects.)
-        let nulls = vec!["null".to_string(); branches.len()];
-        let deps_expr = substitute_branches_pub(&template, &nulls);
         // A branch may be a bare reference to a JSX-value local (`cond ? <a/> : body`): the
         // adopt template claims it off the region cursor, the build template rebuilds it, the
         // deps template drops it.
-        let adopt_expr = self.substitute_value_locals(&adopt_expr, Subst::Adopt);
-        let build_expr = self.substitute_value_locals(&build_expr, Subst::Build);
-        let deps_expr = self.substitute_value_locals(&deps_expr, Subst::Deps);
+        let nulls = vec!["null".to_string(); branches.len()];
+        let deps_expr = substitute_branches_pub(&self.substitute_value_locals(&template, Subst::Deps), &nulls);
         self.uses.hydrate_child = true;
         self.bind(format!(
             "hydrateChild({cur}, (__ic) => ({adopt_expr}), () => ({build_expr}), () => ({deps_expr}))"
@@ -2219,6 +2219,18 @@ mod tests {
     }
 
     #[test]
+    fn a_region_branch_inside_a_callback_reads_its_parameters() {
+        // `{xs.flatMap((x) => [<a>{x}</a>])}`: the region's adopt and build functions are
+        // defined inside the callback, where `x` is in scope.
+        let m = emit("export default function P(){ const xs = [1]; return <div>{xs.flatMap((x) => [<a>{x}</a>])}</div>; }");
+        assert!(m.errors.is_empty(), "errors:\n{:?}", m.errors);
+        let region = m.code.find("hydrateChild(").expect(&m.code);
+        let adopt = m.code.find("function default_hnode0(__ic) {").expect(&m.code);
+        assert!(region < adopt, "adopt fn defined inside the region's expression:\n{}", m.code);
+        assert!(m.code[region..].contains("(__ic) => (xs.flatMap((x) => [(() => {"), "inside the callback:\n{}", m.code);
+    }
+
+    #[test]
     fn jsx_returned_by_a_local_callback_reads_its_parameters() {
         // `const row = (item) => <li>{item.name}</li>`: the build and adopt functions are
         // defined inside the arrow, where `item` is in scope. Hoisted above the statement,
@@ -2493,7 +2505,7 @@ mod tests {
         // hydrateChild gets the adopt closure (claims) and the build closure (swaps), both over
         // the same branch expression.
         assert!(
-            hyd.contains("hydrateChild(__c2, (__ic) => (open.value ? default_hnode0(__ic) : default_hnode1(__ic)), () => (open.value ? default_node0() : default_node1()), () => (open.value ? null : null))"),
+            hyd.contains("return default_hnode0(__ic);\n})() : (() => {") && hyd.contains("return default_node0();\n})() : (() => {") && hyd.contains("() => (open.value ? null : null))"),
             "hydrateChild call:\n{}",
             hyd
         );

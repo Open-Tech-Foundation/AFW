@@ -2097,6 +2097,15 @@ impl<'a> Visit<'a> for NodeTemplater<'a, '_> {
             }
             return;
         }
+        // `xs.map((x) => <b/>).filter(Boolean)`: the map's result is an array the
+        // expression keeps working with, not the region's nodes. Descend into it so each
+        // JSX becomes an inline builder inside the callback, instead of a list region.
+        if let Expression::CallExpression(call) = &it.object
+            && is_jsx_map_call(call)
+        {
+            walk::walk_call_expression(self, call);
+            return;
+        }
         walk::walk_static_member_expression(self, it);
     }
     fn visit_object_property(&mut self, it: &ObjectProperty<'a>) {
