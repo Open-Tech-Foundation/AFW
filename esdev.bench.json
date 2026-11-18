@@ -11,7 +11,7 @@
     "targets": {
       "web": {
         "entry": "benchmarks/afw/index.html",
-        "outdir": "benchmarks/afw/dist"
+        "outDir": "benchmarks/afw/dist"
       }
     }
   },

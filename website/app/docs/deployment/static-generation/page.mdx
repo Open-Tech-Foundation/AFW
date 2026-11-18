@@ -29,7 +29,7 @@ export default defineRoute({ render: "static" });
   ],
   "build": {
     "targets": {
-      "web": { "entry": "index.html", "outdir": "dist", "assets": ["public"] },
+      "web": { "entry": "index.html", "outDir": "dist", "assets": ["public"] },
       "prerender": { "entry": "ssg.js", "out": ".ssg/ssg.js", "then": "run" }
     }
   }

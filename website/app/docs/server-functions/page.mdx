@@ -340,7 +340,7 @@ export default defineRoute({ render: "server" });
 {
   "plugins": [{ "module": "@opentf/esdev-plugin-afw", "options": { "appDir": "app" } }],
   "build": { "targets": {
-    "web": { "entry": "index.html", "outdir": "dist" },
+    "web": { "entry": "index.html", "outDir": "dist" },
     "server": { "entry": "server.js", "out": "dist/server.js" }
   } },
   "dev": { "run": "server", "app": { "port": 3000 } }

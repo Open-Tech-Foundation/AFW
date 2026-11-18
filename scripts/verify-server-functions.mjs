@@ -43,7 +43,7 @@ await write(`${project}/package.json`, JSON.stringify({ private: true, type: "mo
 await write(`${project}/esdev.json`, JSON.stringify({
   plugins: [{ module: "@opentf/esdev-plugin-afw" }],
   build: { targets: {
-    web: { entry: "index.html", outdir: "dist" },
+    web: { entry: "index.html", outDir: "dist" },
     server: { entry: "server.js", out: "dist/server.js" },
   } },
   dev: { run: "server", app: { port: appPort } },
