@@ -83,5 +83,21 @@ branch for the current route. So **any** folder with a layout like this becomes 
 documentation section — `app/api` → `/api`, with its own sidebar — and they all share the
 same traits ([last updated](/packages/afw-docs/configuration), search, prev/next).
 
+### Large sites
+
+- **One copy of the nav.** The tree lives in the `@opentf/afw-docs/nav` chunk, which the
+  browser caches for the whole site. Pages carry no copy of it in their HTML payload.
+- **Only the open branch.** Past 150 links in a section, only the branch holding the
+  current page starts open. Other top-level groups are one row each, and their links are
+  built in the browser when opened. Smaller trees open every top-level group.
+- **Reachable without JavaScript.** A group with its own page is a link, and that page
+  opens its branch. The sitemap lists every page.
+- **Find in page** searches the open branches only.
+- **The cost.** A page's size follows the number of sections and its own section's
+  size, not the site's: 51 KB a page at 1,000 pages (see the docs-scale benchmark in the
+  repository).
+- **The current page** link carries `aria-current="page"`; style it with
+  `.afwd-sidebar-link[aria-current="page"]`.
+
 Continue with [Components](/packages/afw-docs/components) and
 [Configuration](/packages/afw-docs/configuration).
