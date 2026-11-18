@@ -210,6 +210,12 @@ run = "esdev scripts/verify-hmr.mjs"
 deps = ["build-compiler"]
 run = "esdev scripts/verify-server-functions.mjs"
 
+# Every esdev starter, every option combination: scaffold, install this checkout's packages,
+# typecheck, test, build, dev and production servers, PUBLIC_* env (scripts/verify-templates.mjs).
+# Writes ~/.cache/afw-templates/report.md. Args pass through: `-- --only=app --browser`.
+[tasks.verify-templates]
+run = "cargo build --release -p afw_cli && esdev scripts/verify-templates.mjs"
+
 [tasks.test-e2e]
 deps = ["test-e2e-docs", "test-e2e-afw-test", "test-e2e-afw-browser", "test-e2e-benchmark-runner", "test-e2e-hmr", "test-e2e-esdev-fns", "test-e2e-vite"]
 

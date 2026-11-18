@@ -70,12 +70,21 @@ Breaking in esrun 0.48: a network grant names an address (`--allow-listen=0.0.0.
 D221) and has no wildcards. The starters already grant an address; their README says a
 different `PORT` needs the same port in `--allow-listen`.
 
-Still open (not in the 0.28 notes, not re-measured):
+Still open, to report upstream (2026-11-18, esdev 0.28.0, esrun 0.48.0). Found by
+`tsr verify-templates`: all 32 option combinations of the `app`, `docs` and `library`
+starters, each scaffolded, installed, typechecked, tested, built, run in dev and in
+production, with a browser pass. 29 pass; the 3 failures are items 1 and 2.
 
-| Issue | Effect |
-| --- | --- |
-| A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | A request in that window is refused (`Failed to fetch`); `tsr test-e2e-esdev-fns` waits it out |
-| `esdev start` walks directories its root `.gitignore` excludes, and `.git` | 0.27: one playground start touched 445,392 paths, 1,496 of them real source; cold on a spinning disk, 24–67s |
+| # | Issue | Repro | Effect |
+| --- | --- | --- | --- |
+| 1 | `esdev test` with two or more test files on a cold cache sometimes fails to load a dependency it pre-bundled itself: `cannot resolve module "…/node_modules/.esdev/deps/<hash>/lz-string-<hash>.mjs": No such file or directory` (also `aria-query`) | Any starter with a second test file: `rm -rf node_modules/.esdev && pnpm test`. About 1 run in 10 here; 2–5 of 32 combinations per matrix run | A new project's first `pnpm test` fails at random; the next run passes. Looks like test files racing on the shared pre-bundle (this repo's `tasks.toml` already warms it to dodge the same race) |
+| 2 | A CSS `@import` with a `layer()` modifier is not resolved or inlined: it is left as written, and the browser requests the bare package path | `a.css`: `@import "pkg-b/x.css" layer(lib);` imported from the page's stylesheet; `esdev build`. The same import without `layer()` is inlined | The `docs` starter's code highlighting loses `@opentf/syntax-highlighter`'s shared rules (imported by `@opentf/afw-docs/theme` with `layer(afw-docs)`), with a 404 on every page, in dev and production |
+| 3 | A dependency linked from outside the project (`link:`/`file:` to a local checkout) is refused: `module "…" resolves outside the project root (modules outside the root cannot be loaded)` | A project whose `package.json` has `"@opentf/esdev-plugin-afw": "link:../afw/packages/esdev-plugin-afw"`; `esdev build` | Developing a package against an app means copying it into `node_modules` (what `tsr verify-templates` and the afw-docs tests do) |
+| 4 | With esdev's default grants (everything), a script's `runtime:fs` access still stops at its project root ("escapes the filesystem root"); with `--deny-all --allow-read --allow-imports --allow-write=<dir>`, the same write outside it succeeds | `esdev script.mjs` writing to `~/.cache/x`: refused; add those flags: written | Backwards from what "grant everything" suggests, and the `runtime:fs` page does not say how the root is chosen. Tooling that works in a scratch directory copies itself there and re-runs instead (`verify-templates.mjs`, `docs-scale/run.mjs`) |
+| 5 | `esdev create --help` lists template names that no longer exist: "react, api, … spa, fullstack, docs or library" | `esdev create --help` | The AFW starters are `app`, `docs` and `library` now (`esdev create --list` is right) |
+| 6 | A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | Edit a loader under `esdev start`, request during the restart | A request in that window is refused (`Failed to fetch`); `tsr test-e2e-esdev-fns` waits it out. Not re-measured on 0.28 |
+| 7 | `esdev start` walks directories its root `.gitignore` excludes, and `.git` | `strace -f -e trace=openat,newfstatat esdev start` in this repository | 0.27: one playground start touched 445,392 paths, 1,496 of them real source; cold on a spinning disk, 24–67s. Not re-measured on 0.28 |
+| 8 | Once, `esdev start` stopped picking up edits and served the old build until restarted | Not reproduced | Unconfirmed: report only with a repro |
 
 ## Starter templates
 
