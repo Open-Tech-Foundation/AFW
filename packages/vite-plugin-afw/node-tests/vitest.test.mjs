@@ -9,7 +9,10 @@ import afw from "@opentf/vite-plugin-afw";
 import { copyFixture } from "./helpers.mjs";
 
 async function runVitest(dir) {
-  const vitest = await startVitest("test", [], { root: dir, run: true, watch: false, reporters: [] });
+  // Each run keeps its own Vitest module cache: Vitest 5 shares one in the workspace root's
+  // node_modules, and these files run concurrently (`node --test`), so one run clearing it
+  // while another wrote failed with ENOTEMPTY.
+  const vitest = await startVitest("test", [], { root: dir, run: true, watch: false, reporters: [], fsModuleCachePath: join(dir, "node_modules", ".vitest-cache") });
   try {
     const files = vitest.state.getFiles();
     const tests = files.flatMap((f) => f.tasks);

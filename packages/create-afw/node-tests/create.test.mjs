@@ -25,7 +25,10 @@ const scratch = await mkdtemp(join(pkg, ".cache", "projects-"));
 after(() => rm(scratch, { recursive: true, force: true }));
 
 async function runTests(root) {
-  const vitest = await startVitest("test", [], { root, run: true, watch: false, reporters: [] });
+  // Each run keeps its own Vitest module cache: Vitest 5 shares one in the workspace root's
+  // node_modules, and these files run concurrently (`node --test`), so one run clearing it
+  // while another wrote failed with ENOTEMPTY.
+  const vitest = await startVitest("test", [], { root, run: true, watch: false, reporters: [], fsModuleCachePath: join(root, "node_modules", ".vitest-cache") });
   try {
     const files = vitest.state.getFiles();
     return {

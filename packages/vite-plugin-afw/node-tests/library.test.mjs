@@ -85,8 +85,12 @@ test("Vitest compiles the library", async () => {
   const previous = process.cwd();
   process.chdir(dir);
   after(() => process.chdir(previous));
+  // Each run keeps its own Vitest module cache: Vitest 5 shares one in the workspace root's
+  // node_modules, and these files run concurrently (`node --test`), so one run clearing it
+  // while another wrote failed with ENOTEMPTY.
   const vitest = await startVitest("test", [], {
     root: dir, run: true, watch: false, reporters: [], config: false,
+    fsModuleCachePath: join(dir, "node_modules", ".vitest-cache"),
     environment: "happy-dom", setupFiles: ["@opentf/afw-test/vitest"],
   }, { plugins: [afw()] });
   try {
