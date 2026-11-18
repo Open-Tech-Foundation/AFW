@@ -23,7 +23,7 @@
   "plugins": ["@opentf/esdev-plugin-afw"],
   "build": {
     "targets": {
-      "web": { "entry": "index.html", "outdir": "dist" }
+      "web": { "entry": "index.html", "outDir": "dist" }
     }
   }
 }

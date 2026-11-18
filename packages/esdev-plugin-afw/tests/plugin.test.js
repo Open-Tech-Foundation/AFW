@@ -258,7 +258,7 @@ test("a starter config loads the default factory and builds browser and server r
     await write(join(scratch, "esdev.json"), JSON.stringify({
       plugins: [{ module: "@opentf/esdev-plugin-afw" }],
       build: { targets: {
-        web: { entry: "index.html", outdir: "dist" },
+        web: { entry: "index.html", outDir: "dist" },
         server: { entry: "server.js", out: "server.mjs", platform: "server" },
       } },
     }));

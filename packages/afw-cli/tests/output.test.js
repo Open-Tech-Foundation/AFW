@@ -68,7 +68,7 @@ await writePrerenderReport(out, { siteDescription: "Resolved home description & 
     await write(configPath, JSON.stringify({
       plugins: [{ module: "@opentf/afw-cli/ssg", export: "siteOutputPlugin", options: { root: dir, target: "web", prerenderTarget: "prerender" } }],
       build: { targets: {
-        web: { entry: "index.html", outdir: "dist", assets: ["public"] },
+        web: { entry: "index.html", outDir: "dist", assets: ["public"] },
         prerender: { entry: "prerender.js", out: ".ssg/prerender.js", then: "run" },
       } },
     }));

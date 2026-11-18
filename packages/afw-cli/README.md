@@ -27,7 +27,7 @@
   ],
   "build": {
     "targets": {
-      "web": { "entry": "index.html", "outdir": "dist" },
+      "web": { "entry": "index.html", "outDir": "dist" },
       "site-ssg": { "entry": "ssg.js", "out": ".ssg/ssg.js", "then": "run" }
     }
   }

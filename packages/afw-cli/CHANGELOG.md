@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The README's `esdev.json` example writes a target's output directory as `outDir`, the
+  spelling esdev 0.29 reads. The package itself is unchanged.
+
 ### Fixed
 
 - Static generation compiles in `import.meta.env` as `esdev build` does: `MODE`, `DEV`,

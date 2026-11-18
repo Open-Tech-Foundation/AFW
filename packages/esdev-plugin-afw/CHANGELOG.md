@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The README's `esdev.json` example writes a target's output directory as `outDir`, the
+  spelling esdev 0.29 reads. The package itself is unchanged.
+
 ## [0.11.1] - 2026-11-17
 
 _Dependency updates._
