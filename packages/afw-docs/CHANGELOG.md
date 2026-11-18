@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- "Last updated" dates come from one `git log` over `app/` instead of one per page.
+  The website's 79 pages: 473 ms to 46 ms warm, and seconds less on a cold disk, at every
+  dev start and build. The dates are the same; a page outside git history still has none.
+
 ### Fixed
 
 - Search finds the text of inactive `<Tabs>` panels, Chinese and Japanese text, words

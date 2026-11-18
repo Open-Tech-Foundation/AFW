@@ -45,6 +45,13 @@ beforeAll(async () => {
   await page("blog/untouched", "---\ndate: 2026-01-01\n---\n# Untouched\n");
   await git(["add", "."]);
   await git(["commit", "-q", "-m", "pages"], "2026-03-01T10:00:00+05:30");
+  // A later commit touching one page, under a name git quotes unless asked not to.
+  await page("docs/(guides)/über uns", "# Über uns\n");
+  await git(["add", "."]);
+  await git(["commit", "-q", "-m", "about"], "2026-03-05T09:00:00+00:00");
+  await write(join(appDir, "docs/(guides)/über uns/page.mdx"), "# Über uns, edited\n");
+  await git(["add", "."]);
+  await git(["commit", "-q", "-m", "edit about"], "2026-04-02T08:30:00+05:30");
   await page("docs/draft", "# Untracked\n");
 });
 
@@ -82,6 +89,26 @@ describe("last-updated map", () => {
     expect(map["/docs"]).toBe("2026-03-01T10:00:00+05:30");
     // Without `blogDir` the post is an ordinary page and git applies.
     expect((await loadLastUpdated({ appDir }))["/blog/untouched"]).toBe("2026-03-01T10:00:00+05:30");
+  });
+
+  test("each page has its own last commit, read from one log of the whole folder", async () => {
+    const map = await loadLastUpdated({ appDir });
+    // Committed twice, newest wins; the pages around it keep the first commit.
+    expect(map["/docs/über uns"]).toBe("2026-04-02T08:30:00+05:30");
+    expect(map["/docs"]).toBe("2026-03-01T10:00:00+05:30");
+    expect(map["/blog/untouched"]).toBe("2026-03-01T10:00:00+05:30");
+  });
+
+  test("a folder outside any git repository has no git dates", async () => {
+    const outside = await makeTempDir({ prefix: "last-updated-nogit-" });
+    try {
+      await mkdir(join(outside, "docs"), { recursive: true });
+      await write(join(outside, "docs", "page.mdx"), "# Docs\n");
+      await write(join(outside, "page.mdx"), "---\nlastUpdated: 2026-05-01\n---\n# Home\n");
+      expect(await loadLastUpdated({ appDir: outside })).toEqual({ "/": "2026-05-01T00:00:00.000Z" });
+    } finally {
+      await remove(outside, { recursive: true });
+    }
   });
 
   test("edit paths are repository-relative", async () => {

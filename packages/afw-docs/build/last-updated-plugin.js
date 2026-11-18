@@ -11,7 +11,7 @@
 import { childRoute } from "./route-url.js";
 import { cwd, join, readEntries, relative, resolve, runOut } from "./host.js";
 import { readFrontmatter } from "./frontmatter.js";
-import { resolveLastUpdated } from "./last-updated.js";
+import { gitLastUpdatedAll, resolveLastUpdated } from "./last-updated.js";
 import { frontmatterUpdated } from "./publish.js";
 
 const VIRTUAL_ID = "@opentf/afw-docs/updated";
@@ -82,6 +82,10 @@ async function collect(appDir, exclude, watch, blogDir) {
   const updated = {};
   const editPaths = {};
   const root0 = await gitRoot(appDir);
+  // Every page's git date from one `git log` over app/, read once a page needs it: a
+  // process per page took seconds on a cold disk (79 pages: 3s; one log: a fraction).
+  let gitDates = null;
+  const gitDate = async (file) => (await (gitDates ??= gitLastUpdatedAll(appDir))).get(file) ?? null;
   // One walk over every page under app/ — covers all sections (and the home page).
   await walk(appDir, "", exclude, async (file, route) => {
     watch.push(file);
@@ -91,7 +95,7 @@ async function collect(appDir, exclude, watch, blogDir) {
     const post = blogDir && route.startsWith(`/${blogDir}/`);
     const iso = post
       ? (frontmatterUpdated(fm) ? await resolveLastUpdated(file, frontmatterUpdated(fm)) : null)
-      : await resolveLastUpdated(file, fm.lastUpdated);
+      : await resolveLastUpdated(file, fm.lastUpdated, gitDate);
     if (iso) updated[route] = iso;
     // Repo-relative path (POSIX separators) for the "Edit this page" link.
     if (root0) editPaths[route] = relative(root0, file).split(/[\\/]/).join("/");
