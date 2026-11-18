@@ -26,6 +26,7 @@
 // Needs the workspace afwc debug build (AFWC_BIN overrides) and Chromium (CHROME_BIN
 // overrides). Exits 0 if every assertion holds, 1 otherwise.
 
+import { launchChrome } from "./chrome.js";
 import { build } from "runtime:build";
 import { exists, file, mkdir, remove, write } from "runtime:fs";
 import { serve } from "runtime:http";
@@ -520,13 +521,8 @@ async function fetchJSON(url) {
   }
   throw new Error(`timed out fetching ${url}`);
 }
-const port = 9000 + Math.floor(Math.random() * 1000);
-const chrome = new Command(CHROME, {
-  args: ["--headless=new", `--remote-debugging-port=${port}`, "--no-sandbox",
-   "--disable-gpu", "--hide-scrollbars", "about:blank"],
-  stdout: "null",
-  stderr: "null",
-}).spawn();
+const chrome = await launchChrome(CHROME, ["--hide-scrollbars"]);
+const port = chrome.port;
 
 async function connectPage() {
   const targets = await fetchJSON(`http://127.0.0.1:${port}/json`);
@@ -680,7 +676,7 @@ try {
   throw err;
 } finally {
   client?.close();
-  (await chrome).kill();
+  await chrome.kill();
   await server.stop();
   if (await exists(TMP)) await remove(TMP, { recursive: true });
 }
