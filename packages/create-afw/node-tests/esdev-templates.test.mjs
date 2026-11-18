@@ -62,6 +62,26 @@ describe("generated esdev starters", () => {
     assert.deepEqual(json.options.map((o) => o.name), ["render", "server", "styling", "language"]);
   });
 
+  // esdev 0.29 refuses a key that is not camelCase (`outdir`), so a starter written the
+  // old way fails its first build; the package asks for the esdev that reads it.
+  test("every esdev.json spells its keys in camelCase, and the package needs esdev 0.29", async () => {
+    let configs = 0;
+    for (const name of Object.keys(ESDEV_TEMPLATES)) {
+      for (const [path, contents] of Object.entries(esdevTemplate(name))) {
+        if (!path.endsWith("esdev.json")) continue;
+        configs++;
+        const { build, dev = {} } = JSON.parse(contents);
+        // Target names (`site-ssg`) are the project's own; a target's keys are esdev's.
+        const keys = [...Object.keys(build), ...Object.values(build.targets).flatMap(Object.keys), ...Object.keys(dev)];
+        for (const key of keys) assert.match(key, /^[a-z][A-Za-z0-9]*$/, `${name}/${path}: ${key}`);
+        assert.ok(Object.values(build.targets).some((t) => t.outDir === "dist"), `${name}/${path}`);
+      }
+    }
+    assert.ok(configs >= 7);
+    const manifest = JSON.parse(await readFile(join(pkg, "package.json"), "utf8"));
+    assert.equal(manifest.engines.esdev, ">=0.29.0");
+  });
+
   test("the committed esdev/templates is what the generator writes", async () => {
     const written = await walk(join(pkg, "esdev", "templates"));
     const expected = { "catalog.json": esdevCatalog() };

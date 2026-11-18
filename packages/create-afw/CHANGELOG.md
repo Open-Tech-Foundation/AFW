@@ -7,6 +7,12 @@
 - New projects have an inline icon (`<link rel="icon">` in `index.html`), so their pages
   no longer request `/favicon.ico` and log a 404 on every load. Replace it with your own.
 
+### Fixed
+
+- The esdev starters write a build target's output directory as `outDir`. esdev 0.29
+  refuses `outdir`, so every new project failed its first build. Needs esdev 0.29 or
+  later: `engines.esdev` is `>=0.29.0`.
+
 ## [0.8.0] - 2026-11-17
 
 ### Changed

@@ -119,7 +119,7 @@ const esdevFile = (name) => readFileSync(new URL(`./toolchain/esdev/${name}`, im
 function esdevConfig(ctx, { plugins = [], targets = {}, dev = null, afw = { appDir: "app" } } = {}) {
   return json({
     plugins: [{ module: "@opentf/esdev-plugin-afw", options: afw }, ...plugins],
-    build: { targets: { web: { entry: "index.html", outdir: "dist" }, ...targets } },
+    build: { targets: { web: { entry: "index.html", outDir: "dist" }, ...targets } },
     ...(dev ? { dev } : {}),
   });
 }
