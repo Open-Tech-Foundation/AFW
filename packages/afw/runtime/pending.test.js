@@ -6,6 +6,7 @@ import { scope } from "../core/signals.js";
 import "./error-boundary.js";
 import "./pending.js";
 import { enterPending, exitPending } from "./pending-scope.js";
+import { clearQueryCache } from "./invalidate.js";
 import { __resetQueryCache } from "./query-cache.js";
 import { resource } from "./resource.js";
 import { bindChild } from "./dom.js";
@@ -486,5 +487,23 @@ describe("cached resources", () => {
     expect(shown(s2.result)).toEqual(["content"]);
     expect(d.calls.length).toBe(1);
     s2.dispose();
+  });
+
+  test("clearing the cache shows the fallback again until the data reloads", async () => {
+    const d = deferred();
+    const s1 = scope(() => {
+      const r = resource(d.fetcher, { key: "who" });
+      return boundary({ fallback: text("Loading") }, () => r.data);
+    });
+    d.last().resolve("ada");
+    await tick();
+    expect(shown(s1.result)).toEqual(["content"]);
+    clearQueryCache();
+    await tick();
+    expect(shown(s1.result)).toEqual(["fallback"]);
+    d.last().resolve("bob");
+    await tick();
+    expect(shown(s1.result)).toEqual(["content"]);
+    s1.dispose();
   });
 });

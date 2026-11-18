@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, test } from "runtime:test";
 
 import { decode, encode } from "../core/fn-codec.js";
 import { scope } from "../core/signals.js";
-import { invalidate } from "./invalidate.js";
+import { clearQueryCache, invalidate } from "./invalidate.js";
+import { optimistic } from "./mutate.js";
 import { __queryCacheSize, __resetQueryCache, callKey } from "./query-cache.js";
 import { resource } from "./resource.js";
 import { serverFunction } from "./server-function.js";
@@ -341,5 +342,115 @@ describe("garbage collection", () => {
     await settle();
     r.unmount();
     expect(__queryCacheSize()).toBe(1);
+  });
+});
+
+describe("clearQueryCache", () => {
+  // The fake server answers `{ n, input }`; `user` stands for who is signed in.
+  let user = "ada";
+  const whoAmI = () => {
+    const getMe = query("me");
+    globalThis.fetch = async (url, init = {}) => {
+      requests.push({ url: String(url), signal: init.signal });
+      if (gate) await gate.promise;
+      return new Response(encode({ user }), { headers: { "content-type": "application/json" } });
+    };
+    return getMe;
+  };
+
+  test("after a logout, a remount with the same key shows no previous user's data", async () => {
+    user = "ada";
+    const getMe = whoAmI();
+    const first = mount(() => resource(() => ({}), getMe, { staleTime: Infinity }));
+    await settle();
+    expect(first.data.user).toBe("ada");
+    first.unmount();
+    user = "bob"; // logged out, someone else logged in
+    clearQueryCache();
+    const again = mount(() => resource(() => ({}), getMe, { staleTime: Infinity }));
+    expect(again.data).toBe(undefined); // synchronously: nothing cached to show
+    expect(again.loading).toBe(true);
+    await settle();
+    expect(again.data.user).toBe("bob");
+  });
+
+  test("invalidate() alone would show the previous user's data while it refetches", async () => {
+    user = "ada";
+    const getMe = whoAmI();
+    const first = mount(() => resource(() => ({}), getMe));
+    await settle();
+    first.unmount();
+    await invalidate();
+    const again = mount(() => resource(() => ({}), getMe));
+    expect(again.data?.user).toBe("ada"); // why logout needs clearQueryCache
+  });
+
+  test("a mounted resource goes back to loading with its initial data, then refetches", async () => {
+    user = "ada";
+    const getMe = whoAmI();
+    const shown = mount(() => resource(() => ({}), getMe, { initial: null }));
+    const derived = mount(() => resource(() => getMe({}).then((me) => me.user.toUpperCase())));
+    await settle();
+    expect([shown.data.user, derived.data]).toEqual(["ada", "ADA"]);
+    user = "bob";
+    clearQueryCache();
+    expect([shown.data, shown.loading]).toEqual([null, true]);
+    expect([derived.data, derived.loading]).toEqual([undefined, true]);
+    await settle();
+    expect([shown.data.user, derived.data]).toEqual(["bob", "BOB"]);
+  });
+
+  test("a request in flight when the cache is cleared writes nothing", async () => {
+    user = "ada";
+    const getMe = whoAmI();
+    const release = hold();
+    const r = mount(() => resource(() => ({}), getMe));
+    user = "bob";
+    clearQueryCache(); // ada's request is still out
+    release();
+    await settle();
+    expect(r.data.user).toBe("bob");
+    r.unmount();
+    expect(mount(() => resource(() => ({}), getMe, { staleTime: Infinity })).data.user).toBe("bob");
+  });
+
+  test("a target clears only its calls; plain fetchers are left alone", async () => {
+    const getTodo = query();
+    const one = mount(() => resource(() => ({ id: 1 }), getTodo, { staleTime: Infinity }));
+    const two = mount(() => resource(() => ({ id: 2 }), getTodo, { staleTime: Infinity }));
+    let calls = 0;
+    const plain = mount(() => resource(async () => ++calls));
+    await settle();
+    clearQueryCache(getTodo, { id: 1 });
+    expect([one.loading, two.loading]).toEqual([true, false]);
+    expect(two.data.input).toEqual({ id: 2 });
+    clearQueryCache();
+    expect([plain.data, calls]).toEqual([1, 1]);
+  });
+
+  test("a keyed fetcher's entry is cleared with the call it made", async () => {
+    const listTodos = query();
+    const count = mount(() => resource(() => listTodos().then((t) => t.n), { key: "count", staleTime: Infinity }));
+    await settle();
+    clearQueryCache(listTodos);
+    expect([count.data, count.loading]).toEqual([undefined, true]);
+    await settle();
+    expect(count.data).toBe(2);
+  });
+
+  test("an optimistic update settling after a clear does not bring old data back", async () => {
+    user = "ada";
+    const getMe = whoAmI();
+    const r = mount(() => resource(() => ({}), getMe));
+    await settle();
+    let finish;
+    const pending = optimistic(new Promise((resolve) => (finish = resolve)), getMe, (me) => ({ ...me, saving: true }));
+    user = "bob";
+    clearQueryCache();
+    await settle();
+    finish();
+    await pending;
+    await settle();
+    expect(r.data).toEqual({ user: "bob" });
   });
 });

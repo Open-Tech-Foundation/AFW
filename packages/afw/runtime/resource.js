@@ -103,6 +103,22 @@ export function resource(source, fetcher, options = {}) {
   // entry itself heard the write already.
   const entry = {
     refetch: () => reload(),
+    // The cache key this resource shows, if any (`clearQueryCache` finds it by it).
+    following: () => followed,
+    // `clearQueryCache`: back to the initial state (no data, loading), then fetch again.
+    reset: () => {
+      if (disposed) return;
+      unfollow?.(); // off the removed entry, so nothing it does later reaches this resource
+      followed = null;
+      unfollow = null;
+      batch(() => {
+        data.value = options.initial;
+        error.value = undefined;
+        settled.value = false;
+      });
+      const value = untracked(src);
+      if (!paused(value)) run(value, { force: true });
+    },
     fromCache: (key) => {
       if (key === followed || disposed) return;
       const value = untracked(src);

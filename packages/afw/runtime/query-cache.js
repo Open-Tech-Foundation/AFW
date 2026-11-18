@@ -241,6 +241,25 @@ export function subscribe(key, listener, { gcTime = DEFAULT_GC_TIME } = {}) {
 }
 
 /**
+ * Remove entries outright (`clearQueryCache`): their data, and the requests in flight for
+ * them, which then write nothing. `match(key, entry)` picks them; with none, every entry.
+ * Returns the removed keys. Unlike `markStale`, nothing is left to show on a remount.
+ */
+export function dropEntries(match) {
+  const dropped = [];
+  for (const [key, e] of entries) {
+    if (match && !match(key, e)) continue;
+    entries.delete(key);
+    e.flight = null;
+    e.data = undefined;
+    e.hasData = false;
+    e.overlays = [];
+    dropped.push(key);
+  }
+  return dropped;
+}
+
+/**
  * Mark entries stale and detach their requests in flight, so the next read fetches
  * again. `match(key, entry)` picks them; with none, every entry.
  */

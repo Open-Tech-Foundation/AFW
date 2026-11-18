@@ -11,7 +11,7 @@ export * from "../core/route.js";
 export * from "../core/context.js";
 export * from "../runtime/lifecycle.js";
 export { resource } from "../runtime/resource.js";
-export { invalidate } from "../runtime/invalidate.js";
+export { clearQueryCache, invalidate } from "../runtime/invalidate.js";
 export { copyText, copyWithFeedback } from "../runtime/clipboard.js";
 
 /** DOM-free built-in renderers used by the server compiler. */

@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Added
+
+- `clearQueryCache()` forgets cached query data, for when it stops being the viewer's
+  (logout). `invalidate()` keeps showing stale data while it refetches, so a remount with
+  the same key showed the previous user's data. Cleared entries leave nothing to show,
+  their requests in flight write nothing, and mounted resources that used them go back to
+  loading and fetch again. `clearQueryCache(getTodo, { id })` clears one call.
+
+- A lost hydration payload is reported: a server-rendered island whose props are missing
+  from `<script id="__afw_h">` (stripped, truncated or unreadable) reports a
+  `HydrationPayloadError` through `onError` (phase `hydration`) once per page. It used to
+  render with its default props and no signal.
+- In development, a text hole whose server text differs from the client's first value
+  warns once per page, naming both texts. The client's text is still shown.
+
 ### Fixed
 
 - A list item with several nodes whose content changes (a fragment holding a conditional)
@@ -10,15 +25,6 @@
 - Server-rendered lists of multi-node items (`xs.map((x) => x.big ? <Big/> : <Small/>)`)
   hydrate in place. Each item is bracketed by its own region markers, which the adopt walk
   claims; a component holding such a list used to rebuild its server DOM.
-
-### Added
-
-- A lost hydration payload is reported: a server-rendered island whose props are missing
-  from `<script id="__afw_h">` (stripped, truncated or unreadable) reports a
-  `HydrationPayloadError` through `onError` (phase `hydration`) once per page. It used to
-  render with its default props and no signal.
-- In development, a text hole whose server text differs from the client's first value
-  warns once per page, naming both texts. The client's text is still shown.
 
 ## [0.40.0] - 2026-11-17
 

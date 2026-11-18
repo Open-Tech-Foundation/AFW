@@ -16,7 +16,7 @@
 //
 // Browser only: on the server nothing is live, and `invalidate()` resolves at once.
 
-import { callKey, endpointOfKey, markStale, peek } from "./query-cache.js";
+import { callKey, dropEntries, endpointOfKey, markStale, peek } from "./query-cache.js";
 
 const byEndpoint = new Map(); // endpoint → Set of live resource entries
 const byKey = new Map(); // call key → Set of live resource entries
@@ -198,4 +198,33 @@ export async function invalidate(...args) {
     for (const entry of found) resources.add(entry);
   }
   await Promise.all([...resources].map((entry) => entry.refetch()));
+}
+
+/**
+ * Forget cached query data: every entry, or those of the given server functions (each
+ * optionally followed by one input, as for `invalidate()`). Call it when the data stops
+ * being the viewer's, such as on logout: unlike `invalidate()`, which keeps showing stale
+ * data while it refetches, nothing is left to show on a remount.
+ *
+ * - Removed entries take their requests in flight with them; those write nothing.
+ * - Live resources that showed a removed entry, or whose fetcher called a removed call
+ *   (with no arguments: every live resource whose data came from the cache), go back to
+ *   their initial state, with `loading` and no data, and fetch again.
+ * - Resources that never used the cache (a plain `fetch` fetcher) are left alone.
+ */
+export function clearQueryCache(...args) {
+  const targets = args.length ? targetsOf(args) : null;
+  const dropped = new Set(dropEntries(targets ? (key, entry) => targets.some((target) => hits(target, key, entry)) : undefined));
+  if (typeof document === "undefined") return;
+  const resources = new Set();
+  for (const entry of live) {
+    const following = entry.following?.();
+    if (following && dropped.has(following)) resources.add(entry);
+    else if (!targets && entry.keys?.size) resources.add(entry);
+  }
+  for (const { endpoint, key } of targets ?? []) {
+    const found = key ? [...(byKey.get(key) ?? []), ...(byNamed.get(endpoint) ?? [])] : byEndpoint.get(endpoint) ?? [];
+    for (const entry of found) resources.add(entry);
+  }
+  for (const entry of resources) entry.reset?.();
 }

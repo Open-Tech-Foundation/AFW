@@ -10,7 +10,7 @@ export * from "../core/route.js";
 export * from "../core/context.js";
 export * from "../runtime/lifecycle.js";
 export { resource } from "../runtime/resource.js";
-export { invalidate } from "../runtime/invalidate.js";
+export { clearQueryCache, invalidate } from "../runtime/invalidate.js";
 export { ServerFunctionError, serverFunction } from "../runtime/server-function.js";
 export { copyText, copyWithFeedback } from "../runtime/clipboard.js";
 export { Link, ContextProvider, Portal, ErrorBoundary, Pending, RawHtml, CodeFence, lazyComponent } from "./builtins.js";

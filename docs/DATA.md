@@ -214,6 +214,16 @@ renders, keeping hydration adoption aligned.
 * **Revalidation.** `runtime/revalidate.js` installs one `visibilitychange` and one `online`
   listener on first use. A watching resource reloads when `now - loadedAt >= staleTime`.
 
+### Clearing
+
+* **`clearQueryCache(...targets)`** (invalidate.js): `dropEntries` deletes matching entries
+  (all, or by `invalidate()`'s targets), detaches their flights and drops their overlays.
+* **Live resources** that follow a dropped key, that registered a matching call, or (with
+  no arguments) that registered any call key are `reset()`: off the entry, data back to
+  `initial`, `settled` false, and re-run with `force`. Plain-fetch resources are untouched.
+* **Why not `invalidate()`:** stale entries keep their data so a remount shows it while it
+  revalidates, which is wrong once the data belongs to someone else (logout).
+
 ### Invalidation
 
 * **Tracking.** `withTracking` records the endpoints and call keys a fetcher calls while

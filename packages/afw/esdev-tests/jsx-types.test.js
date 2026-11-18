@@ -32,7 +32,7 @@ test("published framework types support strict TS starters and reject invalid JS
       }, include: ["*.tsx"],
     }));
     await write(join(scratch, "pages.tsx"), `
-      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, invalidate, optimistic, setQueryData, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps, type Lazy } from "@opentf/afw";
+      import { router, signal, computed, Link, mountApp, onMount, onResize, onMediaQuery, resource, invalidate, clearQueryCache, optimistic, setQueryData, Portal, RawHtml, ErrorBoundary, ContextProvider, createContext, Pending, type RouteErrorProps, type Lazy } from "@opentf/afw";
       import { registerRoutes, query, action, type StandardSchemaV1 } from "@opentf/afw/server";
       import { fade, fly, slide, type Transition } from "@opentf/afw/transition";
       export function Counter({ initial = 0 }: { initial?: number }) {
@@ -108,6 +108,7 @@ test("published framework types support strict TS starters and reject invalid JS
         const keyedId: number | undefined = keyed.data?.id;
         const fresh: { id: number } | undefined = await keyed.refetch();
         await invalidate(listTodos, true, allTodos);
+        clearQueryCache(); clearQueryCache(listTodos, true);
         // @ts-expect-error staleTime is a number of milliseconds
         resource(async () => 1, { staleTime: "soon" });
         // Writes: an action refreshes queries from its context; the browser writes the cache.
