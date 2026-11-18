@@ -2,10 +2,12 @@
 /** @typedef {{ limit?: number, maxSectionsPerPage?: number, signal?: AbortSignal }} SearchOptions */
 /** @typedef {{ url: string, title: string, text: string, section: string, excerpt: string, highlights: number[][], meta: Record<string, string>, anchors: Array<{ id: string, text: string, pos: number }>, score: number }} SearchResult */
 const encoder = new TextEncoder();
-// Rust's String ordering is UTF-8 byte ordering, not locale collation.
+// Rust's String ordering is UTF-8 byte ordering, not locale collation. Takes strings or
+// already-encoded bytes (the chunk boundaries are encoded once, not on every comparison).
 function compare(a, b) {
-  const x = encoder.encode(a), y = encoder.encode(b);
-  for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return x[i] - y[i];
+  const x = typeof a === "string" ? encoder.encode(a) : a, y = typeof b === "string" ? encoder.encode(b) : b;
+  const n = Math.min(x.length, y.length);
+  for (let i = 0; i < n; i++) if (x[i] !== y[i]) return x[i] - y[i];
   return x.length - y.length;
 }
 function cursor(bytes, position = 0) {
@@ -39,33 +41,87 @@ function decodeChunk(bytes) {
     rows.push([decoder.decode(term), input.read(), input.read()]);
     previous = term;
   }
-  const postings = new Map(), blob = input.position;
-  for (const [term, count, offset] of rows) {
-    const list = [], input = cursor(bytes, blob + offset);
-    let doc = 0;
-    for (let i = 0; i < count; i++) {
-      doc += input.read();
-      const tf = input.read(), positions = [];
-      let position = 0;
-      for (let j = 0; j < tf; j++) {
-        const packed = input.read();
-        position += Math.floor(packed / 8);
-        positions.push([position, packed % 8]);
-      }
-      list.push([doc, tf, positions]);
+  // Only the term table is read now. A term's postings are decoded the first time it is
+  // looked up: a query reads a few terms of the 750 in a chunk.
+  const table = new Map(), blob = input.position;
+  for (const [term, count, offset] of rows) table.set(term, { count, offset, list: null });
+  return {
+    terms: () => table.keys(),
+    df: (term) => table.get(term)?.count ?? 0,
+    get(term) {
+      const row = table.get(term);
+      if (!row) return undefined;
+      if (!row.list) row.list = decodePostings(bytes, blob + row.offset, row.count);
+      return row.list;
+    },
+  };
+}
+function decodePostings(bytes, offset, count) {
+  const list = [], input = cursor(bytes, offset);
+  let doc = 0;
+  for (let i = 0; i < count; i++) {
+    doc += input.read();
+    const tf = input.read(), positions = [];
+    let position = 0;
+    for (let j = 0; j < tf; j++) {
+      const packed = input.read();
+      position += Math.floor(packed / 8);
+      positions.push([position, packed % 8]);
     }
-    postings.set(term, list);
+    list.push([doc, tf, positions]);
   }
-  return postings;
+  return list;
+}
+// The tokenizer: the same rules as the Rust writer (crates/afw_cli docs_indexing.rs
+// `word_groups`), checked against search/tokenizer-vectors.json on both sides.
+const WORD = /[\p{L}\p{N}\p{M}_.-]+/gu;
+const MAX_TERM_BYTES = 64;
+const EDGE = /^[.-]+|[.-]+$/g;
+// Characters written without spaces between words (Han, Hiragana, Katakana), by code
+// point as in Rust, so the two never disagree on a Unicode version.
+const isCJK = (cp) => (cp >= 0x3005 && cp <= 0x3007) || cp === 0x303b || (cp >= 0x3041 && cp <= 0x30ff) ||
+  (cp >= 0x31f0 && cp <= 0x31ff) || (cp >= 0x3400 && cp <= 0x4dbf) || (cp >= 0x4e00 && cp <= 0x9fff) ||
+  (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0x20000 && cp <= 0x3134f);
+// A spaced word's alternatives: lowercase, accent-folded, identifier parts (camelCase,
+// acronyms, `_`, `-`, `.`), none longer than 64 UTF-8 bytes.
+function latinGroup(normalized) {
+  const whole = normalized.toLowerCase();
+  if (!/[\p{L}\p{N}]/u.test(whole)) return null;
+  const folded = whole.normalize("NFD").replace(/\p{M}/gu, "");
+  const parts = normalized.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z])(?=[A-Z][a-z])/g, "$1 ")
+    .split(/[_.\-\s]+/).filter(Boolean).map((part) => part.toLowerCase());
+  const group = [...new Set([whole, folded, ...parts])].filter((term) => encoder.encode(term).length <= MAX_TERM_BYTES);
+  return group.length ? group : null;
+}
+// One word's groups: one group of alternatives, or, for a run of CJK characters (no
+// spaces to split on), one group per overlapping pair of characters, all required.
+function groupsOf(word) {
+  const trimmed = word.replace(EDGE, "");
+  if (!trimmed) return [];
+  const groups = [];
+  let run = "", runIsCJK = false;
+  const flush = () => {
+    if (!run) return;
+    if (runIsCJK) {
+      const chars = [...run];
+      if (chars.length === 1) groups.push([run]);
+      else for (let i = 0; i + 1 < chars.length; i++) groups.push([chars[i] + chars[i + 1]]);
+    } else {
+      const group = latinGroup(run.replace(EDGE, ""));
+      if (group) groups.push(group);
+    }
+    run = "";
+  };
+  for (const ch of trimmed.normalize("NFKC")) {
+    const cjk = isCJK(ch.codePointAt(0));
+    if (cjk !== runIsCJK) { flush(); runIsCJK = cjk; }
+    run += ch;
+  }
+  flush();
+  return groups;
 }
 function wordGroups(text) {
-  return (text.match(/[\p{L}\p{N}\p{M}_.-]+/gu) || []).map((word) => {
-    const normalized = word.normalize("NFKC"), whole = normalized.toLowerCase();
-    if (!/[\p{L}\p{N}]/u.test(whole)) return [];
-    const folded = whole.normalize("NFD").replace(/\p{M}/gu, "");
-    const parts = normalized.replace(/([a-z])([A-Z])/g, "$1 $2").split(/[_.\-\s]+/).filter(Boolean).map((part) => part.toLowerCase());
-    return [...new Set([whole, folded, ...parts])];
-  }).filter((group) => group.length);
+  return (text.match(WORD) || []).flatMap(groupsOf);
 }
 export function tokenize(text) {
   return [...new Set(wordGroups(text).flat())];
@@ -99,7 +155,7 @@ function excerptFor(fragment, groups, match) {
   // Highlight complete visible words; normalization handles accents and identifiers
   // without using normalized string offsets against the original display text.
   for (const word of excerpt.matchAll(/[\p{L}\p{N}\p{M}_.-]+/gu)) {
-    const variants = wordGroups(word[0])[0] || [];
+    const variants = wordGroups(word[0]).flat();
     if (groups.some((group) => variants.some((variant) => variant.startsWith(group[0]) ||
       variant.startsWith(group[0].normalize("NFD").replace(/\p{M}/gu, ""))))) {
       highlights.push([word.index, word.index + word[0].length]);
@@ -156,13 +212,16 @@ export function createSearch({ base = "/_search/" } = {}) {
   const root = base.replace(/\/$/, "");
   let initialized;
   const chunkCache = new Map();
+  // Fragments are immutable within a generation (its directory is content-hashed), so a
+  // page's fragment is fetched once, not again on every keystroke.
+  const fragmentCache = new Map();
   const throwIfAborted = (signal) => {
     if (signal?.aborted) throw new DOMException("Search query aborted", "AbortError");
   };
   const fetchIndex = async (path, options) => {
     const response = await fetch(`${root}/${path}`, options);
     if (!response.ok) {
-      if (response.status === 404 && path !== "manifest.json") { initialized = undefined; chunkCache.clear(); }
+      if (response.status === 404 && path !== "manifest.json") { initialized = undefined; chunkCache.clear(); fragmentCache.clear(); }
       throw new Error(`Search index unavailable (${response.status})`);
     }
     return response;
@@ -171,8 +230,9 @@ export function createSearch({ base = "/_search/" } = {}) {
     const manifest = await (await fetchIndex("manifest.json", { cache: "no-cache" })).json();
     if (manifest.v !== undefined && manifest.v !== 1) throw new Error("Unsupported search index version");
     if (!Array.isArray(manifest.chunks) || !manifest.docsFile) throw new Error("Invalid search manifest");
+    for (const chunk of manifest.chunks) chunk.firstBytes = encoder.encode(chunk.first);
     for (let i = 1; i < manifest.chunks.length; i++) {
-      if (compare(manifest.chunks[i - 1].first, manifest.chunks[i].first) >= 0) throw new Error("Unsorted search shards");
+      if (compare(manifest.chunks[i - 1].firstBytes, manifest.chunks[i].firstBytes) >= 0) throw new Error("Unsorted search shards");
     }
     const bytes = new Uint8Array(await (await fetchIndex(manifest.docsFile)).arrayBuffer());
     const input = cursor(bytes), lengths = [];
@@ -187,10 +247,11 @@ export function createSearch({ base = "/_search/" } = {}) {
     return chunkCache.get(file);
   };
   const findChunk = (chunks, term) => {
+    const bytes = encoder.encode(term);
     let low = 0, high = chunks.length - 1, answer = 0;
     while (low <= high) {
       const mid = (low + high) >>> 1;
-      if (compare(chunks[mid].first, term) <= 0) { answer = mid; low = mid + 1; }
+      if (compare(chunks[mid].firstBytes, bytes) <= 0) { answer = mid; low = mid + 1; }
       else high = mid - 1;
     }
     return answer;
@@ -213,22 +274,29 @@ export function createSearch({ base = "/_search/" } = {}) {
           for (let i = index + 1; i < chunks.length && chunks[i].first.startsWith(word); i++) selected.add(chunks[i].file);
         }
       }));
-      const postings = new Map();
-      for (const shard of await Promise.all([...selected].map(loadChunk))) for (const [term, list] of shard) postings.set(term, list);
+      const shards = await Promise.all([...selected].map(loadChunk));
       throwIfAborted(signal);
       const scores = new Map(), matches = new Map(), locations = new Map(), matchedPositions = new Map();
       const totalDocs = state.lengths.length, avgdl = state.manifest.avgdl || 1;
       const fieldWeights = [8, 5, 4, 2.5, 3, 2, 1, 0.5];
       groups.forEach((group, groupIndex) => {
         const best = new Map();
-        const candidates = [...postings].filter(([term]) => group.some((word) => term === word ||
-          (groupIndex === groups.length - 1 && term.startsWith(word))))
-          .sort((a, b) => Number(group.includes(b[0])) - Number(group.includes(a[0])) || a[1].length - b[1].length || compare(a[0], b[0])).slice(0, 32);
+        // Matching terms by name and document frequency; postings are decoded only for the
+        // 32 kept.
+        const matched = new Map();
+        for (const shard of shards) for (const term of shard.terms()) {
+          if (!matched.has(term) && group.some((word) => term === word || (groupIndex === groups.length - 1 && term.startsWith(word)))) {
+            matched.set(term, shard);
+          }
+        }
+        const candidates = [...matched].sort(([a, sa], [b, sb]) => Number(group.includes(b)) - Number(group.includes(a)) ||
+          sa.df(a) - sb.df(b) || compare(a, b)).slice(0, 32).map(([term, shard]) => [term, shard.get(term)]);
         for (const [term, list] of candidates) {
           const idf = Math.log(1 + (totalDocs - list.length + 0.5) / (list.length + 0.5));
           for (const [doc, tf, positions] of list) {
             if (doc >= totalDocs || !tf) throw new Error("Invalid search posting");
-            const weight = Math.max(...positions.map(([, field]) => fieldWeights[field]));
+            let weight = 0;
+            for (const [, field] of positions) if (fieldWeights[field] > weight) weight = fieldWeights[field];
             const exact = term === group[0] ? 4 : group.includes(term) ? 0.75 : 0.5;
             const score = exact * weight * idf * (tf * 2.2) / (tf + 1.2 * (0.25 + 0.75 * state.lengths[doc] / avgdl));
             const previous = best.get(doc);
@@ -263,7 +331,13 @@ export function createSearch({ base = "/_search/" } = {}) {
       const top = ranked.sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, resultLimit);
       throwIfAborted(signal);
       const pages = await Promise.all(top.map(async ([doc, score]) => {
-        const fragment = await (await fetchIndex(`${state.manifest.fragmentsDir || "f"}/${doc}.json`, { signal })).json();
+        const path = `${state.manifest.fragmentsDir || "f"}/${doc}.json`;
+        if (!fragmentCache.has(path)) {
+          // Shared by every query that needs the page, so no one query's signal aborts it.
+          fragmentCache.set(path, fetchIndex(path).then((response) => response.json())
+            .catch((error) => { fragmentCache.delete(path); throw error; }));
+        }
+        const fragment = await fragmentCache.get(path);
         return sectionMatches(fragment, matchedPositions.get(doc) || [], fieldWeights).slice(0, sectionLimit).map(match => {
           const url = match.anchor ? `${fragment.url.split("#")[0]}#${encodeURIComponent(match.anchor.id)}` : fragment.url;
           return { ...fragment, url, section: match.anchor?.text || "", ...excerptFor(fragment, groups, match), score };

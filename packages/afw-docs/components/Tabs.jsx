@@ -60,13 +60,18 @@ export default function Tabs(props) {
           </button>
         ))}
       </div>
+      {/* `until-found`: an inactive panel stays out of view, but find-in-page can match its
+          text (and the search index includes it). The browser reveals the panel and fires
+          `beforematch` first, so the tab list follows. Browsers without it treat the value
+          as plain `hidden`. */}
       <div class="afwd-tabs-panels">
         {tabs.map((tab, i) => (
           <div
             role="tabpanel"
             tabindex="0"
-            class={active === i ? "afwd-tab-panel" : "afwd-tab-panel afwd-hidden"}
-            hidden={active !== i}
+            class="afwd-tab-panel"
+            hidden={active !== i ? "until-found" : undefined}
+            onbeforematch={() => (active = i)}
           >
             {tab.content}
           </div>

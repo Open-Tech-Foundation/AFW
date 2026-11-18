@@ -100,3 +100,40 @@ test('an older compiler printing help cannot silently succeed at indexing', asyn
     expect(error.message).toContain('did not report an index');
   } finally { await remove(dir, { recursive: true }); }
 });
+
+test('hidden tab panels, CJK text, edge punctuation and acronyms are searchable; fragments load once', async () => {
+  await mkdir(join(root, '.cache'), { recursive: true });
+  const site = await makeTempDir({ dir: join(root, '.cache'), prefix: '.afw-search-test-' });
+  const original = globalThis.fetch;
+  const fetched = [];
+  globalThis.fetch = async (url) => {
+    fetched.push(String(url));
+    try { return new Response(await file(join(site, String(url).replace(/^\//, ''))).arrayBuffer()); }
+    catch { return new Response(null, { status: 404 }); }
+  };
+  try {
+    await write(join(site, 'index.html'), '<main><h1>Install</h1><p>Run the installer.</p>' +
+      '<div role="tabpanel"><p>npm ShownPanel</p></div><div role="tabpanel" hidden><p>irm InactivePanel</p></div>' +
+      '<div hidden="until-found"><p>FoundLater</p></div><div hidden><p>TrulyHiddenNoise</p></div>' +
+      '<p>日本語のドキュメント検索</p><p>Extend HTMLElement here.</p></main>');
+    const result = await new Command(binary, { args: ['docs', 'index', site], stdout: 'piped', stderr: 'piped' }).output();
+    if (!result.success) throw Error(new TextDecoder().decode(result.stderr));
+    const search = createSearch();
+    expect((await search.query('InactivePanel')).total).toBe(1); // an inactive tab panel's text
+    expect((await search.query('irm')).total).toBe(1);
+    expect((await search.query('FoundLater')).total).toBe(1); // hidden="until-found"
+    expect((await search.query('TrulyHiddenNoise')).total).toBe(0); // plain hidden stays out
+    expect((await search.query('検索')).total).toBe(1); // a CJK bigram inside a run
+    expect((await search.query('ドキュメント')).total).toBe(1); // a longer CJK query: every bigram
+    expect((await search.query('文書')).total).toBe(0); // characters that never appear together
+    expect((await search.query('installer')).total).toBe(1); // "installer." indexed as a word
+    expect((await search.query('element')).total).toBe(1); // part of "HTMLElement"
+    const first = fetched.filter((url) => url.includes('/f/')).length;
+    await search.query('installer');
+    await search.query('installer');
+    expect(fetched.filter((url) => url.includes('/f/')).length).toBe(first); // fragments cached
+  } finally {
+    globalThis.fetch = original;
+    await remove(site, { recursive: true });
+  }
+});

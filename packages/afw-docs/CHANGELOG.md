@@ -4,6 +4,16 @@
 
 ### Fixed
 
+- Search finds the text of inactive `<Tabs>` panels, Chinese and Japanese text, words
+  before punctuation, and acronym parts (`element` in `HTMLElement`), with the matching
+  `afwc` (see `@opentf/afw-compiler`).
+- Inactive `<Tabs>` panels are `hidden="until-found"`: find-in-page reaches their text and
+  opens the tab (`beforematch`). The `afwd-hidden` class with `display: none` is no longer
+  set on them.
+- The search reader decodes a term's postings only when it is looked up, instead of every
+  term of each loaded chunk, and keeps each result's fragment instead of fetching it
+  again on every keystroke.
+
 - Docs pages no longer grow with the size of the site. Every page carried the whole
   sidebar: each link rendered, and the nav tree repeated in its hydration payload. At
   1,000 pages that was 786 KB a page and 778 MB of HTML; it is now 51 KB and 51 MB

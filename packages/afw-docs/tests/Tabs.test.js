@@ -27,7 +27,8 @@ function expectSelected({ tabs, panels }, index) {
     expect(tab.getAttribute("aria-selected")).toBe(i === index ? "true" : "false");
     expect(tab.getAttribute("tabindex")).toBe(i === index ? "0" : "-1");
   });
-  panels().forEach((panel, i) => expect(panel.hidden).toBe(i !== index));
+  // Inactive panels are `hidden="until-found"`: out of view, but find-in-page can reach them.
+  panels().forEach((panel, i) => expect(panel.getAttribute("hidden")).toBe(i === index ? null : "until-found"));
 }
 
 describe("Tabs", () => {
@@ -52,6 +53,14 @@ describe("Tabs", () => {
       });
     }
     expect(first.tabs()[0].id).not.toBe(second.tabs()[0].id);
+  });
+
+  test("find-in-page revealing a panel (beforematch) selects its tab", async () => {
+    const view = setup();
+    await tick();
+    view.panels()[2].dispatchEvent(new Event("beforematch"));
+    await tick();
+    expectSelected(view, 2);
   });
 
   test("clicking a tab selects it and shows its panel", async () => {
