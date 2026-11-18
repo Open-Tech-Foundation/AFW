@@ -82,6 +82,18 @@ describe("generated esdev starters", () => {
     assert.equal(manifest.engines.esdev, ">=0.29.0");
   });
 
+  test("the API route names the runtime it runs on: esrun under esdev, Node under Vite", () => {
+    for (const typescript of [true, false]) {
+      const route = `app/api/hello/route.${typescript ? "ts" : "js"}`;
+      const options = { name: "my-app", pm: "pnpm", versions, template: "app", render: "server", server: true, styling: "css", typescript };
+      const esdev = projectFiles({ ...options, toolchain: "esdev" })[route];
+      const vite = projectFiles(options)[route];
+      assert.match(esdev, /run on esrun/);
+      assert.doesNotMatch(esdev, /Node/);
+      assert.match(vite, /run on Node/);
+    }
+  });
+
   test("the committed esdev/templates is what the generator writes", async () => {
     const written = await walk(join(pkg, "esdev", "templates"));
     const expected = { "catalog.json": esdevCatalog() };

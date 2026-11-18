@@ -24,7 +24,7 @@
       },
       "site-ssg": {
         "entry": "ssg.js",
-        "out": ".ssg/ssg.js",
+        "out": "dist/ssg.js",
         "then": "run"
       }
     }

@@ -124,8 +124,8 @@ function esdevConfig(ctx, { plugins = [], targets = {}, dev = null, afw = { appD
   });
 }
 
-/** The prerender step of a static esdev site: `ssg.js` run after the build. */
-const ESDEV_SSG_TARGET = { "site-ssg": { entry: "ssg.js", out: ".ssg/ssg.js", then: "run" } };
+/** The prerender step of a static esdev site: `ssg.js` run after the build (esdev removes its bundle). */
+const ESDEV_SSG_TARGET = { "site-ssg": { entry: "ssg.js", out: "dist/ssg.js", then: "run" } };
 const ESDEV_SITE_OUTPUT = { module: "@opentf/afw-cli/ssg", export: "siteOutputPlugin", options: { root: ".", target: "web", prerenderTarget: "site-ssg" } };
 const ESDEV_SERVER = {
   targets: { server: { entry: "server.js", out: "dist/server.js" } },
@@ -486,7 +486,9 @@ test("GET /api/hello greets by name", async () => {
   expect(await response.json()).toEqual({ message: "Hello, AFW!", requestId: "r1" });
 });
 `;
-  files[`app/api/hello/route.${js}`] = `// GET /api/hello?name=… — API routes run on Node, so any npm package works here.
+  files[`app/api/hello/route.${js}`] = `// GET /api/hello?name=… — ${ctx.esdev
+    ? "API routes run on esrun: web APIs, `runtime:` modules and npm packages that need no `node:` built-ins."
+    : "API routes run on Node, so any npm package works here."}
 export function GET(request${ts ? ": Request" : ""}, { query, locals }${ts ? ": { query: Record<string, string>; locals: Record<string, unknown> }" : ""}) {
   return Response.json({ message: \`Hello, \${query.name ?? "world"}!\`, requestId: locals.requestId });
 }

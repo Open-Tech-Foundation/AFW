@@ -6,6 +6,11 @@
 
 - New projects have an inline icon (`<link rel="icon">` in `index.html`), so their pages
   no longer request `/favicon.ico` and log a 404 on every load. Replace it with your own.
+- The static esdev starters build their prerender step to `dist/ssg.js`, which esdev 0.29
+  removes once it has run (was `.ssg/ssg.js`, kept out of `dist/` so it was not deployed).
+  `.ssg/` is no longer in `.gitignore`.
+- The esdev server starters' `app/api/hello` route says API routes run on esrun (it said
+  Node, which is the Vite starters').
 
 ### Fixed
 

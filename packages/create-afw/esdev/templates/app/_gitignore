@@ -7,7 +7,6 @@ dist/
 # toolchain working dirs (dev server + temp build dirs)
 .dev
 .esdev-build-*
-.ssg/
 
 # environment files
 .env
