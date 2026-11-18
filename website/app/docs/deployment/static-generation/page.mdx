@@ -30,7 +30,7 @@ export default defineRoute({ render: "static" });
   "build": {
     "targets": {
       "web": { "entry": "index.html", "outDir": "dist", "assets": ["public"] },
-      "prerender": { "entry": "ssg.js", "out": ".ssg/ssg.js", "then": "run" }
+      "prerender": { "entry": "ssg.js", "out": "dist/ssg.js", "then": "run" }
     }
   }
 }
@@ -49,9 +49,11 @@ esdev build --minify
 esdev preview
 ```
 
-The prerender step writes HTML into release staging, alongside the compiled assets,
-before esdev publishes the completed output. In development this repo skips that
-step when no release staging directory exists.
+- The prerender step writes HTML into release staging, alongside the compiled assets,
+  before esdev publishes the completed output.
+- esdev 0.29 and later remove the step's own bundle (`dist/ssg.js`) once it has run, so
+  the server-side render is never deployed beside the pages.
+- In development this repo skips the step when no release staging directory exists.
 
 ## Routes and data
 
