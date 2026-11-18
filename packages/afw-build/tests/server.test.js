@@ -108,7 +108,8 @@ describe("serverModule", () => {
     expect(dev.code).toContain("const shell = html;");
     expect(dev.code).toContain("export function createPageRenderer");
     const plain = await serverModule(host, "/site/app");
-    expect(plain.code).not.toContain("createPageRenderer");
+    expect(plain.code).toContain("export const createPageRenderer = undefined;");
+    expect(plain.code).not.toContain("function createPageRenderer");
     expect(plain.code).not.toContain("registerRoutes");
   });
 

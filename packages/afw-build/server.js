@@ -235,7 +235,10 @@ export async function serverModule(host, root, { exclude = [], i18n = null, page
       `    });\n` +
       `  };\n` +
       `}\n`
-    : "";
+    // No page renders on the server: still export the name, as `undefined`, so a server
+    // entry that checks `app.createPageRenderer` (the app starter's) bundles without an
+    // "import will always be undefined" warning.
+    : `export const createPageRenderer = undefined;\n`;
   const code =
     `import { createApiHandler, createFetchHandler, createLoaderRegistry, createMiddleware, createServerFunctions } from "@opentf/afw/server";\n` +
     [r.imports, m.imports, l.imports, fns.imports].filter(Boolean).join("\n") + "\n" +

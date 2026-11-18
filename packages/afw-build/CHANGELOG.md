@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The `@afw/server` module of an app with no server-rendered page exports
+  `createPageRenderer` as `undefined`. A server entry that checks it (the app starter's
+  `server.js`) bundled with an "import will always be undefined" warning.
+
 ## [0.7.0] - 2026-11-17
 
 ### Fixed
