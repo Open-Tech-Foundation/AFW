@@ -37,7 +37,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .afw-ssg
 .afw-api-build
 .afw-loaders-build
-.ssg
 .esdev-build-*
 
 # IntelliJ based IDEs

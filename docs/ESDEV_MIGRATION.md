@@ -70,21 +70,37 @@ Breaking in esrun 0.48: a network grant names an address (`--allow-listen=0.0.0.
 D221) and has no wildcards. The starters already grant an address; their README says a
 different `PORT` needs the same port in `--allow-listen`.
 
-Still open, to report upstream (2026-11-18, esdev 0.28.0, esrun 0.48.0). Found by
-`tsr verify-templates`: all 32 option combinations of the `app`, `docs` and `library`
-starters, each scaffolded, installed, typechecked, tested, built, run in dev and in
-production, with a browser pass. 29 pass; the 3 failures are items 1 and 2.
+## esdev 0.29.0 (verified 2026-11-19, with esrun 0.49.0)
 
-| # | Issue | Repro | Effect |
+Breaking: every `esdev.json` key is camelCase (ES-Runtime D232). A target's `outdir` is
+`outDir`; esdev refuses the old spelling, so a starter still writing it failed its first
+build. Every `esdev.json` here and every starter writes `outDir`; `@opentf/create-afw`
+needs esdev 0.29 (`engines.esdev`).
+
+Checks run:
+
+| Check | Result |
+| --- | --- |
+| `tsr verify-templates` (all 32 combinations of `app`, `docs` and `library`) | Every combination passes. 2 of about 56 `esdev start` runs failed at random (item 9), each on a combination that passed in the other run |
+| `tsr test`, `tsr site-build` | Pass |
+
+The open items found on 0.28, on 0.29:
+
+| # | Issue (0.28) | On 0.29 | Done here |
 | --- | --- | --- | --- |
-| 1 | `esdev test` with two or more test files on a cold cache sometimes fails to load a dependency it pre-bundled itself: `cannot resolve module "…/node_modules/.esdev/deps/<hash>/lz-string-<hash>.mjs": No such file or directory` (also `aria-query`) | Any starter with a second test file: `rm -rf node_modules/.esdev && pnpm test`. About 1 run in 10 here; 2–5 of 32 combinations per matrix run | A new project's first `pnpm test` fails at random; the next run passes. Looks like test files racing on the shared pre-bundle (this repo's `tasks.toml` already warms it to dodge the same race) |
-| 2 | A CSS `@import` with a `layer()` modifier is not resolved or inlined: it is left as written, and the browser requests the bare package path | `a.css`: `@import "pkg-b/x.css" layer(lib);` imported from the page's stylesheet; `esdev build`. The same import without `layer()` is inlined | The `docs` starter's code highlighting loses `@opentf/syntax-highlighter`'s shared rules (imported by `@opentf/afw-docs/theme` with `layer(afw-docs)`), with a 404 on every page, in dev and production |
-| 3 | A dependency linked from outside the project (`link:`/`file:` to a local checkout) is refused: `module "…" resolves outside the project root (modules outside the root cannot be loaded)` | A project whose `package.json` has `"@opentf/esdev-plugin-afw": "link:../afw/packages/esdev-plugin-afw"`; `esdev build` | Developing a package against an app means copying it into `node_modules` (what `tsr verify-templates` and the afw-docs tests do) |
-| 4 | With esdev's default grants (everything), a script's `runtime:fs` access still stops at its project root ("escapes the filesystem root"); with `--deny-all --allow-read --allow-imports --allow-write=<dir>`, the same write outside it succeeds | `esdev script.mjs` writing to `~/.cache/x`: refused; add those flags: written | Backwards from what "grant everything" suggests, and the `runtime:fs` page does not say how the root is chosen. Tooling that works in a scratch directory copies itself there and re-runs instead (`verify-templates.mjs`, `docs-scale/run.mjs`) |
-| 5 | `esdev create --help` lists template names that no longer exist: "react, api, … spa, fullstack, docs or library" | `esdev create --help` | The AFW starters are `app`, `docs` and `library` now (`esdev create --list` is right) |
-| 6 | A server-target restart stops the old process before the new one listens, and nothing holds connections meanwhile | Edit a loader under `esdev start`, request during the restart | A request in that window is refused (`Failed to fetch`); `tsr test-e2e-esdev-fns` waits it out. Not re-measured on 0.28 |
-| 7 | `esdev start` walks directories its root `.gitignore` excludes, and `.git` | `strace -f -e trace=openat,newfstatat esdev start` in this repository | 0.27: one playground start touched 445,392 paths, 1,496 of them real source; cold on a spinning disk, 24–67s. Not re-measured on 0.28 |
-| 8 | Once, `esdev start` stopped picking up edits and served the old build until restarted | Not reproduced | Unconfirmed: report only with a repro |
+| 1 | `esdev test` on a cold cache sometimes failed to load a dependency it pre-bundled | Fixed | No failure in the 32-combination run |
+| 2 | A CSS `@import` with `layer()` was left unresolved (404) | Fixed: bundled, with the layer declared where the import stood | `@opentf/afw-docs/theme` keeps its `layer(afw-docs)` import |
+| 3 | A dependency linked from outside the project was refused | Fixed for a package with its own install (D234). Not for a workspace member whose dependencies are links into the workspace's pnpm store: `module "@opentf/syntax-highlighter" resolves outside the project root` (D234 leaves it to monorepo support) | Still open for this repository: `tsr verify-templates`, the afw-docs tests and `benchmarks/docs-scale` go on copying packages into `node_modules` |
+| 4 | Under the default grant, `runtime:fs` stopped at the project root | Fixed: the default reaches the whole filesystem (D233) | `verify-templates.mjs` and `docs-scale/run.mjs` work in `~/.cache` directly, no longer copying themselves there |
+| 5 | `esdev create --help` listed templates that no longer exist | Fixed: it points at `--list` | — |
+| 6 | A server-target restart refused requests in between | Not re-measured | — |
+| 7 | `esdev start` walked directories `.gitignore` excludes | Fixed: only directories the root `.gitignore` does not name are watched | — |
+| 8 | `esdev start` once stopped picking up edits | Not reproduced | — |
+| 9 | New on 0.29: `esdev start --port=<n>` in a server starter sometimes exits at once: `cannot start the app on port <n>: Address already in use (os error 98)`, with nothing else on that port | Open, unconfirmed: `app-mixed-yes-css-js` then `app-server-yes-css-js`, once each; 8 cold starts of the same scaffold by hand all started | Report only with a repro |
+
+Also new in 0.29: a release build removes a `"then": "run"` step's own bundle once it has
+run. The prerender step of the static starters and the website is `dist/ssg.js` now (was
+`.ssg/ssg.js`, kept out of `dist/` so it would not be deployed); esdev removes it.
 
 ## Starter templates
 

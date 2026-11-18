@@ -11,11 +11,10 @@
 // combination per template. Every warning the tools print is collected into a report
 // (`report.md` in the work directory), the list of frictions to take upstream.
 //
-// It works in ~/.cache/afw-templates (a solid-state disk here; `--dir=` to change it). A
-// script can only write inside its own directory, so it copies itself there and runs again.
+// It works in ~/.cache/afw-templates (a solid-state disk here; `--dir=` to change it).
 
 import { exists, file, mkdir, readDir, write } from "runtime:fs";
-import { args, cwd, env, exit } from "runtime:process";
+import { args, env, exit } from "runtime:process";
 import { Command } from "runtime:system";
 
 const option = (name, fallback) => {
@@ -37,22 +36,10 @@ async function run(program, argv, { dir, extraEnv = {}, timeout = 600_000 } = {}
   }
 }
 
-// ── 1. Relocate into the work directory ────────────────────────────────────────
-const repoArg = option("repo", null);
-if (!repoArg) {
-  const repo = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
-  const work = option("dir", `${env.HOME}/.cache/afw-templates`);
-  for (const [program, argv] of [["mkdir", ["-p", work]], ["cp", [`${repo}/scripts/verify-templates.mjs`, `${work}/verify-templates.mjs`]]]) {
-    const step = await run(program, argv, { dir: repo });
-    if (!step.ok) { console.error(step.out); exit(1); }
-  }
-  const child = await new Command(esdev, { args: ["verify-templates.mjs", `--repo=${repo}`, ...args], cwd: work, inheritEnv: true, stdout: "inherit", stderr: "inherit" }).spawn();
-  exit((await child.status).code ?? 1);
-}
-
-// ── 2. In the work directory ──────────────────────────────────────────────────
-const repo = repoArg;
-const work = cwd();
+// ── 1. The work directory ─────────────────────────────────────────────────────
+const repo = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const work = option("dir", `${env.HOME}/.cache/afw-templates`);
+await mkdir(work, { recursive: true });
 const afwc = `${repo}/target/release/afwc`;
 if (!(await run("test", ["-x", afwc])).ok) {
   console.error(`✗ no ${afwc}: run \`cargo build --release -p afw_cli\` first`);

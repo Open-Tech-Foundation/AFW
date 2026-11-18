@@ -24,8 +24,8 @@ esdev benchmarks/docs-scale/run.mjs --pages=5000 --sections=50
 - Scaffolds `esdev create --template=docs` from `packages/create-afw` and installs this
   checkout's packages into it (their published files), so it measures what users get.
 - Each section is a page with its own child pages: `--pages / --sections` of them.
-- Prepares the site in the repo's `.cache/`, then builds and measures it in
-  `~/.cache/afw-docs-scale` (`--dir=` to change it). Run benchmarks from a solid-state disk.
+- Prepares, builds and measures the site in `~/.cache/afw-docs-scale` (`--dir=` to change
+  it). Run benchmarks from a solid-state disk.
 - Prints a table; the sample page is halfway down the middle section.
 
 ## Results
