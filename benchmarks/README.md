@@ -15,6 +15,9 @@ latency**, and (later) **memory**.
 > `afw build --ssg` against Astro, Next.js, TanStack Start and Vite — in
 > [`ssg-build/README.md`](./ssg-build/README.md). The two are independent; neither
 > says anything about the other.
+>
+> How a docs site's **output** grows with its page count (page and site weight, AFW only)
+> is in [`docs-scale/README.md`](./docs-scale/README.md).
 
 > **Status:** four cases run through one harness — **AFW**, **React**,
 > **Solid**, and **Svelte 5** — with an automated runner, 4× CPU throttling,
