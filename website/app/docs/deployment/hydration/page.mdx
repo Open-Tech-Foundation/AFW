@@ -127,6 +127,16 @@ are the main remaining gap on the adopt path.
 - In development, the browser console also warns
   (`[afw:hydrate] <path>: the page or one of its layouts cannot adopt…`) when a whole route
   is rebuilt this way.
+- **Lost props payload.** If a page arrives without its `<script id="__afw_h">` payload, or
+  with a truncated one, server-rendered islands would render with their default props. The
+  runtime reports a `HydrationPayloadError` through `onError` (phase `hydration`) once per
+  page, in production too. Check that your host or CDN does not strip inline scripts.
+- **Different text.** Text that differs between the server and the client is not a
+  structural mismatch: the client's text is shown. In development the console warns once
+  per page with both texts, which usually means the server and the client rendered from
+  different data.
+- Lists whose items are fragments or conditionals (`xs.map((x) => x.big ? <Big/> : <Small/>)`)
+  adopt in place.
 
 ## Compared to other frameworks
 
