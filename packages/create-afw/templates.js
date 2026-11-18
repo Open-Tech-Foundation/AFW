@@ -181,12 +181,17 @@ function tsconfig(ctx, include, { allowJs = false } = {}) {
   });
 }
 
+// An inline icon, so a new project's pages ask for no /favicon.ico (a 404 on every load
+// until one is added). Replace it with your own.
+const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f46e5'/%3E%3Cpath d='M9 23 16 8l7 15M11.6 18h8.8' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
+
 function indexHtml(ctx, { title, css = true }) {
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="${FAVICON}" />
     <title>${escapeHTML(title)}</title>${css ? `\n    <link rel="stylesheet" href="${ctx.esdev ? "./" : "/"}app/global.css" />` : ""}
   </head>
   <body>

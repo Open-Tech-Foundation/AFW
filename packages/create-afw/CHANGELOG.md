@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- New projects have an inline icon (`<link rel="icon">` in `index.html`), so their pages
+  no longer request `/favicon.ico` and log a 404 on every load. Replace it with your own.
+
 ## [0.8.0] - 2026-11-17
 
 ### Changed
