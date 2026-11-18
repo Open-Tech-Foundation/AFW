@@ -1177,7 +1177,20 @@ impl<'a> Emitter<'a> {
         self.counter = 0;
         self.sink = None;
 
-        let root = self.emit_node("__ic", item);
+        // A multi-node item (a fragment, or a conditional, which lowers to one) is bracketed
+        // by region markers on the server: claim them around its nodes, and hand the list
+        // the `{ start, end }` range it tracks the item by (runtime/dom.js `listEntry`).
+        let root = if let ViewNode::Fragment(children) = item {
+            self.uses.claim_region = true;
+            let start = self.fresh("rs");
+            self.line(format!("const {start} = claimRegionStart(__ic);"));
+            self.emit_children("__ic", children);
+            let end = self.fresh("re");
+            self.line(format!("const {end} = claimRegionEnd(__ic);"));
+            format!("{{ start: {start}, end: {end} }}")
+        } else {
+            self.emit_node("__ic", item)
+        };
 
         let body = std::mem::replace(&mut self.lines, saved_lines);
         self.counter = saved_counter;
@@ -2453,6 +2466,19 @@ mod tests {
             "hydrationProps imported:\n{}",
             m.code
         );
+    }
+
+    #[test]
+    fn a_conditional_list_item_adopts_its_region_instead_of_falling_back() {
+        // Used to report "fragment / multi-node root is not supported" and drop the page's
+        // hydrate export (a client rebuild); a component tore its server DOM out.
+        let m = emit("export default function P(){ return <ul>{[1,2].map(x => x % 2 ? <li>a</li> : <li>b</li>)}</ul>; }");
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        let hyd = hydrate_fn(&m.code);
+        assert!(hyd.contains("export function hydrate(__root)"), "page hydrate factory:\n{}", hyd);
+        assert!(hyd.contains("= claimRegionStart(__ic);"), "item start marker claimed:\n{}", hyd);
+        assert!(hyd.contains("hydrateChild("), "the item's conditional adopts:\n{}", hyd);
+        assert!(hyd.contains("return { start: rs0, end: re"), "the item's range is returned:\n{}", hyd);
     }
 
     #[test]

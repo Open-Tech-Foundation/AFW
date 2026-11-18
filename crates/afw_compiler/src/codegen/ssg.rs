@@ -642,6 +642,14 @@ impl<'a> Emitter<'a> {
     ) -> String {
         let n = self.fresh();
         let item_html = self.html_expr(item);
+        // A multi-node item (a fragment, or a conditional, which lowers to one) is bracketed
+        // by its own region markers: the client tracks such an item as the nodes between
+        // them, and the hydrate adopt walk claims them (`claimRegionStart`/`End`).
+        let item_html = if matches!(item, ViewNode::Fragment(_)) {
+            format!("\"<!--[-->\" + {item_html} + \"<!--]-->\"")
+        } else {
+            item_html
+        };
         // JSX embedded in the data expression (`[{ icon: <b/> }].map(…)`) renders to an
         // `{ __html }` marker in the data — `ssgText` splices it raw when an item reads it,
         // mirroring how a JSX-valued prop crosses to the server (see `node_prop_code`).
@@ -665,8 +673,8 @@ impl<'a> Emitter<'a> {
         // Bracket the list with region markers (docs/HYDRATION.md §3.1) so the client can
         // find the variable region's boundary to reconcile from N. The closing `<!--]-->`
         // becomes the reconcile anchor on hydration; static SSG output treats them as inert
-        // comments. Each item renders to one root node (bare-text items keep their own
-        // `<!--$-->…<!--/-->` markers), so no per-item separator is needed.
+        // comments. A single-node item needs no separator (bare-text items keep their own
+        // `<!--$-->…<!--/-->` markers); a multi-node item brings its own markers (above).
         format!(
             "\"<!--[-->\" + ssgList({}, (__it{n}, __idx{n}) => {{ const {item_param} = {{ value: __it{n} }}; {idx_decl}{preamble_decl}return {item_html}; }}) + \"<!--]-->\"",
             source_code,
@@ -1049,6 +1057,20 @@ mod tests {
             "markers:\n{}",
             m.code
         );
+    }
+
+    #[test]
+    fn a_multi_node_list_item_brings_its_own_region_markers() {
+        // A conditional item lowers to a fragment: bracketed per item, so the client can
+        // track it as a range. A single-element item stays unbracketed.
+        let m = emit(
+            "export default function P(){ return <ul>{[1,2].map(x => x % 2 ? <li>a</li> : <li>b</li>)}</ul>; }",
+            true,
+        );
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("return \"<!--[-->\" + \"<!--[-->\""), "item markers:\n{}", m.code);
+        let single = emit("export default function P(){ return <ul>{[1,2].map(x => <li>{x}</li>)}</ul>; }", true);
+        assert!(!single.code.contains("return \"<!--[-->\""), "single-node item:\n{}", single.code);
     }
 
     #[test]

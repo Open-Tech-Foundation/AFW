@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A `.map()` whose item is a fragment or a conditional hydrates. The server brackets each
+  such item with region markers and the hydrate target claims them; the hydrate target
+  used to report "fragment / multi-node root is not supported", so a page had no `hydrate`
+  export and a component rebuilt its server DOM.
+
 ## [0.27.0] - 2026-11-17
 
 ### Fixed
