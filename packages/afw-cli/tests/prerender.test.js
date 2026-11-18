@@ -120,3 +120,37 @@ test("a client page is never loaded by the prerender: its layout is written arou
     expect(admin).toContain('data-afw-hydrate="/admin"');
   } finally { await discard(dir); }
 });
+
+test("the prerender compiles in PUBLIC_* values and MODE from the project's .env, and no other variable", async () => {
+  const dir = await tempDir("env-prerender");
+  try {
+    await writeTree(dir, {
+      "package.json": '{"type":"module"}',
+      ".env": "PUBLIC_API_URL=https://api.example.test\nSECRET_TOKEN=do-not-ship-me\n",
+      "app/page.jsx": `
+const api = import.meta.env.PUBLIC_API_URL;
+export default function Home() {
+  return <section><a id="api" href={import.meta.env.PUBLIC_API_URL}>{api}</a>
+    <p id="mode">{import.meta.env.MODE} {import.meta.env.PROD ? "prod" : "dev"}</p>
+    <p id="secret">[{import.meta.env.SECRET_TOKEN ?? "none"}]</p></section>;
+}
+`,
+    });
+    const outDir = join(dir, "dist");
+    const result = await runPrerender({
+      root: dir,
+      pages: [join(dir, "app/page.jsx")],
+      afwEntry: join(root, "packages/afw/index.js"),
+      afwc: join(root, "target/debug/afwc"),
+      shellHtml: '<html><head></head><body><div id="app" data-afw-hydrate></div></body></html>',
+      outDir,
+    });
+    expect(result.failed).toEqual([]);
+    const html = (await file(join(outDir, "index.html")).text()).replace(/<!--[\s\S]*?-->/g, "");
+    expect(html).toContain('href="https://api.example.test"');
+    expect(html).toContain(">https://api.example.test</a>");
+    expect(html).toContain(">production prod</p>");
+    expect(html).toContain(">[none]</p>");
+    expect(html.includes("do-not-ship-me")).toBe(false);
+  } finally { await discard(dir); }
+});

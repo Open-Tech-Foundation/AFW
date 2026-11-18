@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Static generation compiles in `import.meta.env` as `esdev build` does: `MODE`, `DEV`,
+  `PROD` and the `PUBLIC_*` values from the project's `.env`, then the environment. A page
+  reading them used to prerender `undefined` (and `MODE` from the process running the
+  build), so its HTML disagreed with the browser bundle. The API and loader bundles get the
+  same values. Needs esdev 0.28 (`runtime:build`'s `mode`). No other variable is compiled in.
+
 ## [1.39.0] - 2026-11-17
 
 ### Fixed

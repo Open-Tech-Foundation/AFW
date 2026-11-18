@@ -433,6 +433,7 @@ export async function emitApiBundle({ root, appDir, afwEntry, exclude, i18n, out
     platform: "node",
     resolve: { alias: await afwAliases(afwEntry), extensions: EXTENSIONS },
     external: (id) => !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("@opentf/afw"),
+    ...ENV_COMPILE(root),
   });
   try {
     await bundle.write({ dir: outDir, format: "esm", entryFileNames: "api.js" });
@@ -442,6 +443,14 @@ export async function emitApiBundle({ root, appDir, afwEntry, exclude, i18n, out
   await rmrf(tmp);
   return { routes: discovered.routes, middleware: discovered.middleware };
 }
+
+/**
+ * `import.meta.env` for a server bundle, as `esdev build` compiles it into the browser one:
+ * `MODE`, `DEV`, `PROD` and the `PUBLIC_*` values from the project's `.env`, then the
+ * environment (`runtime:build`'s `mode`). `cwd` is the project root: the build's default is
+ * the entry's own directory, a temporary one here. Other variables are never compiled in.
+ */
+const ENV_COMPILE = (root) => ({ mode: "production", cwd: root });
 
 /**
  * Entry source for the loader bundle (docs/DATA.md): statically import every
@@ -486,6 +495,7 @@ export async function emitLoaderBundle({ root, appDir, afwEntry, exclude, i18n, 
     platform: "node",
     resolve: { alias: await afwAliases(afwEntry), extensions: EXTENSIONS },
     external: (id) => !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("@opentf/afw"),
+    ...ENV_COMPILE(root),
   });
   try {
     await bundle.write({ dir: outDir, format: "esm", entryFileNames: "loaders.js" });
@@ -602,6 +612,7 @@ export async function buildServerBundle({
     // no `process` global here to read it at runtime — so it has to be folded away at
     // bundle time. Server render is a production render.
     define: { "process.env.NODE_ENV": '"production"' },
+    ...ENV_COMPILE(root),
     plugins: [
       ...docsPlugins,
       afwPlugin(afwc, { failOnError: true, target: "ssg", quiet, onResult: (id) => onCompile?.(id) }),
