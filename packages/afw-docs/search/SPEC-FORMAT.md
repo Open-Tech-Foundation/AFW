@@ -44,7 +44,10 @@ last query word and can cross any number of matching chunks.
 Pages opt in through `data-afw-search-body`. If any page opts in, unmarked pages
 are excluded; otherwise the configured root selector (`main` by default) is used.
 Nested roots do not duplicate content. `data-afw-search-ignore`, hidden regions and
-navigation chrome are excluded. `data-afw-search-meta="key"` collects normalized
+navigation chrome are excluded. Hidden content that is still part of the page is indexed:
+an inactive tab panel (`role="tabpanel"` with `hidden`) and `hidden="until-found"`. A page's
+`h1` title is indexed once, as part of its text; a title from `<title>` (or the URL) is
+indexed at position 0, field 0. `data-afw-search-meta="key"` collects normalized
 text and `data-afw-search-meta="key:value"` sets a literal value. Metadata can live
 outside the indexed body. Pagefind attribute aliases remain readable for migration.
 

@@ -2,8 +2,24 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `afwc docs index` is linear in each page's size and indexes pages in parallel. It used
+  to scan every text span for each word and every earlier character for each heading, and
+  kept every page parsed in memory at once: a 1.3 MB page took 4.6 s and now takes 0.18 s,
+  and 1,013 docs pages take 0.28 s instead of 1.5 s. The output is unchanged in form, and
+  the same on any number of cores.
+- Search tokens: punctuation around a word is no longer part of it (`routing.`, `--dom`),
+  which removed 17% of the terms of this repository's site index (5,769 → 4,765); acronyms split
+  (`HTMLElement` → `html`, `element`); terms over 64 bytes are dropped; Chinese and
+  Japanese text is indexed as overlapping character pairs.
+
 ### Fixed
 
+- The text of inactive tab panels (`role="tabpanel"` with `hidden`) and of
+  `hidden="until-found"` content is indexed. It was skipped as hidden.
+- A page title taken from its `h1` is counted once, not twice.
+- `afwc docs inspect --term` normalizes the term the way indexing does.
 - A `.map()` whose item is a fragment or a conditional hydrates. The server brackets each
   such item with region markers and the hydrate target claims them; the hydrate target
   used to report "fragment / multi-node root is not supported", so a page had no `hydrate`

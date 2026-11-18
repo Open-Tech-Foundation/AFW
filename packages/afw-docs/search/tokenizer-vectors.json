@@ -63,5 +63,87 @@
   {
     "input": "... --",
     "tokens": []
+  },
+  {
+    "input": "Read about routing.",
+    "tokens": [
+      "read",
+      "about",
+      "routing"
+    ]
+  },
+  {
+    "input": "esdev test --dom",
+    "tokens": [
+      "esdev",
+      "test",
+      "dom"
+    ]
+  },
+  {
+    "input": "HTMLElement",
+    "tokens": [
+      "htmlelement",
+      "html",
+      "element"
+    ]
+  },
+  {
+    "input": "getElementById",
+    "tokens": [
+      "getelementbyid",
+      "get",
+      "element",
+      "by",
+      "id"
+    ]
+  },
+  {
+    "input": "parseURLQuery",
+    "tokens": [
+      "parseurlquery",
+      "parse",
+      "url",
+      "query"
+    ]
+  },
+  {
+    "input": "日本語",
+    "tokens": [
+      "日本",
+      "本語"
+    ]
+  },
+  {
+    "input": "検",
+    "tokens": [
+      "検"
+    ]
+  },
+  {
+    "input": "React入門",
+    "tokens": [
+      "react",
+      "入門"
+    ]
+  },
+  {
+    "input": "ｶﾀｶﾅ",
+    "tokens": [
+      "カタ",
+      "タカ",
+      "カナ"
+    ]
+  },
+  {
+    "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "tokens": []
+  },
+  {
+    "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+    "tokens": [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+    ]
   }
 ]

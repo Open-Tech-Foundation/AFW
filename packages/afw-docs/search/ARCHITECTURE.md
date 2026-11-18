@@ -10,7 +10,13 @@ SSG HTML → afwc docs index → _search/{manifest, docs, chunks, fragments}
                          headless reader → Search component
 ```
 
-The reader never references the DOM and every fetch receives an optional AbortSignal.
+The writer reads each page once and drops it: pages are parsed and extracted in parallel
+batches (rayon) and merged in path order, so the output is identical to a one-thread run.
+Work per page is linear in its size.
+
+The reader never references the DOM and every query takes an optional AbortSignal. It
+decodes a chunk's term table when the chunk loads and a term's postings only when the term
+is looked up, and keeps each loaded fragment for the life of its generation.
 The modal owns debouncing, focus, keyboard navigation, and safe rendering of excerpts.
 
 Queries rank pages using the existing document scores, then identify distinct

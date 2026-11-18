@@ -1,12 +1,13 @@
 //! Internal static HTML search indexer for `@opentf/afw-docs`.
 //! See packages/afw-docs/search/SPEC-FORMAT.md for the writer/reader contract.
 
+use rayon::prelude::*;
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use serde_json::{json, Value};
 use std::sync::OnceLock;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     fs,
     path::{Path, PathBuf},
     process::ExitCode,
@@ -110,7 +111,12 @@ fn inspect_cmd(args: &[String]) -> ExitCode {
         eprintln!("usage: afwc docs inspect <index-dir> --term <term>");
         return ExitCode::FAILURE;
     }
-    match read_index(dir).and_then(|index| Ok(index["terms"][term.to_lowercase()].clone())) {
+    // Look the term up as indexing would have written it (NFKC, lowercase).
+    let key = word_groups(term)
+        .first()
+        .and_then(|group| group.first().cloned())
+        .unwrap_or_else(|| term.to_lowercase());
+    match read_index(dir).map(|index| index["terms"][key.as_str()].clone()) {
         Ok(Value::Null) => {
             println!(
                 "{{\"term\":{},\"df\":0,\"postings\":[]}}",
@@ -165,6 +171,110 @@ fn query_cmd(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+/// The selectors every page is read with, compiled once.
+struct Selectors {
+    root: Selector,
+    marked: Selector,
+    meta: Selector,
+    title: Selector,
+}
+
+impl Selectors {
+    fn new(root: &str) -> Result<Self, String> {
+        Ok(Selectors {
+            root: Selector::parse(root).map_err(|e| format!("Invalid search root selector: {e}"))?,
+            marked: Selector::parse("[data-afw-search-body], [data-pagefind-body]").unwrap(),
+            meta: Selector::parse("[data-afw-search-meta], [data-pagefind-meta]").unwrap(),
+            title: Selector::parse("title").unwrap(),
+        })
+    }
+}
+
+/// One page, extracted: whether it opted in with a marker, its document, and its fragment.
+struct Page {
+    marked: bool,
+    document: Document,
+    fragment: Vec<u8>,
+}
+
+/// One term's postings: `(doc, positions)` rows in doc order, positions as `(offset, field)`.
+type DocPostings = Vec<(usize, Vec<(u32, u8)>)>;
+
+/// Postings for one set of documents: term → its rows.
+#[derive(Default)]
+struct Postings {
+    terms: HashMap<String, DocPostings>,
+    fragments: Vec<Vec<u8>>,
+    lengths: Vec<usize>,
+}
+
+impl Postings {
+    /// Append `page` as the next document. Documents arrive in path order, so each term's
+    /// rows stay sorted by doc and each doc's positions by `(position, field)`.
+    fn add(&mut self, page: Page) {
+        let id = self.lengths.len();
+        let Page { document, fragment, .. } = page;
+        self.lengths.push(document.length);
+        self.fragments.push(fragment);
+        for (term, position, field) in document.terms {
+            let rows = self.terms.entry(term).or_default();
+            match rows.last_mut() {
+                Some((doc, positions)) if *doc == id => {
+                    // A repeated term at the same place (a doubled CJK bigram) counts once.
+                    if positions.last() != Some(&(position, field)) {
+                        positions.push((position, field));
+                    }
+                }
+                _ => rows.push((id, vec![(position, field)])),
+            }
+        }
+        // A title that is not the page's `h1` is indexed at the top of the page. (An `h1`
+        // title is already in the text, as field 0: indexing it again doubled its counts.)
+        if !document.title_in_text {
+            for term in tokens(&document.title) {
+                let rows = self.terms.entry(term).or_default();
+                match rows.last_mut() {
+                    Some((doc, positions)) if *doc == id => {
+                        if positions.first() != Some(&(0, 0)) {
+                            positions.insert(0, (0, 0));
+                        }
+                    }
+                    _ => rows.push((id, vec![(0, 0)])),
+                }
+            }
+        }
+    }
+}
+
+/// Read and extract one page. Pages are independent, so this runs on many at once.
+fn extract_page(site: &Path, path: &Path, selectors: &Selectors) -> Result<Option<Page>, String> {
+    let html = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let page = Html::parse_document(&html);
+    let marked = page.select(&selectors.marked).next().is_some();
+    let root = if marked { &selectors.marked } else { &selectors.root };
+    let Some(mut document) = extract(&page, root, selectors) else {
+        return Ok(None);
+    };
+    let url = relative_url(site, path);
+    if document.title.is_empty() {
+        document.title = url.clone();
+    }
+    let fragment = serde_json::to_vec(&json!({"url": url, "title": document.title, "text": document.text,
+        "meta": document.meta, "anchors": document.anchors, "excerptOmit": document.excerpt_omit}))
+    .map_err(|e| e.to_string())?;
+    Ok(Some(Page { marked, document, fragment }))
+}
+
+/// Extract a batch of pages across the machine's cores, returned in path order (so document
+/// IDs and every output byte stay the same as a one-thread run).
+fn extract_pages(site: &Path, batch: &[PathBuf], selectors: &Selectors) -> Result<Vec<Option<Page>>, String> {
+    batch.par_iter().map(|path| extract_page(site, path, selectors)).collect()
+}
+
+/// Pages extracted at once before their postings are merged in order: enough to keep
+/// every core busy, few enough that their terms never pile up in memory.
+const BATCH: usize = 64;
+
 fn build(site: &Path, out: &Path, root: &str) -> Result<usize, String> {
     if !site.is_dir() {
         return Err(format!(
@@ -172,6 +282,7 @@ fn build(site: &Path, out: &Path, root: &str) -> Result<usize, String> {
             site.display()
         ));
     }
+    let selectors = Selectors::new(root)?;
     let mut paths: Vec<PathBuf> = WalkDir::new(site)
         .into_iter()
         .filter_map(Result::ok)
@@ -181,82 +292,51 @@ fn build(site: &Path, out: &Path, root: &str) -> Result<usize, String> {
         .map(|entry| entry.into_path())
         .collect();
     paths.sort(); // Document IDs and output are deterministic.
-    let mut terms: BTreeMap<String, BTreeMap<usize, Vec<(u32, u8)>>> = BTreeMap::new();
-    let mut fragments = Vec::new();
-    let mut lengths = Vec::new();
-    let pages: Vec<_> = paths
-        .iter()
-        .map(|path| {
-            fs::read_to_string(path)
-                .map(|html| (path, Html::parse_document(&html)))
-                .map_err(|e| format!("{}: {e}", path.display()))
-        })
-        .collect::<Result<_, _>>()?;
-    let marked = Selector::parse("[data-afw-search-body], [data-pagefind-body]").unwrap();
-    let explicit = pages
-        .iter()
-        .any(|(_, page)| page.select(&marked).next().is_some());
-    for (path, page) in pages {
-        let Some(document) = extract_document(&page, root, explicit)? else {
-            continue;
-        };
-        let id = fragments.len();
-        lengths.push(document.length);
-        for (term, position, field) in document.terms {
-            terms
-                .entry(term)
-                .or_default()
-                .entry(id)
-                .or_default()
-                .push((position, field));
-        }
-        let title = if document.title.is_empty() {
-            relative_url(site, path)
-        } else {
-            document.title
-        };
-        for term in tokens(&title) {
-            terms
-                .entry(term)
-                .or_default()
-                .entry(id)
-                .or_default()
-                .push((0, 0));
-        }
-        fragments.push(
-            json!({"url": relative_url(site, path), "title": title, "text": document.text,
-            "meta": document.meta, "anchors": document.anchors, "excerptOmit": document.excerpt_omit}),
-        );
-    }
-    fs::create_dir_all(out).map_err(|e| e.to_string())?;
-    for docs in terms.values_mut() {
-        for positions in docs.values_mut() {
-            positions.sort_by_key(|(position, field)| (*position, *field));
+    // If any page opts in with a marker, only marked pages are indexed; otherwise every
+    // page's root is. Each page is parsed once and dropped: marked pages and the others
+    // go to separate postings, and the fallback set stops growing at the first marker.
+    let mut marked = Postings::default();
+    let mut fallback = Some(Postings::default());
+    for batch in paths.chunks(BATCH) {
+        let pages = extract_pages(site, batch, &selectors)?;
+        for page in pages.into_iter().flatten() {
+            if page.marked {
+                fallback = None;
+                marked.add(page);
+            } else if let Some(fallback) = fallback.as_mut() {
+                fallback.add(page);
+            }
         }
     }
+    let Postings { terms, fragments, lengths } = match fallback {
+        Some(fallback) if marked.lengths.is_empty() => fallback,
+        _ => marked,
+    };
+    write_index(out, terms, fragments, lengths)
+}
+
+fn write_index(
+    out: &Path,
+    terms: HashMap<String, DocPostings>,
+    fragments: Vec<Vec<u8>>,
+    lengths: Vec<usize>,
+) -> Result<usize, String> {
     fs::create_dir_all(out.join("t")).map_err(|e| e.to_string())?;
-    let entries: Vec<_> = terms.iter().collect();
+    // Term order is UTF-8 byte order (String's own order), which the reader mirrors.
+    let mut entries: Vec<_> = terms.iter().collect();
+    entries.sort_unstable_by(|a, b| a.0.cmp(b.0));
     let mut chunks = Vec::new();
     // 750 terms keeps real-world docs shards near the 12 KB compressed request budget.
     for group in entries.chunks(750) {
-        let shard: BTreeMap<_, _> = group
-            .iter()
-            .map(|(term, docs)| ((*term).clone(), (*docs).clone()))
-            .collect();
-        let (bytes, first, count) = encode_term_chunk(&shard);
+        let (bytes, first, count) = encode_term_chunk(group);
         let hash = blake3::hash(&bytes).to_hex().to_string()[..12].to_string();
         let file = format!("t/{hash}.bin");
         fs::write(out.join(&file), bytes).map_err(|e| e.to_string())?;
         chunks.push(json!({"first": first, "file": file, "terms": count}));
     }
     // The complete fragment generation is immutable, including its document IDs.
-    let payloads = fragments
-        .iter()
-        .map(serde_json::to_vec)
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
     let mut hasher = blake3::Hasher::new();
-    for bytes in &payloads {
+    for bytes in &fragments {
         hasher.update(&(bytes.len() as u64).to_le_bytes());
         hasher.update(bytes);
     }
@@ -264,7 +344,7 @@ fn build(site: &Path, out: &Path, root: &str) -> Result<usize, String> {
     let fragments_name = format!("f/{generation}");
     let fragments_dir = out.join(&fragments_name);
     fs::create_dir_all(&fragments_dir).map_err(|e| e.to_string())?;
-    for (id, bytes) in payloads.iter().enumerate() {
+    for (id, bytes) in fragments.iter().enumerate() {
         fs::write(fragments_dir.join(format!("{id}.json")), bytes).map_err(|e| e.to_string())?;
     }
     let mut docs_bin = Vec::new();
@@ -291,16 +371,16 @@ fn write_varint(mut value: u64, out: &mut Vec<u8>) {
     out.push(value as u8);
 }
 
-fn encode_term_chunk(
-    terms: &BTreeMap<String, BTreeMap<usize, Vec<(u32, u8)>>>,
-) -> (Vec<u8>, String, usize) {
+type TermRow<'a> = (&'a String, &'a DocPostings);
+
+fn encode_term_chunk(terms: &[TermRow<'_>]) -> (Vec<u8>, String, usize) {
     let mut postings = Vec::new();
     let mut rows = Vec::new();
-    let mut previous = Vec::new();
+    let mut previous: &[u8] = &[];
     for (term, docs) in terms {
         let offset = postings.len();
         let mut last_doc = 0usize;
-        for (&doc, positions) in docs {
+        for (doc, positions) in docs.iter() {
             write_varint((doc - last_doc) as u64, &mut postings);
             write_varint(positions.len() as u64, &mut postings);
             let mut last_position = 0u32;
@@ -311,7 +391,7 @@ fn encode_term_chunk(
                 );
                 last_position = position;
             }
-            last_doc = doc;
+            last_doc = *doc;
         }
         let bytes = term.as_bytes();
         let common = bytes
@@ -319,8 +399,8 @@ fn encode_term_chunk(
             .zip(previous.iter())
             .take_while(|(a, b)| a == b)
             .count();
-        rows.push((common, bytes[common..].to_vec(), docs.len(), offset));
-        previous = bytes.to_vec();
+        rows.push((common, &bytes[common..], docs.len(), offset));
+        previous = bytes;
     }
     let mut out = b"AFWI".to_vec();
     out.push(1);
@@ -328,14 +408,14 @@ fn encode_term_chunk(
     for (prefix, suffix, df, offset) in rows {
         write_varint(prefix as u64, &mut out);
         write_varint(suffix.len() as u64, &mut out);
-        out.extend(suffix);
+        out.extend_from_slice(suffix);
         write_varint(df as u64, &mut out);
         write_varint(offset as u64, &mut out);
     }
     out.extend(postings);
     (
         out,
-        terms.keys().next().cloned().unwrap_or_default(),
+        terms.first().map(|(term, _)| (*term).clone()).unwrap_or_default(),
         terms.len(),
     )
 }
@@ -409,7 +489,11 @@ fn decode_term_chunk(bytes: &[u8]) -> Result<serde_json::Map<String, Value>, Str
 #[derive(Default)]
 struct Document {
     text: String,
+    /// `text`'s length in UTF-16 code units, kept as it grows (positions are UTF-16).
+    text_utf16: usize,
     title: String,
+    /// The title came from the page's `h1`, so its words are in `text` already.
+    title_in_text: bool,
     meta: BTreeMap<String, String>,
     anchors: Vec<Value>,
     excerpt_omit: Vec<(usize, usize)>,
@@ -417,49 +501,136 @@ struct Document {
     length: usize,
 }
 
+impl Document {
+    fn push(&mut self, ch: char) {
+        self.text.push(ch);
+        self.text_utf16 += ch.len_utf16();
+    }
+    /// One space between runs of text, never two.
+    fn space(&mut self) {
+        if !self.text.is_empty() && !self.text.ends_with(' ') {
+            self.push(' ');
+        }
+    }
+}
+
 fn word_regex() -> &'static Regex {
     static WORD: OnceLock<Regex> = OnceLock::new();
     WORD.get_or_init(|| Regex::new(r"[\p{L}\p{N}\p{M}_.-]+").unwrap())
 }
 
-// The same groups and normalization are used by the JS reader. Variants of one
-// word share an offset; accent folding/camelCase splitting are alternatives.
-fn variants(word: &str) -> Vec<String> {
-    let normalized: String = word.nfkc().collect();
+/// Terms longer than this are dropped (hashes, long URLs, minified code): they bloat the
+/// index and no one types them.
+const MAX_TERM_BYTES: usize = 64;
+
+/// A character written without spaces between words: Han, Hiragana, Katakana (after NFKC,
+/// so half-width Katakana is in the full-width block). Listed by code point, the same in
+/// the JS reader, so the two never disagree on a Unicode version.
+fn is_cjk(ch: char) -> bool {
+    matches!(ch as u32,
+        0x3005..=0x3007 | 0x303B | 0x3041..=0x30FF | 0x31F0..=0x31FF | 0x3400..=0x4DBF
+        | 0x4E00..=0x9FFF | 0xF900..=0xFAFF | 0x20000..=0x3134F)
+}
+
+/// One word's query groups. A word is one group of alternatives (its lowercase form, an
+/// accent-folded form, its identifier parts). A run of CJK characters, which has no spaces
+/// to split on, becomes one group per overlapping pair of characters (bigrams), all
+/// required. The same rules run in the JS reader (search.js `wordGroups`).
+fn word_groups(word: &str) -> Vec<Vec<String>> {
+    // Sentence punctuation and option dashes around a word are not part of it
+    // (`routing.`, `--dom`); inner ones are (`route.params`, `route-name`).
+    let trimmed = word.trim_matches(['.', '-']);
+    if trimmed.is_empty() {
+        return vec![];
+    }
+    let normalized: String = trimmed.nfkc().collect();
+    let mut groups = Vec::new();
+    let mut run = String::new();
+    let mut run_is_cjk = false;
+    let flush = |run: &mut String, cjk: bool, groups: &mut Vec<Vec<String>>| {
+        if run.is_empty() {
+            return;
+        }
+        if cjk {
+            let chars: Vec<char> = run.chars().collect();
+            if chars.len() == 1 {
+                groups.push(vec![run.clone()]);
+            } else {
+                for pair in chars.windows(2) {
+                    groups.push(vec![pair.iter().collect()]);
+                }
+            }
+        } else if let Some(group) = latin_group(run.trim_matches(['.', '-'])) {
+            groups.push(group);
+        }
+        run.clear();
+    };
+    for ch in normalized.chars() {
+        let cjk = is_cjk(ch);
+        if cjk != run_is_cjk {
+            flush(&mut run, run_is_cjk, &mut groups);
+            run_is_cjk = cjk;
+        }
+        run.push(ch);
+    }
+    flush(&mut run, run_is_cjk, &mut groups);
+    groups
+}
+
+/// The alternatives for a word with spaces around it: lowercase, accent-folded, and its
+/// identifier parts (camelCase, acronyms, `_`, `-`, `.`). None for a word with no letters
+/// or digits, or whose every alternative is too long.
+fn latin_group(normalized: &str) -> Option<Vec<String>> {
     let whole = normalized.to_lowercase();
     if !whole.chars().any(char::is_alphanumeric) {
-        return vec![];
+        return None;
     }
     let mut out = vec![whole.clone()];
     let folded: String = whole.nfd().filter(|ch| !is_combining_mark(*ch)).collect();
     if folded != whole {
         out.push(folded);
     }
+    // Split before an uppercase letter that follows a lowercase one (`useState`), and before
+    // the last capital of an acronym that starts a word (`HTMLElement` → `HTML Element`).
+    let chars: Vec<char> = normalized.chars().collect();
     let mut parts = String::new();
-    let mut previous = None;
-    for ch in normalized.chars() {
-        if ch.is_ascii_uppercase() && previous.is_some_and(|c: char| c.is_ascii_lowercase()) {
+    for (i, &ch) in chars.iter().enumerate() {
+        let prev = i.checked_sub(1).map(|j| chars[j]);
+        let next = chars.get(i + 1).copied();
+        if ch.is_ascii_uppercase()
+            && (prev.is_some_and(|c| c.is_ascii_lowercase())
+                || (prev.is_some_and(|c| c.is_ascii_uppercase()) && next.is_some_and(|c| c.is_ascii_lowercase())))
+        {
             parts.push(' ');
         }
         parts.push(ch);
-        previous = Some(ch);
     }
-    for part in parts
-        .split(['_', '-', '.', ' '])
-        .filter(|part| !part.is_empty())
-    {
+    for part in parts.split(['_', '-', '.', ' ']).filter(|part| !part.is_empty()) {
         let part = part.to_lowercase();
         if !out.contains(&part) {
             out.push(part);
         }
     }
-    out
+    out.retain(|term| term.len() <= MAX_TERM_BYTES);
+    (!out.is_empty()).then_some(out)
 }
+
+/// Every term a text yields, in order (the index's vocabulary for it).
 fn tokens(text: &str) -> Vec<String> {
     word_regex()
         .find_iter(text)
-        .flat_map(|word| variants(word.as_str()))
+        .flat_map(|word| word_groups(word.as_str()))
+        .flatten()
         .collect()
+}
+
+/// `hidden` that still holds content: an inactive tab panel, and `hidden="until-found"`
+/// (find-in-page can reveal it). Other hidden content is not on the page.
+fn hidden_away(e: &scraper::node::Element) -> bool {
+    match e.attr("hidden") {
+        None => false,
+        Some(value) => !(value.eq_ignore_ascii_case("until-found") || e.attr("role") == Some("tabpanel")),
+    }
 }
 
 fn ignored(element: ElementRef<'_>) -> bool {
@@ -469,7 +640,7 @@ fn ignored(element: ElementRef<'_>) -> bool {
         "script" | "style" | "noscript" | "nav" | "header" | "footer" | "aside"
     ) || e.attr("data-afw-search-ignore").is_some()
         || e.attr("data-pagefind-ignore").is_some()
-        || e.attr("hidden").is_some()
+        || hidden_away(e)
         || e.attr("aria-hidden") == Some("true")
 }
 fn normalized_text(element: ElementRef<'_>) -> String {
@@ -478,7 +649,7 @@ fn normalized_text(element: ElementRef<'_>) -> String {
         if matches!(
             e.name(),
             "script" | "style" | "noscript" | "template" | "svg"
-        ) || e.attr("hidden").is_some()
+        ) || hidden_away(e)
             || e.attr("aria-hidden") == Some("true")
             || (!root
                 && (e.attr("data-afw-search-ignore").is_some()
@@ -502,15 +673,17 @@ fn normalized_text(element: ElementRef<'_>) -> String {
     text.join(" ")
 }
 
+/// Extract one page with a root selector given as text (tests).
+#[cfg(test)]
 fn extract_document(page: &Html, root: &str, explicit: bool) -> Result<Option<Document>, String> {
-    let selector = Selector::parse(if explicit {
-        "[data-afw-search-body], [data-pagefind-body]"
-    } else {
-        root
-    })
-    .map_err(|e| format!("Invalid search root selector: {e}"))?;
+    let selectors = Selectors::new(root)?;
+    let selector = if explicit { &selectors.marked } else { &selectors.root };
+    Ok(extract(page, selector, &selectors))
+}
+
+fn extract(page: &Html, selector: &Selector, selectors: &Selectors) -> Option<Document> {
     let roots: Vec<_> = page
-        .select(&selector)
+        .select(selector)
         .filter(|el| {
             !el.ancestors()
                 .filter_map(ElementRef::wrap)
@@ -518,12 +691,11 @@ fn extract_document(page: &Html, root: &str, explicit: bool) -> Result<Option<Do
         })
         .collect();
     if roots.is_empty() {
-        return Ok(None);
+        return None;
     }
     let mut document = Document::default();
     // Metadata may live outside the selected body (for example breadcrumbs).
-    for el in page.select(&Selector::parse("[data-afw-search-meta], [data-pagefind-meta]").unwrap())
-    {
+    for el in page.select(&selectors.meta) {
         if std::iter::once(el)
             .chain(el.ancestors().filter_map(ElementRef::wrap))
             .any(|e| {
@@ -551,31 +723,39 @@ fn extract_document(page: &Html, root: &str, explicit: bool) -> Result<Option<Do
     for el in roots {
         walk(el, 6, &mut document, &mut spans);
     }
-    document.text = document.text.trim_end().to_string();
-    if document.title.is_empty() {
-        if let Some(el) = page.select(&Selector::parse("title").unwrap()).next() {
-            document.title = normalized_text(el);
-        }
+    let trimmed = document.text.trim_end().len();
+    document.text.truncate(trimmed);
+    document.title_in_text = !document.title.is_empty();
+    if document.title.is_empty()
+        && let Some(el) = page.select(&selectors.title).next()
+    {
+        document.title = normalized_text(el);
     }
-    // Positions are UTF-16 offsets into the normalized fragment text, matching JS.
+    // Positions are UTF-16 offsets into the normalized fragment text, matching JS. Words
+    // and text spans both run in text order, so one pass pairs each word with its span.
     let mut previous = 0;
     let mut position = 0;
+    let mut span = 0;
+    let mut terms = Vec::new();
     for word in word_regex().find_iter(&document.text) {
         position += document.text[previous..word.start()].encode_utf16().count() as u32;
         previous = word.start();
-        let field = spans
-            .iter()
-            .find(|(start, end, _)| *start <= word.start() && word.start() < *end)
-            .map_or(6, |(_, _, field)| *field);
-        let variants = variants(word.as_str());
-        if !variants.is_empty() {
-            document.length += 1;
+        while span < spans.len() && spans[span].1 <= word.start() {
+            span += 1;
         }
-        for term in variants {
-            document.terms.push((term, position, field));
+        let field = spans
+            .get(span)
+            .filter(|(start, _, _)| *start <= word.start())
+            .map_or(6, |(_, _, field)| *field);
+        for group in word_groups(word.as_str()) {
+            document.length += 1;
+            for term in group {
+                terms.push((term, position, field));
+            }
         }
     }
-    Ok(Some(document))
+    document.terms = terms;
+    Some(document)
 }
 
 fn walk(
@@ -620,15 +800,11 @@ fn walk(
             | "h5"
             | "h6"
     );
-    let space = |text: &mut String| {
-        if !text.is_empty() && !text.ends_with(' ') {
-            text.push(' ');
-        }
-    };
     if block {
-        space(&mut doc.text);
+        doc.space();
     }
     let start = doc.text.len();
+    let start_utf16 = doc.text_utf16;
     for child in el.children() {
         if let Some(element) = ElementRef::wrap(child) {
             walk(element, field, doc, spans);
@@ -636,9 +812,9 @@ fn walk(
             let begin = doc.text.len();
             for ch in text.text.chars() {
                 if ch.is_whitespace() {
-                    space(&mut doc.text);
+                    doc.space();
                 } else {
-                    doc.text.push(ch);
+                    doc.push(ch);
                 }
             }
             let end = doc.text.len();
@@ -647,28 +823,24 @@ fn walk(
             }
         }
     }
-    if name.starts_with('h') && matches!(name, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
+    if matches!(name, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
         let heading = doc.text[start..].trim().to_string();
         if name == "h1" && doc.title.is_empty() {
             doc.title = heading.clone();
         }
         if let Some(id) = el.value().attr("id") {
-            doc.anchors.push(
-                json!({"id": id, "text": heading, "pos": doc.text[..start].encode_utf16().count()}),
-            );
+            doc.anchors.push(json!({"id": id, "text": heading, "pos": start_utf16}));
         }
     }
     // Keep examples searchable, but omit block code from prose result previews.
     if name == "pre" {
-        doc.excerpt_omit.push((
-            doc.text[..start].encode_utf16().count(),
-            doc.text.encode_utf16().count(),
-        ));
+        doc.excerpt_omit.push((start_utf16, doc.text_utf16));
     }
     if block {
-        space(&mut doc.text);
+        doc.space();
     }
 }
+
 fn relative_url(site: &Path, path: &Path) -> String {
     let rel = path
         .strip_prefix(site)
@@ -828,8 +1000,9 @@ mod tests {
 
     #[test]
     fn binary_roundtrip_rejects_truncated_postings() {
-        let terms = BTreeMap::from([("café".into(), BTreeMap::from([(2, vec![(8, 1), (12, 6)])]))]);
-        let (bytes, _, _) = encode_term_chunk(&terms);
+        let term = "café".to_string();
+        let docs = vec![(2, vec![(8, 1), (12, 6)])];
+        let (bytes, _, _) = encode_term_chunk(&[(&term, &docs)]);
         assert_eq!(
             decode_term_chunk(&bytes).unwrap()["café"],
             json!([[2, 2, [[8, 1], [12, 6]]]])
@@ -870,5 +1043,66 @@ mod tests {
             .join("0.json");
         assert!(fs::read_to_string(old_file).unwrap().contains("Alpha"));
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    fn index_of(pages: &[(&str, &str)]) -> (Value, PathBuf) {
+        let dir = std::env::temp_dir().join(format!(
+            "afw-search-{}-{}",
+            std::process::id(),
+            pages.iter().map(|(name, _)| *name).collect::<Vec<_>>().join("-").replace('/', "_")
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        for (name, html) in pages {
+            let path = dir.join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, html).unwrap();
+        }
+        build(&dir, &dir.join("_search"), "main").unwrap();
+        (read_index(dir.join("_search").to_str().unwrap()).unwrap(), dir)
+    }
+
+    #[test]
+    fn an_h1_title_counts_once_and_a_head_title_is_indexed_at_the_top() {
+        let (index, dir) = index_of(&[
+            ("a/index.html", "<main><h1>Routing</h1><p>text</p></main>"),
+            ("b/index.html", "<html><head><title>Layouts</title></head><body><main><p>body</p></main></body></html>"),
+        ]);
+        assert_eq!(index["terms"]["routing"], json!([[0, 1, [[0, 0]]]]));
+        assert_eq!(index["terms"]["layouts"], json!([[1, 1, [[0, 0]]]]));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_marker_on_any_page_drops_the_unmarked_ones_whatever_their_order() {
+        let (index, dir) = index_of(&[
+            ("a.html", "<main><p>Unmarked</p></main>"),
+            ("b.html", "<main data-afw-search-body><p>Marked</p></main>"),
+            ("c.html", "<main><p>Later</p></main>"),
+        ]);
+        assert_eq!(index["docs"].as_array().unwrap().len(), 1);
+        assert_eq!(index["docs"][0]["url"], "/b.html");
+        assert_eq!(index["terms"]["marked"][0][0], 0);
+        assert!(index["terms"]["unmarked"].is_null() && index["terms"]["later"].is_null());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn inactive_tab_panels_and_until_found_content_are_indexed_other_hidden_content_is_not() {
+        let html = r#"<main><div role="tabpanel" hidden><p>PanelText</p></div><div hidden="until-found">Findable</div><div hidden>Gone</div></main>"#;
+        let doc = extract_document(&Html::parse_document(html), "main", false).unwrap().unwrap();
+        assert_eq!(doc.text, "PanelText Findable");
+    }
+
+    #[test]
+    fn field_spans_follow_their_words_through_a_long_page() {
+        let body: String = (0..500).map(|i| format!("<h2 id=\"h{i}\">Head{i}</h2><p>body{i}</p>")).collect();
+        let doc = extract_document(&Html::parse_document(&format!("<main>{body}</main>")), "main", false)
+            .unwrap()
+            .unwrap();
+        let field = |term: &str| doc.terms.iter().find(|(t, _, _)| t == term).unwrap().2;
+        assert_eq!((field("head0"), field("body0"), field("head499"), field("body499")), (1, 6, 1, 6));
+        // UTF-16 anchor offsets kept as the text grows match a recount.
+        let last = doc.anchors.last().unwrap()["pos"].as_u64().unwrap() as usize;
+        assert_eq!(&String::from_utf16(&doc.text.encode_utf16().collect::<Vec<_>>()[last..]).unwrap()[..7], "Head499");
     }
 }
