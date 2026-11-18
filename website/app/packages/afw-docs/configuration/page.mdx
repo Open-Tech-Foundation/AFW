@@ -232,6 +232,18 @@ prerendering. It runs the native `afwc docs index` command and writes `_search/`
 into the static output. `DocsLayout` and `BlogLayout` mark their article content
 for indexing; navigation and page chrome are excluded.
 
+What is indexed:
+
+- **Content.** Article text, headings, code and `data-afw-search-meta` metadata.
+- **Hidden tabs.** The text of every `<Tabs>` panel, not only the active one. Inactive panels
+  are `hidden="until-found"`, so the browser's find-in-page reaches them too and opens the tab.
+- **Excluded.** `data-afw-search-ignore`, other hidden content, navigation and page chrome.
+- **Words.** Accents fold (`cafe` finds `café`), identifiers split (`state` finds
+  `useState`, `element` finds `HTMLElement`), and the last query word matches as a prefix.
+- **Chinese and Japanese.** Text without spaces is indexed as overlapping pairs of
+  characters, so any two or more characters that appear together are found.
+- **Speed.** Pages are indexed in parallel; 1,000 pages take well under a second.
+
 The search UI loads that index in the browser. Test with a release build and
 `esdev preview`; development does not regenerate the release index. See
 [Static Generation](/docs/deployment/static-generation#search-and-other-generated-files).
