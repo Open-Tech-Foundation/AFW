@@ -179,6 +179,9 @@ struct CompiledModule {
 /// backend (page/layout factories pass `false`); `ssg` selects the HTML-string
 /// backend over CSR. `.mdx`/`.md` ids run the MDX front-end first. Returns the code
 /// plus any non-fatal codegen warnings, or a formatted diagnostic on failure.
+// A diagnostic is large (its code frame and note), but it is built once, on the failure
+// of a whole-file compile: boxing it would only add an allocation to every caller.
+#[allow(clippy::result_large_err)]
 fn compile_module(
     file: &str,
     source: String,
@@ -473,7 +476,7 @@ fn write_frame<W: Write>(w: &mut W, ok: bool, payload: &[u8]) {
 }
 
 fn write_status_frame<W: Write>(w: &mut W, status: &str, payload: &[u8]) {
-    let _ = write!(w, "{status} {}\n", payload.len());
+    let _ = writeln!(w, "{status} {}", payload.len());
     let _ = w.write_all(payload);
     let _ = w.flush();
 }

@@ -60,11 +60,10 @@ pub fn route_config(path: &Path, source: &str) -> Result<RouteConfig, RouteConfi
             continue;
         }
         for spec in decl.specifiers.iter().flatten() {
-            if let ImportDeclarationSpecifier::ImportSpecifier(s) = spec {
-                if s.imported.name().as_str() == "defineRoute" {
+            if let ImportDeclarationSpecifier::ImportSpecifier(s) = spec
+                && s.imported.name().as_str() == "defineRoute" {
                     define_names.push(s.local.name.as_str().to_string());
                 }
-            }
         }
     }
 

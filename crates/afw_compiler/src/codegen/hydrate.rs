@@ -555,7 +555,7 @@ impl<'a> Emitter<'a> {
         let at_params =
             if param.is_empty() { cur.clone() } else { format!("{cur}, {param}") };
         let (wrap_params, wrap_args) = if param.is_empty() {
-            ("__root".to_string(), format!("cursor(__root)"))
+            ("__root".to_string(), "cursor(__root)".to_string())
         } else {
             (format!("__root, {param}"), format!("cursor(__root), {param}"))
         };
@@ -1000,8 +1000,8 @@ impl<'a> Emitter<'a> {
             // brackets it with `<!--[-->…<!--]-->`. Adopt each item's server node, seed the
             // reconcile cache, then wire the same keyed-reconcile effect CSR uses — so later
             // data changes build/move/remove with no first-paint flash.
-            ViewNode::List { source, source_branches, item_param, index_param, item, key, preamble } => {
-                self.emit_list(cur, *source, source_branches, item_param, index_param.as_deref(), item, *key, preamble);
+            list @ ViewNode::List { .. } => {
+                self.emit_list(cur, list);
                 String::new()
             }
             // A conditional / dynamic-node region (`{cond ? <A/> : <B/>}`, `{cond && <X/>}`):
@@ -1093,17 +1093,11 @@ impl<'a> Emitter<'a> {
     /// (`{base}_item{n}`, for items that appear after first paint) — then a `hydrateList`
     /// call that seeds the reconcile cache from the adopted nodes and wires the ongoing
     /// keyed-reconcile effect (its disposer collected like any other binding).
-    fn emit_list(
-        &mut self,
-        cur: &str,
-        source: ExpressionId,
-        source_branches: &[ViewNode],
-        item_param: &str,
-        index_param: Option<&str>,
-        item: &ViewNode,
-        key: Option<ExpressionId>,
-        preamble: &[String],
-    ) {
+    fn emit_list(&mut self, cur: &str, list: &ViewNode) {
+        let ViewNode::List { source, source_branches, item_param, index_param, item, key, preamble } = list else {
+            unreachable!("emit_list takes a list node");
+        };
+        let (source, key, index_param) = (*source, *key, index_param.as_deref());
         let n = self.list_counter;
         self.list_counter += 1;
         let adopt_fn = format!("{}_hitem{}", self.base, n);
@@ -1556,21 +1550,19 @@ fn is_positional_rhs(expr: &str) -> bool {
     // `cond ? then : else` — the condition must build nothing, the branches must be nodes.
     if let Some(q) = top_level(e, '?') {
         // Guard `??`: that's a nullish coalesce, not a conditional.
-        if !e[q + 1..].starts_with('?') && !e[..q].ends_with('?') {
-            if let Some(colon) = top_level(&e[q + 1..], ':') {
+        if !e[q + 1..].starts_with('?') && !e[..q].ends_with('?')
+            && let Some(colon) = top_level(&e[q + 1..], ':') {
                 let cond = &e[..q];
                 let then = &e[q + 1..q + 1 + colon];
                 let alt = &e[q + 1 + colon + 1..];
                 return !has_placeholder(cond) && is_positional_rhs(then) && is_positional_rhs(alt);
             }
-        }
     }
     // `cond && <jsx/>`
-    if let Some(i) = top_level(e, '&') {
-        if e[i..].starts_with("&&") {
+    if let Some(i) = top_level(e, '&')
+        && e[i..].starts_with("&&") {
             return !has_placeholder(&e[..i]) && is_positional_rhs(&e[i + 2..]);
         }
-    }
     false
 }
 

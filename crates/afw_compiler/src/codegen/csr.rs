@@ -1593,11 +1593,11 @@ impl<'a> Emitter<'a> {
                 self.emit_children_slot(&frag);
                 frag
             }
-            ViewNode::List { source, source_branches, item_param, index_param, item, key, preamble } => {
+            list @ ViewNode::List { .. } => {
                 // A list as a node (e.g. a root list) lives in its own fragment.
                 let frag = self.fresh("frag");
                 self.line(format!("const {frag} = document.createDocumentFragment();"));
-                self.emit_list(&frag, *source, source_branches, item_param, index_param.as_deref(), item, *key, preamble);
+                self.emit_list(&frag, list);
                 frag
             }
         }
@@ -1605,17 +1605,11 @@ impl<'a> Emitter<'a> {
 
     /// Emit a list into `parent`: a module-level item-render function + a
     /// `bindList` call performing keyed reconciliation.
-    fn emit_list(
-        &mut self,
-        parent: &str,
-        source: ExpressionId,
-        source_branches: &[ViewNode],
-        item_param: &str,
-        index_param: Option<&str>,
-        item: &ViewNode,
-        key: Option<ExpressionId>,
-        preamble: &[String],
-    ) {
+    fn emit_list(&mut self, parent: &str, list: &ViewNode) {
+        let ViewNode::List { source, source_branches, item_param, index_param, item, key, preamble } = list else {
+            unreachable!("emit_list takes a list node");
+        };
+        let (source, key, index_param) = (*source, *key, index_param.as_deref());
         let fn_name = format!("{}_item{}", self.base, self.list_counter);
         self.list_counter += 1;
         self.build_item_fn(&fn_name, item, item_param, index_param, preamble);
@@ -1819,8 +1813,8 @@ impl<'a> Emitter<'a> {
                     js_string(text)
                 ));
             }
-            ViewNode::List { source, source_branches, item_param, index_param, item, key, preamble } => {
-                self.emit_list(parent, *source, source_branches, item_param, index_param.as_deref(), item, *key, preamble);
+            list @ ViewNode::List { .. } => {
+                self.emit_list(parent, list);
             }
             ViewNode::DynamicNode { expr, branches } => {
                 self.emit_dynamic_node(parent, *expr, branches);

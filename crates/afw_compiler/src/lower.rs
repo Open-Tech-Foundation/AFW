@@ -687,11 +687,10 @@ fn fn_like_name(stmt: &Statement) -> Option<String> {
         if matches!(
             &d.init,
             Some(Expression::ArrowFunctionExpression(_)) | Some(Expression::FunctionExpression(_))
-        ) {
-            if let BindingPattern::BindingIdentifier(bi) = &d.id {
+        )
+            && let BindingPattern::BindingIdentifier(bi) = &d.id {
                 return Some(bi.name.as_str().to_string());
             }
-        }
         None
     }
     match stmt {
