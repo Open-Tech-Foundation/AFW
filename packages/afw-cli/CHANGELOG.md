@@ -6,6 +6,8 @@
 
 - The README's `esdev.json` example writes a target's output directory as `outDir`, the
   spelling esdev 0.29 reads. The package itself is unchanged.
+- The README's prerender step builds to `dist/ssg.js`, which esdev 0.29 removes once it
+  has run (was `.ssg/ssg.js`).
 
 ### Fixed
 

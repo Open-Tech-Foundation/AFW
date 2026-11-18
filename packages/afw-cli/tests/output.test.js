@@ -59,7 +59,7 @@ test("finish indexes prerendered staging, preserves overrides, and protects depl
 import { mkdir, write } from "runtime:fs";
 import { dirname, fromFileURL, join } from "runtime:path";
 import { writePrerenderReport } from "@opentf/afw-cli/ssg";
-const out = join(dirname(fromFileURL(import.meta.url)), "../dist");
+const out = dirname(fromFileURL(import.meta.url));
 await write(join(out, "index.html"), '<main data-afw-search-body><h1>Rendered fixture</h1><h2 id="routing">Routing</h2><p>FinishHookSentinel</p></main>');
 await mkdir(join(out, "blog/hello"), { recursive: true });
 await write(join(out, "blog/hello/index.html"), '<html><head><title>Hello</title></head><body><article class="afwd-prose"><p>FeedBodySentinel <a href="/docs">docs</a></p></article></body></html>');
@@ -69,12 +69,14 @@ await writePrerenderReport(out, { siteDescription: "Resolved home description & 
       plugins: [{ module: "@opentf/afw-cli/ssg", export: "siteOutputPlugin", options: { root: dir, target: "web", prerenderTarget: "prerender" } }],
       build: { targets: {
         web: { entry: "index.html", outDir: "dist", assets: ["public"] },
-        prerender: { entry: "prerender.js", out: ".ssg/prerender.js", then: "run" },
+        prerender: { entry: "prerender.js", out: "dist/prerender.js", then: "run" },
       } },
     }));
     const good = await run();
     if (!good.success) throw Error(new TextDecoder().decode(good.stderr));
     expect(await exists(join(output, ".afw-prerender.json"))).toBe(false);
+    // The step's bundle renders the site; it is not part of what is deployed.
+    expect(await exists(join(output, "prerender.js"))).toBe(false);
     expect(await file(join(output, "llms-full.txt")).text()).toBe("Custom full context");
     expect(await file(join(output, "blog/rss.xml")).text()).toBe("Custom RSS");
     const atom = await file(join(output, "blog/atom.xml")).text();

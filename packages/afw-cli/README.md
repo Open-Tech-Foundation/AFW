@@ -28,7 +28,7 @@
   "build": {
     "targets": {
       "web": { "entry": "index.html", "outDir": "dist" },
-      "site-ssg": { "entry": "ssg.js", "out": ".ssg/ssg.js", "then": "run" }
+      "site-ssg": { "entry": "ssg.js", "out": "dist/ssg.js", "then": "run" }
     }
   }
 }
@@ -36,7 +36,8 @@
 
 `esdev build` bundles the site, then runs `ssg.js`, which prerenders every route
 into the staged output. Only when every step succeeds does the new site replace the
-old one.
+old one. esdev 0.29 and later remove the step's own bundle (`dist/ssg.js`) once it
+has run, so it is never deployed.
 
 > [!NOTE]
 > **Alpha.** The package keeps its historical name; the old `afw` executable and
