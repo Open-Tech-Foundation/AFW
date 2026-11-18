@@ -83,13 +83,20 @@ Read secrets at run time, in server-only files (`loader.*`, `*.server.*`,
   `VITE_*` variables are not exposed. An app that sets `envPrefix` itself keeps its
   own value.
 
-## Not yet supported in the esdev workflow
+## Tests and types
 
-These wait on esdev releases. Until then, avoid `import.meta.env` in code they run:
+- **Tests.** `esdev test` and Vitest give tests and the components they import the same
+  `PUBLIC_*` values from `.env`, with `MODE` set to `"test"`.
+- **Static generation.** Pages prerendered by `@opentf/afw-cli` see the values the browser
+  bundle gets, so their HTML and the hydrated page agree (esdev 0.28 or later).
+- **Types.** `@opentf/esrun-types` (esdev) and `vite/client` (Vite, through
+  `@opentf/vite-plugin-afw/client`) type `import.meta.env`: `MODE`, `DEV`, `PROD`, and
+  every `PUBLIC_*` name as `string | undefined`.
+- **Your own names.** Declare a variable's exact type by merging into `ImportMetaEnv`:
 
-- **Static generation through `@opentf/afw-cli`.** Its render bundle does not get the
-  values, so a page that reads `import.meta.env` fails to prerender.
-- **`esdev test`.** `import.meta.env` is `undefined` in test files and the components
-  they import.
-- **Types.** esdev's runtime types do not declare `import.meta.env` yet. In the Vite
-  workflow, `vite/client` (referenced by `@opentf/vite-plugin-afw/client`) types it.
+```ts
+// app/env.d.ts (inside a folder your tsconfig includes)
+interface ImportMetaEnv {
+  readonly PUBLIC_API_URL: string;
+}
+```

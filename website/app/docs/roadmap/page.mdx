@@ -93,9 +93,8 @@ These items need compiler or runtime support, so a third-party package cannot ad
 
 ### Configuration and tooling
 
-- [ ] **Public environment variables.**
-  - Done: `import.meta.env.PUBLIC_*` in both toolchains' dev servers, builds and server rendering. See [Environment Variables](/docs/core-concepts/environment-variables).
-  - Left: esdev-workflow static generation through `@opentf/afw-cli`, `esdev test`, and esdev's `import.meta.env` types; each waits on an esdev release.
+- [x] **Public environment variables.**
+  - `import.meta.env.PUBLIC_*` in both toolchains' dev servers, builds, server rendering, static generation and tests, with types. See [Environment Variables](/docs/core-concepts/environment-variables).
 - [ ] **Lint rules.**
   - An ESLint plugin that flags macro misuse (such as `$state` outside a component) in the editor instead of at build time.
 - [ ] **Editor support.**

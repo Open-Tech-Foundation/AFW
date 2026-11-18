@@ -179,8 +179,9 @@ Public browser values are `PUBLIC_*` variables, read as `import.meta.env.PUBLIC_
 (plus `MODE`, `DEV`, `PROD`) in both toolchains; they are compiled in at build time
 and the server render sees the same values. esdev applies the prefix itself;
 `@opentf/vite-plugin-afw` sets Vite's `envPrefix` to `PUBLIC_` unless the app sets
-its own. Not yet in the esdev workflow: `@opentf/afw-cli` SSG and `esdev test` (both
-wait on esdev). See SPEC.md §14.
+its own. In the esdev workflow `@opentf/afw-cli` static generation compiles the same
+values (`runtime:build`'s `mode`, esdev 0.28), `esdev test` provides them with `MODE`
+`"test"`, and `@opentf/esrun-types` types them. See SPEC.md §14.
 
 ## 8. Phase B (planned)
 

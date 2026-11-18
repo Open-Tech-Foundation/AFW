@@ -1112,6 +1112,6 @@ Public values are compiled in at build time; secrets are read at run time on the
 - **Public (`import.meta.env`)**: variables named `PUBLIC_*` from `.env` or the shell (the shell wins), plus `MODE` (`"development"`/`"production"`), `DEV` and `PROD`. The same names in both toolchains: esdev applies the `PUBLIC_` prefix itself; `@opentf/vite-plugin-afw` sets Vite's `envPrefix` to `PUBLIC_` unless the app sets one.
 - **Same on both sides**: the server render (SSG/SSR) and the client bundle get identical values, so hydration matches. Any other name reads as `undefined` in both.
 - **Secrets**: never in `import.meta.env`. Server-only files (`loader.*`, `*.server.*`, `route.*`, `_middleware.*`) read them at run time: `runtime:process` `env` on ES-Runtime, `process.env` on Node, `context.env` on Fetch platforms.
-- **Pending upstream (esdev)**: `@opentf/afw-cli` SSG (its `runtime:build` render bundle gets no values), `esdev test`, and `import.meta.env` types.
+- **Tests and types**: `esdev test` gives tests the same `PUBLIC_*` values with `MODE` `"test"` (Vitest does the same in the Vite workflow). `@opentf/esrun-types` (esdev) and `vite/client` (Vite) type `import.meta.env`: `PUBLIC_*` names are `string | undefined`, and an app declares its own by merging into `ImportMetaEnv`.
 
 ---
