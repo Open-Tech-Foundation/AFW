@@ -93,6 +93,23 @@ const repo = resource(() => router.params.name, fetchRepo, {
 - **Aborts.** A shared request is aborted only once every resource or caller using it
   has aborted or unmounted.
 - `refetch()` and `invalidate()` always ask the server, whatever the `staleTime`.
+- **On logout**, call `clearQueryCache()`. `invalidate()` keeps showing the stale data while
+  it refetches, which would show the previous user's data to the next one.
+  `clearQueryCache()` removes it:
+  - nothing is left to show on a remount;
+  - requests in flight write nothing;
+  - mounted resources that used it go back to loading (and their `<Pending>` to its
+    fallback) and fetch again.
+  - `clearQueryCache(getTodo)` or `clearQueryCache(getTodo, { id })` clears only those calls.
+
+```js
+import { clearQueryCache } from "@opentf/afw";
+
+async function logOut() {
+  await signOut();
+  clearQueryCache();
+}
+```
 - After an action, the [single-flight `refresh()`](/docs/server-functions#update-in-the-same-request)
   updates cached calls in the action's own response.
 - A fetcher that calls a server function inside it (`() => listTodos({ done })`)
