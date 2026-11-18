@@ -1,13 +1,23 @@
 // One node of the sidebar tree — a link, a collapsible group, or both. Recurses into
 // `item.items`. Groups with children get a chevron toggle; the branch containing the
-// active route stays open, and top-level groups start expanded. Open/closed state is
-// per-session only (no persistence) — a reload resets to this derived default.
+// active route stays open, and top-level groups start expanded unless the Sidebar says the
+// tree is large (`open={false}`, past EXPAND_ALL_LIMIT links), where only the active branch
+// does. A closed group renders no
+// children: they are built in the browser, from the cached nav module, when it opens.
+// Open/closed state is per-session only (no persistence) — a reload resets to this
+// derived default.
+//
+// The node's only prop is its position (`nodeId`); it looks its item up in the section
+// tree (nav-source.js), so the page's hydration payload holds no tree. Given an `item`
+// prop (the Sidebar was given a `nav`), it uses that instead. Links are plain `<a>`s:
+// the Sidebar routes their clicks.
 //
 // The sidebar's "collapse all" button drives every node at once through the shared
 // `collapseAll` signal (components/sidebar-collapse.js).
 
-import { Link, router } from "@opentf/afw";
+import { localizePath, router } from "@opentf/afw";
 
+import { nodeAt, sectionTree } from "./nav-source.js";
 import { collapseAll } from "./sidebar-collapse.js";
 
 // True when `path` is `node` itself or lives somewhere in its subtree.
@@ -19,16 +29,21 @@ function treeContainsPath(node, path) {
 }
 
 export default function SidebarNode(props) {
-  const item = props.item || {};
-  const depth = props.depth || 0;
   // Deterministic position path ("0", "0-2", "0-2-1") — unique and identical on
   // server/client, so the aria-controls id is collision-free and hydration-safe.
   const nodeId = props.nodeId || "0";
+  const given = !!props.item;
+  const tree = given ? null : sectionTree(undefined, router.pathname);
+  const item = props.item || nodeAt(tree, nodeId) || {};
+  const depth = nodeId.split("-").length - 1;
   const hasChildren = item.items && item.items.length > 0;
   const panelId = `afw-nav-${nodeId}`;
+  // `open` (top-level nodes only): the Sidebar's call — false on a large tree, where only
+  // the branch holding the current page starts open.
+  const openTopLevel = props.open !== false;
 
   const containsActive = () => treeContainsPath(item, router.pathname);
-  let expanded = $state(hasChildren && (containsActive() || depth === 0));
+  let expanded = $state(hasChildren && (containsActive() || (depth === 0 && openTopLevel)));
 
   // Re-open the branch that holds the active route whenever navigation enters it.
   $effect(() => {
@@ -53,6 +68,10 @@ export default function SidebarNode(props) {
   });
 
   const toggle = () => (expanded = !expanded);
+  // The current page: `aria-current="page"` (the styling hook), plus the legacy class.
+  const isCurrent = () => router.pathname === item.path;
+  const current = () => (isCurrent() ? "page" : undefined);
+  const linkClass = () => (isCurrent() ? "afwd-sidebar-link afwd-active" : "afwd-sidebar-link");
   const chevronClass = () =>
     expanded ? "afwd-sidebar-chevron is-open" : "afwd-sidebar-chevron";
 
@@ -87,12 +106,9 @@ export default function SidebarNode(props) {
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
-            <Link
-              href={item.path}
-              class={router.pathname === item.path ? "afwd-sidebar-link afwd-active" : "afwd-sidebar-link"}
-            >
+            <a href={localizePath(item.path)} class={linkClass()} aria-current={current()}>
               {item.title}
-            </Link>
+            </a>
           </div>
         ) : (
           // Section title with no page of its own — the whole row toggles.
@@ -121,20 +137,17 @@ export default function SidebarNode(props) {
           </button>
         )
       ) : item.path ? (
-        <Link
-          href={item.path}
-          class={router.pathname === item.path ? "afwd-sidebar-link afwd-active" : "afwd-sidebar-link"}
-        >
+        <a href={localizePath(item.path)} class={linkClass()} aria-current={current()}>
           <span class="afwd-sidebar-dot" aria-hidden="true"></span>
           {item.title}
-        </Link>
+        </a>
       ) : (
         <span class="afwd-sidebar-group-title">{item.title}</span>
       )}
       {hasChildren && expanded ? (
         <ul id={panelId} class="afwd-sidebar-sublist">
           {item.items.map((child, i) => (
-            <SidebarNode item={child} depth={depth + 1} nodeId={`${nodeId}-${i}`} />
+            <SidebarNode item={given ? child : undefined} nodeId={`${nodeId}-${i}`} />
           ))}
         </ul>
       ) : null}

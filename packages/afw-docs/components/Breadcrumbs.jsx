@@ -2,6 +2,8 @@
 
 import { Link, RawHtml, router } from "@opentf/afw";
 
+import { sectionTree } from "./nav-source.js";
+
 // Structured data for crawlers: the visible trail above as a BreadcrumbList.
 // Emitted beside the nav (JSON-LD is discovered wherever it sits). `siteUrl`
 // (optional site origin) absolutizes the item URLs; without it they stay
@@ -28,7 +30,7 @@ function breadcrumbJsonLd(trail, siteUrl) {
 }
 
 export default function Breadcrumbs(props) {
-  const nav = props.nav || [];
+  const nav = sectionTree(props.nav, router.pathname);
   const siteUrl = props.siteUrl || "";
 
   const findTrail = (items, path, trail) => {

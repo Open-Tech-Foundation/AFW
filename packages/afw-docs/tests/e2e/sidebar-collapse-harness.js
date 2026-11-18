@@ -23,6 +23,12 @@ const NAV = [
   ...Array.from({ length: 20 }, (_, i) => ({ title: `Filler ${i}`, path: `/docs/filler/${i}` })),
   { title: "Bottom Page", path: "/docs/bottom" },
 ];
+// `?large`: a tree past the sidebar's expand-all limit (150 links) — three pathless groups
+// of 60 links each, so only the branch holding the current page starts open.
+const LARGE = ["Alpha", "Beta", "Gamma"].map((title) => ({
+  title,
+  items: Array.from({ length: 60 }, (_, i) => ({ title: `${title} ${i}`, path: `/docs/${title.toLowerCase()}/${i}` })),
+}));
 const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Docs", href: "/docs" },
@@ -45,7 +51,7 @@ navbar.append(inner);
 // Docs grid: the drawer is the sticky first column on desktop.
 const docs = el("div", "afwd-docs");
 const drawer = document.createElement(Sidebar.tag);
-drawer.nav = NAV; // object props set before connect so they're read at mount
+drawer.nav = new URLSearchParams(location.search).has("large") ? LARGE : NAV; // object props set before connect so they're read at mount
 drawer.config = { nav: NAV_LINKS };
 const main = el("main", "afw-docs-main");
 main.innerHTML = "<h1>Harness</h1><p>Long content.</p>".repeat(20);

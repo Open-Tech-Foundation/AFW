@@ -2,8 +2,10 @@
 
 import { Link, router } from "@opentf/afw";
 
+import { sectionTree } from "./nav-source.js";
+
 export default function Pagination(props) {
-  const nav = props.nav || [];
+  const nav = sectionTree(props.nav, router.pathname);
 
   const flat = [];
   const walk = (items) => {

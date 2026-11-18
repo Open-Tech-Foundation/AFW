@@ -326,6 +326,31 @@ async function run() {
   assert(view.scrollTop > 0, "the sidebar scrolled down from the top");
   assert(view.inView, "the active item sits within the sidebar viewport");
 
+  // ── A large tree opens only the current branch ─────────────────────────────
+  // Past the expand-all limit, the other top-level groups are one row each: the page
+  // carries the open branch, and a closed group builds its links when it opens.
+  console.log("large tree (180 links, current page in Beta):");
+  await setViewport(client, DESKTOP);
+  loaded = client.once("Page.loadEventFired");
+  await client.send("Page.navigate", { url: origin + "/docs/beta/5?large" });
+  await loaded;
+  await waitFor(client, `document.documentElement.hasAttribute('data-afw-has-sidebar')`, (v) => v === true,
+    "the large sidebar to mount");
+  const LINKS = `document.querySelectorAll('.afwd-sidebar-nav .afwd-sidebar-link').length`;
+  const beta = await waitFor(client, toggleInfo("Beta"), (v) => v.found && v.expanded === "true", "Beta to be open");
+  assert(beta.expanded === "true", "the group holding the current page is open");
+  for (const label of ["Alpha", "Gamma"]) {
+    const g = await evalJS(client, toggleInfo(label));
+    assert(g.found && g.expanded === "false" && !g.panelPresent, `${label} starts closed, its links not rendered`);
+  }
+  assert((await evalJS(client, LINKS)) === 60, "only the open branch's 60 links are rendered");
+  const current = await evalJS(client, `document.querySelector('.afwd-sidebar-nav [aria-current="page"]')?.getAttribute('href')`);
+  assert(current === "/docs/beta/5", "the current page's link carries aria-current=\"page\"");
+  await evalJS(client, `${TOGGLE("Alpha")}.click()`);
+  await waitFor(client, LINKS, (v) => v === 120, "Alpha's links to be built when it opens");
+  assert((await evalJS(client, LINKS)) === 120, "opening a closed group builds its links");
+  assert((await evalJS(client, toggleInfo("Alpha"))).expanded === "true", "the opened group reports aria-expanded=true");
+
   client.close();
 }
 

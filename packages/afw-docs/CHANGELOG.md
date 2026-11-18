@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Docs pages no longer grow with the size of the site. Every page carried the whole
+  sidebar: each link rendered, and the nav tree repeated in its hydration payload. At
+  1,000 pages that was 786 KB a page and 778 MB of HTML; it is now 51 KB and 51 MB
+  (`benchmarks/docs-scale`). The search index builds about nine times faster with it.
+  - `Sidebar`, `Breadcrumbs` and `Pagination` read the tree from the cached
+    `@opentf/afw-docs/nav` chunk when not given a `nav`, and each sidebar node gets
+    only its position. A `nav` prop still works as before.
+  - A section with more than 150 links opens only the branch holding the current page;
+    the other groups render their links when opened.
+  - Sidebar links are plain `<a>`s, routed by one handler on the sidebar, with the same
+    intent prefetch.
+
+### Changed
+
+- The current page's sidebar link carries `aria-current="page"`, and the theme styles it
+  by that. The `afwd-active` class stays.
+
 ## [0.39.0] - 2026-11-17
 
 ### Changed

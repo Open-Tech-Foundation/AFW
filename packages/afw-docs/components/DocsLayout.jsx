@@ -7,8 +7,8 @@
 //
 // That's the whole thing — any folder becomes a documentation section just by giving it
 // a layout that renders `DocsLayout`. The sidebar/breadcrumbs/prev-next come from the
-// generated nav (`@opentf/afw-docs/nav`, imported here), and the layout scopes them to
-// the current section by route. So every section shares the same traits, and the docs
+// generated nav (`@opentf/afw-docs/nav`, read through nav-source.js), scoped to the
+// current section by route. So every section shares the same traits, and the docs
 // and api layout files are identical. (Pass a `nav` prop only to override.)
 //
 // `frame` (default true) renders the full chrome (navbar + footer). Pass
@@ -16,9 +16,9 @@
 // the navbar/footer — only the sidebar · content · TOC grid is rendered.
 
 import { router } from "@opentf/afw";
-import navMap from "@opentf/afw-docs/nav";
 import updated, { editPaths } from "@opentf/afw-docs/updated";
 
+import { pickSection } from "./nav-source.js";
 import Navbar from "./Navbar.jsx";
 import Sidebar from "./Sidebar.jsx";
 import Toc from "./Toc.jsx";
@@ -33,14 +33,15 @@ import LastUpdated from "./LastUpdated.jsx";
 
 export default function DocsLayout(props) {
   const config = props.config || {};
-  const nav = props.nav || navMap;
   const frame = props.frame !== false;
 
-  // The sidebar/breadcrumbs/prev-next operate on the *current section's* tree. `nav` is
-  // a section map keyed by base path; pick the branch whose base prefixes the route
-  // (longest match wins). A bare array means a single, unscoped section. Each section is
-  // its own layout instance, so resolving once at mount is correct.
-  const sectionNav = pickSection(nav, router.pathname);
+  // The sidebar/breadcrumbs/prev-next operate on the *current section's* tree. With the
+  // generated nav they look it up themselves (nav-source.js), so the tree is never a prop
+  // and never lands in the page's hydration payload. Only an overriding `nav` prop is
+  // passed down, as its section: a map keyed by base path (longest prefix wins) or a bare
+  // array for one section. Each section is its own layout instance, so resolving once at
+  // mount is correct.
+  const sectionNav = props.nav ? pickSection(props.nav, router.pathname) : undefined;
 
   // Last-updated time for the current page, looked up in the build-time map keyed by
   // route (same exact-path match Pagination uses). `$derived` so it tracks navigation.
@@ -87,20 +88,4 @@ export default function DocsLayout(props) {
   ) : (
     body
   );
-}
-
-// Resolve the section tree for `pathname` from a `{ [base]: tree }` map. Longest base
-// prefix wins ("/" matches anything). Tolerates a bare array (single section).
-function pickSection(nav, pathname) {
-  if (Array.isArray(nav)) return nav;
-  let best = null;
-  let bestLen = -1;
-  for (const base in nav) {
-    const match = base === "/" ? true : pathname === base || pathname.startsWith(base + "/");
-    if (match && base.length > bestLen) {
-      best = nav[base];
-      bestLen = base.length;
-    }
-  }
-  return best || nav[Object.keys(nav)[0]] || [];
 }

@@ -22,12 +22,42 @@
 // Above the tree sits a single icon button that collapses (or re-expands) every group at
 // once — it drives the nodes through the shared `collapseAll` signal, since they are
 // rendered recursively by SidebarNode.
+//
+// Size: the tree comes from the cached nav module (nav-source.js), not from props, and
+// each node is given only its position; its links are plain `<a>`s whose clicks and
+// prefetch this component handles once for the whole tree. A large tree opens only the
+// branch holding the current page. So a page's sidebar costs its open branch, not the site.
 
-import { onMount, router } from "@opentf/afw";
+import { navigate, onMount, prefetch, router, shouldInterceptNav } from "@opentf/afw";
 
 import SidebarNode from "./SidebarNode.jsx";
 import NavbarLink from "./NavbarLink.jsx";
+import { EXPAND_ALL_LIMIT, countLinks, sectionTree } from "./nav-source.js";
 import { collapseAll } from "./sidebar-collapse.js";
+
+// A sidebar link this event concerns: an `<a href>` inside the tree.
+const linkOf = (event) => event.target?.closest?.(".afwd-sidebar-nav a[href]");
+
+// Client-side navigation for the tree's links, as `<Link>` does for one: modified or
+// non-primary clicks, other origins, and full-page (MPA) mode are left to the browser.
+function onNavClick(event) {
+  const link = linkOf(event);
+  if (!link) return;
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+  if (link.target && link.target !== "_self") return;
+  const url = new URL(link.href, location.href);
+  if (url.origin !== location.origin || !shouldInterceptNav()) return;
+  event.preventDefault();
+  navigate(url.pathname + url.search + url.hash);
+}
+
+// Warm the route on hover or focus, as `<Link>`'s default "intent" prefetch does.
+function onNavIntent(event) {
+  const link = linkOf(event);
+  if (!link || !shouldInterceptNav()) return;
+  const url = new URL(link.href, location.href);
+  if (url.origin === location.origin) prefetch(url.pathname + url.search);
+}
 
 const DESKTOP_QUERY = "(min-width: 768px)";
 
@@ -38,7 +68,11 @@ const DESKTOP_QUERY = "(min-width: 768px)";
 let liveSidebars = 0;
 
 export default function Sidebar(props) {
-  const nav = props.nav || [];
+  const nav = sectionTree(props.nav, router.pathname);
+  // Given a `nav` prop, the nodes take their items as props; otherwise they look them up.
+  const given = !!props.nav;
+  // Top-level groups start open on a small tree; on a large one only the current branch does.
+  const openTopLevel = countLinks(nav) <= EXPAND_ALL_LIMIT;
   // Top-level site links (config.nav). On desktop they live in the navbar; on mobile the
   // navbar hides them and the drawer surfaces them above the section tree, so the whole
   // nav is reachable from one place.
@@ -159,7 +193,7 @@ export default function Sidebar(props) {
     // Defer a frame so the newly-active class (and any auto-expanded branch) is in the DOM.
     const raf = requestAnimationFrame(() => {
       const aside = asideRef;
-      const active = aside && aside.querySelector(".afwd-sidebar-nav .afwd-active");
+      const active = aside && aside.querySelector(".afwd-sidebar-nav [aria-current=\"page\"]");
       if (!active) return;
       const a = active.getBoundingClientRect();
       const c = aside.getBoundingClientRect();
@@ -245,10 +279,10 @@ export default function Sidebar(props) {
             </button>
           </div>
         ) : null}
-        <nav class="afwd-sidebar-nav" aria-label="Documentation">
+        <nav class="afwd-sidebar-nav" aria-label="Documentation" onclick={onNavClick} onpointerover={onNavIntent} onfocusin={onNavIntent}>
           <ul class="afwd-sidebar-list">
             {nav.map((item, i) => (
-              <SidebarNode item={item} nodeId={String(i)} />
+              <SidebarNode item={given ? item : undefined} nodeId={String(i)} open={openTopLevel} />
             ))}
           </ul>
         </nav>

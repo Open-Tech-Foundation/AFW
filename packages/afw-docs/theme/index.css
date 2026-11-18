@@ -1039,12 +1039,12 @@
   .afwd-sidebar-link:hover .afwd-sidebar-dot {
     opacity: 0.6;
   }
-  .afwd-sidebar-link.afwd-active {
+  .afwd-sidebar-link[aria-current="page"] {
     color: var(--afw-accent-text);
     background: var(--afw-accent-soft);
     font-weight: 600;
   }
-  .afwd-sidebar-link.afwd-active .afwd-sidebar-dot {
+  .afwd-sidebar-link[aria-current="page"] .afwd-sidebar-dot {
     opacity: 1;
   }
 
