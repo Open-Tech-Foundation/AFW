@@ -2,7 +2,7 @@ import { describe, expect, test } from "runtime:test";
 
 import { resetWarnings } from "../core/dev.js";
 import { signal } from "../core/signals.js";
-import { bindList } from "./dom.js";
+import { bindChild, bindList } from "./dom.js";
 
 function render(items, keyFn) {
   const parent = document.createElement("div");
@@ -95,5 +95,46 @@ describe("bindList — keyless index-fallback warning", () => {
     items.value = [items.value[0], items.value[2]];
     const after = [...parent.querySelectorAll("section")];
     expect(after.map((n) => n.dataset.bornAs)).toEqual(["W0", "W2"]);
+  });
+});
+
+describe("bindList — multi-node items", () => {
+  // An item that is a fragment holding a conditional: `x => x % 2 ? <li.odd/> : <li.even/>`.
+  const parityItem = (x) => {
+    const frag = document.createDocumentFragment();
+    const anchor = document.createComment("");
+    frag.appendChild(anchor);
+    bindChild(anchor, () => {
+      const li = document.createElement("li");
+      li.className = x.value.n % 2 ? "odd" : "even";
+      li.textContent = x.value.n;
+      return li;
+    });
+    return frag;
+  };
+  const shown = (ul) => [...ul.querySelectorAll("li")].map((li) => li.className + li.textContent);
+
+  test("an item whose conditional swapped is removed whole", () => {
+    const items = signal([{ n: 1 }, { n: 2 }]);
+    const ul = document.createElement("ul");
+    bindList(ul, () => items.value, parityItem);
+    expect(shown(ul)).toEqual(["odd1", "even2"]);
+    items.value = [{ n: 2 }]; // index 0 swaps odd → even; index 1 goes
+    expect(shown(ul)).toEqual(["even2"]);
+    items.value = [];
+    expect(shown(ul)).toEqual([]);
+  });
+
+  test("a keyed item whose conditional swapped moves with its new nodes", () => {
+    const a = { id: "a", n: 1 };
+    const b = { id: "b", n: 2 };
+    const items = signal([a, b]);
+    const ul = document.createElement("ul");
+    bindList(ul, () => items.value, parityItem, (x) => x.id);
+    items.value = [{ id: "a", n: 4 }, b]; // a swaps to even
+    expect(shown(ul)).toEqual(["even4", "even2"]);
+    items.value = [b, { id: "a", n: 4 }]; // and moves after b
+    expect(shown(ul)).toEqual(["even2", "even4"]);
+    expect(ul.querySelectorAll("li").length).toBe(2);
   });
 });

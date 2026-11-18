@@ -147,6 +147,12 @@ Static structure is adopted by **structural path** from the component root
   boundary to reconcile from N.
 - **Conditionals** — `{cond ? <A/> : <B/>}` renders one branch; the client must know
   which region the branch occupies to swap it.
+- **Multi-node list items** — an item that is a fragment, or a conditional (which lowers to
+  one), is bracketed by its own `<!--[-->…<!--]-->`. The list tracks such an item as the
+  range between its markers, so a branch that swaps inside it moves and leaves with it; the
+  adopt walk claims the markers and hands `hydrateList` the `{ start, end }` range. Before,
+  such an item had no adopt path: a page lost its `hydrate` export and a component tore its
+  server DOM out and rebuilt it.
 
 **Decision:** emit **comment anchors** (`<!--[-->` … `<!--]-->`, and a single
 `<!--$-->` for a one-node text hole) around variable regions only; static subtrees
@@ -349,6 +355,12 @@ disposers into a local `__disposers` and, if it throws partway, disposes them be
 rethrowing — so the router's fallback CSR rebuild doesn't leave the partial walk's
 `bindText`/`bindAttr`/`effect` subscriptions orphaned and double-subscribed.
 
+**Text mismatches are adopted, and reported in development.** A text hole is not
+structure: when the client's first value differs from the server's text, the client's
+value is shown (it is the live state) and, in development, one `console.warn` per page names
+both texts (`bindText` compares against what `claimText` recorded). Production stays silent,
+as a clock or a browser-only read differs by design.
+
 **A build during hydration must force its subtree to build (`runBuild`).** `isHydrating()`
 is one module-global flag, but the invariant it must encode is narrower: *it may be true
 only while the DOM being processed is the server's.* The moment a component builds fresh
@@ -414,6 +426,13 @@ so a value can't break out of the `<script>`; the payload is collected only duri
 `renderRoute` (SSR/SSG), so a plain CSR build ships neither ids nor payload. `csr.rs` emits the
 payload-reading constructor **only for the hydrate target** — a CSR-only app references no
 hydration helper. Loader/query data (Phase 3) will ride the **same** channel.
+
+**A lost payload is reported.** The server gives a `data-h` id only to an island whose props
+it recorded, so a host with an id but no entry means the payload never arrived: a stripped or
+truncated `<script id="__afw_h">`, an HTML rewrite, a broken deploy. The island still renders
+with its default props, so `hydrationProps` reports a `HydrationPayloadError` (`reason`:
+`missing`, `unreadable` or `entry`) through `reportError` (phase `hydration`) once per page,
+in production too, where wrong data would otherwise pass silently.
 
 > **Not covered:** props whose values are genuinely non-serializable *and* visible (a live DOM
 > node, a class instance) still can't cross — but those aren't hydratable in any framework

@@ -15,6 +15,8 @@
 // to static text (which the HTML parser would otherwise merge into one text node).
 // Static structure carries no markers and is claimed by position.
 
+import { DEV } from "../core/dev.js";
+import { reportError } from "../core/errors.js";
 import { untracked } from "../core/signals.js";
 
 /** Comment markers bounding a dynamic text hole in server HTML. */
@@ -211,17 +213,55 @@ export function afterHydration(fn) {
 // numbers), not lossy string attributes — so it resumes with correct data, with no flash
 // and no dependence on a parent walk re-applying props. Read once and cached.
 let _payload; // undefined = not yet read; null = none present; else the parsed array
+let _payloadProblem = null; // why there is no usable payload: "missing" | "unreadable"
+let _lossReported = false;
 
 function hydrationPayload() {
   if (_payload === undefined) {
     const el = typeof document !== "undefined" ? document.getElementById("__afw_h") : null;
+    _payloadProblem = el ? null : "missing";
     try {
       _payload = el ? JSON.parse(el.textContent || "[]") : null;
     } catch {
       _payload = null;
+      _payloadProblem = "unreadable";
     }
   }
   return _payload;
+}
+
+/** The error reported when a server-rendered island's props are not in the payload. */
+export class HydrationPayloadError extends Error {
+  constructor(message, { element, id, reason }) {
+    super(message);
+    this.name = "HydrationPayloadError";
+    this.element = element;
+    this.id = id;
+    this.reason = reason;
+  }
+}
+
+// The server gives a `data-h` id only to an island whose props it recorded, so a host
+// with an id but no entry means the payload was lost on the way (a broken deploy, a proxy
+// or HTML rewrite that stripped the script, a truncated response). The island still
+// renders, with its default props, so the page can look healthy while showing wrong data:
+// report it, once per page, rather than let it pass silently.
+function reportLostProps(el, id, reason) {
+  if (_lossReported) return;
+  _lossReported = true;
+  const tag = el.localName || "element";
+  const why = {
+    missing: 'the page has no <script id="__afw_h"> payload',
+    unreadable: 'the page\'s <script id="__afw_h"> payload is not valid JSON',
+    entry: `the payload has no entry ${id}`,
+  }[reason];
+  reportError(
+    new HydrationPayloadError(
+      `<${tag} data-h="${id}"> was server-rendered with props, but ${why}: it rendered with its default props instead. Check that the deployed HTML still carries the hydration payload.`,
+      { element: el, id: +id, reason },
+    ),
+    { phase: "hydration" },
+  );
 }
 
 /**
@@ -233,10 +273,11 @@ function hydrationPayload() {
 export function hydrationProps(el) {
   if (!el || typeof el.getAttribute !== "function") return null;
   const data = hydrationPayload();
-  const id = data ? el.getAttribute("data-h") : null;
+  const id = el.getAttribute("data-h");
   if (id != null) {
-    const entry = data[+id];
+    const entry = data?.[+id];
     if (entry != null) return entry;
+    reportLostProps(el, id, data ? "entry" : _payloadProblem ?? "missing");
   }
   // An island whose markup was rendered before the route render carries its own props
   // instead of an id into the payload (`inlineHydrationProps`).
@@ -294,6 +335,8 @@ export function hydrationPropSet(host, name) {
 /** Reset the cached payload (tests only — a fresh document between cases). */
 export function __resetHydrationPayload() {
   _payload = undefined;
+  _payloadProblem = null;
+  _lossReported = false;
 }
 
 // ── the cursor ────────────────────────────────────────────────────────────────
@@ -406,7 +449,11 @@ export function claimText(cur) {
   }
   const end = node; // the `<!--/-->` marker (or null if the markup is malformed)
   cur.node = end ? end.nextSibling : null;
-  if (content.length === 1 && content[0].nodeType === TEXT) return content[0];
+  if (content.length === 1 && content[0].nodeType === TEXT) {
+    // Development: what the server wrote, for `bindText` to compare its first value with.
+    if (DEV) content[0].__afwServerText = content[0].data;
+    return content[0];
+  }
   // Empty or node-valued hole (JSX stored as a value): bind onto an empty anchor after
   // the server content. The content stays in place for `bindText` to adopt when the
   // value describes it, and is removed only if the value turns out to be something else.

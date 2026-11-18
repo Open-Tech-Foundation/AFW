@@ -176,6 +176,17 @@ export class HydrationMismatch extends Error {
     constructor(message: any);
 }
 /**
+ * Reported (through `onError`, phase `"hydration"`, once per page) when a server-rendered
+ * island's props are missing from the page's hydration payload, so it rendered with its
+ * default props. `reason`: the payload script is `"missing"` or `"unreadable"`, or has no
+ * `"entry"` for the island's `data-h` id.
+ */
+export class HydrationPayloadError extends Error {
+    element: Element;
+    id: number;
+    reason: "missing" | "unreadable" | "entry";
+}
+/**
  * Adopt a `<p>` holding a component, past its `<!--p]-->` end marker: kept as served when
  * the parser left it intact, rebuilt with `build()` when a block element in a component
  * made the parser close it early. Compiler-emitted.

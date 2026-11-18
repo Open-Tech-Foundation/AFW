@@ -283,6 +283,40 @@ describe.skipIf(!hasBin)("hydration e2e (ssg → hydrate)", () => {
     expect(afterAdd[3].textContent).toBe("item 4"); // newly built, in order before the anchor
   });
 
+  // A list whose item is a conditional (`x => x % 2 ? <li.odd/> : <li.even/>`) lowers each
+  // item to a fragment: the server brackets it with its own region markers, the adopt walk
+  // claims them, and the list then tracks the item as the range between them.
+  const condListSource =
+    "export default function P(){ let items=$state([1,2,3]);" +
+    " return <div><button onclick={() => items = [4, 2]}>change</button>" +
+    '<ul>{items.map(x => x % 2 ? <li class="odd">{x}</li> : <li class="even">{x}</li>)}</ul></div>; }';
+
+  test("a list of conditional items adopts every server item and keeps them whole on update", async () => {
+    const html = loadModule(await compile(condListSource, "ssg"), { signal, ssgText, ssgList }).default();
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const ul = container.querySelector("ul");
+    const server = [...ul.querySelectorAll("li")];
+    expect(server.map((li) => li.className + li.textContent)).toEqual(["odd1", "even2", "odd3"]);
+
+    const code = await compile(condListSource, "hydrate");
+    expect(code).toContain("claimRegionStart(__ic)"); // the item's own markers are claimed
+    const mod = loadModule(code, {
+      signal, bindText, bindList, bindChild, hydrateList, hydrateChild, template,
+      cursor, claimElement, claimText, claimRegionStart, claimRegionEnd, skipNode,
+    });
+    expect(typeof mod.hydrate).toBe("function"); // no fallback to a client rebuild
+    mod.hydrate(container);
+    const adopted = [...ul.querySelectorAll("li")];
+    for (let i = 0; i < 3; i++) expect(adopted[i]).toBe(server[i]); // the server nodes, kept
+
+    // [1, 2, 3] → [4, 2]: item 0 swaps odd → even, item 1 stays, item 2 goes — with the
+    // swapped branch's new node inside the item, nothing is left behind.
+    container.querySelector("button").click();
+    expect([...ul.querySelectorAll("li")].map((li) => li.className + li.textContent)).toEqual(["even4", "even2"]);
+    expect(ul.querySelectorAll("li")[1]).toBe(server[1]);
+  });
+
   // Phase 2.1b: a conditional / dynamic-node region hydrates. The server brackets the
   // rendered branch with `<!--[-->…<!--]-->`; the Hydrate factory adopts that branch's
   // node (no rebuild), then a reactive change swaps to the freshly-built other branch.

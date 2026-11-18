@@ -326,6 +326,19 @@ export function bindText(node, fn) {
     // result), so unchanged text nodes don't churn.
     if (!(value instanceof Node) && !Array.isArray(value) && !isHtmlMarker(value) && !isHydratable(value)) {
       const text = toText(value);
+      // Development: an adopted text hole whose server text differs from the client's
+      // first value. The client's value wins (it is the live state), but say so — the
+      // server and client rendered from different data.
+      if (DEV && node.__afwServerText !== undefined) {
+        const served = node.__afwServerText;
+        delete node.__afwServerText;
+        if (served !== text) {
+          warnOnce(
+            "hydration-text",
+            `hydration: the server rendered ${JSON.stringify(served.slice(0, 60))} where the client renders ${JSON.stringify(text.slice(0, 60))}; the client's text is shown. The server and the client rendered from different data (a value read only in the browser, a clock, or stale loader data). Further text mismatches on this page are not reported.`,
+          );
+        }
+      }
       if (text === lastText) return;
       lastText = text;
       lastNodeValue = undefined;
@@ -587,7 +600,7 @@ export function hydrateList(cur, sourceFn, adoptItem, renderItem, keyFn) {
     // Adopt inside a scope so the item owns its bindings' effects; eviction
     // disposes them (same ownership as CSR-built items in reconcileList).
     const s = scope(() => adoptItem(cur, sig, index)); // claims one item subtree off `cur`
-    cache.set(key, { sig, node: s.result, dispose: s.dispose });
+    cache.set(key, listEntry(sig, s.result, s.dispose));
     prevKeys.push(key);
   }
   const anchor = claimRegionEnd(cur);
@@ -642,18 +655,18 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
         // signal every row's class reads). Without this every discarded row
         // leaves a zombie effect that all later writes keep re-running.
         const s = scope(() => renderItem(sig, index));
-        entry = { sig, node: s.result, nodes: itemNodes(s.result), dispose: s.dispose };
+        entry = listEntry(sig, s.result, s.dispose);
         prevIndex[index] = -1;
       }
       next.set(key, entry);
       newKeys[index] = key;
-      nodes[index] = entry.nodes ??= itemNodes(entry.node);
+      nodes[index] = entryNodes(entry);
     }
 
     // Remove nodes whose keys disappeared, and dispose their bindings.
     for (const entry of cache.values()) {
       if (entry.dispose) entry.dispose();
-      for (const node of entry.nodes ?? itemNodes(entry.node)) {
+      for (const node of entryNodes(entry)) {
         if (node.parentNode && !(tx.leave && tx.leave(node))) node.parentNode.removeChild(node);
       }
     }
@@ -689,6 +702,35 @@ function reconcileList(anchor, sourceFn, renderItem, keyFn, cache, prevKeys) {
     }
     cache.clear();
   };
+}
+
+/**
+ * A list item's reconcile entry. One node stays itself. Several (a fragment item, or an
+ * adopted `{ start, end }` region) are bracketed by two marker comments, and the item is
+ * whatever lies between them now: a conditional inside the item that swaps its branch
+ * keeps the new nodes inside the range, so moving or removing the item takes them along.
+ */
+function listEntry(sig, result, dispose) {
+  if (result != null && result.nodeType === 11) {
+    const start = document.createComment("");
+    const end = document.createComment("");
+    result.insertBefore(start, result.firstChild);
+    result.appendChild(end);
+    return { sig, start, end, dispose };
+  }
+  if (result != null && result.start && result.end) return { sig, start: result.start, end: result.end, dispose };
+  return { sig, node: result, dispose };
+}
+
+/** The nodes `entry` occupies now: its marker range, or its single node. */
+function entryNodes(entry) {
+  if (!entry.start) return (entry.nodes ??= itemNodes(entry.node));
+  const out = [];
+  for (let n = entry.start; n; n = n.nextSibling) {
+    out.push(n);
+    if (n === entry.end) break;
+  }
+  return out;
 }
 
 /**
