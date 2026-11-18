@@ -7,7 +7,7 @@
 - Docs pages no longer grow with the size of the site. Every page carried the whole
   sidebar: each link rendered, and the nav tree repeated in its hydration payload. At
   1,000 pages that was 786 KB a page and 778 MB of HTML; it is now 51 KB and 51 MB
-  (`benchmarks/docs-scale`). The search index builds about nine times faster with it.
+  (`benchmarks/docs-scale`). The search index builds about ten times faster with it.
   - `Sidebar`, `Breadcrumbs` and `Pagination` read the tree from the cached
     `@opentf/afw-docs/nav` chunk when not given a `nav`, and each sidebar node gets
     only its position. A `nav` prop still works as before.

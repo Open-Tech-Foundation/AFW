@@ -1,5 +1,6 @@
 #!/usr/bin/env esdev
 // Docs scale benchmark (see README.md): how a docs site's output grows with its page count.
+// Needs the optimized compiler: `cargo build --release -p afw_cli`.
 //
 //   esdev benchmarks/docs-scale/run.mjs [--pages=1000] [--sections=10] [--dir=<path>]
 //
@@ -70,6 +71,11 @@ async function install(source, name) {
   }
 }
 
+if (!(await exists(join(root, "target/release/afwc")))) {
+  console.error("✗ no target/release/afwc: run `cargo build --release -p afw_cli` first");
+  exit(1);
+}
+
 // 1. The docs starter, scaffolded fresh.
 await remove(site, { recursive: true }).catch(() => {});
 await mkdir(staging, { recursive: true });
@@ -106,7 +112,9 @@ await run("rm", ["-rf", target], root);
 await run("mkdir", ["-p", join(target, "..")], root);
 await run("cp", ["-a", site, target], root);
 await remove(site, { recursive: true });
-const build = await run(esdev, ["build"], target, { AFWC_BIN: join(root, "target/debug/afwc") });
+// The optimized compiler, as published packages ship it: the debug build's search indexing
+// alone is about 14 times slower, which would swamp the build time.
+const build = await run(esdev, ["build"], target, { AFWC_BIN: join(root, "target/release/afwc") });
 // "✅ Search index — 1013 page(s)  187.8s" (or "293ms" for a small site).
 const searchTime = /Search index — \d+ page\(s\)\s+([\d.]+)(ms|s)\b/.exec(build.output);
 const searchSeconds = searchTime ? Number(searchTime[1]) / (searchTime[2] === "ms" ? 1000 : 1) : NaN;

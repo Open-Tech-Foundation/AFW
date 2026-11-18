@@ -16,7 +16,7 @@ large tree. This benchmark is how the fix was measured, and how a regression wou
 ## Run it
 
 ```sh
-cargo build -p afw_cli                              # the compiler binary it builds with
+cargo build --release -p afw_cli                    # the optimized compiler it builds with
 esdev benchmarks/docs-scale/run.mjs                 # 1,000 pages in 10 sections
 esdev benchmarks/docs-scale/run.mjs --pages=5000 --sections=50
 ```
@@ -30,8 +30,9 @@ esdev benchmarks/docs-scale/run.mjs --pages=5000 --sections=50
 
 ## Results
 
-Measured 2026-11-18. Intel i7-8700K, 16 GB RAM, Linux 6.12, esdev 0.28, NVMe disk.
-1,000 generated pages in 10 sections of 100 (1,013 docs pages with the starter's own).
+Measured 2026-11-18. Intel i7-8700K, 16 GB RAM, Linux 6.12, esdev 0.28, NVMe disk, the
+optimized compiler. 1,000 generated pages in 10 sections of 100 (1,013 docs pages with the
+starter's own). "Before" is commit `b3d9da4`, built from a worktree.
 
 | | before | after |
 |---|---|---|
@@ -40,11 +41,13 @@ Measured 2026-11-18. Intel i7-8700K, 16 GB RAM, Linux 6.12, esdev 0.28, NVMe dis
 | sample page, sidebar links | 1,013 | 112 |
 | sample page, hydration payload | 381.3 KB | 3.4 KB |
 | all docs pages | 777.6 MB | 50.8 MB |
-| build | 209.9 s | 28.8 s |
-| of which, search index | 196.6 s | 22.0 s |
+| build | 25.6 s | 5.4 s |
+| of which, search index | 14.7 s | 1.5 s |
 
 - "After" pages carry the 10 section rows and the current section's 100 links. A page's
   size now follows the number of sections and the size of its own section, not the site.
-- The search index built faster because it parses smaller pages.
+- The search index built faster because it parses smaller pages: its time follows the
+  HTML it reads. With the debug compiler (`cargo build`) it is about 14 times slower, which
+  is why the benchmark needs the optimized one.
 - The rest of a page (about 32 KB here) is the theme's chrome and inline scripts, the same
   at any site size: a 58-page site's pages are 32.5 KB.
