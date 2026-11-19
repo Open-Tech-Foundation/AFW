@@ -46,7 +46,7 @@ await write(`${project}/esdev.json`, JSON.stringify({
     web: { entry: "index.html", outDir: "dist" },
     server: { entry: "server.js", out: "dist/server.js" },
   } },
-  dev: { run: "server", app: { port: appPort } },
+  dev: { servers: { server: { port: appPort } } },
 }));
 await write(`${project}/index.html`, '<!doctype html><html><head><title>fns</title></head><body><div id="app"></div><script type="module" src="./entry.js"></script></body></html>');
 await write(`${project}/entry.js`, 'import { mountApp } from "@opentf/afw"; import { loaderRoutes, pages } from "@afw/routes"; mountApp({ pages, loaders: loaderRoutes, target: document.getElementById("app") });');

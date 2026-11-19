@@ -4,5 +4,5 @@
     "web": { "entry": "index.html", "outDir": "dist" },
     "server": { "entry": "server.js", "out": "dist/server.js" }
   } },
-  "dev": { "run": "server", "app": { "port": 3000 } }
+  "dev": { "servers": { "server": { "port": 3000 } } }
 }

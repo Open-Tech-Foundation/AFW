@@ -14,5 +14,12 @@
         "outDir": "playground/dist"
       }
     }
+  },
+  "dev": {
+    "servers": {
+      "web": {
+        "port": 5173
+      }
+    }
   }
 }

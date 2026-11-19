@@ -23,8 +23,7 @@ members = ["packages/*", "playground", "benchmarks/*", "website"]
 # The playground is the framework's own scratch app, on its own config
 # (esdev.playground.json — root-level so plugin modules resolve inside the repo
 # jail; pnpm symlinks a per-app config's node_modules outside its own root).
-# One afw target, CSR. No fixed port: esdev takes its default, or a free one when
-# that is taken, and prints the URL.
+# One afw target, CSR, served on 5173 (its `dev.servers.web` entry).
 [tasks.play]
 run = "esdev start --config=esdev.playground.json"
 

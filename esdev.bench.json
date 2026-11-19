@@ -16,8 +16,10 @@
     }
   },
   "dev": {
-    "server": {
-      "port": 3010
+    "servers": {
+      "web": {
+        "port": 3010
+      }
     }
   }
 }

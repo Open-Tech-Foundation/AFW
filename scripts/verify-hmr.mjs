@@ -41,6 +41,7 @@ await write(`${project}/esdev.json`, JSON.stringify({
     "@opentf/afw/hmr": "./node_modules/@opentf/afw/runtime/hmr.js",
   } },
   build: { targets: { web: { entry: "index.html", outDir: "dist" } } },
+  dev: { servers: { web: { port: 5173 } } },
 }));
 await write(`${project}/index.html`, '<html><body><div id="app"></div><script type="module" src="./entry.js"></script></body></html>');
 await write(`${project}/entry.js`, 'import { mountApp, navigate } from "@opentf/afw"; import { pages } from "@afw/routes"; import "./style.css"; window.__navigate=navigate; mountApp({pages, guard:(to,tools)=>{window.__guards=(window.__guards||0)+1;tools.next();}, target:document.getElementById("app")});');

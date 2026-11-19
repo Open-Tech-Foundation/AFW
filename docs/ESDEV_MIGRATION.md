@@ -102,6 +102,33 @@ Also new in 0.29: a release build removes a `"then": "run"` step's own bundle on
 run. The prerender step of the static starters and the website is `dist/ssg.js` now (was
 `.ssg/ssg.js`, kept out of `dist/` so it would not be deployed); esdev removes it.
 
+## esdev 0.30.0 (verified 2026-11-19, with esrun 0.49.0)
+
+Breaking: `dev.servers` is the only key that says what `esdev start` runs (ES-Runtime
+D235). `dev.run`, `dev.app`, `dev.server` and `dev.serve` are refused, and a project with
+no `dev.servers` does not start.
+
+| Project | `dev` |
+| --- | --- |
+| A starter app with a server (any render mode), `benchmarks/fullstack`, `tsr test-e2e-esdev-fns` | `{ "servers": { "server": { "port": 3000 } } }`: the server renders the pages and answers `/api` |
+| A starter app without a server, the `docs` and `library` starters, the playground, `tsr test-e2e-hmr` | `{ "servers": { "web": { "port": 5173 } } }` |
+| The website, the benchmark app | `web` on 3005 and 3010, as before |
+
+`@opentf/create-afw` needs esdev 0.30 (`engines.esdev`).
+
+Checks run: `tsr verify-templates`, `tsr test`, `tsr test-e2e-hmr`,
+`tsr test-e2e-esdev-fns`, and `esdev start` of the playground, the benchmark app and the
+website.
+
+Item 6, a request during a server restart:
+
+- Fixed in 0.30 for a request through esdev's proxy: it waits for the restarted server.
+- A direct connection to a server's own port still sees the restart, as a production
+  deploy without a draining orchestrator would.
+- An AFW app with a server is the one `dev.servers` entry, and the browser talks to it
+  directly, so the fix does not reach it. `tsr test-e2e-esdev-fns` goes on waiting the
+  restart out.
+
 ## Starter templates
 
 Since esdev 0.28 the AFW starters are `@opentf/create-afw`'s (`esdev/templates`, generated
