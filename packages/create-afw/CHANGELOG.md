@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-19
+
 ### Changed
 
 - The esdev starters say what `esdev start` runs under `dev.servers` (ES-Runtime D235).

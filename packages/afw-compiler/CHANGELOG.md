@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-19
+
 ### Changed
 
 - `afwc docs index` is linear in each page's size and indexes pages in parallel. It used
