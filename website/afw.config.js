@@ -8,7 +8,7 @@ export default defineDocsConfig({
   // `frame={false}` (sidebar · content · TOC only) — see app/docs/layout.jsx.
   docs: {
     title: "AFW",
-    version: "v0.39.0",
+    version: "v0.41.0",
     // Show a "Last updated" line per page (every section), sourced from each file's
     // last git commit (or a `lastUpdated` frontmatter override).
     lastUpdated: true,
