@@ -75,11 +75,14 @@ export default defineRoute({ render: "server" });
     "web": { "entry": "index.html", "outDir": "dist" },
     "server": { "entry": "server.js", "out": "dist/server.js" }
   } },
-  "dev": { "run": "server", "app": { "port": 3000 } }
+  "dev": { "servers": { "server": { "port": 3000 } } }
 }
 ```
 
-- `esdev start` runs the `dev.run` target and restarts it when server code changes.
+- `esdev start` runs the server target named in `dev.servers` (esdev 0.30 or later), on
+  its `port`, and restarts it when server code changes.
+- The server renders the pages and answers `/api` itself, so it is the one entry: no
+  `web` entry and no proxy.
 - `esdev build`, then `esdev dist/server.js`, for production.
 - Server builds resolve page imports through the DOM-free `@opentf/afw/server` entry,
   so no `HTMLElement` stub is needed.

@@ -132,9 +132,14 @@ The old CLI interpreted `afw.config.js`'s `proxy` map. The native compiler plugi
 and esdev do not apply that setting. A fullstack app's server entry owns backend
 routing, static assets and any forwarding to another runtime.
 
-For a platform such as Workers, run the backend on its host's development runtime
-and configure forwarding in your app's server or an external proxy. Do not expect
-adding the old proxy key to enable it in esdev. See
+- An app with a server: the server is the one `dev.servers` entry and routes `/api`
+  itself.
+- A client app whose API runs elsewhere: give the `web` entry of `dev.servers` a
+  `proxy`, such as `{ "/api": "http://localhost:8787" }` (esdev 0.30 or later), the
+  same routes your production gateway has.
+- For a platform such as Workers, run the backend on its host's development runtime
+  and point that proxy at it.
+- The old `proxy` key in `afw.config.js` does nothing in esdev. See
 [Server](/docs/deployment/server) and [Fetch handler](/docs/deployment/fetch-handler).
 
 <Callout type="info" title="Tooling and theme configuration">

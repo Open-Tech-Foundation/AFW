@@ -16,7 +16,7 @@ and manages the development loop.
 | Command | Purpose |
 | --- | --- |
 | `esdev create my-app` | Create a project (prompts for template, language and package manager). |
-| `esdev start` | Build and watch the targets in `esdev.json`; runs the server target in full-stack mode. |
+| `esdev start` | Build and watch the targets in `esdev.json`; run what `dev.servers` names: the web target on its port, or the app's server. |
 | `esdev build --minify` | Build release output. |
 | `esdev preview` | Serve the static release output. |
 | `esdev test --config=esdev.test.json --dom` | Run tests in the native DOM realm. |

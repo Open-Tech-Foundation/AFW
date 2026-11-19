@@ -40,8 +40,10 @@
     }
   },
   "dev": {
-    "server": {
-      "port": 3005
+    "servers": {
+      "web": {
+        "port": 3005
+      }
     }
   }
 }
