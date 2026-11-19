@@ -71,6 +71,7 @@ await writePrerenderReport(out, { siteDescription: "Resolved home description & 
         web: { entry: "index.html", outDir: "dist", assets: ["public"] },
         prerender: { entry: "prerender.js", out: "dist/prerender.js", then: "run" },
       } },
+      dev: { servers: { web: { port: 5173 } } },
     }));
     const good = await run();
     if (!good.success) throw Error(new TextDecoder().decode(good.stderr));
