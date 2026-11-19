@@ -115,21 +115,27 @@ function devDependencies(ctx, extra = {}) {
 // esdev's own files: read from toolchain/esdev/ when an esdev project is generated.
 const esdevFile = (name) => readFileSync(new URL(`./toolchain/esdev/${name}`, import.meta.url), "utf8");
 
-/** esdev.json for a project: the AFW plugin (+ `plugins`), the web target and `targets`. */
-function esdevConfig(ctx, { plugins = [], targets = {}, dev = null, afw = { appDir: "app" } } = {}) {
+/**
+ * esdev.json for a project: the AFW plugin (+ `plugins`), the web target and `targets`,
+ * and what `esdev start` runs (`dev.servers`): esdev serving the web target on 5173, or,
+ * for an app with a server, that server on 3000, rendering the pages and answering /api.
+ */
+function esdevConfig(ctx, { plugins = [], targets = {}, dev = ESDEV_WEB_DEV, afw = { appDir: "app" } } = {}) {
   return json({
     plugins: [{ module: "@opentf/esdev-plugin-afw", options: afw }, ...plugins],
     build: { targets: { web: { entry: "index.html", outDir: "dist" }, ...targets } },
-    ...(dev ? { dev } : {}),
+    dev,
   });
 }
+
+const ESDEV_WEB_DEV = { servers: { web: { port: 5173 } } };
 
 /** The prerender step of a static esdev site: `ssg.js` run after the build (esdev removes its bundle). */
 const ESDEV_SSG_TARGET = { "site-ssg": { entry: "ssg.js", out: "dist/ssg.js", then: "run" } };
 const ESDEV_SITE_OUTPUT = { module: "@opentf/afw-cli/ssg", export: "siteOutputPlugin", options: { root: ".", target: "web", prerenderTarget: "site-ssg" } };
 const ESDEV_SERVER = {
   targets: { server: { entry: "server.js", out: "dist/server.js" } },
-  dev: { run: "server", app: { port: 3000 } },
+  dev: { servers: { server: { port: 3000 } } },
 };
 
 function sortKeys(object) {
@@ -363,7 +369,7 @@ function appFiles(ctx) {
     files["esdev.json"] = esdevConfig(ctx, {
       plugins: site ? [ESDEV_SITE_OUTPUT] : [],
       targets: { ...(server ? ESDEV_SERVER.targets : {}), ...(site ? ESDEV_SSG_TARGET : {}) },
-      dev: server ? ESDEV_SERVER.dev : null,
+      dev: server ? ESDEV_SERVER.dev : ESDEV_WEB_DEV,
     });
     if (server) files["server.js"] = esdevFile("server.js");
     if (site) files["ssg.js"] = esdevFile("ssg.js");

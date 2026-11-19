@@ -4,6 +4,12 @@
 
 ### Changed
 
+- The esdev starters say what `esdev start` runs under `dev.servers` (ES-Runtime D235).
+  An app with a server runs that server on port 3000, where it renders the pages and
+  answers `/api`. Any other app, the docs site and the library are served by esdev on
+  port 5173. Needs esdev 0.30 or later, which refuses `dev.run` and `dev.app`:
+  `engines.esdev` is `>=0.30.0`.
+
 - New projects have an inline icon (`<link rel="icon">` in `index.html`), so their pages
   no longer request `/favicon.ico` and log a 404 on every load. Replace it with your own.
 - The static esdev starters build their prerender step to `dist/ssg.js`, which esdev 0.29
@@ -15,8 +21,7 @@
 ### Fixed
 
 - The esdev starters write a build target's output directory as `outDir`. esdev 0.29
-  refuses `outdir`, so every new project failed its first build. Needs esdev 0.29 or
-  later: `engines.esdev` is `>=0.29.0`.
+  refuses `outdir`, so every new project failed its first build.
 
 ## [0.8.0] - 2026-11-17
 

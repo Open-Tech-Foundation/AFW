@@ -62,9 +62,10 @@ describe("generated esdev starters", () => {
     assert.deepEqual(json.options.map((o) => o.name), ["render", "server", "styling", "language"]);
   });
 
-  // esdev 0.29 refuses a key that is not camelCase (`outdir`), so a starter written the
-  // old way fails its first build; the package asks for the esdev that reads it.
-  test("every esdev.json spells its keys in camelCase, and the package needs esdev 0.29", async () => {
+  // esdev 0.29 refuses a key that is not camelCase (`outdir`), and 0.30 every `dev` key but
+  // `servers`, so a starter written the old way fails its first build or start; the package
+  // asks for the esdev that reads it.
+  test("every esdev.json spells its keys in camelCase, and the package needs esdev 0.30", async () => {
     let configs = 0;
     for (const name of Object.keys(ESDEV_TEMPLATES)) {
       for (const [path, contents] of Object.entries(esdevTemplate(name))) {
@@ -79,7 +80,19 @@ describe("generated esdev starters", () => {
     }
     assert.ok(configs >= 7);
     const manifest = JSON.parse(await readFile(join(pkg, "package.json"), "utf8"));
-    assert.equal(manifest.engines.esdev, ">=0.29.0");
+    assert.equal(manifest.engines.esdev, ">=0.30.0");
+  });
+
+  test("dev.servers: the app's server on 3000 when it has one, else esdev serves the web target on 5173", () => {
+    const devOf = (name, answers) => JSON.parse(applyEsdevTemplate(esdevTemplate(name), answers, { name: "my-app", pm: "pnpm", registry })["esdev.json"]).dev;
+    const server = { servers: { server: { port: 3000 } } };
+    const web = { servers: { web: { port: 5173 } } };
+    for (const answers of combinations(ESDEV_TEMPLATES.app.options)) {
+      assert.deepEqual(devOf("app", answers), answers.server === "yes" ? server : web, JSON.stringify(answers));
+    }
+    for (const name of ["docs", "library"]) {
+      for (const answers of combinations(ESDEV_TEMPLATES[name].options)) assert.deepEqual(devOf(name, answers), web, name);
+    }
   });
 
   test("the API route names the runtime it runs on: esrun under esdev, Node under Vite", () => {
