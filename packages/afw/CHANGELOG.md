@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-19
+
 ### Added
 
 - `clearQueryCache()` forgets cached query data, for when it stops being the viewer's

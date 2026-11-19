@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.40.0] - 2026-11-19
+
 ### Changed
 
 - The README's `esdev.json` example writes a target's output directory as `outDir`, the

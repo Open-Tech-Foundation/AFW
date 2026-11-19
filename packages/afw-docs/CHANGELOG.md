@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-11-19
+
 ### Changed
 
 - "Last updated" dates come from one `git log` over `app/` instead of one per page.

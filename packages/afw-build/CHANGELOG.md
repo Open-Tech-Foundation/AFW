@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-19
+
 ### Fixed
 
 - The `@afw/server` module of an app with no server-rendered page exports
