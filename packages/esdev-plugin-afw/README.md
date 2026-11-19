@@ -104,7 +104,7 @@ app's middleware around API routes, [server functions](https://afw.opentechf.org
 (`*.server.js`) and loader data, then your `files` and `renderPage` steps.
 
 ```js
-// server.js — a server target, run by `esdev start` with "dev": { "run": "server" }
+// server.js — a server target, run by `esdev start` with "dev": { "servers": { "server": { "port": 3000 } } }
 import { serve } from "runtime:http";
 import { createHandler, createPageRenderer } from "@afw/server";
 

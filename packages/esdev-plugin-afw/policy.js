@@ -66,7 +66,7 @@ export function createAppShape({ exclude = [], getCompiler }) {
 
 /**
  * Whether this build's browser code adopts server-rendered pages in development: the
- * app renders pages first (not an SPA) and has a server to do it (`dev.run`), which a
+ * app renders pages first (not an SPA) and has a server to do it (a server target), which a
  * static site without server files does not.
  */
 export const devRenders = (shape) => shape.app === "server" || (shape.app === "static" && shape.hasServer);

@@ -6,6 +6,8 @@
 
 - The README's `esdev.json` example writes a target's output directory as `outDir`, the
   spelling esdev 0.29 reads. The package itself is unchanged.
+- The README's server example names its `dev.servers` entry, as esdev 0.30 reads it
+  (`dev.run` is refused).
 
 ## [0.11.1] - 2026-11-17
 
