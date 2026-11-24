@@ -256,6 +256,23 @@ export function setProp(el, name, value) {
 }
 
 /**
+ * Bind an `on*` prop on a child component (`<Field onfocusout={…}/>`). A callback prop
+ * the component declares, or a standard handler (`onclick`), is a property: assign it.
+ * Anything else (`onfocusout`, a custom event) has no handler property — assigning one
+ * would be an expando the browser never calls — so listen for the event on the host,
+ * where it arrives by bubbling from the component's content.
+ */
+export function setHandler(el, name, fn) {
+  if (el.__afwLazy) return el.__afwLazy.set(name, fn);
+  // A server-parsed host not upgraded yet has no accessors; upgrade it first (see setProp).
+  if (!(name in el) && el.tagName?.includes("-") && typeof customElements !== "undefined" && customElements.get(el.tagName.toLowerCase())) {
+    customElements.upgrade(el);
+  }
+  if (name in el) el[name] = fn;
+  else if (typeof fn === "function") el.addEventListener(name.slice(2).toLowerCase(), fn);
+}
+
+/**
  * Apply every own enumerable key of `obj` to `el` (`<div {...obj}/>`, SPEC §5.5).
  * `asProps` sets element properties (for components) instead of attributes (for
  * host elements). Keys are applied in object order; the caller wraps this in an

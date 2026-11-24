@@ -49,6 +49,8 @@ export function moveNode(parent: Node, node: Node, ref?: Node | null): void;
  * component picks it up from `getAttribute` when it upgrades.
  */
 export function setProp(el: any, name: any, value: any): void;
+/** Bind an `on*` prop on a child component: its callback prop or handler property, else a listener (compiler-emitted). */
+export function setHandler(el: Element, name: string, fn: unknown): void;
 /**
  * Apply every own enumerable key of `obj` to `el` (`<div {...obj}/>`, SPEC §5.5).
  * `asProps` sets element properties (for components) instead of attributes (for

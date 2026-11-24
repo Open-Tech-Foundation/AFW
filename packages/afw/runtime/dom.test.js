@@ -2,7 +2,7 @@ import { describe, expect, test } from "runtime:test";
 
 import { resetWarnings } from "../core/dev.js";
 import { signal } from "../core/signals.js";
-import { bindChild, bindList, setProp } from "./dom.js";
+import { bindChild, bindList, setHandler, setProp } from "./dom.js";
 
 function render(items, keyFn) {
   const parent = document.createElement("div");
@@ -175,5 +175,39 @@ describe("setProp on a component host", () => {
     setProp(input, "value", "typed");
     expect(input.value).toBe("typed");
     expect(input.hasAttribute("value")).toBe(false);
+  });
+});
+
+// `on*` props on a child component: a declared callback or standard handler is a
+// property; any other event is a listener on the host (it bubbles up from the content).
+describe("setHandler", () => {
+  class WithCallback extends HTMLElement {
+    set onPick(fn) { this._pick = fn; }
+    get onPick() { return this._pick; }
+  }
+  if (!customElements.get("afw-test-handler-host")) customElements.define("afw-test-handler-host", WithCallback);
+
+  test("a declared callback prop receives the function", () => {
+    const el = document.createElement("afw-test-handler-host");
+    const fn = () => {};
+    setHandler(el, "onPick", fn);
+    expect(el._pick).toBe(fn);
+  });
+
+  test("a standard handler is the property; focusout and custom events are listeners", () => {
+    const el = document.createElement("afw-test-handler-host");
+    const inner = document.createElement("input");
+    el.append(inner);
+    document.body.append(el);
+    const seen = [];
+    setHandler(el, "onclick", () => seen.push("click"));
+    setHandler(el, "onfocusout", () => seen.push("focusout"));
+    setHandler(el, "onsaved", () => seen.push("saved"));
+    expect(typeof el.onclick).toBe("function");
+    inner.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    inner.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    inner.dispatchEvent(new CustomEvent("saved", { bubbles: true }));
+    expect(seen).toEqual(["click", "focusout", "saved"]);
+    el.remove();
   });
 });

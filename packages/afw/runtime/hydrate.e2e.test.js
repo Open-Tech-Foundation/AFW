@@ -60,6 +60,7 @@ import {
   hydrationProps,
   isHydrating,
   runBuild,
+  setHandler,
   setProp,
   skipNode,
   skipSlot,
@@ -116,7 +117,7 @@ function loadComponent(code, name, bindings) {
   // Helpers every hydrate build may reference, supplied unless a test overrides them.
   // Every component brackets its connect with the host stack (`enterHost`/`exitHost`).
   // A server build renders a component's slot through `ssgSlot`.
-  bindings = { hydratableNode, adoptedChildren, enterHost, exitHost, awaitHydrationProps, hydrationPropSet, ssgSlot, ...bindings };
+  bindings = { hydratableNode, adoptedChildren, enterHost, exitHost, awaitHydrationProps, hydrationPropSet, ssgSlot, setHandler, ...bindings };
   const names = Object.keys(bindings);
   return new Function(...names, `${body}\n; return ${name};`)(...names.map((n) => bindings[n]));
 }
@@ -136,7 +137,7 @@ function loadModule(code, bindings) {
     .replace(/export class /g, "class ")
     .replace(/^export default \w+;$/gm, "");
   // Helpers every hydrate build may reference, supplied unless a test overrides them.
-  bindings = { hydratableNode, adoptedChildren, awaitHydrationProps, hydrationPropSet, ssgSlot, ...bindings };
+  bindings = { hydratableNode, adoptedChildren, awaitHydrationProps, hydrationPropSet, ssgSlot, setHandler, ...bindings };
   const names = Object.keys(bindings);
   const ret =
     "\n; return {" +
