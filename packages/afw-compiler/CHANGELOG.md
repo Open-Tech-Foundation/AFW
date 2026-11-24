@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- `$id()` macro: `const id = $id();` at the top level of a component lowers to
+  `componentId(n)`, numbered in source order, on the CSR, hydrate and server targets. A
+  misplaced call (in a handler, effect, condition, loop or the JSX, with `let` or
+  arguments, at module scope, or in a page or layout) is a compile error that says where
+  it belongs.
+
 ## [0.28.0] - 2026-11-19
 
 ### Changed

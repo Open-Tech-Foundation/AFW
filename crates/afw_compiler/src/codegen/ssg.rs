@@ -209,6 +209,9 @@ impl<'a> Emitter<'a> {
         let name = &lowered.name;
         let tag = tags::def_tag(name, &lowered.ir.id.module);
         let mut decls = String::new();
+        if lowered.uses_id {
+            self.server.insert("componentId");
+        }
         self.emit_prop_setup(lowered, &mut decls);
         for item in &lowered.body {
             self.emit_stmt(item, &mut decls);

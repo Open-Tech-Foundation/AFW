@@ -247,6 +247,12 @@ fn compile_module(
         return Err(located(at as usize, 1, msg));
     }
 
+    // `$id()` outside a top-level `const x = $id()` of a component (or in a page) has
+    // no stable per-instance id to give — fail with where it belongs.
+    if let Some((at, msg)) = afw_compiler::lower::id_macro_diagnostic(&parsed.program, !as_component) {
+        return Err(located(at as usize, 3, msg));
+    }
+
     let prefix = source_map.then(|| sourcemap::prefix(&source));
     let lowered = match prefix.as_deref() {
         Some(prefix) => lower_module_with_source_map(file, &parsed.program, &source, !as_component, prefix),

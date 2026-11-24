@@ -76,6 +76,8 @@ struct Uses {
     host: bool,
     set_prop: bool,
     read_context: bool,
+    /// The body declares `$id()` ids (`componentId(n)`).
+    component_id: bool,
     /// A static subtree is stamped from a hoisted `<template>` rather than built node
     /// by node (see [`Emitter::emit_template`]).
     template: bool,
@@ -119,6 +121,7 @@ impl Uses {
         self.host |= o.host;
         self.set_prop |= o.set_prop;
         self.read_context |= o.read_context;
+        self.component_id |= o.component_id;
         self.template |= o.template;
         self.is_hydrating |= o.is_hydrating;
         self.hydration_mismatch |= o.hydration_mismatch;
@@ -174,6 +177,9 @@ fn import_header(uses: &Uses, runtime_imports: &[String]) -> String {
     }
     if uses.read_context {
         names.push("readContext");
+    }
+    if uses.component_id {
+        names.push("componentId");
     }
     if uses.template {
         names.push("template");
@@ -513,6 +519,9 @@ fn component_body_ex<'a>(
     let host = lowered.needs_host;
     if host {
         e.uses.host = true;
+    }
+    if lowered.uses_id {
+        e.uses.component_id = true;
     }
     code.push_str("  connectedCallback() {\n");
     // A synchronous DOM move fires disconnect→connect in the same task; cancel any

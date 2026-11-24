@@ -231,6 +231,9 @@ pub struct Lowered {
     /// True when the component body uses `$context`, so codegen brackets its
     /// connect with the host push/pop that lets the resolver find the DOM host.
     pub needs_host: bool,
+    /// True when the body declares `$id()` ids, so codegen imports the
+    /// `componentId` helper (client: `@opentf/afw`, server: `@opentf/afw/server`).
+    pub uses_id: bool,
     /// Names of all components declared in the same module (including this one).
     /// Codegen uses this to tell a same-module `<Sibling/>` (address it via the
     /// sibling's in-scope class binding) from an imported `<Other/>` (address it
@@ -419,6 +422,7 @@ pub fn module_shell(module: &str, exprs: ExprTable, body: Vec<BodyItem>) -> Lowe
         on_media_queries: Vec::new(),
         children_local: None,
         needs_host: false,
+        uses_id: false,
         module_components: Vec::new(),
         errors: Vec::new(),
     }
@@ -480,6 +484,9 @@ fn lower_one<'a>(
         }));
     }
     let mut decl_iter = classified.decls.iter();
+    // `$id()` declarations, numbered in source order: the n-th becomes
+    // `componentId(n)`, which suffixes the host's per-instance base id (SPEC §3.6).
+    let mut id_count: u32 = 0;
     if let Some(fbody) = callable.body() {
         for stmt in &fbody.statements {
             match stmt {
@@ -487,6 +494,14 @@ fn lower_one<'a>(
                 Statement::ReturnStatement(_) => {}
                 Statement::ExpressionStatement(es)
                     if has_jsx_expr(unwrap_paren(&es.expression)) => {}
+                // `const id = $id()` → a stable per-instance id string (not a signal).
+                // Misplaced or page-level `$id()` is rejected by `id_macro_diagnostic`.
+                Statement::VariableDeclaration(vd) if !is_page && id_decl_names(vd).is_some() => {
+                    for name in id_decl_names(vd).unwrap_or_default() {
+                        body.push(BodyItem::Raw(format!("const {name} = componentId({id_count});")));
+                        id_count += 1;
+                    }
+                }
                 // `$state`/`$derived`/`$ref` declarations → signal items (in order).
                 Statement::VariableDeclaration(vd) if is_macro_decl(vd) => {
                     for d in &vd.declarations {
@@ -578,6 +593,7 @@ fn lower_one<'a>(
         on_media_queries,
         children_local,
         needs_host: classified.needs_host,
+        uses_id: id_count > 0,
         module_components,
         errors,
     })
@@ -791,6 +807,92 @@ pub fn function_ref_diagnostic(program: &Program) -> Option<(u32, String)> {
 /// be evaluated once and its result discarded, so the component silently rendered the
 /// other branch. Points at the first such `return` in a component (helpers and nested
 /// functions are left alone) with the conditional-view fix. `None` otherwise.
+/// The bound names when every declarator of a `const` declaration is
+/// `name = $id()` (no arguments), else `None`.
+fn id_decl_names(vd: &VariableDeclaration) -> Option<Vec<String>> {
+    if vd.kind != VariableDeclarationKind::Const || vd.declarations.is_empty() {
+        return None;
+    }
+    vd.declarations
+        .iter()
+        .map(|d| match (&d.id, &d.init) {
+            (BindingPattern::BindingIdentifier(bi), Some(Expression::CallExpression(call)))
+                if is_callee(call, "$id") && call.arguments.is_empty() =>
+            {
+                Some(bi.name.as_str().to_string())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// `$id()` is only valid as `const name = $id()` at the top level of a component
+/// (SPEC §3.6): the id must be created exactly once per instance, and only a component
+/// has a host element to carry its server-rendered base id. Returns the offset and
+/// guidance for the first misplaced call — inside a handler, effect, condition or
+/// loop, with arguments, bound with `let`, or in a page/layout (`is_page_module`'s
+/// default export), which has no host.
+pub fn id_macro_diagnostic(program: &Program, is_page_module: bool) -> Option<(u32, String)> {
+    struct Calls {
+        spans: Vec<u32>,
+    }
+    impl<'a> Visit<'a> for Calls {
+        fn visit_call_expression(&mut self, it: &CallExpression<'a>) {
+            if is_callee(it, "$id") {
+                self.spans.push(it.span.start);
+            }
+            walk::walk_call_expression(self, it);
+        }
+    }
+    let mut calls = Calls { spans: Vec::new() };
+    calls.visit_program(program);
+    if calls.spans.is_empty() {
+        return None;
+    }
+
+    // The calls in a valid position, and the ones inside a page's body.
+    let mut allowed = Vec::new();
+    let mut in_page: Vec<(u32, u32)> = Vec::new();
+    for stmt in &program.body {
+        let Some((_, callable, kind)) = component_of(stmt) else { continue };
+        let Some(body) = callable.body() else { continue };
+        if is_page_module && matches!(kind, ExportKind::Default) {
+            in_page.push((body.span.start, body.span.end));
+            continue;
+        }
+        for s in &body.statements {
+            let Statement::VariableDeclaration(vd) = s else { continue };
+            if id_decl_names(vd).is_none() {
+                continue;
+            }
+            for d in &vd.declarations {
+                if let Some(init) = &d.init {
+                    allowed.push(init.span().start);
+                }
+            }
+        }
+    }
+
+    let at = *calls.spans.iter().find(|at| !allowed.contains(at))?;
+    if in_page.iter().any(|(start, end)| (*start..*end).contains(&at)) {
+        return Some((
+            at,
+            "`$id()` is not available in a page or layout: it has no host element to carry \
+             its server-rendered id. A page renders once per route, so a fixed `id=\"…\"` \
+             string is already unique there; or move the markup into a component."
+                .to_string(),
+        ));
+    }
+    Some((
+        at,
+        "`$id()` must be a top-level `const name = $id();` in a component body, with no \
+         arguments. Each call yields one stable, hydration-safe id per component instance, \
+         so it cannot run inside a handler, effect, condition or loop. Declare the ids you \
+         need up front and derive more with a suffix (`${id}-label`)."
+            .to_string(),
+    ))
+}
+
 pub fn early_return_diagnostic(program: &Program) -> Option<(u32, String)> {
     struct Finder {
         found: Option<u32>,
@@ -1735,7 +1837,7 @@ fn is_callee(call: &CallExpression, name: &str) -> bool {
 /// Compiler macros (handled by lowering, not real `@opentf/afw` exports) — so a
 /// legacy `import { $state } from "@opentf/afw"` is dropped rather than re-emitted.
 fn is_macro_name(name: &str) -> bool {
-    matches!(name, "$state" | "$derived" | "$ref" | "$context" | "$effect" | "$expose" | "$signal")
+    matches!(name, "$state" | "$derived" | "$ref" | "$context" | "$effect" | "$expose" | "$signal" | "$id")
 }
 
 /// Map JSX attribute names to their DOM equivalents (`className` → `class`,

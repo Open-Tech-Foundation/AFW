@@ -146,6 +146,7 @@ Macros are special function calls that the compiler transforms:
 - `$ref()`: Transforms to `signal(null)` — a fully reactive signal holding a DOM node (or `null` before mount). Used in JSX: `<div ref={myRef}>` (see §5.6). Read it in `$effect` (re-runs on node change), `onMount`, or `onCleanup`.
 - `$expose(obj)`: Transforms to `Object.assign(this, obj)` within the component class.
     - **Scoping**: The compiler rewrites the target of `Object.assign` to the component instance (`this`), exposing the object's properties as public properties of the Custom Element.
+- `$id()`: A stable per-instance id string (§3.6). The n-th top-level `const x = $id()` transforms to `const x = componentId(n)`.
 
 ### 3.3 Auto-unwrapping (.value Injection)
 The compiler injects `.value` access for variables identified as signals (`$state`, `$derived`, `$ref`) and for `props` access.
@@ -220,6 +221,15 @@ _mapped(
   2. Variables from `$signal()` (including destructured ones)
   3. Static values
 
+
+### 3.6 `$id()` Macro
+Per-instance ids for ARIA and anchor links that survive hydration unchanged.
+
+- **Syntax**: only `const name = $id();` (no arguments) at the top level of a component. Several declarators in one `const` are allowed. Anything else — inside a handler, effect, condition, loop or the JSX; with `let`; with arguments; at module scope; in a page or layout's own body — is a compile error (`id_macro_diagnostic`). A page/layout has no host element, and renders once per route, so a literal id is already unique there.
+- **Lowering**: the n-th declaration in source order becomes `const name = componentId(n);` — a plain string, not a signal (no `.value`, no binding effect beyond a one-time set). `componentId` is imported from `@opentf/afw` (CSR/Hydrate) or `@opentf/afw/server` (SSG/SSR). A legacy `import { $id }` is dropped like the other macros.
+- **Format**: `afw-<base>-<n>`. The base belongs to the component host, so all ids of one instance share it.
+- **Server** (`ssgComponent`): each host is a frame on a synchronous stack. The body's first `componentId` call allocates the base — `s<n>`, counted per request on the render context, or `m<n>`, counted per process when there is no render context (an SSG build, or JSX in module-level data rendered once at import and reused across requests). The host is stamped `data-afw-uid="<base>"`; a host that never calls `$id()` gets no attribute.
+- **Client**: `componentId` takes the base of `getCurrentInstance()` (the host stack every component connect brackets) — the host's `data-afw-uid` when present, else a fresh `c<n>`. The base is cached per host in a `WeakMap`, so a body that runs again on the same element (mismatch rebuild, hot refresh) keeps its ids. Server bases start with `s`/`m` and client bases with `c`, so they never collide.
 
 ---
 
