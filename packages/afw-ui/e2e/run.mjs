@@ -175,14 +175,23 @@ const OBSERVER = `
   console.error = (...a) => { window.__errors.push(a.map(String).join(" ")); ce(...a); };
 `;
 
-async function load({ scripts = true } = {}) {
+async function load({ scripts = true, path = "/" } = {}) {
   await cdp.send("Emulation.setScriptExecutionDisabled", { value: !scripts });
-  await cdp.send("Page.navigate", { url: `${origin}/` });
+  await cdp.send("Page.navigate", { url: `${origin}${path}` });
   await until(`document.readyState === "complete"`, 5000);
-  // Hydrated: the tooltip wires its trigger on mount.
-  if (scripts) await until(`!!document.querySelector("#share")?.getAttribute("aria-describedby")`, 5000);
-  await sleep(100);
+  // Hydrated: the tooltip (/) or the shell's layout (/shell) is set on mount.
+  if (scripts) {
+    await until(
+      path === "/"
+        ? `!!document.querySelector("#share")?.getAttribute("aria-describedby")`
+        : `!!window.__afwShellReady || document.querySelector(".afw-ui-shell-sidebar")?.isConnected && document.readyState === "complete"`,
+      5000,
+    );
+  }
+  await sleep(150);
 }
+const viewport = (width, height = 900) =>
+  cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
 
 // ── Run ───────────────────────────────────────────────────────────────────────
 try {
@@ -311,6 +320,52 @@ try {
   await click("#first");
   check(await until(`document.querySelector(".afw-ui-toaster")?.matches(":popover-open")`), "a toast shows its region");
   check((await js(`document.querySelector(".afw-ui-toast-message")?.textContent`)) === "Saved", "with the message");
+
+  console.log("\n▶ app shell: server HTML");
+  await load({ scripts: false, path: "/shell/" });
+  const shellHTML = await js(`(() => {
+    const main = document.querySelector("main");
+    const skip = document.querySelector(".afw-ui-skip-link");
+    return {
+      skip: skip?.getAttribute("href") === "#" + main?.id,
+      current: [...document.querySelectorAll(".afw-ui-sidenav-item[aria-current=page]")].map((a) => a.textContent),
+      crumb: document.querySelector(".afw-ui-breadcrumbs-link[aria-current=page]")?.textContent,
+      banner: !!document.querySelector("header.afw-ui-shell-header"), navs: [...document.querySelectorAll("nav")].map((n) => n.getAttribute("aria-label")),
+    };
+  })()`);
+  check(shellHTML.skip, "a skip link targets <main>");
+  check(JSON.stringify(shellHTML.current) === '["App shell"]', "the route's page is aria-current in the server HTML", shellHTML.current);
+  check(shellHTML.crumb === "App shell", "the last breadcrumb is the current page");
+  check(shellHTML.banner && JSON.stringify(shellHTML.navs) === '["Main","Breadcrumbs"]', "header, main and breadcrumb navigation landmarks", shellHTML.navs);
+
+  console.log("\n▶ app shell: wide");
+  await viewport(1100);
+  await load({ path: "/shell/" });
+  const wide = await js(`(() => { const s = document.querySelector(".afw-ui-shell-sidebar").getBoundingClientRect(); return { layout: document.querySelector(".afw-ui-shell").dataset.layout, sidebar: s.width > 100 && s.height > 100, menu: document.querySelector(".afw-ui-shell-menu-button").hidden, popover: document.querySelector(".afw-ui-shell-sidebar").hasAttribute("popover"), errors: window.__errors }; })()`);
+  check(wide.layout === "sidebar" && wide.sidebar && !wide.popover, "the sidebar is a visible column", wide);
+  check(wide.menu, "no menu button");
+  check(wide.errors.length === 0, "nothing logged", wide.errors);
+  await press("Tab");
+  check(await js(`document.activeElement.classList.contains("afw-ui-skip-link")`), "Tab reaches the skip link first");
+  await press("Enter");
+  check(await until(`document.activeElement?.tagName === "MAIN"`), "Enter on it moves focus to main");
+
+  console.log("\n▶ app shell: narrow (drawer)");
+  await viewport(600);
+  await load({ path: "/shell/" });
+  check(await until(`document.querySelector(".afw-ui-shell").dataset.layout === "drawer"`), "a narrow screen switches to the drawer layout");
+  await sleep(300); // the switch hides the sidebar through a short display transition
+  const narrow = await js(`({ menu: !document.querySelector(".afw-ui-shell-menu-button").hidden, role: document.querySelector(".afw-ui-shell-sidebar").getAttribute("role"), shown: document.querySelector(".afw-ui-shell-sidebar").checkVisibility() })`);
+  check(narrow.menu && narrow.role === "dialog" && !narrow.shown, "the menu button shows; the sidebar is a hidden dialog", narrow);
+  await js(`document.querySelector(".afw-ui-shell-menu-button").focus()`);
+  await press("Enter");
+  check(await until(`document.querySelector(".afw-ui-shell-sidebar").matches(":popover-open")`), "Enter on the menu button opens the drawer");
+  const opened = await js(`({ modal: document.querySelector(".afw-ui-shell-sidebar").getAttribute("aria-modal"), inert: document.querySelector("main").inert, focus: document.querySelector(".afw-ui-shell-sidebar").contains(document.activeElement), x: Math.round(document.querySelector(".afw-ui-shell-sidebar").getBoundingClientRect().left) })`);
+  check(opened.modal === "true" && opened.inert && opened.focus, "it is modal: the page is inert and focus is inside", opened);
+  await press("Escape");
+  check(await until(`!document.querySelector(".afw-ui-shell-sidebar").matches(":popover-open")`), "Esc closes it");
+  check(await js(`document.activeElement.classList.contains("afw-ui-shell-menu-button") && !document.querySelector("main").inert`), "focus returns to the menu button; the page is live again");
+  await viewport(1100);
 
   const late = await js(`window.__errors`);
   check(late.length === 0, "nothing logged during the session", late);

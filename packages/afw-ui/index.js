@@ -25,5 +25,8 @@ export { Accordion, AccordionItem } from "./components/Accordion.jsx";
 export { Field, TextField, Textarea } from "./components/Field.jsx";
 export { Checkbox, Switch, RadioGroup, Radio, Select } from "./components/Choice.jsx";
 export { Combobox } from "./components/Combobox.jsx";
+export { Stack, Inline, Grid, Card, Divider } from "./components/Layout.jsx";
+export { AppShell, AppShellHeader, AppShellMenuButton, AppShellSidebar, AppShellMain } from "./components/AppShell.jsx";
+export { SideNav, SideNavItem, SideNavGroup, PageHeader, Breadcrumbs, Pagination, pageRange } from "./components/Navigation.jsx";
 export { Toaster, toast, dismissToast, clearToasts } from "./components/Toast.jsx";
 export { announce } from "./internal/announce.js";

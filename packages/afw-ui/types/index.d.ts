@@ -133,6 +133,50 @@ export const Combobox: Component<{
   resultsText?: (count: number) => string;
 }>;
 
+type Space = "xs" | "sm" | "md" | "lg" | "xl";
+export const Stack: Component<{ gap?: Space; align?: "start" | "center" | "end"; children?: Child }>;
+export const Inline: Component<{
+  gap?: Space;
+  align?: "start" | "center" | "end" | "baseline";
+  justify?: "start" | "center" | "end" | "between";
+  wrap?: boolean;
+  children?: Child;
+}>;
+/** As many columns as fit at `min` wide (a CSS length), down to one. */
+export const Grid: Component<{ min?: string; gap?: Space; children?: Child }>;
+export const Card: Component<{ children?: Child }>;
+export const Divider: Component<{}>;
+
+export const AppShell: Component<{
+  /** Below this width (a CSS length) the sidebar is a drawer. Default "64rem". */
+  drawerBelow?: string;
+  skipLabel?: string;
+  children?: Child;
+}>;
+export const AppShellHeader: Component<{ children?: Child }>;
+export const AppShellMenuButton: Component<{ label?: string }>;
+export const AppShellSidebar: Component<{ label?: string; children?: Child }>;
+export const AppShellMain: Component<{ children?: Child }>;
+
+export const SideNav: Component<{ label?: string; children?: Child }>;
+export const SideNavItem: Component<{ href: string; exact?: boolean; children?: Child }>;
+export const SideNavGroup: Component<{ label: Child; open?: boolean; children?: Child }>;
+export const PageHeader: Component<{ title: Child; description?: Child; children?: Child }>;
+export const Breadcrumbs: Component<{ items: { label: Child; href: string }[]; label?: string }>;
+export const Pagination: Component<{
+  page: number;
+  pageCount: number;
+  onPageChange?: (page: number) => void;
+  /** Render links (a URL per page) instead of buttons. */
+  href?: (page: number) => string;
+  siblings?: number;
+  label?: string;
+  previousLabel?: string;
+  nextLabel?: string;
+  pageLabel?: (page: number) => string;
+}>;
+export function pageRange(page: number, count: number, siblings?: number): (number | "…")[];
+
 export interface ToastOptions {
   title?: string;
   tone?: "info" | "success" | "warning" | "danger";
