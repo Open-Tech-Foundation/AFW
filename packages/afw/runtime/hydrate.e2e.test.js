@@ -19,6 +19,7 @@ import { effect, signal } from "../core/signals.js";
 import {
   attr,
   beginHydrationCollect,
+  componentId as ssgComponentId,
   defineSSG,
   endHydrationCollect,
   ssgComponent,
@@ -43,6 +44,7 @@ import {
   claimRegionEnd,
   claimRegionStart,
   claimText,
+  componentId,
   cursor,
   endHydration,
   handleError,
@@ -904,6 +906,107 @@ describe.skipIf(!hasBin)("hydration construct matrix (ssg → hydrate, no rebuil
       expect(probe.parentNode).toBe(host.querySelector(".slot"));
     } finally {
       host.remove();
+    }
+  });
+});
+
+// `$id()` (SPEC §3.6): the server stamps each host's id base as `data-afw-uid`, and the
+// adopting component reads it back, so ARIA links survive hydration unchanged; a host the
+// client builds later gets its own `c` base that cannot collide with a server one.
+describe.skipIf(!hasBin)("$id() across ssg → hydrate → client build", () => {
+  const fieldSource =
+    "export default function Field({ label }) {" +
+    " const inputId = $id(); const hintId = $id();" +
+    " return <div><label htmlFor={inputId}>{label}</label>" +
+    "<input id={inputId} aria-describedby={hintId} /><p id={hintId}>hint</p></div>; }";
+
+  // The three ids one host links together: label→input and input→hint must agree.
+  function linked(host) {
+    const label = host.querySelector("label");
+    const input = host.querySelector("input");
+    const hint = host.querySelector("p");
+    expect(label.getAttribute("for")).toBe(input.id);
+    expect(input.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(input.id).not.toBe(hint.id);
+    return { input, hint };
+  }
+
+  // Named `Field` (not the suite's usual `Panel`): the tag is per name + module, and an
+  // earlier test already registered `Panel` from the same module path.
+  test("server ids are stamped per host, adopted unchanged, and client builds never collide", async () => {
+    // 1. Server-render two instances through `ssgComponent`, as a parent page would.
+    const ssgFn = loadComponent(await compile(fieldSource, "ssg", true), "Field_ssg", {
+      attr,
+      ssgText,
+      defineSSG,
+      componentId: ssgComponentId,
+    });
+    const html = ssgComponent(ssgFn.tag, { label: "Name" }, "") + ssgComponent(ssgFn.tag, { label: "Email" }, "");
+    const bases = [...html.matchAll(/data-afw-uid="([a-z]\d+)"/g)].map((m) => m[1]);
+    expect(bases.length).toBe(2);
+    expect(bases[0]).not.toBe(bases[1]); // one base per instance
+    expect(html).toContain(`id="afw-${bases[0]}-0"`);
+    expect(html).toContain(`id="afw-${bases[1]}-1"`);
+
+    // 2. Adopt both during the first-paint pass. Reading `.tag` defines the element, which
+    //    upgrades the connected server hosts — each takes the adopt arm.
+    const Field = loadComponent(await compile(fieldSource, "hydrate", true), "FieldElement", {
+      signal,
+      bindText,
+      bindAttr,
+      cursor,
+      claimElement,
+      claimText,
+      skipNode,
+      hydrationProps,
+      isHydrating,
+      runBuild,
+      HydrationMismatch,
+      reportError,
+      handleError,
+      componentId,
+    });
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const serverInputs = [...container.querySelectorAll("input")];
+    const serverIds = serverInputs.map((i) => i.id);
+    const errors = [];
+    const onError = (e) => errors.push(e.detail);
+    window.addEventListener("afw:error", onError);
+    beginHydration();
+    try {
+      document.body.appendChild(container);
+      const tag = Field.tag;
+      for (const host of container.querySelectorAll(tag)) if (!host._mounted) host.connectedCallback();
+    } finally {
+      endHydration();
+      window.removeEventListener("afw:error", onError);
+    }
+
+    try {
+      expect(errors).toEqual([]);
+      const hosts = [...container.querySelectorAll(Field.tag)];
+      expect(hosts.length).toBe(2);
+      hosts.forEach((host, i) => {
+        expect(host._mounted).toBe(true);
+        const { input } = linked(host);
+        expect(input).toBe(serverInputs[i]); // adopted, not rebuilt
+        expect(input.id).toBe(serverIds[i]); // the bound id is the server's
+      });
+
+      // 3. Client builds (an SPA navigation) take fresh `c` bases.
+      const fresh = [document.createElement(Field.tag), document.createElement(Field.tag)];
+      for (const host of fresh) document.body.appendChild(host);
+      try {
+        const freshIds = fresh.map((host) => linked(host).input.id);
+        for (const id of freshIds) expect(id).toMatch(/^afw-c\d+-0$/);
+        expect(freshIds[0]).not.toBe(freshIds[1]);
+        for (const id of freshIds) expect(serverIds).not.toContain(id);
+      } finally {
+        for (const host of fresh) host.remove();
+      }
+    } finally {
+      container.remove();
     }
   });
 });

@@ -274,10 +274,16 @@ export function ssgComponent(tag, props, children) {
   // A `<ContextProvider>`'s children arrive as a thunk: render them with its value in scope.
   if (typeof children === "function") children = ssgProvide(props?.context, props?.value, children);
   let inner;
+  // The `$id()` frame for this host: its base is allocated on the body's first
+  // `componentId` call, and stamped on the host below.
+  const frame = { uid: null };
+  idFrames.push(frame);
   try {
     inner = render ? render(props || {}, children ?? "") : (children ?? "");
   } catch {
     inner = ""; // fail soft (client renders/handles it)
+  } finally {
+    idFrames.pop();
   }
   // Stamp the stable styling hook on the host (mirrors CSR's `classList.add`) so
   // tag-hashed components are still styleable by a readable class name, plus the
@@ -289,6 +295,8 @@ export function ssgComponent(tag, props, children) {
   // before any script runs — see `afw-internal-context-provider`, whose subtree is
   // resolved by `closest()` at custom-element upgrade time.
   if (render && render.hostAttrs) attrs += render.hostAttrs(props || {}) || "";
+  // The host's `$id()` base, read back by the client's `componentId` when it adopts.
+  if (frame.uid != null) attrs += ` data-afw-uid="${frame.uid}"`;
   if (id != null) {
     attrs += ` data-h="${id}"`;
   } else {
@@ -298,6 +306,36 @@ export function ssgComponent(tag, props, children) {
     if (inline) attrs += ` data-hp="${inline}"`;
   }
   return `<${tag}${attrs}>${inner}</${tag}>`;
+}
+
+/*
+ * `$id()` on the server (SPEC §3.6). Rendering is synchronous, so the components
+ * being rendered are a stack of frames (`ssgComponent`). The n-th `$id()` of a body
+ * is `afw-<base>-<n>`, where the base is allocated once per host and stamped on it as
+ * `data-afw-uid`. Bases count per request (`s<n>`, on the render context) during a
+ * route render, and per process (`m<n>`) otherwise — an SSG build without a render
+ * context, or JSX held in module-level data rendered at import and reused across
+ * requests, which must never repeat a request's ids. Client bases are `c<n>`.
+ */
+const idFrames = [];
+let processIdSeq = 0;
+
+function nextIdBase() {
+  const context = getRenderContext();
+  if (context) {
+    const n = context.idSeq ?? 0;
+    context.idSeq = n + 1;
+    return `s${n}`;
+  }
+  return `m${processIdSeq++}`;
+}
+
+/** The `n`-th `$id()` of the component being rendered (compiler-emitted). */
+export function componentId(n) {
+  const frame = idFrames[idFrames.length - 1];
+  if (!frame) return `afw-${nextIdBase()}-${n}`;
+  frame.uid ??= nextIdBase();
+  return `afw-${frame.uid}-${n}`;
 }
 
 /*

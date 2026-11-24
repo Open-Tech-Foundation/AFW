@@ -10,6 +10,7 @@ export { clearQueryCache, invalidate } from "./invalidate.js";
 export { optimistic, setQueryData } from "./mutate.js";
 export { ServerFunctionError, serverFunction } from "./server-function.js";
 export * from "./context.js";
+export { componentId } from "./id.js";
 export * from "./error-boundary.js";
 export * from "./pending.js";
 export { enterPending, exitPending } from "./pending-scope.js";

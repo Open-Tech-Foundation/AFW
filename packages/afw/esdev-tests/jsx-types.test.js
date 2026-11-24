@@ -39,6 +39,10 @@ test("published framework types support strict TS starters and reject invalid JS
         let count = $state(initial);
         return <button onclick={event => { event.currentTarget.disabled = true; count++; }}>{count}</button>;
       }
+      export function Field({ label }: { label: string }) {
+        const inputId: string = $id();
+        return <p><label htmlFor={inputId}>{label}</label><input id={inputId} aria-describedby={inputId + "-hint"} /></p>;
+      }
       export function Layout({ children }: { children: unknown }) { return <main>{children}</main>; }
       export function Home() {
         return <Layout><h1>{router.data?.message}</h1><Counter initial={1}/>
@@ -65,6 +69,8 @@ test("published framework types support strict TS starters and reject invalid JS
       const Annotated: Lazy<typeof Chart> = () => Promise.resolve({ default: Chart });
       const Named = () => Promise.resolve({ Chart }).then((m) => m.Chart);
       const lazyOk = <div><LazyChart data={[1]} /><Annotated data={[2]} title="t" /><Named data={[3]} /></div>;
+      // @ts-expect-error $id() takes no arguments
+      $id("name");
       // @ts-expect-error a lazy component's required props are checked
       const lazyMissing = <LazyChart />;
       // @ts-expect-error and their types

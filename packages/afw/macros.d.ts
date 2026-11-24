@@ -17,6 +17,12 @@ declare global {
   function $ref<T = any>(): T;
   /** The value of the nearest `<ContextProvider>` for `context`. */
   function $context<T>(context: Context<T>): T;
+  /**
+   * A stable, hydration-safe id for this component instance, unique on the page:
+   * use it for `id`/`for`/`aria-labelledby`/`aria-controls`/`anchor-name`. Only as a
+   * top-level `const name = $id();` in a component (not a page/layout).
+   */
+  function $id(): string;
   /** Publish methods on this component's element for a parent holding its `$ref`. */
   function $expose(api: Record<string, unknown>): void;
 

@@ -4,8 +4,10 @@
 
 import { afterEach, describe, expect, test } from "runtime:test";
 
+import { setRenderContextReader } from "../core/render-context.js";
 import {
   beginHydrationCollect,
+  componentId,
   defineSSG,
   endHydrationCollect,
   ssgAttrs,
@@ -210,5 +212,58 @@ describe("ssgParagraph", () => {
     for (const html of ["a <x-b><span>b</span></x-b>", "a <x-b><div>b</div></x-b>"]) {
       expect(ssgParagraph(html, "<B>")).toBe(html);
     }
+  });
+});
+
+// `$id()` on the server (SPEC §3.6): the compiled body calls `componentId(n)`; the
+// host it renders inside gets one base, stamped as `data-afw-uid` for the client.
+describe("componentId", () => {
+  const readerOff = () => setRenderContextReader(() => undefined);
+  afterEach(readerOff);
+
+  test("one base per host, stamped on it, and suffixed per call", () => {
+    const tag = register("afw-idfield", () => `<label for="${componentId(0)}"></label><p id="${componentId(1)}"></p>`);
+    const html = ssgComponent(tag, {}, "");
+    const base = html.match(/data-afw-uid="(m\d+)"/)[1];
+    expect(html).toContain(`for="afw-${base}-0"`);
+    expect(html).toContain(`id="afw-${base}-1"`);
+  });
+
+  test("a host whose body never calls $id() gets no attribute", () => {
+    const tag = register("afw-noid", () => "<i></i>");
+    expect(ssgComponent(tag, {}, "")).not.toContain("data-afw-uid");
+  });
+
+  test("nested hosts get their own bases, and the parent's ids stay its own", () => {
+    const child = register("afw-idchild", () => `<b id="${componentId(0)}"></b>`);
+    const parent = register("afw-idparent", () => {
+      const before = componentId(0);
+      const inner = ssgComponent(child, {}, "");
+      return `<i id="${before}"></i>${inner}<u id="${componentId(1)}"></u>`;
+    });
+    const html = ssgComponent(parent, {}, "");
+    const [outer, inner] = [...html.matchAll(/data-afw-uid="(\w+)"/g)].map((m) => m[1]);
+    expect(outer).not.toBe(inner);
+    expect(html).toContain(`<i id="afw-${outer}-0">`);
+    expect(html).toContain(`<b id="afw-${inner}-0">`);
+    expect(html).toContain(`<u id="afw-${outer}-1">`); // after the child, still the parent's base
+  });
+
+  test("a route render counts bases per request, apart from process-wide ones", () => {
+    const tag = register("afw-idreq", () => `<p id="${componentId(0)}"></p>`);
+    let context = {};
+    setRenderContextReader(() => context);
+    const first = ssgComponent(tag, {}, "") + ssgComponent(tag, {}, "");
+    context = {}; // the next request
+    const second = ssgComponent(tag, {}, "");
+    expect(first).toContain('data-afw-uid="s0"');
+    expect(first).toContain('data-afw-uid="s1"');
+    expect(second).toContain('data-afw-uid="s0"'); // deterministic per request
+    readerOff();
+    expect(ssgComponent(tag, {}, "")).toMatch(/data-afw-uid="m\d+"/); // never an `s` base
+  });
+
+  test("a call outside any host still yields a unique id", () => {
+    expect(componentId(0)).not.toBe(componentId(0));
   });
 });

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- `$id()`: a stable, unique id for a component instance, for `for`/`id`,
+  `aria-labelledby`, `aria-controls`, `popovertarget` and `anchor-name` links. The server
+  stamps each host's id base as `data-afw-uid` and hydration reads it back, so ids match
+  the server HTML; hosts built on the client get their own base that cannot collide with
+  a server one. Typed in the macro globals (`$id(): string`).
+
 ## [0.41.0] - 2026-11-19
 
 ### Added

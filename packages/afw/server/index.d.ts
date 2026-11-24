@@ -177,6 +177,8 @@ export function ssgComponent(tag: string, props?: Record<string, unknown>, child
 /** Render `children()` with `context` provided as `value` (a server-rendered `<ContextProvider>`). */
 export function ssgProvide(context: unknown, value: unknown, children: () => string): string;
 /** `$context(context)` on the server: the nearest provided value, else the context's default. */
+/** The `n`-th `$id()` of the component being server-rendered (compiler-emitted). */
+export function componentId(n: number): string;
 export function ssgContext<T>(context: { fallback: { value: T } }): { value: T };
 
 // ── Server functions (server-functions.js, docs/SERVER_FUNCTIONS.md) ───────────
