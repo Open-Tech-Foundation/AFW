@@ -1,0 +1,121 @@
+// Types for @opentf/afw-ui. Every component also accepts the attributes of the element
+// it renders (`aria-*`, `data-*`, `id`, `name`, …): they are forwarded with `...rest`.
+
+type Child = unknown;
+type Attrs = Record<string, unknown>;
+type Component<P> = (props: P & Attrs) => Node;
+type Placement =
+  | "bottom-start" | "bottom" | "bottom-end"
+  | "top-start" | "top" | "top-end"
+  | "right-start" | "right" | "left-start" | "left";
+
+export const Button: Component<{
+  variant?: "primary" | "secondary" | "ghost" | "danger" | (string & {});
+  size?: "sm" | "md" | "lg";
+  type?: "button" | "submit" | "reset";
+  /** Busy: `aria-busy`, still focusable, clicks ignored. */
+  loading?: boolean;
+  children?: Child;
+}>;
+export const VisuallyHidden: Component<{ children?: Child }>;
+
+export const Dialog: Component<{
+  open?: boolean;
+  defaultOpen?: boolean;
+  /** `returnValue` is the closing button's `value` ("" when dismissed). */
+  onOpenChange?: (open: boolean, returnValue: string) => void;
+  children?: Child;
+}>;
+export const DialogTrigger: Component<{ children?: Child }>;
+export const DialogContent: Component<{
+  /** How it may be dismissed: "any" adds click outside; "none" only by its buttons. */
+  closedby?: "any" | "closerequest" | "none";
+  children?: Child;
+}>;
+export const DialogTitle: Component<{ children?: Child }>;
+export const DialogDescription: Component<{ children?: Child }>;
+export const DialogClose: Component<{ value?: string; children?: Child }>;
+
+export const Popover: Component<{
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: Child;
+}>;
+export const PopoverTrigger: Component<{ children?: Child }>;
+export const PopoverContent: Component<{ placement?: Placement; mode?: "auto" | "manual"; children?: Child }>;
+export const PopoverClose: Component<{ children?: Child }>;
+
+export const Tooltip: Component<{
+  content: Child;
+  placement?: Placement;
+  /** Hover delay in ms before it opens (fallback path; native uses `interest-delay`). */
+  delay?: number;
+  children?: Child;
+}>;
+
+export const Menu: Component<{ children?: Child }>;
+export const MenuTrigger: Component<{ children?: Child }>;
+export const MenuContent: Component<{ placement?: Placement; children?: Child }>;
+export const MenuItem: Component<{
+  /** A destination: renders a link that still opens in a new tab and works without script. */
+  href?: string;
+  disabled?: boolean;
+  /** Runs on activation; call `event.preventDefault()` to keep the menu open. */
+  onSelect?: (event: Event) => void;
+  children?: Child;
+}>;
+export const MenuCheckboxItem: Component<{
+  checked?: boolean;
+  disabled?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  children?: Child;
+}>;
+export const MenuRadioGroup: Component<{ label: string; value?: string; onValueChange?: (value: string) => void; children?: Child }>;
+export const MenuRadioItem: Component<{ value: string; disabled?: boolean; children?: Child }>;
+export const MenuSeparator: Component<{}>;
+
+export const Tabs: Component<{
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  /** "automatic": selection follows focus. "manual": Enter/Space select. */
+  activation?: "automatic" | "manual";
+  children?: Child;
+}>;
+export const TabList: Component<{ children?: Child }>;
+export const Tab: Component<{ value: string; disabled?: boolean; children?: Child }>;
+export const TabPanel: Component<{ value: string; children?: Child }>;
+
+export const Accordion: Component<{ type?: "single" | "multiple"; children?: Child }>;
+export const AccordionItem: Component<{ summary: Child; open?: boolean; onOpenChange?: (open: boolean) => void; children?: Child }>;
+
+export const Field: Component<{ label: Child; description?: Child; error?: Child; required?: boolean; children?: Child }>;
+export const TextField: Component<{ value?: string; type?: string; onValueChange?: (value: string) => void }>;
+export const Textarea: Component<{ value?: string; onValueChange?: (value: string) => void }>;
+export const Checkbox: Component<{ checked?: boolean; indeterminate?: boolean; onCheckedChange?: (checked: boolean) => void; children?: Child }>;
+export const Switch: Component<{ checked?: boolean; onCheckedChange?: (checked: boolean) => void; children?: Child }>;
+export const RadioGroup: Component<{
+  label: Child;
+  name?: string;
+  value?: string;
+  description?: Child;
+  onValueChange?: (value: string) => void;
+  children?: Child;
+}>;
+export const Radio: Component<{ value: string; children?: Child }>;
+export const Select: Component<{ value?: string; onValueChange?: (value: string) => void; children?: Child }>;
+
+export interface ToastOptions {
+  title?: string;
+  tone?: "info" | "success" | "warning" | "danger";
+  /** Dismiss after this many ms (paused while the pointer or focus is inside). Default: until closed. */
+  duration?: number;
+}
+export const Toaster: Component<{ label?: string; closeLabel?: string }>;
+export function toast(message: string, options?: ToastOptions): number;
+export function dismissToast(id: number): void;
+export function clearToasts(): void;
+
+/** Announce text to screen readers without moving focus. */
+export function announce(text: string, options?: { priority?: "normal" | "high" }): void;

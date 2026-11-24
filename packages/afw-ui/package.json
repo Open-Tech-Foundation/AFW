@@ -1,0 +1,49 @@
+{
+  "name": "@opentf/afw-ui",
+  "version": "0.1.0",
+  "description": "Accessible, headless UI components for AFW, built on the platform's native dialog, popover and form controls.",
+  "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "types",
+    "components",
+    "internal",
+    "!**/*.test.js"
+  ],
+  "keywords": [
+    "afw",
+    "opentf",
+    "ui",
+    "headless",
+    "accessibility",
+    "a11y",
+    "components"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Open-Tech-Foundation/afw.git",
+    "directory": "packages/afw-ui"
+  },
+  "homepage": "https://afw.opentechf.org/packages/afw-ui",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
+  "license": "MIT",
+  "peerDependencies": {
+    "@opentf/afw": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@opentf/afw": "workspace:*",
+    "@opentf/afw-test": "workspace:*"
+  }
+}
