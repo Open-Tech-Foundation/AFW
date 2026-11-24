@@ -126,6 +126,11 @@ pub struct PropDecl {
     pub default: Option<String>,
 }
 
+/// Attributes the framework puts on a component host (the server's island-props id and
+/// inline props, and the `$id()` base). A `...rest` snapshot never forwards them: they
+/// describe the host, and copied onto an inner element they would be read as its own.
+pub const HOST_MARKER_ATTRS: &[&str] = &["data-h", "data-hp", "data-afw-uid"];
+
 /// A `...rest` prop (`{ a, ...others }`): a static snapshot of the element's
 /// attributes minus the explicitly named props (SPEC §2.7). Non-reactive — the
 /// rest object captures values once at connect.

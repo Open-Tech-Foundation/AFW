@@ -17,6 +17,12 @@
   (`<Tabs>` around its `<Tab>`s) now provides to them on the server; they used to read
   the context default and render different markup than the client. Slotted content also
   renders once: a destructured `children` value no longer renders it a second time.
+- Server rendering supports rest props (`function Button({ variant, ...rest })`) and
+  nested prop destructures (`{ user: { name } }`). Both used to emit a warning and render
+  the component as empty HTML until the client rebuilt it.
+- A rest-prop snapshot no longer copies the host's styling hook (`afw-<name>`) or the
+  framework's host markers (`data-h`, `data-hp`, `data-afw-uid`) onto the element it is
+  spread on. The consumer's own classes still forward.
 
 ## [0.28.0] - 2026-11-19
 

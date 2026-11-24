@@ -137,6 +137,38 @@ impl Uses {
     }
 }
 
+/// The statements building a component's `...rest` snapshot (SPEC §2.7): the host's
+/// attributes minus the named props and the framework's host markers. The host's own
+/// styling hook (`afw-<name>`, stamped before the body runs) is taken out of `class`, so
+/// spreading `rest` onto the component's root does not give that element the host's
+/// class too — the consumer's own classes still forward. Shared by the CSR and hydrate
+/// bodies; empty when the component has no rest prop.
+pub(crate) fn rest_snapshot(lowered: &Lowered) -> Vec<String> {
+    let Some(rest) = &lowered.rest else { return Vec::new() };
+    let excl = rest
+        .exclude
+        .iter()
+        .map(String::as_str)
+        .chain(crate::lower::HOST_MARKER_ATTRS.iter().copied())
+        .map(js_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let name = &rest.name;
+    let mut lines = vec![
+        format!("const {name} = {{}};"),
+        format!(
+            "for (const __a of Array.from(this.attributes)) if (![{excl}].includes(__a.name)) {name}[__a.name] = __a.value;"
+        ),
+    ];
+    if !rest.exclude.iter().any(|k| k == "class") {
+        let hook = js_string(&tags::css_hook(&lowered.name));
+        lines.push(format!(
+            "if ({name}.class != null) {{ const __c = {name}.class.split(/\\s+/).filter((c) => c && c !== {hook}).join(\" \"); if (__c) {name}.class = __c; else delete {name}.class; }}"
+        ));
+    }
+    lines
+}
+
 /// Build the `import { … } from "@opentf/afw";` header for the given helper usage,
 /// merged with the source's own runtime imports (deduped).
 fn import_header(uses: &Uses, runtime_imports: &[String]) -> String {
@@ -1310,14 +1342,8 @@ impl<'a> Emitter<'a> {
     /// Emit the `...rest` snapshot: a plain object of the element's attributes
     /// excluding the named props (SPEC §2.7). Non-reactive. Component path only.
     fn emit_rest(&mut self) {
-        if let Some(rest) = &self.lowered.rest {
-            let excl =
-                rest.exclude.iter().map(|k| js_string(k)).collect::<Vec<_>>().join(", ");
-            self.lines.push(format!("const {} = {{}};", rest.name));
-            self.lines.push(format!(
-                "for (const __a of Array.from(this.attributes)) if (![{excl}].includes(__a.name)) {}[__a.name] = __a.value;",
-                rest.name
-            ));
+        for line in rest_snapshot(self.lowered) {
+            self.lines.push(line);
         }
     }
 
@@ -2529,6 +2555,14 @@ mod tests {
     }
 
     #[test]
+    fn rest_snapshot_drops_the_host_hook_from_class_unless_class_is_named() {
+        let m = emit_component(&lower("export function Btn({ ...rest }) { return <button {...rest}/>; }"));
+        assert!(m.code.contains("c !== \"afw-btn\""), "code: {}", m.code);
+        let m = emit_component(&lower("export function Btn({ class: cls, ...rest }) { return <button class={cls} {...rest}/>; }"));
+        assert!(!m.code.contains("c !== \"afw-btn\""), "class is named, not in rest: {}", m.code);
+    }
+
+    #[test]
     fn component_emits_rest_snapshot() {
         let m = emit_component(&lower(
             "export function C({ a, ...rest }) { return <p>{a}{rest.b}</p>; }",
@@ -2538,7 +2572,7 @@ mod tests {
         assert!(m.code.contains("static observedAttributes = [\"a\"];"), "code: {}", m.code);
         assert!(m.code.contains("const rest = {};"), "code: {}", m.code);
         assert!(
-            m.code.contains("for (const __a of Array.from(this.attributes)) if (![\"a\"].includes(__a.name)) rest[__a.name] = __a.value;"),
+            m.code.contains("for (const __a of Array.from(this.attributes)) if (![\"a\", \"data-h\", \"data-hp\", \"data-afw-uid\"].includes(__a.name)) rest[__a.name] = __a.value;"),
             "code: {}",
             m.code
         );

@@ -292,9 +292,27 @@ impl<'a> Emitter<'a> {
                 ));
             }
         }
-        if lowered.rest.is_some() || !lowered.prop_snapshots.is_empty() {
-            self.errors
-                .push("SSG: rest props / destructure snapshots not supported yet".into());
+        // Nested destructures: a one-time snapshot of the prop's value, as on the client.
+        for s in &lowered.prop_snapshots {
+            out.push_str(&format!("const {} = ({}.value ?? {});\n", s.pattern, s.source, s.empty));
+        }
+        // `...rest`: every prop the call site passed except the named ones and the slot —
+        // what the client snapshots from the host's attributes. Spread onto an element,
+        // `ssgAttrs` drops functions (event handlers are client-only).
+        if let Some(rest) = &lowered.rest {
+            let excl = rest
+                .exclude
+                .iter()
+                .map(String::as_str)
+                .chain(["children"])
+                .chain(crate::lower::HOST_MARKER_ATTRS.iter().copied())
+                .map(js_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!(
+                "const {} = Object.fromEntries(Object.entries(__props ?? {{}}).filter(([__k]) => ![{excl}].includes(__k)));\n",
+                rest.name
+            ));
         }
     }
 
@@ -1251,6 +1269,25 @@ mod tests {
         let m = emit("export function Wrap({ children }) { return <div>{children}</div>; }", false);
         assert!(m.code.contains("ssgSlot(__children)"), "code:\n{}", m.code);
         assert!(m.code.contains("Wrap_ssg.lazyChildren = true;"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn rest_props_forward_every_unnamed_prop() {
+        let m = emit("export function B({ variant, children, ...rest }) { return <button data-v={variant} {...rest}>{children}</button>; }", false);
+        assert!(m.errors.is_empty(), "no unsupported-rest error: {:?}", m.errors);
+        assert!(
+            m.code.contains("const rest = Object.fromEntries(Object.entries(__props ?? {}).filter(([__k]) => ![\"variant\", \"children\", \"data-h\", \"data-hp\", \"data-afw-uid\"].includes(__k)));"),
+            "code:\n{}",
+            m.code
+        );
+        assert!(m.code.contains("(rest)]"), "spread onto the element:\n{}", m.code);
+    }
+
+    #[test]
+    fn nested_destructures_snapshot_the_prop_value() {
+        let m = emit("export function C({ user: { name, age = 1 } }) { return <p>{name}{age}</p>; }", false);
+        assert!(m.errors.is_empty(), "{:?}", m.errors);
+        assert!(m.code.contains("const { name, age = 1 } = (user.value ?? {});"), "code:\n{}", m.code);
     }
 
     #[test]

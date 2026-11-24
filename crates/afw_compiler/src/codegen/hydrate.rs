@@ -678,15 +678,10 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// `...rest` snapshot from the element's attributes (mirrors `csr::emit_rest`).
+    /// `...rest` snapshot from the element's attributes (shared with `csr::emit_rest`).
     fn emit_rest(&mut self) {
-        if let Some(rest) = &self.lowered.rest {
-            let excl = rest.exclude.iter().map(|k| js_string(k)).collect::<Vec<_>>().join(", ");
-            self.line(format!("const {} = {{}};", rest.name));
-            self.line(format!(
-                "for (const __a of Array.from(this.attributes)) if (![{excl}].includes(__a.name)) {}[__a.name] = __a.value;",
-                rest.name
-            ));
+        for line in crate::codegen::csr::rest_snapshot(self.lowered) {
+            self.line(line);
         }
     }
 
