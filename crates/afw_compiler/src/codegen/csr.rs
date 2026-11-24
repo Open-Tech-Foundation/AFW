@@ -78,6 +78,8 @@ struct Uses {
     read_context: bool,
     /// The body declares `$id()` ids (`componentId(n)`).
     component_id: bool,
+    /// An `on*` prop on a child component (`setHandler`: its callback prop, or a listener).
+    set_handler: bool,
     /// A static subtree is stamped from a hoisted `<template>` rather than built node
     /// by node (see [`Emitter::emit_template`]).
     template: bool,
@@ -122,6 +124,7 @@ impl Uses {
         self.set_prop |= o.set_prop;
         self.read_context |= o.read_context;
         self.component_id |= o.component_id;
+        self.set_handler |= o.set_handler;
         self.template |= o.template;
         self.is_hydrating |= o.is_hydrating;
         self.hydration_mismatch |= o.hydration_mismatch;
@@ -213,6 +216,9 @@ fn import_header(uses: &Uses, runtime_imports: &[String]) -> String {
     }
     if uses.component_id {
         names.push("componentId");
+    }
+    if uses.set_handler {
+        names.push("setHandler");
     }
     if uses.template {
         names.push("template");
@@ -557,6 +563,12 @@ fn component_body_ex<'a>(
         e.uses.component_id = true;
     }
     code.push_str("  connectedCallback() {\n");
+    // A connected reaction can run after the element has left the document: a parent
+    // that moves its slot children (into a `<ContextProvider>`, after `replaceChildren`)
+    // makes the browser flush each child's queued `connectedCallback` while it is
+    // detached. Building then would resolve `$context` against no provider and bind to
+    // the default for good. Skip it; the callback runs again once the element is in place.
+    code.push_str("    if (!this.isConnected) return;\n");
     // A synchronous DOM move fires disconnect→connect in the same task; cancel any
     // teardown scheduled by that disconnect so the component (and its live effects)
     // survives the move instead of being torn down and left mounted-but-dead.
@@ -1969,7 +1981,7 @@ impl<'a> Emitter<'a> {
         if is_listener(&prop.name) {
             self.emit_event_listener(el, &prop.name, &code);
         } else if is_event(&prop.name) {
-            self.line(format!("{el}.{} = {code};", prop.name.to_ascii_lowercase()));
+            self.line(element_handler(el, &prop.name, &code));
         } else {
             self.uses.bind_attr = true;
             self.bind(format!("bindAttr({el}, {}, () => ({code}))", js_string(&prop.name)));
@@ -2035,7 +2047,8 @@ impl<'a> Emitter<'a> {
         if is_listener(&prop.name) {
             self.emit_event_listener(el, &prop.name, &code);
         } else if is_event(&prop.name) {
-            self.line(format!("{el}[{}] = {code};", js_string(&prop.name)));
+            self.uses.set_handler = true;
+            self.line(format!("setHandler({el}, {}, {code});", js_string(&prop.name)));
         } else {
             self.uses.effect = true;
             self.uses.set_prop = true;
@@ -2061,6 +2074,39 @@ fn substitute_branches(template: &str, calls: &[String]) -> String {
 /// `onScroll:passive`, …). Shared with the Hydrate backend.
 pub(crate) fn is_event(prop: &str) -> bool {
     prop.len() > 2 && prop.starts_with("on")
+}
+
+/// Events every engine exposes an `on<event>` handler property for (HTML's
+/// GlobalEventHandlers, minus the ones some engines lack). Assigning the property is the
+/// fast path; for any other event (`focusin`/`focusout`, touch events on desktop,
+/// `beforematch`, custom events) the property is a plain expando the browser never calls,
+/// so those bind with `addEventListener`.
+const HANDLER_PROPERTIES: &[&str] = &[
+    "abort", "auxclick", "beforeinput", "blur", "cancel", "canplay", "canplaythrough", "change",
+    "click", "close", "contextmenu", "copy", "cuechange", "cut", "dblclick", "drag", "dragend",
+    "dragenter", "dragleave", "dragover", "dragstart", "drop", "durationchange", "emptied",
+    "ended", "error", "focus", "formdata", "gotpointercapture", "input", "invalid", "keydown",
+    "keypress", "keyup", "load", "loadeddata", "loadedmetadata", "loadstart",
+    "lostpointercapture", "mousedown", "mouseenter", "mouseleave", "mousemove", "mouseout",
+    "mouseover", "mouseup", "paste", "pause", "play", "playing", "pointercancel", "pointerdown",
+    "pointerenter", "pointerleave", "pointermove", "pointerout", "pointerover", "pointerup",
+    "progress", "ratechange", "reset", "resize", "scroll", "securitypolicyviolation", "seeked",
+    "seeking", "select", "selectionchange", "selectstart", "slotchange", "stalled", "submit",
+    "suspend", "timeupdate", "toggle", "transitioncancel", "transitionend", "transitionrun",
+    "transitionstart", "animationcancel", "animationend", "animationiteration",
+    "animationstart", "volumechange", "waiting", "wheel",
+];
+
+/// The statement binding an `on*` handler on an HTML element: the handler property for a
+/// standard event, else `addEventListener` (see [`HANDLER_PROPERTIES`]). Shared with the
+/// Hydrate backend.
+pub(crate) fn element_handler(el: &str, prop: &str, code: &str) -> String {
+    let event = prop[2..].to_ascii_lowercase();
+    if HANDLER_PROPERTIES.contains(&event.as_str()) {
+        format!("{el}.on{event} = {code};")
+    } else {
+        format!("{el}.addEventListener({}, {code});", js_string(&event))
+    }
 }
 
 /// True when an `on*` name carries listener modifiers (`onScroll:passive`) — the
@@ -2357,6 +2403,7 @@ mod tests {
              return \"afw-counter-4e54f4d4\";\n  \
              }\n  \
              connectedCallback() {\n    \
+             if (!this.isConnected) return;\n    \
              this._pendingTeardown = false;\n    \
              if (this._mounted) return;\n    \
              this._mounted = true;\n    \
@@ -2670,14 +2717,28 @@ mod tests {
 
     #[test]
     fn component_event_callback_prop_stays_a_property() {
-        // A bare `on*` on a child component is a callback prop (property), not a
-        // listener — the hybrid model's parent→child channel.
+        // A bare `on*` on a child component is a callback prop (property) when the
+        // component declares it — the hybrid model's parent→child channel. `setHandler`
+        // decides at runtime, where the child's accessors are known.
         let m = emit_component(&lower(
             "export function C() { return <Picker onSelect={pick} />; }",
         ));
         assert!(m.is_complete(), "errors: {:?}", m.errors);
-        assert!(m.code.contains("[\"onSelect\"] = pick;"), "callback prop:\n{}", m.code);
-        assert!(!m.code.contains("addEventListener"), "no listener for a callback prop:\n{}", m.code);
+        assert!(m.code.contains("setHandler(c0, \"onSelect\", pick);"), "callback prop:\n{}", m.code);
+        assert!(m.code.contains("setHandler }") || m.code.contains("setHandler,"), "imported:\n{}", m.code);
+    }
+
+    #[test]
+    fn element_events_without_a_handler_property_use_a_listener() {
+        let m = emit_component(&lower(
+            "export function C() { return <input onclick={a} onfocusout={b} onFocusIn={c} onbeforematch={d} onmy-event={e} />; }",
+        ));
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains(".onclick = a;"), "fast path for a standard handler:\n{}", m.code);
+        for (event, f) in [("focusout", "b"), ("focusin", "c"), ("beforematch", "d"), ("my-event", "e")] {
+            assert!(m.code.contains(&format!(".addEventListener(\"{event}\", {f});")), "{event}:\n{}", m.code);
+        }
+        assert!(!m.code.contains(".onfocusout ="), "never a dead expando:\n{}", m.code);
     }
 
     #[test]

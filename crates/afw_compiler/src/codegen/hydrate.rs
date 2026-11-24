@@ -1337,7 +1337,7 @@ impl<'a> Emitter<'a> {
                 if is_listener(&prop.name) {
                     self.emit_listener(el, &prop.name, &code);
                 } else if is_event(&prop.name) {
-                    self.line(format!("{el}.{} = {code};", prop.name.to_ascii_lowercase()));
+                    self.line(csr::element_handler(el, &prop.name, &code));
                 } else {
                     // Collect the disposer (like CSR) for teardown + mismatch cleanup.
                     self.bind(format!("bindAttr({el}, {}, () => ({code}))", js_string(&prop.name)));
@@ -1404,7 +1404,7 @@ impl<'a> Emitter<'a> {
                 if is_listener(&prop.name) {
                     self.emit_listener(el, &prop.name, &code);
                 } else if is_event(&prop.name) {
-                    self.line(format!("{el}[{}] = {code};", js_string(&prop.name)));
+                    self.line(format!("setHandler({el}, {}, {code});", js_string(&prop.name)));
                 } else {
                     self.bind(format!("effect(() => {{ setProp({el}, {}, ({code})); }})", js_string(&prop.name)));
                 }

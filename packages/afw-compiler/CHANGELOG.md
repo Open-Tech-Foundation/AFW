@@ -17,6 +17,16 @@
   (`<Tabs>` around its `<Tab>`s) now provides to them on the server; they used to read
   the context default and render different markup than the client. Slotted content also
   renders once: a destructured `children` value no longer renders it a second time.
+- `on*` handlers for events with no handler property (`onfocusin`, `onfocusout`, touch
+  events on desktop, `onbeforematch`, custom events) are bound with `addEventListener`.
+  They used to be assigned as properties that the browser never calls, so the handler
+  silently never ran. On a child component, `on*` props it does not declare listen on
+  its element (`setHandler`), where bubbling events from its content arrive.
+- A component whose queued `connectedCallback` runs while it is detached (a parent
+  moving its slot children into a provider, or a hot build's `replaceChildren`) waits
+  until it is connected again. It used to build right away, resolve `$context` against
+  no provider and keep the default for good — compound components such as a dialog's
+  trigger lost their context in Chrome.
 - Server rendering supports rest props (`function Button({ variant, ...rest })`) and
   nested prop destructures (`{ user: { name } }`). Both used to emit a warning and render
   the component as empty HTML until the client rebuilt it.

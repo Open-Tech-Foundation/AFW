@@ -507,6 +507,8 @@ _renderDynamic(el0, () => _waf_props.children.value);
 
 **Server (SSG/SSR)**: the call site passes its children as a thunk (`ssgComponent(tag, props, () => html)`), and the component renders them where `{children}` sits (`ssgSlot(__children)`; a `children` value is a caching `{ get __html() }`). So slotted content renders once, inside whatever the component wraps it in — a `<ContextProvider>` around its own slot provides to the slotted components on the server as on the client (`<Tabs>` providing to its `<Tab>`s). Compiled renderers are marked `lazyChildren`; built-in renderers receive plain HTML.
 
+**Detached connects**: a generated `connectedCallback` returns at once when `!this.isConnected`. A parent that moves its slot children (into a `<ContextProvider>`, or after `replaceChildren` in a hot build) makes the browser flush each child's queued connected reaction while it is detached; building then would resolve `$context` against no provider and keep the default. The callback runs again once the element is in place.
+
 ### 4.6 Exposed Properties (`$expose`)
 Components can expose methods and state to their parent via `$expose`.
 **Input**:
@@ -579,15 +581,16 @@ Spread attributes are applied via `_applySpread()`. The order of attributes in J
 
 #### 5.3.1 Normalization Rule
 The compiler applies different case normalization based on whether the target element is a native HTML element or a WAF Component.
-- **Native Elements**: Attributes starting with `on` are normalized to **lowercase** property assignments.
-- **Component Elements**: Attributes starting with `on` preserve their **original case** (typically camelCase) for property assignment.
+- **Native Elements**: Attributes starting with `on` are normalized to **lowercase**. A standard event (one every engine has an `on<event>` handler property for — `HANDLER_PROPERTIES` in csr.rs) is a property assignment; any other event (`focusin`, `focusout`, touch events on desktop, `beforematch`, custom events) is `addEventListener`, since assigning a property that does not exist creates an expando the browser never calls.
+- **Component Elements**: Attributes starting with `on` preserve their **original case** (typically camelCase) and go through `setHandler`: a callback prop the component declares, or a standard handler property, is assigned; anything else is a listener on the host, which the event reaches by bubbling from the component's content.
 
 | Target Type | JSX Pattern | Compiled Output |
 | :--- | :--- | :--- |
 | **Native** | `<button onClick={fn} />` | `el.onclick = fn;` |
 | **Native** | `<input onKeyDown={fn} />` | `el.onkeydown = fn;` |
-| **Component** | `<MyComp onDataLoad={fn} />` | `el.onDataLoad = fn;` |
-| **Component** | `<MyComp onClick={fn} />` | `el.onClick = fn;` |
+| **Native** | `<form onFocusOut={fn} />` | `el.addEventListener("focusout", fn);` |
+| **Component** | `<MyComp onDataLoad={fn} />` | `setHandler(el, "onDataLoad", fn);` |
+| **Component** | `<MyComp onClick={fn} />` | `setHandler(el, "onClick", fn);` |
 
 #### 5.3.2 Inline Handlers (No Hoisting Required)
 Unlike VDOM frameworks where inline handlers are re-created on every render, AFW component functions follow the **Init-Once** model. 
@@ -609,7 +612,7 @@ The compiler determines the normalization strategy using the following tag-name 
 #### 5.3.4 Explicit Constraints
 - **`on` Prefix Required**: Any attribute intended as an event handler MUST start with `on`. Without this prefix, it is treated as a standard attribute or property.
 - **No Automatic Cleanup**: WAF does not automatically detach event handlers assigned via properties. Developer-owned lifecycle management is expected for complex cleanup scenarios.
-- **No `addEventListener`**: The compiler always emits property assignments (`el.onclick = ...`) and never emits `addEventListener` calls.
+- **Property first**: The compiler emits property assignments (`el.onclick = ...`) for standard events, and `addEventListener` only where no handler property exists or a listener modifier (`onX:once`, `onX:listen`) asks for one.
 - **Dynamic Events Prohibited**: Dynamic event names (e.g., `<div {name}={fn} />` or `<div on={name} />`) are not supported.
 
 ### 5.4 Children Patterns
