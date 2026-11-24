@@ -102,6 +102,31 @@ Providers compose like CSS inheritance: the **nearest** ancestor wins for its su
 </ContextProvider>
 ```
 
+## Providing to your children
+
+A component can wrap its own `{children}` in a provider, so the parts placed inside it
+read it without props. This works in server rendering too: slotted children render
+inside the component, where the provider is.
+
+```jsx
+const TabsContext = createContext(null);
+
+export function Tabs({ children }) {
+  let selected = $state(0);
+  const api = { selected: () => selected, select: (i) => (selected = i) };
+  return <ContextProvider context={TabsContext} value={api}>{children}</ContextProvider>;
+}
+
+export function Tab({ index, children }) {
+  const tabs = $context(TabsContext);
+  return (
+    <button aria-selected={tabs.selected() === index} onclick={() => tabs.select(index)}>
+      {children}
+    </button>
+  );
+}
+```
+
 ## Portals
 
 Content rendered through [`<Portal>`](/docs/core-concepts/portal) keeps context from the
