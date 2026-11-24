@@ -39,6 +39,8 @@ const PAIRS = [
   ["--afw-ui-accent-text", "--afw-ui-raised", 4.5], // menu check marks
   ["--afw-ui-danger", "--afw-ui-surface", 4.5], // field errors
   ["--afw-ui-on-danger", "--afw-ui-danger", 4.5], // danger button text
+  ["--afw-ui-accent-text", "--afw-ui-accent-wash", 4.5], // current side-nav item and page
+  ["--afw-ui-accent-edge", "--afw-ui-accent-wash", 3], // its edge
   ["--afw-ui-accent-edge", "--afw-ui-surface", 3], // focus ring, selected tab
   ["--afw-ui-accent-edge", "--afw-ui-raised", 3], // menu item edge
   ["--afw-ui-accent-edge", "--afw-ui-subtle", 3],

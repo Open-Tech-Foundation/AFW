@@ -38,6 +38,14 @@
     outline: none;
   }
 
+  /* A component renders inside its host element (light DOM). When a host holds nothing
+     but one kit part, let the part be the box its parent lays out — a Card in a Grid, an
+     Inline in a card footer, a Button in a flex row — instead of an inline wrapper. Hosts
+     carry the compiler's `afw-<name>` hook; kit parts carry `afw-ui-*`. */
+  [class^="afw-"]:not([class^="afw-ui-"]):has(> [class^="afw-ui-"]:only-child) {
+    display: contents;
+  }
+
   /* Interest invokers (tooltips): a short wait before showing, a shorter one before hiding. */
   [interestfor] {
     interest-delay-start: 400ms;
@@ -625,6 +633,377 @@
   .afw-ui-accordion-content {
     padding: 0 0.25rem 0.75rem;
     color: var(--afw-ui-ink);
+  }
+
+  /* Layout primitives ------------------------------------------------------------------- */
+  :is(.afw-ui-stack, .afw-ui-inline, .afw-ui-grid) {
+    --afw-ui-step: 1rem;
+    gap: calc(var(--afw-ui-step) * var(--afw-ui-space));
+  }
+  :is(.afw-ui-stack, .afw-ui-inline, .afw-ui-grid)[data-gap="xs"] { --afw-ui-step: 0.25rem; }
+  :is(.afw-ui-stack, .afw-ui-inline, .afw-ui-grid)[data-gap="sm"] { --afw-ui-step: 0.5rem; }
+  :is(.afw-ui-stack, .afw-ui-inline, .afw-ui-grid)[data-gap="lg"] { --afw-ui-step: 1.5rem; }
+  :is(.afw-ui-stack, .afw-ui-inline, .afw-ui-grid)[data-gap="xl"] { --afw-ui-step: 2.5rem; }
+  .afw-ui-stack {
+    display: flex;
+    flex-direction: column;
+  }
+  .afw-ui-stack[data-align="start"] { align-items: start; }
+  .afw-ui-stack[data-align="center"] { align-items: center; }
+  .afw-ui-stack[data-align="end"] { align-items: end; }
+  .afw-ui-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .afw-ui-inline[data-nowrap] { flex-wrap: nowrap; }
+  .afw-ui-inline[data-align="start"] { align-items: start; }
+  .afw-ui-inline[data-align="end"] { align-items: end; }
+  .afw-ui-inline[data-align="baseline"] { align-items: baseline; }
+  .afw-ui-inline[data-justify="center"] { justify-content: center; }
+  .afw-ui-inline[data-justify="end"] { justify-content: end; }
+  .afw-ui-inline[data-justify="between"] { justify-content: space-between; }
+  /* As many columns as fit at --afw-ui-grid-min, never wider than the container. */
+  .afw-ui-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--afw-ui-grid-min, 16rem), 100%), 1fr));
+  }
+  .afw-ui-divider {
+    margin: 0;
+    border: 0;
+    border-block-start: 1px solid var(--afw-ui-line);
+  }
+
+  /* Card: a panel in the page — a line, no shadow. Regions are its direct children. */
+  .afw-ui-card {
+    container-type: inline-size;
+    display: grid;
+    gap: calc(0.75rem * var(--afw-ui-space));
+    align-content: start;
+    block-size: 100%;
+    padding: calc(1rem * var(--afw-ui-space));
+    border: 1px solid var(--afw-ui-line);
+    border-radius: var(--afw-ui-radius-overlay);
+    background: var(--afw-ui-surface);
+    color: var(--afw-ui-ink);
+    font-size: var(--afw-ui-text-md);
+    line-height: var(--afw-ui-leading);
+  }
+  .afw-ui-card > :is(h1, h2, h3, h4, hgroup, header, p, ul, dl) {
+    margin: 0;
+  }
+  .afw-ui-card > :is(h2, h3, h4) {
+    font-size: var(--afw-ui-text-lg);
+    font-weight: 600;
+  }
+  .afw-ui-card > :is(img, picture, video, svg):first-child {
+    inline-size: calc(100% + 2 * 1rem * var(--afw-ui-space));
+    max-inline-size: none;
+    margin: calc(-1rem * var(--afw-ui-space)) calc(-1rem * var(--afw-ui-space)) 0;
+    border-start-start-radius: inherit;
+    border-start-end-radius: inherit;
+    object-fit: cover;
+  }
+  .afw-ui-card > footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--afw-ui-gap);
+    padding-block-start: calc(0.75rem * var(--afw-ui-space));
+    border-block-start: 1px solid var(--afw-ui-line);
+  }
+
+  /* App shell --------------------------------------------------------------------------- */
+  .afw-ui-shell {
+    --afw-ui-sidebar-w: 16rem;
+    display: grid;
+    grid-template: "header header" auto "sidebar main" 1fr / var(--afw-ui-sidebar-w) minmax(0, 1fr);
+    min-block-size: 100dvh;
+    background: var(--afw-ui-canvas);
+    color: var(--afw-ui-ink);
+    font-family: var(--afw-ui-font);
+  }
+  .afw-ui-shell[data-layout="drawer"] {
+    grid-template: "header" auto "main" 1fr / minmax(0, 1fr);
+  }
+  /* The parts render inside their component's host element; let the landmarks
+     themselves be the grid items. */
+  .afw-ui-shell > :not(.afw-ui-skip-link) {
+    display: contents;
+  }
+  .afw-ui-skip-link {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-start: 0.5rem;
+    z-index: 10;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--afw-ui-radius-control);
+    background: var(--afw-ui-accent);
+    color: var(--afw-ui-accent-ink);
+    font-weight: 600;
+    text-decoration: none;
+    translate: 0 -200%;
+  }
+  .afw-ui-skip-link:focus-visible {
+    translate: 0 0;
+  }
+  .afw-ui-shell-header {
+    grid-area: header;
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--afw-ui-gap);
+    min-block-size: 3.25rem;
+    padding-inline: calc(1rem * var(--afw-ui-space));
+    border-block-end: 1px solid var(--afw-ui-line);
+    background: var(--afw-ui-surface);
+  }
+  .afw-ui-shell-menu-button {
+    display: inline-grid;
+    place-items: center;
+    inline-size: var(--afw-ui-control-h);
+    block-size: var(--afw-ui-control-h);
+    border: 1px solid var(--afw-ui-control-border);
+    border-radius: var(--afw-ui-radius-control);
+    background: var(--afw-ui-surface);
+    color: var(--afw-ui-ink);
+    cursor: pointer;
+  }
+  .afw-ui-shell-menu-button[hidden] {
+    display: none;
+  }
+  /* Three bars, drawn with borders so forced colors keep them. */
+  .afw-ui-shell-menu-icon {
+    inline-size: 1rem;
+    block-size: 0.75rem;
+    border-block: 2px solid currentColor;
+    background: linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat;
+  }
+  @media (forced-colors: active) {
+    .afw-ui-shell-menu-icon {
+      background: none;
+      border-block-width: 2px;
+      box-shadow: none;
+    }
+  }
+  .afw-ui-shell-sidebar {
+    grid-area: sidebar;
+    position: sticky;
+    inset-block-start: 3.25rem;
+    align-self: start;
+    block-size: calc(100dvh - 3.25rem); /* the full column, scrolling on its own */
+    overflow: auto;
+    padding: calc(0.75rem * var(--afw-ui-space));
+    border-inline-end: 1px solid var(--afw-ui-line);
+    background: var(--afw-ui-surface);
+  }
+  .afw-ui-shell-main {
+    grid-area: main;
+    min-inline-size: 0;
+    padding: calc(1.5rem * var(--afw-ui-space));
+  }
+  .afw-ui-shell-main:focus {
+    outline: none;
+  }
+  /* Drawer: the sidebar slides in over the page from the start edge. */
+  .afw-ui-shell[data-layout="drawer"] .afw-ui-shell-sidebar:popover-open {
+    position: fixed;
+    inset: 0 auto 0 0;
+    inline-size: min(var(--afw-ui-sidebar-w), calc(100vw - 3rem));
+    max-block-size: none;
+    block-size: 100dvh;
+    margin: 0;
+    border: 0;
+    border-inline-end: 1px solid var(--afw-ui-line);
+    box-shadow: var(--afw-ui-shadow);
+  }
+  .afw-ui-shell[data-layout="drawer"] .afw-ui-shell-sidebar::backdrop {
+    background: var(--afw-ui-backdrop);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .afw-ui-shell[data-layout="drawer"] .afw-ui-shell-sidebar {
+      translate: -100% 0;
+      transition: translate, display, overlay;
+      transition-duration: 180ms;
+      transition-timing-function: var(--afw-ui-ease);
+      transition-behavior: allow-discrete;
+    }
+    .afw-ui-shell[data-layout="drawer"] .afw-ui-shell-sidebar:popover-open {
+      translate: 0 0;
+      @starting-style {
+        translate: -100% 0;
+      }
+    }
+  }
+
+  /* Side navigation: rows like menu items; the current page gets the accent edge. */
+  .afw-ui-sidenav-list {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .afw-ui-sidenav-list .afw-ui-sidenav-list {
+    margin-block-start: 2px;
+    padding-inline-start: 0.75rem;
+  }
+  .afw-ui-sidenav-item,
+  .afw-ui-sidenav-group-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-block-size: var(--afw-ui-row-h);
+    padding: 0 0.625rem;
+    border-inline-start: 2px solid transparent;
+    border-radius: 4px;
+    color: var(--afw-ui-ink);
+    font-size: var(--afw-ui-text-md);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .afw-ui-sidenav-item:hover,
+  .afw-ui-sidenav-group-label:hover {
+    background: var(--afw-ui-subtle);
+  }
+  .afw-ui-sidenav-item[aria-current="page"] {
+    border-inline-start-color: var(--afw-ui-accent-edge);
+    background: var(--afw-ui-accent-wash);
+    color: var(--afw-ui-accent-text);
+    font-weight: 600;
+  }
+  .afw-ui-sidenav-item:focus-visible,
+  .afw-ui-sidenav-group-label:focus-visible {
+    outline-offset: -2px;
+  }
+  .afw-ui-sidenav-group-label {
+    justify-content: space-between;
+    color: var(--afw-ui-muted);
+    font-size: var(--afw-ui-text-sm);
+    font-weight: 600;
+    list-style: none;
+  }
+  .afw-ui-sidenav-group-label::-webkit-details-marker {
+    display: none;
+  }
+  .afw-ui-sidenav-group-label::after {
+    content: "";
+    inline-size: 0.4rem;
+    block-size: 0.4rem;
+    border-inline-end: 2px solid currentColor;
+    border-block-end: 2px solid currentColor;
+    rotate: -45deg;
+  }
+  .afw-ui-sidenav-group[open] > .afw-ui-sidenav-group-label::after {
+    rotate: 45deg;
+  }
+
+  /* Page header ------------------------------------------------------------------------ */
+  .afw-ui-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: calc(1rem * var(--afw-ui-space));
+    margin-block-end: calc(1.25rem * var(--afw-ui-space));
+  }
+  .afw-ui-page-title {
+    margin: 0;
+    font-size: var(--afw-ui-text-2xl);
+    font-weight: 650;
+    line-height: 1.25;
+    color: var(--afw-ui-ink);
+  }
+  .afw-ui-page-description {
+    margin: 0.25rem 0 0;
+    color: var(--afw-ui-muted);
+    font-size: var(--afw-ui-text-md);
+  }
+  .afw-ui-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--afw-ui-gap);
+  }
+
+  /* Breadcrumbs: links with a CSS slash (hidden from screen readers); current in ink. */
+  .afw-ui-breadcrumbs-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+    margin: 0 0 0.5rem;
+    padding: 0;
+    list-style: none;
+    font-size: var(--afw-ui-text-sm);
+  }
+  .afw-ui-breadcrumbs-item + .afw-ui-breadcrumbs-item::before {
+    content: "/";
+    content: "/" / "";
+    margin-inline-end: 0.375rem;
+    color: var(--afw-ui-muted);
+  }
+  .afw-ui-breadcrumbs-link {
+    color: var(--afw-ui-accent-text);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .afw-ui-breadcrumbs-link[aria-current="page"] {
+    color: var(--afw-ui-ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  @media (forced-colors: active) {
+    .afw-ui-breadcrumbs-link[aria-current="page"] {
+      text-decoration: underline;
+    }
+  }
+
+  /* Pagination ------------------------------------------------------------------------- */
+  .afw-ui-pagination-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .afw-ui-pagination-link {
+    display: inline-grid;
+    place-items: center;
+    min-inline-size: var(--afw-ui-control-h);
+    min-block-size: var(--afw-ui-control-h);
+    padding: 0 0.5rem;
+    border: 1px solid transparent;
+    border-radius: var(--afw-ui-radius-control);
+    background: transparent;
+    color: var(--afw-ui-ink);
+    font: inherit;
+    font-size: var(--afw-ui-text-md);
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .afw-ui-pagination-link:hover {
+    background: var(--afw-ui-subtle);
+  }
+  .afw-ui-pagination-link[aria-current="page"] {
+    border-color: var(--afw-ui-accent-edge);
+    background: var(--afw-ui-accent-wash);
+    color: var(--afw-ui-accent-text);
+    font-weight: 600;
+  }
+  .afw-ui-pagination-link:is(:disabled, [aria-disabled="true"]) {
+    color: var(--afw-ui-muted);
+    cursor: not-allowed;
+  }
+  .afw-ui-pagination-link:is(:disabled, [aria-disabled="true"]):hover {
+    background: transparent;
+  }
+  .afw-ui-pagination-gap {
+    padding-inline: 0.25rem;
+    color: var(--afw-ui-muted);
   }
 
   /* Toasts --------------------------------------------------------------------------- */
