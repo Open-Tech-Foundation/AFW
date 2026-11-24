@@ -193,6 +193,13 @@ run = "esdev test --config=esdev.test.json --browser --setup=@opentf/afw-test/se
 deps = ["build-compiler"]
 run = "esdev test --config=esdev.test.json --browser --setup=@opentf/afw-test/setup packages/afw/browser-tests"
 
+# @opentf/afw-ui in headless Chrome: a prerendered page (esdev.ui-kit.json) adopted by
+# the client, then driven with trusted keyboard and pointer input over CDP — the native
+# invokers, focusgroup, interest and anchor-positioning paths the DOM realm can't reach.
+[tasks.test-e2e-afw-ui]
+deps = ["build-compiler"]
+run = "esdev packages/afw-ui/e2e/run.mjs"
+
 [tasks.test-e2e-benchmark-runner]
 run = "esdev test --config=esdev.test.json benchmarks/tests/browser-runner.test.js"
 
@@ -227,7 +234,7 @@ run = "esdev scripts/verify-server-functions.mjs"
 run = "cargo build --release -p afw_cli && esdev scripts/verify-templates.mjs"
 
 [tasks.test-e2e]
-deps = ["test-e2e-docs", "test-e2e-afw-test", "test-e2e-afw-browser", "test-e2e-benchmark-runner", "test-e2e-hmr", "test-e2e-esdev-fns", "test-e2e-vite"]
+deps = ["test-e2e-docs", "test-e2e-afw-test", "test-e2e-afw-browser", "test-e2e-afw-ui", "test-e2e-benchmark-runner", "test-e2e-hmr", "test-e2e-esdev-fns", "test-e2e-vite"]
 
 # Local convenience — CI runs the fast and browser tiers as separate parallel jobs, so this
 # is the "use my cores" path on a dev machine. `build-compiler` is de-duplicated to one run.

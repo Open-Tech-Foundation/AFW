@@ -12,6 +12,8 @@
     "@opentf/afw-cli": "workspace:*",
     "@opentf/afw-docs": "workspace:*",
     "@opentf/afw-test": "workspace:*",
+    "@opentf/afw-ui": "workspace:*",
+    "@opentf/afw-ui-theme": "workspace:*",
     "@opentf/esdev-plugin-afw": "workspace:*",
     "@opentf/esrun-types": "^0.23.0",
     "@opentf/std": "^0.19.0",

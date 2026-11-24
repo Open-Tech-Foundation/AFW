@@ -17,6 +17,12 @@ importers:
       '@opentf/afw-test':
         specifier: workspace:*
         version: link:packages/afw-test
+      '@opentf/afw-ui':
+        specifier: workspace:*
+        version: link:packages/afw-ui
+      '@opentf/afw-ui-theme':
+        specifier: workspace:*
+        version: link:packages/afw-ui-theme
       '@opentf/esdev-plugin-afw':
         specifier: workspace:*
         version: link:packages/esdev-plugin-afw
