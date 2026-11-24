@@ -141,6 +141,50 @@ describe("bindList — multi-node items", () => {
 
 // A component host that does not declare `value`/`disabled`/… gets them as attributes, so
 // a `...rest` snapshot (which reads attributes) forwards them to the element it renders.
+// `{show ? items.map(…) : <i/>}`: the list branch is a fragment, which empties into the
+// page on insert. Swapping it out must remove its items — including ones the list added
+// after the branch was built — not leave them beside the next branch.
+describe("bindChild — a branch that renders a list", () => {
+  const list = (items) => {
+    const frag = document.createDocumentFragment();
+    bindList(frag, () => items.value, (x) => {
+      const b = document.createElement("b");
+      b.textContent = x.value;
+      return b;
+    }, (x) => x);
+    return frag;
+  };
+
+  test("swapping it out removes every item, even ones added since", () => {
+    const show = signal(true);
+    const items = signal(["a", "b"]);
+    const host = document.createElement("div");
+    const anchor = document.createComment("");
+    host.appendChild(anchor);
+    bindChild(anchor, () => (show.value ? list(items) : document.createElement("i")));
+    expect(host.textContent).toBe("ab");
+    items.value = ["a", "b", "c"]; // the list grows inside the branch
+    expect(host.textContent).toBe("abc");
+    show.value = false;
+    expect([host.querySelectorAll("b").length, host.querySelectorAll("i").length]).toEqual([0, 1]);
+    show.value = true;
+    expect(host.textContent).toBe("abc");
+    expect(host.querySelectorAll("b").length).toBe(3);
+  });
+
+  test("re-running with the list still chosen replaces it, never doubles it", () => {
+    const keys = signal(["Ctrl", "K"]);
+    const host = document.createElement("kbd");
+    const anchor = document.createComment("");
+    host.appendChild(anchor);
+    bindChild(anchor, () => (keys.value.length ? list(keys) : null));
+    keys.value = ["Ctrl", "K"]; // a new array with the same keys
+    expect(host.textContent).toBe("CtrlK");
+    keys.value = [];
+    expect(host.textContent).toBe("");
+  });
+});
+
 describe("setProp on a component host", () => {
   class Plain extends HTMLElement {}
   if (!customElements.get("afw-test-plain-host")) customElements.define("afw-test-plain-host", Plain);

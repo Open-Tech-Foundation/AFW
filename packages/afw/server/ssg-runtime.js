@@ -158,9 +158,15 @@ export function styleString(value) {
 
 /** Render one attribute: ` name="value"`, ` name` (true), or "" (null/false). */
 export function attr(name, value) {
-  if (name === "class") value = clsx(value);
-  else if (name === "style") value = styleString(value);
+  // Absent is absent before any normalizing: `class={undefined}` must not serve `class=""`,
+  // which the client (setAttr) never writes. An array/object class that resolves to nothing
+  // is absent too, as on the client.
   if (value == null || value === false) return "";
+  if (name === "class") {
+    const raw = value;
+    value = clsx(value);
+    if (value === "" && typeof raw === "object") return "";
+  } else if (name === "style") value = styleString(value);
   if (value === true) return ` ${name}`;
   return ` ${name}="${escapeAttr(String(value))}"`;
 }

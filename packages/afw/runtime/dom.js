@@ -521,10 +521,21 @@ export function bindChild(anchor, fn) {
  */
 export function hydrateChild(cur, adoptFn, buildFn, depsFn) {
   claimRegionStart(cur);
+  const first = cur.node;
   // Adopt inside a scope so the adopted branch owns its bindings' effects; the
   // region disposes it when a reactive change swaps the branch out.
   const adoptedScope = scope(() => {
     const value = adoptFn(cur);
+    // A branch that adopts a region of its own — `{keys ? keys.map(…) : children}`, a list —
+    // returns no node, but it claimed every node up to the cursor. Those are the branch's:
+    // without them the first swap would leave the served items beside the new ones.
+    // They are a range (see `regionNodes`): items the list adds later land inside it.
+    if (value == null && cur.node !== first) {
+      const claimed = [];
+      for (let n = first; n && n !== cur.node; n = n.nextSibling) claimed.push(n);
+      first.__afwRangeEnd = claimed[claimed.length - 1];
+      return claimed;
+    }
     // A branch that evaluates to text — `{count && <b/>}` with `count` 0, or
     // `{ok ? <b/> : "none"}` — was written by the server as a text node in the region:
     // claim it rather than build a second one beside it.
@@ -540,6 +551,50 @@ export function hydrateChild(cur, adoptFn, buildFn, depsFn) {
   // Seed with the adopted nodes and skip the first effect run's DOM write: the branch is
   // already in place; from the second run on it swaps normally.
   return childEffect(anchor, buildFn, adoptedScope.result, true, adoptedScope, depsFn || buildFn);
+}
+
+/**
+ * A branch's nodes, with each fragment opened up: a branch that renders a list
+ * (`{cond ? items.map(…) : x}`) hands back a fragment, which empties into the page on
+ * insert — so a later swap would find nothing to remove and leave the old items behind.
+ * A fragment's content becomes a range: a leading comment the region owns (the list
+ * never touches it), marked with the fragment's last node, so the swap removes
+ * everything between them, including items the list added after the branch was built.
+ */
+function regionNodes(nodes) {
+  if (!nodes.some((n) => n.nodeType === 11)) return nodes;
+  const out = [];
+  for (const n of nodes) {
+    if (n.nodeType !== 11) out.push(n);
+    else if (n.firstChild) {
+      const start = document.createComment("");
+      start.__afwRangeEnd = n.lastChild;
+      n.insertBefore(start, n.firstChild);
+      out.push(...n.childNodes);
+    }
+  }
+  return out;
+}
+
+/** The nodes a region currently owns: each range is re-read from its start comment
+ * up to its end, so nodes inserted inside it since are included. */
+function ownedNodes(nodes) {
+  if (!nodes.some((n) => n.__afwRangeEnd)) return nodes;
+  const out = [];
+  const seen = new Set();
+  for (const n of nodes) {
+    if (seen.has(n)) continue;
+    if (!n.__afwRangeEnd) {
+      out.push(n);
+      continue;
+    }
+    for (let m = n; m; m = m.nextSibling) {
+      out.push(m);
+      seen.add(m);
+      if (m === n.__afwRangeEnd) break;
+    }
+  }
+  return out;
 }
 
 /** The child-region effect shared by {@link bindChild} (empty seed, no skip) and
@@ -564,11 +619,11 @@ function childEffect(anchor, fn, current, skipFirst, currentScope = null, firstF
       built.dispose();
       return; // keep the adopted DOM on first paint
     }
-    const next = built.result;
+    const next = regionNodes(built.result);
     const host = anchor.parentNode;
     // A node with an exit transition stays in place, inert, and removes itself
     // when its animation ends (`tx.leave` returns true).
-    for (const n of current) {
+    for (const n of ownedNodes(current)) {
       if (n.parentNode === host && !(tx.leave && tx.leave(n))) host.removeChild(n);
     }
     if (host) for (const n of next) host.insertBefore(n, anchor);

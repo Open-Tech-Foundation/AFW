@@ -15,7 +15,7 @@ import { Command } from "runtime:system";
 import { describe, expect, test } from "runtime:test";
 
 import { createContext, enterHost, exitHost } from "../core/context.js";
-import { effect, signal } from "../core/signals.js";
+import { computed, effect, signal } from "../core/signals.js";
 import {
   attr,
   beginHydrationCollect,
@@ -27,6 +27,7 @@ import {
   endHydrationCollect,
   ssgComponent,
   ssgList,
+  ssgParagraph,
   ssgText,
 } from "../server/ssg-runtime.js";
 // Side effect: registers the passthrough SSG renderers (afw-internal-portal, …) into the
@@ -55,6 +56,7 @@ import {
   hydrateChild,
   hydrateHole,
   hydrateList,
+  hydrateParagraph,
   hydrateSlot,
   hydratableNode,
   hydrationProps,
@@ -1382,5 +1384,129 @@ describe.skipIf(!hasBin)("client builds of JSX inside callbacks and lists", () =
     await tick();
     expect([...dl.children].map((n) => n.textContent).join(" ")).toBe("c c! a a!");
     host.remove();
+  });
+});
+
+// `<p>{children}</p>` — a Text component (SPEC §4.5). The slot is a recoverable paragraph
+// region: inline content adopts as served; a block element the caller slots in makes the
+// parser split the <p>, and only that paragraph is rebuilt — around the caller's own nodes,
+// markers included, so nothing the caller wired is lost.
+describe.skipIf(!hasBin)("a component's slot inside a paragraph", () => {
+  const source = "export default function Txt({ children }) { return <p class=\"t\">{children}</p>; }";
+
+  async function serve(children) {
+    const ssgFn = loadComponent(await compile(source, "ssg", true), "Txt_ssg", { ssgParagraph, defineSSG });
+    return { html: ssgComponent(ssgFn.tag, {}, () => children), tag: ssgFn.tag };
+  }
+
+  async function hydrateHtml(html) {
+    const Txt = loadComponent(await compile(source, "hydrate", true), "TxtElement", {
+      cursor, claimElement, skipNode, skipSlot, hydrateParagraph, hydrationProps, isHydrating, runBuild,
+      HydrationMismatch, reportError, handleError, slotChildren,
+    });
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const before = { p: container.querySelector("p"), b: container.querySelector("b, div") };
+    const errors = [];
+    const onErr = (e) => errors.push(e.detail);
+    window.addEventListener("afw:error", onErr);
+    beginHydration();
+    try {
+      document.body.appendChild(container);
+      const host = container.querySelector(Txt.tag);
+      if (!host._mounted) host.connectedCallback();
+    } finally {
+      endHydration();
+      window.removeEventListener("afw:error", onErr);
+    }
+    return { container, before, errors, Txt };
+  }
+
+  test("the compiler makes it a region in a component, with no reparse warning", async () => {
+    const code = await compile(source, "hydrate", true);
+    expect(code).toMatch(/hydrateParagraph\(__c\d+, \(el\d+\) => \{/);
+    expect(code).toMatch(/\(__slot\) => \{ if \(__slot\) children = __slot; return \w+_para0\(\); \}, "afw-txt-[0-9a-f]+"\)/);
+    const { html } = await serve("hi");
+    expect(html).toMatch(/^<afw-txt-[^>]+><p class="t"><!--c\[afw-txt-[0-9a-f]+-->hi<!--c\]afw-txt-[0-9a-f]+--><\/p><!--p\]--><\/afw-txt/);
+  });
+
+  test("inline content adopts as served", async () => {
+    const { html } = await serve("a <b>bold</b> c");
+    const { container, before, errors } = await hydrateHtml(html);
+    try {
+      expect(errors).toEqual([]);
+      expect(container.querySelector("p")).toBe(before.p);
+      expect(container.querySelector("b")).toBe(before.b);
+      expect(container.querySelector("p").textContent).toBe("a bold c");
+    } finally {
+      container.remove();
+    }
+  });
+
+  test("a slotted block splits the paragraph: one rebuild that keeps the caller's nodes", async () => {
+    const { html, tag } = await serve("a <div class=\"blk\">x</div> c");
+    // What an HTML5 parser builds from it (this realm's parser is strict, so the tree is
+    // written out): the <div> closes the <p>, the rest follows as siblings, and the
+    // orphaned </p> becomes an empty <p> before the region marker. (Chrome itself parses
+    // it in the afw-ui browser suite.)
+    const parsed = html
+      .replace('a <div class="blk">', 'a </p><div class="blk">')
+      .replace(`<!--c]${tag}--></p><!--p]-->`, `<!--c]${tag}--><p></p><!--p]-->`);
+    expect(parsed).not.toBe(html);
+    const { container, before, errors } = await hydrateHtml(parsed);
+    try {
+      expect(errors).toEqual([]);
+      const host = container.querySelector(tag);
+      const ps = host.querySelectorAll("p");
+      expect(ps.length).toBe(1); // the parser's stray empty <p> went with the region
+      expect(ps[0]).not.toBe(before.p); // rebuilt…
+      expect(ps[0].querySelector(".blk")).toBe(before.b); // …around the served nodes
+      expect(ps[0].textContent).toBe("a x c");
+      // The slot markers moved with them, so the caller's hydrateSlot still finds its content.
+      const comments = [...ps[0].childNodes].filter((n) => n.nodeType === 8).map((n) => n.data);
+      expect(comments).toEqual([`c[${tag}`, `c]${tag}`]);
+      expect(host.lastChild.nodeType === 8 && host.lastChild.data).toBe("p]");
+    } finally {
+      container.remove();
+    }
+  });
+});
+
+// `{keys.length ? keys.map(…) : children}` — a Kbd: the served branch is a list region, so
+// its adopt returns no node. The region still owns everything it claimed (and what the list
+// adds later), so a swap removes the served items instead of leaving them beside the new.
+describe.skipIf(!hasBin)("a conditional whose served branch is a list", () => {
+  const source =
+    "export default function K({ keys, children }) { const combo = $derived(Array.isArray(keys) && keys.length > 0);" +
+    " return <kbd>{combo ? keys.map((k) => <b key={k}>{k}</b>) : children}</kbd>; }";
+
+  test("adopts the served items, grows, and swaps out cleanly", async () => {
+    const ssgFn = loadComponent(await compile(source, "ssg", true), "K_ssg", { computed, ssgList, ssgText, defineSSG });
+    const html = ssgComponent(ssgFn.tag, { keys: ["Ctrl", "K"] }, () => "none");
+    const K = loadComponent(await compile(source, "hydrate", true), "KElement", {
+      signal, computed, effect, cursor, claimElement, claimText, bindText, bindList, bindChild, hydrateList, hydrateChild,
+      skipNode, skipSlot, hydrationProps, isHydrating, runBuild, HydrationMismatch, reportError, handleError, slotChildren,
+    });
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const served = [...container.querySelectorAll("b")];
+    beginHydration();
+    try {
+      document.body.appendChild(container);
+      const host = container.querySelector(K.tag);
+      if (!host._mounted) host.connectedCallback();
+    } finally {
+      endHydration();
+    }
+    const host = container.querySelector(K.tag);
+    try {
+      expect([...container.querySelectorAll("b")]).toEqual(served); // adopted
+      host.keys = ["Ctrl", "K", "Shift"];
+      expect([...container.querySelectorAll("b")].map((b) => b.textContent)).toEqual(["Ctrl", "K", "Shift"]);
+      host.keys = [];
+      expect(container.querySelectorAll("b").length).toBe(0); // nothing served or added is left
+    } finally {
+      container.remove();
+    }
   });
 });

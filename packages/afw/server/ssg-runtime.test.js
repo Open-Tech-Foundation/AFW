@@ -10,6 +10,7 @@ import {
   componentId,
   defineSSG,
   endHydrationCollect,
+  attr,
   ssgAttrs,
   ssgComponent,
   paragraphBlockTag,
@@ -191,6 +192,15 @@ describe("ssgAttrs", () => {
       { onclick: () => {}, ref: {}, children: "c", hidden: false, title: null, open: true },
     ]);
     expect(out).toBe(" open");
+  });
+
+  test("an absent class or style is not served as an empty attribute (as on the client)", () => {
+    expect(attr("class", undefined)).toBe("");
+    expect(attr("style", undefined)).toBe("");
+    expect(attr("class", null)).toBe("");
+    expect(attr("class", [undefined, false])).toBe(""); // resolves to nothing
+    expect(attr("class", ["a", undefined])).toBe(' class="a"');
+    expect(attr("class", "")).toBe(' class=""'); // an explicit empty string stays
   });
 
   test("tolerates a null or undefined spread", () => {

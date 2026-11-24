@@ -389,8 +389,18 @@ export function claimElement(cur, tag) {
  *
  * Comments are never moved by the parser, so the marker always ends the region. Without
  * one there is no boundary to recover inside, and the mismatch propagates as before.
+ *
+ * `slotTag`: the paragraph holds that component's own `{children}` slot (`<p>{children}</p>`,
+ * a Text component), so a block element the *caller* slotted in splits it the same way.
+ * The slotted nodes are the caller's, wired by the caller's `hydrateSlot`, so a rebuild must
+ * keep them, not re-create them: they are gathered from between the component's labeled
+ * `<!--c[tag-->`/`<!--c]tag-->` markers (wherever the parser left them) and handed to
+ * `build(slot)`, which puts them — markers included — into the fresh paragraph.
+ *
+ * A rebuilt paragraph keeps the served attributes its build does not set (a component's
+ * `...rest` lives only in the served markup).
  */
-export function hydrateParagraph(cur, adopt, build) {
+export function hydrateParagraph(cur, adopt, build, slotTag) {
   const el = claimElement(cur, "p");
   let intact = true;
   try {
@@ -406,6 +416,7 @@ export function hydrateParagraph(cur, adopt, build) {
   }
   while (end && !isParagraphEnd(end)) end = end.nextSibling;
   if (!end) throw new HydrationMismatch("expected a <!--p]--> paragraph end marker");
+  const slot = slotTag ? paragraphSlot(el, end, slotTag) : null;
   const parent = end.parentNode;
   for (let n = el; n !== end; ) {
     const next = n.nextSibling;
@@ -414,13 +425,65 @@ export function hydrateParagraph(cur, adopt, build) {
   }
   // A build, not an adoption: the components in the fresh paragraph must build their
   // own markup rather than look for server nodes that were just removed.
-  const fresh = runBuild(build);
+  const fresh = runBuild(() => build(slot));
+  // Attributes the server wrote that the build has no source for — a component's `...rest`
+  // lives in the served markup, not on its host — carry over, so the rebuilt paragraph keeps
+  // its `id`, `aria-*` and `data-*`. Everything the build sets itself wins.
+  if (fresh?.nodeType === ELEMENT) {
+    for (const { name, value } of el.attributes) if (!fresh.hasAttribute(name)) fresh.setAttribute(name, value);
+  }
   parent.insertBefore(fresh, end);
   cur.node = end.nextSibling;
   return fresh;
 }
 
 const isParagraphEnd = (n) => n?.nodeType === 8 && n.data === "p]";
+
+/**
+ * The nodes of `tag`'s slot inside a split paragraph region (`first` up to the `end`
+ * marker), in document order and including both markers, or `null` without a start
+ * marker. The start sits inside the served `<p>`; what the parser moved out follows as
+ * siblings, so the walk climbs out of each container it finishes and takes whole
+ * subtrees from there — never a node and its ancestor both.
+ */
+function paragraphSlot(first, end, tag) {
+  let start = null;
+  for (let n = first; n && n !== end && !start; n = n.nextSibling) {
+    if (slotLabel(n, SLOT_START) === tag) start = n;
+    else if (n.nodeType === ELEMENT) {
+      const walker = document.createTreeWalker(n, 128 /* NodeFilter.SHOW_COMMENT */);
+      for (let c = walker.nextNode(); c; c = walker.nextNode()) {
+        if (slotLabel(c, SLOT_START) === tag) {
+          start = c;
+          break;
+        }
+      }
+    }
+  }
+  if (!start) return null;
+  const nodes = [start];
+  const region = end.parentNode;
+  let depth = 0;
+  let n = start;
+  for (;;) {
+    while (!n.nextSibling) {
+      n = n.parentNode;
+      if (!n || n === region) return nodes; // no close: keep what the region held
+    }
+    n = n.nextSibling;
+    if (n === end) return nodes;
+    if (slotLabel(n, SLOT_END) === tag) {
+      if (depth === 0) {
+        nodes.push(n);
+        return nodes;
+      }
+      depth--;
+    } else if (slotLabel(n, SLOT_START) === tag) {
+      depth++;
+    }
+    nodes.push(n);
+  }
+}
 
 /**
  * Claim a dynamic text hole delimited by `<!--$-->…<!--/-->`, returning the text node

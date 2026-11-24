@@ -15,6 +15,18 @@
 
 ### Fixed
 
+- A conditional whose branch renders a list (`{show ? items.map(…) : <Empty/>}`) removes
+  the list when it swaps the branch out. The list's items were left in the page beside the
+  next branch, doubling on every swap. This covers items the list added after the branch
+  was built, and a server-rendered list branch after hydration.
+- `hydrateParagraph` recovers a component's own `{children}` slot in a paragraph the
+  parser split (`slotTag`): the caller's nodes are gathered from between the component's
+  slot markers and the rebuilt paragraph re-slots them, so nothing the caller wired is
+  lost. A rebuilt paragraph keeps the served attributes its build does not set (a
+  component's `...rest` lives only in the served markup).
+- Server rendering omits `class` and `style` whose value is absent (`class={undefined}`,
+  an array of nothing) instead of writing `class=""`, matching the client.
+
 - A route folder named `app` below the app directory (`app/settings/app/page.jsx`) is
   the route `/settings/app`. The router stripped everything up to the last `/app`, so
   the page answered `/` and its own URL was a 404.
