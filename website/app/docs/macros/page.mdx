@@ -1,6 +1,6 @@
 ---
 title: Reactive Macros
-description: The compiler-provided globals — $state, $derived, $effect, $ref, $context, $expose — and lifecycle hooks.
+description: The compiler-provided globals — $state, $derived, $effect, $ref, $context, $expose, $id — and lifecycle hooks.
 ---
 
 import { Callout } from "@opentf/afw-docs";
@@ -18,6 +18,7 @@ injects the runtime.
 | `$ref` | `$ref()` | A handle to a DOM node or component instance, bound with `ref={…}`. |
 | `$context` | `$context(ctx)` | Read the value from the nearest `<ContextProvider>` for `ctx`. |
 | `$expose` | `$expose(obj)` | Publish methods on a component instance for the parent to call. |
+| `$id` | `$id()` | A stable, unique id for this component instance, safe across hydration. |
 
 ```jsx
 let count = $state(0);
@@ -123,6 +124,50 @@ read later.
 **Not supported:** `$expose` in `page.jsx` / layout factories (no `this` to assign to).
 
 Guide with patterns: [Imperative API](/docs/core-concepts/imperative-api).
+
+## `$id`
+
+Creates an id string that is unique on the page and the same on the server and in the
+browser. Use it to link elements: `for`/`id`, `aria-labelledby`, `aria-describedby`,
+`aria-controls`, `popovertarget`, `commandfor`, `anchor-name`.
+
+| | |
+| --- | --- |
+| **Signature** | `$id()` — no arguments; returns a `string` |
+| **Where** | Top level of a component: `const name = $id();` (not pages or layouts) |
+| **Per instance** | Every instance gets its own ids; calls in one component are numbered in order |
+| **Not reactive** | A plain string, set once — no `.value`, no effect |
+| **Format** | `afw-<base>-<n>`, e.g. `afw-s0-1` (treat it as opaque) |
+
+```jsx Field.jsx
+export default function Field({ label, hint }) {
+  const inputId = $id();
+  const hintId = $id();
+  return (
+    <div>
+      <label for={inputId}>{label}</label>
+      <input id={inputId} aria-describedby={hintId} />
+      <p id={hintId}>{hint}</p>
+    </div>
+  );
+}
+```
+
+How it stays stable:
+
+- **Server render:** each host that calls `$id()` gets a base, stamped on it as
+  `data-afw-uid`. Bases count from `s0` per request.
+- **Hydration:** the component reads `data-afw-uid` back, so its ids match the server
+  HTML exactly, whatever order components upgrade in.
+- **Client build** (CSR, SPA navigation): a fresh `c<n>` base, which never collides with a
+  server one.
+
+Rules (compile errors otherwise):
+
+- Only `const name = $id();` at the component's top level — not in handlers, effects,
+  conditions, loops or the JSX itself.
+- Need more ids? Declare more, or derive them: `` `${id}-label` ``.
+- Pages and layouts render once per route, so a fixed `id="…"` is already unique there.
 
 ## Lifecycle hooks
 
