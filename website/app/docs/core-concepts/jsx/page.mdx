@@ -245,6 +245,12 @@ subscribing to **dispatched CustomEvents** from child components:
 Without a modifier, `on*` props on host elements use the fast property/callback path.
 Listeners are torn down automatically on unmount.
 
+- Events with no handler property (`onfocusin`, `onfocusout`, touch events on desktop,
+  `onbeforematch`, custom events) always become listeners — no modifier needed.
+- On a component, an `on*` prop it declares is its callback prop. Any other one listens
+  on the component's element, so `<TextField onfocusout={…} />` hears the `focusout`
+  bubbling up from the input inside.
+
 - In TypeScript, a modifier handler on a host element gets the same event type as the
   plain prop: `onclick:once` receives a `MouseEvent` whose `currentTarget` is the button.
 - An unknown modifier (`onclick:twice`) is a type error.
