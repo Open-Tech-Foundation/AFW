@@ -14,12 +14,14 @@ import { Command } from "runtime:system";
 
 import { describe, expect, test } from "runtime:test";
 
-import { enterHost, exitHost } from "../core/context.js";
+import { createContext, enterHost, exitHost } from "../core/context.js";
 import { effect, signal } from "../core/signals.js";
 import {
   attr,
   beginHydrationCollect,
   componentId as ssgComponentId,
+  ssgContext,
+  ssgSlot,
   defineSSG,
   endHydrationCollect,
   ssgComponent,
@@ -110,7 +112,8 @@ function loadComponent(code, name, bindings) {
     .replace(/^export default \w+;$/gm, "");
   // Helpers every hydrate build may reference, supplied unless a test overrides them.
   // Every component brackets its connect with the host stack (`enterHost`/`exitHost`).
-  bindings = { hydratableNode, adoptedChildren, enterHost, exitHost, awaitHydrationProps, hydrationPropSet, ...bindings };
+  // A server build renders a component's slot through `ssgSlot`.
+  bindings = { hydratableNode, adoptedChildren, enterHost, exitHost, awaitHydrationProps, hydrationPropSet, ssgSlot, ...bindings };
   const names = Object.keys(bindings);
   return new Function(...names, `${body}\n; return ${name};`)(...names.map((n) => bindings[n]));
 }
@@ -130,7 +133,7 @@ function loadModule(code, bindings) {
     .replace(/export class /g, "class ")
     .replace(/^export default \w+;$/gm, "");
   // Helpers every hydrate build may reference, supplied unless a test overrides them.
-  bindings = { hydratableNode, adoptedChildren, awaitHydrationProps, hydrationPropSet, ...bindings };
+  bindings = { hydratableNode, adoptedChildren, awaitHydrationProps, hydrationPropSet, ssgSlot, ...bindings };
   const names = Object.keys(bindings);
   const ret =
     "\n; return {" +
@@ -907,6 +910,39 @@ describe.skipIf(!hasBin)("hydration construct matrix (ssg → hydrate, no rebuil
     } finally {
       host.remove();
     }
+  });
+});
+
+// A component that wraps its own `{children}` slot in a `<ContextProvider>` (`<Tabs>` →
+// `<Tab>`) must provide to those children on the server too. The call site's children used
+// to render before the component ran, outside its provider, so they read the default.
+describe.skipIf(!hasBin)("server context through a component's slot", () => {
+  const source =
+    "const Ctx = createContext(\"default\");" +
+    " function Group({ children }) { return <ContextProvider context={Ctx} value=\"provided\"><div class=\"g\">{children}</div></ContextProvider>; }" +
+    " function Item() { const v = $context(Ctx); return <i>{v}</i>; }" +
+    " export default function P() { return <section><Item/><Group><Item/><b>{[1, 2].length}</b></Group></section>; }";
+
+  test("a slotted child reads the provider its parent wraps the slot in, rendering once", async () => {
+    const code = (await compile(source, "ssg")).replace(/^const Ctx = createContext/m, "const Ctx = __createContext");
+    let renders = 0;
+    const counting = (tag, props, children) => {
+      if (String(tag).startsWith("afw-item")) renders++;
+      return ssgComponent(tag, props, children);
+    };
+    const html = loadModule(code, {
+      __createContext: createContext,
+      ssgComponent: counting,
+      ssgContext,
+      ssgSlot,
+      ssgText,
+      defineSSG,
+    }).default();
+    // Outside the group: the default. Inside its slot: the group's value.
+    expect(html).toMatch(/<section><afw-item[^>]*><i><!--\$-->default<!--\/--><\/i><\/afw-item-/);
+    expect(html).toMatch(/<div class="g"><!--c\[afw-group[^>]*><afw-item[^>]*><i><!--\$-->provided<!--\/-->/);
+    expect(html).toContain("<b><!--$-->2<!--/--></b>"); // plain slotted markup still renders
+    expect(renders).toBe(2); // each child renders once, where it is placed
   });
 });
 

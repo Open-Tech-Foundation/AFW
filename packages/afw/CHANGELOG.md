@@ -10,6 +10,12 @@
   the server HTML; hosts built on the client get their own base that cannot collide with
   a server one. Typed in the macro globals (`$id(): string`).
 
+### Fixed
+
+- Server rendering renders a component's slot children inside the component (`ssgSlot`),
+  so a provider the component wraps its `{children}` in reaches them. Needs the matching
+  `@opentf/afw-compiler`.
+
 ## [0.41.0] - 2026-11-19
 
 ### Added

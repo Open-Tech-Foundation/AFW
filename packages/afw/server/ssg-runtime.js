@@ -256,6 +256,11 @@ export function ssgRawText(v) {
   return String(v).replace(/<\/(script|style|textarea|title|xmp|iframe|noembed|noframes)/gi, "<\\/$1");
 }
 
+/** A component's slot children as HTML: the call site's thunk, rendered here (in scope). */
+export function ssgSlot(children) {
+  return typeof children === "function" ? children() : (children ?? "");
+}
+
 /** Render an array.map list to concatenated HTML. */
 export function ssgList(arr, fn) {
   return (Array.isArray(arr) ? arr : []).map(fn).join("");
@@ -271,8 +276,14 @@ export function ssgList(arr, fn) {
  */
 export function ssgComponent(tag, props, children) {
   const render = registry[tag];
-  // A `<ContextProvider>`'s children arrive as a thunk: render them with its value in scope.
-  if (typeof children === "function") children = ssgProvide(props?.context, props?.value, children);
+  // Slot children arrive as a thunk, so they render where they are placed. A
+  // `<ContextProvider>` renders them with its value in scope; a compiled component
+  // (`lazyChildren`) renders them at its `{children}` slot (`ssgSlot`), inside any
+  // provider it wraps them in; any other renderer gets them as plain HTML.
+  if (typeof children === "function") {
+    if (tag === "afw-internal-context-provider") children = ssgProvide(props?.context, props?.value, children);
+    else if (!render?.lazyChildren) children = children();
+  }
   let inner;
   // The `$id()` frame for this host: its base is allocated on the body's first
   // `componentId` call, and stamped on the host below.
