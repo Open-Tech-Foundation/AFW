@@ -217,6 +217,45 @@ import { Stack, Inline, Grid, Card, Divider } from "@opentf/afw-ui";
 - `Card` is an `<article>`. Its regions are its direct children, in order: media, a
   heading, content, and a `<footer>` of actions.
 
+## Responsive layout
+
+```jsx
+import { Container, Stack, Grid, viewport } from "@opentf/afw-ui";
+
+<Container size="xl">
+  <Stack direction={{ base: "column", md: "row" }} gap={{ base: "sm", lg: "lg" }}>…</Stack>
+  <Grid columns={{ base: 1, md: 2, xl: 4 }}>…</Grid>
+</Container>
+```
+
+- Breakpoints (`breakpoints`), in rem so they follow the user's text size and zoom:
+  - `sm` 40rem (640px), `md` 48rem (768px), `lg` 64rem (1024px), `xl` 80rem (1280px).
+  - `base` is everything below `sm`.
+- Responsive props take one value or one per breakpoint; each applies from its
+  breakpoint up:
+  - `Stack`: `gap`, `align`, `direction` (`column` / `row`).
+  - `Inline`: `gap`, `align`, `justify`.
+  - `Grid`: `gap`, `columns` (a count). Below the first `columns` entry the grid still
+    fits columns by `min`.
+- A breakpoint measures the **space the component sits in**, not the window:
+  - Measuring regions: `AppShellMain`, `Container` and `Card`.
+  - A Grid in a narrow sidebar stays one column on a wide screen; the same Grid in main
+    spreads out.
+  - Outside any region, only the `base` value applies: put pages in a `Container` or the
+    app shell.
+  - Pure CSS (container queries): right in the server HTML, no flash, no script.
+- `Container`: a centred column capped at `size` (`sm`–`xl`, or `full`), with side
+  padding that clears a phone's notch. Long words and URLs wrap inside it instead of
+  widening the page.
+- `viewport.atLeast("md")` / `viewport.below("md")`: the window against a breakpoint,
+  reactive, for what CSS can't do (rendering a different component). It is `false` on the
+  server, so prefer the responsive props for layout.
+- `AppShell drawerBelow` takes a breakpoint name (default `lg`) or a CSS length.
+- Touch: on a coarse pointer, controls and rows grow to at least 44px tall in every
+  density (WCAG 2.5.5); a mouse keeps the compact sizes.
+- The `display` and `3xl` heading sizes ease down in a narrow region, never below 75–80%
+  of their size.
+
 ## Typography
 
 ```jsx

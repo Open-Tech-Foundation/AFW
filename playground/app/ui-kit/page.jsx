@@ -10,6 +10,7 @@ import {
   Radio, RadioGroup, Select, Switch, Tab, TabList, TabPanel, Tabs, Textarea, TextField,
   Toaster, toast, Tooltip,
   Code, CodeBlock, Heading, Kbd, Text, TextLink,
+  Card, Container, Grid, Stack, viewport,
 } from "@opentf/afw-ui";
 
 export const metadata = { title: "UI Kit" };
@@ -178,6 +179,29 @@ export default function UiKit() {
           Press <Kbd keys={["Ctrl", "K"]} /> to search, <Kbd>Esc</Kbd> to close, or run <Code>afw dev</Code>.
         </Text>
         <CodeBlock label="Install" language="sh">{"npm install @opentf/afw-ui @opentf/afw-ui-theme"}</CodeBlock>
+      </section>
+
+      <section style="display: grid; gap: 12px">
+        <h2 style="margin: 0; font-size: 16px">Responsive</h2>
+        <Text tone="muted" size="sm">
+          Drag the box's corner: the layout follows the box's width, not the window's. Window is{" "}
+          {viewport.atLeast("md") ? "at least md" : "below md"}.
+        </Text>
+        <div style="resize: horizontal; overflow: auto; inline-size: 100%; min-inline-size: 16rem; max-inline-size: 100%; border: 1px dashed var(--afw-ui-control-border); border-radius: 10px; padding-block: 12px">
+          <Container size="full">
+            <Stack gap="md">
+              <Stack direction={{ base: "column", sm: "row" }} gap="sm">
+                <Button variant="primary">Create project</Button>
+                <Button>Import</Button>
+              </Stack>
+              <Grid columns={{ base: 1, sm: 2, md: 3 }} gap={{ base: "sm", md: "lg" }}>
+                <Card><h3>Requests</h3><p>4,210 today</p></Card>
+                <Card><h3>Errors</h3><p>3 in the last hour</p></Card>
+                <Card><h3>Latency</h3><p>182 ms p95</p></Card>
+              </Grid>
+            </Stack>
+          </Container>
+        </div>
       </section>
 
       <Toaster />
