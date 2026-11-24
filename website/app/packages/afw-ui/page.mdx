@@ -148,6 +148,31 @@ import { Field, TextField, Select, Checkbox, Switch, RadioGroup, Radio } from "@
   `onLabel` / `offLabel` (`<Switch onLabel="Ein" offLabel="Aus">`). Screen readers
   announce the state from the switch itself, so the word is not read twice.
 
+## Combobox
+
+A text input that filters a list of options.
+
+```jsx
+import { Field, Combobox } from "@opentf/afw-ui";
+
+<Field label="Country">
+  <Combobox name="country" options={countries} value={country} onValueChange={(v) => (country = v)} />
+</Field>
+
+// server-side search
+<Combobox filter={false} options={results} onInputChange={(q) => search(q)} />
+```
+
+- Focus stays in the input; the highlighted option is announced with
+  `aria-activedescendant`.
+- Typing filters; ArrowDown/ArrowUp move; Enter chooses; Esc closes, then clears.
+- Leaving with text that matches nothing puts back the chosen option
+  (`allowCustomValue` keeps free text).
+- `name` submits the option's value, not its label.
+- `options`: strings or `{ value, label, disabled }`. Controlled (`value`) or
+  uncontrolled (`defaultValue`).
+- The number of results is announced once typing pauses.
+
 ## Toasts
 
 ```jsx

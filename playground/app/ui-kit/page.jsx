@@ -3,7 +3,7 @@
 // chrome does not leak into it.
 import "@opentf/afw-ui-theme";
 import {
-  Accordion, AccordionItem, Button, Checkbox,
+  Accordion, AccordionItem, Button, Checkbox, Combobox,
   Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger,
   Field, Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuRadioGroup, MenuRadioItem,
   MenuSeparator, MenuTrigger, Popover, PopoverClose, PopoverContent, PopoverTrigger,
@@ -125,6 +125,13 @@ export default function UiKit() {
         <h2 style="margin: 0; font-size: 16px">Form</h2>
         <Field label="Email" description="We only use it for receipts." error={emailError} required>
           <TextField name="email" type="email" autocomplete="email" value={email} onValueChange={(v) => (email = v)} onfocusout={() => (touched = true)} />
+        </Field>
+        <Field label="Country" description="Type to filter.">
+          <Combobox
+            name="country"
+            placeholder="Choose a country"
+            options={["Australia", "Brazil", "Canada", "France", "Germany", "India", "Japan", "Kenya", "Mexico", "Netherlands", "Singapore", "Spain", "Sweden", "United Kingdom", "United States"]}
+          />
         </Field>
         <Field label="Notes">
           <Textarea name="notes" placeholder="Anything we should know" />

@@ -113,7 +113,7 @@ framework-agnostic core; AFW needs a thin adapter or a tested guide for each.
 | --- | --- | --- | --- |
 | Server-state cache, retries, optimistic updates | TanStack Query, SWR | `@tanstack/query-core` by hand | Signals adapter |
 | Tables and virtual lists | TanStack Table, TanStack Virtual | Their core packages by hand | Signals adapters |
-| Accessible UI primitives: dialog, menu, combobox | Radix, Headless UI, Ark, Bits UI | [`@opentf/afw-ui`](/packages/afw-ui) (next release): dialog, popover, tooltip, menu, tabs, accordion, form controls, toasts | Combobox, listbox, data table, date picker, tree, command palette |
+| Accessible UI primitives: dialog, menu, combobox | Radix, Headless UI, Ark, Bits UI | [`@opentf/afw-ui`](/packages/afw-ui) (next release): dialog, popover, tooltip, menu, tabs, accordion, form controls, combobox, toasts | Listbox, data table, date picker, tree, command palette |
 | Persisted state | Zustand `persist`, Pinia plugins | Module-level `signal()` with your own `localStorage` code | Helper for persisted and cross-tab state |
 | Authentication | Auth.js, Better Auth | Fetch-based libraries through [middleware](/docs/routing/middleware) and [cookies](/docs/routing/cookies) | Guide and example |
 | Real-time updates | Socket.IO, server-sent events helpers | Browser `WebSocket` and `EventSource` on the client | Server guide for both toolchains |
