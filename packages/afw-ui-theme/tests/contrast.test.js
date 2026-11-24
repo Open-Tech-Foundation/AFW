@@ -1,4 +1,4 @@
-// Ember's color pairs meet WCAG in both modes: text 4.5:1 (1.4.3), indicators and control
+// The theme's color pairs meet WCAG in both modes: text 4.5:1 (1.4.3), indicators and control
 // boundaries 3:1 (1.4.11). Keeps a token tweak from quietly breaking one.
 import { describe, expect, test } from "runtime:test";
 import { file } from "runtime:fs";
@@ -34,14 +34,14 @@ const PAIRS = [
   ["--afw-ui-muted", "--afw-ui-surface", 4.5],
   ["--afw-ui-muted", "--afw-ui-canvas", 4.5],
   ["--afw-ui-muted", "--afw-ui-raised", 4.5],
-  ["--afw-ui-ember-ink", "--afw-ui-ember", 4.5], // primary button text
-  ["--afw-ui-ember-text", "--afw-ui-surface", 4.5],
-  ["--afw-ui-ember-text", "--afw-ui-raised", 4.5], // menu check marks
+  ["--afw-ui-accent-ink", "--afw-ui-accent", 4.5], // primary button text
+  ["--afw-ui-accent-text", "--afw-ui-surface", 4.5],
+  ["--afw-ui-accent-text", "--afw-ui-raised", 4.5], // menu check marks
   ["--afw-ui-danger", "--afw-ui-surface", 4.5], // field errors
   ["--afw-ui-on-danger", "--afw-ui-danger", 4.5], // danger button text
-  ["--afw-ui-ember-edge", "--afw-ui-surface", 3], // focus ring, selected tab
-  ["--afw-ui-ember-edge", "--afw-ui-raised", 3], // menu item edge
-  ["--afw-ui-ember-edge", "--afw-ui-subtle", 3],
+  ["--afw-ui-accent-edge", "--afw-ui-surface", 3], // focus ring, selected tab
+  ["--afw-ui-accent-edge", "--afw-ui-raised", 3], // menu item edge
+  ["--afw-ui-accent-edge", "--afw-ui-subtle", 3],
   ["--afw-ui-control-border", "--afw-ui-surface", 3], // input/button boundaries
   ["--afw-ui-success", "--afw-ui-raised", 3], // toast tone edges
   ["--afw-ui-warning", "--afw-ui-raised", 3],
@@ -49,7 +49,7 @@ const PAIRS = [
   ["--afw-ui-info", "--afw-ui-raised", 3],
 ];
 
-describe("Ember contrast", () => {
+describe("theme contrast", () => {
   for (const [mode, selector] of [["light", ":root"], ["dark", '[data-theme="dark"]']]) {
     test(`${mode}: every pair meets its minimum`, async () => {
       const css = await file(TOKENS).text();

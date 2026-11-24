@@ -1,7 +1,7 @@
 {
   "name": "@opentf/afw-ui-theme",
   "version": "0.1.0",
-  "description": "Ember, the default theme for @opentf/afw-ui: plain CSS in cascade layers, light and dark, three densities.",
+  "description": "The default theme for @opentf/afw-ui, in macOS blue: plain CSS in cascade layers, light and dark, three densities.",
   "type": "module",
   "scripts": {
     "build": "cp ../../LICENSE LICENSE"

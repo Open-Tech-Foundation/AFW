@@ -1,10 +1,10 @@
 # @opentf/afw-ui-theme
 
-**Ember**, the default theme for [`@opentf/afw-ui`](../afw-ui): plain CSS in cascade
-layers, in AFW's own identity.
+The default theme for [`@opentf/afw-ui`](../afw-ui): plain CSS in cascade layers, with
+the macOS system blue as its accent.
 
-- The primary action is the brand orange with ink text.
-- The **Ember edge**: one 2px orange edge for selected, current and focused — the active
+- The primary action is the system blue with white text.
+- The **accent edge**: one 2px blue edge for selected, current and focused — the active
   tab, menu item and toast, and the focus ring. Selection always has a second cue.
 - Radius by role: 6px controls, 10px overlays, pills only for switches.
 - Depth only for what floats: dialogs, menus, popovers, toasts.
@@ -31,9 +31,9 @@ tricks. Re-theme with tokens:
 
 ```css
 :root {
-  --afw-ui-ember: #2f6fed;
-  --afw-ui-ember-edge: #2457c5;
-  --afw-ui-ember-ink: #ffffff;
+  --afw-ui-accent: #4f46e5;
+  --afw-ui-accent-edge: #4338ca;
+  --afw-ui-accent-ink: #ffffff;
   --afw-ui-radius-control: 4px;
 }
 ```
@@ -43,7 +43,7 @@ tricks. Re-theme with tokens:
 | `--afw-ui-ink`, `--afw-ui-muted` | text, secondary text |
 | `--afw-ui-canvas`, `--afw-ui-surface`, `--afw-ui-raised`, `--afw-ui-subtle` | page, panels, overlays, hover |
 | `--afw-ui-line`, `--afw-ui-control-border` | dividers, control boundaries |
-| `--afw-ui-ember`, `--afw-ui-ember-ink`, `--afw-ui-ember-edge`, `--afw-ui-ember-text` | brand fill, text on it, indicators, accented text |
+| `--afw-ui-accent`, `--afw-ui-accent-ink`, `--afw-ui-accent-edge`, `--afw-ui-accent-text` | primary fill, text on it, indicators, accented text |
 | `--afw-ui-danger`, `--afw-ui-success`, `--afw-ui-warning`, `--afw-ui-info` | status |
 | `--afw-ui-control-h`, `--afw-ui-pad-x`, `--afw-ui-gap`, `--afw-ui-row-h` | density |
 | `--afw-ui-font`, `--afw-ui-text-*` | type (Geist, 14px body) |

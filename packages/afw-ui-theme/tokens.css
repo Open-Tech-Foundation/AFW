@@ -1,6 +1,7 @@
-/* @opentf/afw-ui-theme — Ember design tokens.
+/* @opentf/afw-ui-theme — design tokens.
  *
- * Built from AFW's own identity: the brand orange, Geist, and the docs site's slate.
+ * A calm enterprise palette: the macOS system blue as the accent, Geist, and slate
+ * neutrals.
  * Everything a component reads is a `--afw-ui-*` custom property, so an app re-themes by
  * overriding tokens (unlayered CSS always beats these layers), not by fighting selectors.
  *
@@ -21,11 +22,11 @@
     --afw-ui-subtle: #f1f5f9; /* hover and pressed fills */
     --afw-ui-line: #e2e8f0; /* dividers (decorative) */
     --afw-ui-control-border: #7b8799; /* 3.6:1: a control's boundary must be seen */
-    --afw-ui-ember: #ff851b; /* brand fill; text on it is ink (7.3:1) */
-    --afw-ui-ember-ink: #0f172a;
-    --afw-ui-ember-edge: #d2650a; /* selection and focus indicators (3.8:1) */
-    --afw-ui-ember-text: #ad5100; /* links and accented text (5.3:1) */
-    --afw-ui-ember-wash: #fff4ea; /* a selected row's fill */
+    --afw-ui-accent: #0a6cff; /* primary fill: macOS blue, a shade deeper so white text is 4.6:1 */
+    --afw-ui-accent-ink: #ffffff;
+    --afw-ui-accent-edge: #007aff; /* the macOS system blue: selection and focus (4.0:1) */
+    --afw-ui-accent-text: #0058b8; /* links and accented text (6.8:1) */
+    --afw-ui-accent-wash: #eaf2ff; /* a selected row's fill */
     --afw-ui-danger: #c2261d;
     --afw-ui-danger-wash: #fdecea;
     --afw-ui-success: #18794e;
@@ -99,11 +100,11 @@
       --afw-ui-subtle: #1e293b;
       --afw-ui-line: #1e293b;
       --afw-ui-control-border: #6b7a90;
-      --afw-ui-ember: #ff943d;
-      --afw-ui-ember-ink: #0b1220;
-      --afw-ui-ember-edge: #ff943d;
-      --afw-ui-ember-text: #ffb071;
-      --afw-ui-ember-wash: #2a1d12;
+      --afw-ui-accent: #0a6fe0;
+      --afw-ui-accent-ink: #ffffff;
+      --afw-ui-accent-edge: #0a84ff;
+      --afw-ui-accent-text: #6cb4ff;
+      --afw-ui-accent-wash: #10213a;
       --afw-ui-danger: #f87171;
       --afw-ui-danger-wash: #2a1515;
       --afw-ui-success: #4ade80;
@@ -127,11 +128,11 @@
     --afw-ui-subtle: #1e293b;
     --afw-ui-line: #1e293b;
     --afw-ui-control-border: #6b7a90;
-    --afw-ui-ember: #ff943d;
-    --afw-ui-ember-ink: #0b1220;
-    --afw-ui-ember-edge: #ff943d;
-    --afw-ui-ember-text: #ffb071;
-    --afw-ui-ember-wash: #2a1d12;
+    --afw-ui-accent: #0a6fe0;
+    --afw-ui-accent-ink: #ffffff;
+    --afw-ui-accent-edge: #0a84ff;
+    --afw-ui-accent-text: #6cb4ff;
+    --afw-ui-accent-wash: #10213a;
     --afw-ui-danger: #f87171;
     --afw-ui-danger-wash: #2a1515;
     --afw-ui-success: #4ade80;
@@ -161,11 +162,11 @@
       --afw-ui-subtle: Canvas;
       --afw-ui-line: CanvasText;
       --afw-ui-control-border: ButtonText;
-      --afw-ui-ember: ButtonFace;
-      --afw-ui-ember-ink: ButtonText;
-      --afw-ui-ember-edge: Highlight;
-      --afw-ui-ember-text: LinkText;
-      --afw-ui-ember-wash: Canvas;
+      --afw-ui-accent: ButtonFace;
+      --afw-ui-accent-ink: ButtonText;
+      --afw-ui-accent-edge: Highlight;
+      --afw-ui-accent-text: LinkText;
+      --afw-ui-accent-wash: Canvas;
       --afw-ui-danger: CanvasText;
       --afw-ui-success: CanvasText;
       --afw-ui-warning: CanvasText;

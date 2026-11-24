@@ -1,10 +1,10 @@
-/* @opentf/afw-ui-theme — Ember: the default look for @opentf/afw-ui.
+/* @opentf/afw-ui-theme — the default look for @opentf/afw-ui.
  *
- * A calm, dense interface for people who work in it all day, in AFW's own identity:
- * - The primary action is the brand orange with ink text (white on that orange fails
- *   contrast), so the main action on a screen is unmistakable without being loud.
- * - The "Ember edge": one language for selected, current and focused — a 2px orange
- *   edge on the active tab, menu item, selected row and toast, and the focus ring.
+ * A calm, dense interface for people who work in it all day:
+ * - The primary action is the macOS system blue with white text, so the main action on a
+ *   screen is unmistakable without being loud.
+ * - The accent edge: one language for selected, current and focused — a 2px blue edge on
+ *   the active tab, menu item, selected row and toast, and the focus ring.
  *   Selection always has a second cue (weight, a check), never color alone.
  * - Radius by role: 6px controls, 10px overlays, pills only for switches and badges.
  * - Depth only for what floats: dialogs, menus, popovers, toasts. Panels in the page get
@@ -28,10 +28,10 @@
     box-sizing: border-box;
   }
 
-  /* One focus ring everywhere: the Ember edge, outside the element. An outline survives
+  /* One focus ring everywhere: the accent edge, outside the element. An outline survives
      forced colors (a box-shadow would not). */
   :where([class^="afw-ui-"], [class*=" afw-ui-"]):focus-visible {
-    outline: var(--afw-ui-focus-width) solid var(--afw-ui-ember-edge);
+    outline: var(--afw-ui-focus-width) solid var(--afw-ui-accent-edge);
     outline-offset: 2px;
   }
   :where([class^="afw-ui-"], [class*=" afw-ui-"]):focus:not(:focus-visible) {
@@ -78,16 +78,16 @@
   .afw-ui-menu-trigger[aria-expanded="true"],
   .afw-ui-popover-trigger[aria-expanded="true"] {
     background: var(--afw-ui-subtle);
-    border-color: var(--afw-ui-ember-edge);
+    border-color: var(--afw-ui-accent-edge);
   }
   .afw-ui-button[data-variant="primary"] {
-    background: var(--afw-ui-ember);
-    border-color: var(--afw-ui-ember-edge);
-    color: var(--afw-ui-ember-ink);
+    background: var(--afw-ui-accent);
+    border-color: var(--afw-ui-accent-edge);
+    color: var(--afw-ui-accent-ink);
     font-weight: 600;
   }
   .afw-ui-button[data-variant="primary"]:hover {
-    background: color-mix(in srgb, var(--afw-ui-ember) 88%, var(--afw-ui-ink));
+    background: color-mix(in srgb, var(--afw-ui-accent) 88%, var(--afw-ui-ink));
   }
   .afw-ui-button[data-variant="ghost"] {
     border-color: transparent;
@@ -193,7 +193,7 @@
   }
   :is(.afw-ui-input, .afw-ui-textarea, .afw-ui-select):focus-visible {
     outline-offset: 0;
-    border-color: var(--afw-ui-ember-edge);
+    border-color: var(--afw-ui-accent-edge);
   }
   :is(.afw-ui-input, .afw-ui-textarea, .afw-ui-select)[aria-invalid="true"] {
     border-color: var(--afw-ui-danger);
@@ -226,7 +226,7 @@
   }
   .afw-ui-select option:is(:hover, :focus-visible) {
     background: var(--afw-ui-subtle);
-    border-inline-start-color: var(--afw-ui-ember-edge);
+    border-inline-start-color: var(--afw-ui-accent-edge);
   }
   .afw-ui-select option:checked {
     font-weight: 600;
@@ -248,7 +248,7 @@
     inline-size: 1rem;
     block-size: 1rem;
     margin: 0;
-    accent-color: var(--afw-ui-ember-edge);
+    accent-color: var(--afw-ui-accent-edge);
   }
   .afw-ui-radio-group {
     display: grid;
@@ -283,12 +283,12 @@
     background: var(--afw-ui-surface);
   }
   .afw-ui-switch input:checked {
-    border-color: var(--afw-ui-ember-edge);
-    background: var(--afw-ui-ember);
+    border-color: var(--afw-ui-accent-edge);
+    background: var(--afw-ui-accent);
   }
   .afw-ui-switch input:checked::before {
     inset-inline-start: calc(100% - 2px - (1.25rem - 6px));
-    border-color: var(--afw-ui-ember-edge);
+    border-color: var(--afw-ui-accent-edge);
   }
   @media (prefers-reduced-motion: no-preference) {
     .afw-ui-switch input::before {
@@ -392,13 +392,13 @@
   .afw-ui-menu-item[aria-checked="true"]::before {
     content: "✓";
     font-weight: 700;
-    color: var(--afw-ui-ember-text);
+    color: var(--afw-ui-accent-text);
   }
-  /* Hover follows focus (the component focuses the hovered item); the Ember edge marks it. */
+  /* Hover follows focus (the component focuses the hovered item); the accent edge marks it. */
   .afw-ui-menu-item:focus {
     outline: none;
     background: var(--afw-ui-subtle);
-    border-inline-start-color: var(--afw-ui-ember-edge);
+    border-inline-start-color: var(--afw-ui-accent-edge);
   }
   .afw-ui-menu-item[aria-disabled="true"] {
     color: var(--afw-ui-muted);
@@ -475,7 +475,12 @@
   .afw-ui-tab:hover {
     color: var(--afw-ui-ink);
   }
-  /* Selected: ink, heavier, and the Ember edge — a border on a pseudo-element, which
+  /* Inside the tab: the list scrolls sideways, which would clip a ring drawn outside. */
+  .afw-ui-tab:focus-visible {
+    outline-offset: -2px;
+    border-radius: var(--afw-ui-radius-control);
+  }
+  /* Selected: ink, heavier, and the accent edge — a border on a pseudo-element, which
      forced colors keep (a box-shadow or background would vanish). */
   .afw-ui-tab[aria-selected="true"] {
     color: var(--afw-ui-ink);
@@ -486,7 +491,7 @@
     position: absolute;
     inset-inline: var(--afw-ui-pad-x);
     inset-block-end: 0;
-    border-block-end: 2px solid var(--afw-ui-ember-edge);
+    border-block-end: 2px solid var(--afw-ui-accent-edge);
   }
   .afw-ui-tab[aria-disabled="true"] {
     opacity: 0.5;
@@ -562,7 +567,7 @@
     align-items: start;
     gap: 0.75rem;
     padding: 0.75rem 0.75rem 0.75rem 1rem;
-    border-inline-start: 3px solid var(--afw-ui-ember-edge);
+    border-inline-start: 3px solid var(--afw-ui-accent-edge);
     border-radius: var(--afw-ui-radius-overlay);
   }
   .afw-ui-toast[data-tone="success"] {
