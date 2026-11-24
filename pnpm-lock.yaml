@@ -280,6 +280,12 @@ importers:
       '@opentf/afw-form':
         specifier: workspace:*
         version: link:../packages/afw-form
+      '@opentf/afw-ui':
+        specifier: workspace:*
+        version: link:../packages/afw-ui
+      '@opentf/afw-ui-theme':
+        specifier: workspace:*
+        version: link:../packages/afw-ui-theme
       monaco-editor:
         specifier: ^0.52.2
         version: 0.52.2

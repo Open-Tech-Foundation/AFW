@@ -6,6 +6,8 @@
     "@monaco-editor/loader": "^1.4.0",
     "@opentf/afw": "workspace:*",
     "@opentf/afw-form": "workspace:*",
+    "@opentf/afw-ui": "workspace:*",
+    "@opentf/afw-ui-theme": "workspace:*",
     "monaco-editor": "^0.52.2",
     "quill": "2.0.3",
     "zod": "^4.3.6"

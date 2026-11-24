@@ -15,6 +15,7 @@ const demos = [
   { href: "/flight-booking", title: "Flight Booking", desc: "Multi-step wizard: one shared form, card-pick UI, live dev panel", tag: "Forms" },
   { href: "/forms-demo", title: "Forms Features", desc: "@opentf/afw-form: validation, modes, dynamic arrays", tag: "Forms" },
   { href: "/products", title: "Perf Benchmark", desc: "Keyed list reconciliation over 5,000 rows", tag: "Reactivity" },
+  { href: "/ui-kit", title: "UI Kit", desc: "@opentf/afw-ui + Ember theme: dialog, menu, tabs, forms, toasts", tag: "Components" },
   { href: "/context-demo", title: "Context API", desc: "Scoped provider + $context with overrides", tag: "Reactivity" },
   { href: "/dnd-demo", title: "Drag & Drop", desc: "Native HTML5 drag events + keyed lists", tag: "Events" },
   { href: "/events-demo", title: "Event Model", desc: "Callback props, emit(), on*:listen modifiers", tag: "Events" },
