@@ -157,12 +157,23 @@ const attrs = { type: "text", placeholder: "Search…" };
 <input {...attrs} class="field" disabled={busy} />
 ```
 
-Spread works on both host elements and components. Rest props on components (`function Card({ title, ...rest })`)
-collect unlisted attributes into a static snapshot at connect time.
+Spread works on both host elements and components. Rest props on components
+(`function Card({ title, ...rest })`) collect what the caller passed that the component
+does not name:
 
-The SSG backend does not yet serialize spread attributes; it emits a warning and
-omits them from prerendered HTML. Use explicit attributes for values that must be
-present before hydration.
+- **Client:** a static snapshot of the host's attributes, taken at connect.
+- **Server:** the unnamed props, rendered into the HTML like any attribute.
+- **Not forwarded:** event handlers on the server (they attach on the client), the
+  host's own styling hook (`afw-card`), and the framework's host markers (`data-h`,
+  `data-hp`, `data-afw-uid`).
+
+```jsx
+export function Button({ variant = "plain", children, ...rest }) {
+  return <button data-variant={variant} {...rest}>{children}</button>;
+}
+
+<Button aria-label="Close" data-track="dialog-close">×</Button>;
+```
 
 ### React aliases
 
