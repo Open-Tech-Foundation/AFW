@@ -11,6 +11,11 @@
   checked for every color pair.
 - Layout, app shell, side navigation, page header, breadcrumbs and pagination styles; a
   `--afw-ui-space` scale per density for layout spacing.
+- Responsive styles: per-breakpoint `data-<prop>-<bp>` hooks matched by container
+  queries; `AppShellMain` and `Container` are measuring regions that wrap long words.
+  Touch: on a coarse pointer, controls and rows are at least 44px in every density
+  (`--afw-ui-target` is the floor for smaller parts). `display` and `3xl` headings ease
+  down in a narrow region.
 - Typography styles: a heading scale up to `3xl` and `display` (new `--afw-ui-text-3xl`,
   `--afw-ui-text-display`, `--afw-ui-leading-tight`) with balanced wrapping; text sizes,
   tones (muted, success, warning, danger — all 4.5:1) and weights; one-line and

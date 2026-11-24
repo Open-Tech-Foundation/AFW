@@ -95,6 +95,21 @@
     --afw-ui-space: 1.25;
   }
 
+  /* Touch: a fingertip needs a bigger target than a pointer (WCAG 2.5.5, 44px). On a coarse
+     pointer every density's controls and rows grow to it; a mouse keeps the dense sizes.
+     --afw-ui-target is the floor for anything sized below a control (small buttons). */
+  :root {
+    --afw-ui-target: 1.5rem; /* 24px, WCAG 2.5.8 */
+  }
+  @media (pointer: coarse) {
+    :root,
+    [data-density] {
+      --afw-ui-control-h: 2.75rem;
+      --afw-ui-row-h: 2.75rem;
+      --afw-ui-target: 2.75rem;
+    }
+  }
+
   /* Dark — from the system preference unless forced light, or forced with data-theme. */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
