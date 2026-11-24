@@ -38,6 +38,9 @@ pnpm add @opentf/afw-ui @opentf/afw-ui-theme
 @import "@opentf/afw-ui-theme";
 ```
 
+- Import the theme from your stylesheet (or the entry), not from a page module: a page
+  also runs on the server, where there is no document to add styles to.
+
 ## Dialog
 
 A modal on the native `<dialog>`. The page goes inert, focus stays inside and returns to

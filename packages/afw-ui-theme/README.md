@@ -24,6 +24,9 @@ pnpm add @opentf/afw-ui-theme
 @import "@opentf/afw-ui-theme/tokens"; /* or the tokens alone */
 ```
 
+Import it from the app's stylesheet (or its client entry), not from a page module: pages
+also run on the server during prerendering.
+
 ## Customize
 
 Everything sits in the `afw-ui.*` layers, so unlayered app CSS wins without specificity

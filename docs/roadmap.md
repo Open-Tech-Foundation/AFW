@@ -68,7 +68,8 @@ Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE
 ## UI kit — `@opentf/afw-ui` + `@opentf/afw-ui-theme`
 * [x] Framework groundwork: `$id()`; slot children render inside their component on the server (context reaches compound parts); server rest props; rest moves attributes off the host; listeners for events without handler properties; detached connects wait.
 * [x] Phase 1: Button, VisuallyHidden, Dialog, Popover, Tooltip, Menu (no submenus), Tabs, Accordion, Field, TextField, Textarea, Checkbox, Switch, RadioGroup, Select, Toast; own fallbacks for invokers, anchor positioning, focusgroup, interest/hint, closedby, switch, ariaNotify. Theme (macOS-blue accent): tokens, light/dark, densities, forced colors.
-* [ ] Phase 1 follow-ups: submenus (safe triangle), menu typeahead, Popover/Tooltip arrows, a server-render + hydrate test of the kit, a real-browser test tier for the native paths.
+* [x] Real-browser suite (`tsr test-e2e-afw-ui`): a prerendered page adopted by the client, then driven with trusted input — no-script invokers, adoption without replacement, native focusgroup/interest/positioning.
+* [ ] Phase 1 follow-ups: submenus (safe triangle), menu typeahead, Popover/Tooltip arrows, `Select` options adopted on hydration (a slot inside `<select>` is client-rendered today).
 * [ ] Phase 2: Combobox/Autocomplete, Listbox, Toolbar, DataTable (sort, selection, sticky header), Pagination, Breadcrumbs, navigation drawer, Slider, Progress/Meter, Skeleton.
 * [ ] Phase 3: date and date-range pickers, tree view, command palette, file upload, virtualized grid.
 * [ ] Move afw-docs' own Tabs/Tooltip/Search dialog/ThemeToggle onto afw-ui.
