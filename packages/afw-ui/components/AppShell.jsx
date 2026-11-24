@@ -13,20 +13,23 @@
 //
 // - Landmarks: `<header>` (banner), the sidebar's navigation, `<main>`; a "Skip to content"
 //   link is the first thing a keyboard reaches.
-// - Wide (`drawerBelow` and up): the sidebar is an ordinary column, always shown.
+// - Wide (`drawerBelow` and up — a breakpoint name, default `lg`, or a CSS length): the
+//   sidebar is an ordinary column, always shown.
 // - Narrow: the sidebar becomes a drawer — a `popover="manual"` with `role="dialog"` and
 //   `aria-modal`, opened by the menu button. While open the header and main are inert;
 //   Esc, a click outside, choosing a link, or the menu button close it, and focus returns
 //   to the menu button.
+// - Main is a measuring region: responsive layout props inside it follow its width.
 // - The shell sets `data-layout="sidebar" | "drawer"` and `data-drawer-open`, so a theme
 //   styles both from one source and never repeats the breakpoint. Before hydration the
 //   sidebar is a plain column.
 
 import { ContextProvider, createContext } from "@opentf/afw";
+import { breakpointLength } from "../internal/responsive.js";
 
 const ShellContext = createContext(null);
 
-export function AppShell({ drawerBelow = "64rem", skipLabel = "Skip to content", children, ...rest }) {
+export function AppShell({ drawerBelow = "lg", skipLabel = "Skip to content", children, ...rest }) {
   const sidebarId = $id();
   const mainId = $id();
   const menuButtonId = $id();
@@ -45,7 +48,7 @@ export function AppShell({ drawerBelow = "64rem", skipLabel = "Skip to content",
 
   onMount(() => {
     // "narrower than drawerBelow", in the long-standing syntax every engine parses.
-    const query = matchMedia(`not all and (min-width: ${drawerBelow})`);
+    const query = matchMedia(`not all and (min-width: ${breakpointLength(drawerBelow)})`);
     const apply = () => {
       layout = query.matches ? "drawer" : "sidebar";
       if (!query.matches) open = false;

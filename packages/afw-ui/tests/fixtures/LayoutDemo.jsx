@@ -1,4 +1,4 @@
-import { Card, Divider, Grid, Inline, Stack } from "../../components/Layout.jsx";
+import { Card, Container, Divider, Grid, Inline, Stack } from "../../components/Layout.jsx";
 import { AppShell, AppShellHeader, AppShellMain, AppShellMenuButton, AppShellSidebar } from "../../components/AppShell.jsx";
 import { Breadcrumbs, PageHeader, Pagination, SideNav, SideNavGroup, SideNavItem } from "../../components/Navigation.jsx";
 
@@ -44,5 +44,18 @@ export function Pages(props) {
       <Pagination page={1} pageCount={3} href={(p) => `/list?page=${p}`} label="Results pages" />
       <output data-testid="page">{page}</output>
     </div>
+  );
+}
+
+export function ResponsiveLayout() {
+  return (
+    <Container size="md" data-testid="container">
+      <Stack data-testid="stack" direction={{ base: "column", md: "row" }} gap={{ base: "sm", lg: "xl" }} align="center">
+        <button>A</button>
+      </Stack>
+      <Inline data-testid="inline" justify={{ md: "between" }}><button>B</button></Inline>
+      <Grid data-testid="grid" min="10rem" columns={{ base: 1, md: 2, xl: 4 }}><div>C</div></Grid>
+      <Grid data-testid="auto"><div>D</div></Grid>
+    </Container>
   );
 }

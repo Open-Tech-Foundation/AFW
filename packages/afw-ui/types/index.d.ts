@@ -159,22 +159,43 @@ export const Kbd: Component<{ keys?: string[]; separator?: string; children?: Ch
 export const CodeBlock: Component<{ label?: string; language?: string; children?: Child }>;
 
 type Space = "xs" | "sm" | "md" | "lg" | "xl";
-export const Stack: Component<{ gap?: Space; align?: "start" | "center" | "end"; children?: Child }>;
+export type Breakpoint = "sm" | "md" | "lg" | "xl";
+/**
+ * One value, or one per breakpoint: `{ base: "sm", md: "lg" }`. A breakpoint is the width
+ * of the space the component sits in (the nearest AppShellMain, Container or Card).
+ */
+export type Responsive<T> = T | ({ base?: T } & { [B in Breakpoint]?: T });
+/** Breakpoint min-widths: sm 40rem, md 48rem, lg 64rem, xl 80rem. */
+export const breakpoints: Readonly<Record<Breakpoint, string>>;
+/** The window against the breakpoints, reactive; `false` on the server. */
+export const viewport: { atLeast(name: Breakpoint): boolean; below(name: Breakpoint): boolean };
+
+export const Stack: Component<{
+  gap?: Responsive<Space>;
+  align?: Responsive<"start" | "center" | "end">;
+  direction?: Responsive<"column" | "row">;
+  children?: Child;
+}>;
 export const Inline: Component<{
-  gap?: Space;
-  align?: "start" | "center" | "end" | "baseline";
-  justify?: "start" | "center" | "end" | "between";
+  gap?: Responsive<Space>;
+  align?: Responsive<"start" | "center" | "end" | "baseline">;
+  justify?: Responsive<"start" | "center" | "end" | "between">;
   wrap?: boolean;
   children?: Child;
 }>;
-/** As many columns as fit at `min` wide (a CSS length), down to one. */
-export const Grid: Component<{ min?: string; gap?: Space; children?: Child }>;
+/**
+ * As many columns as fit at `min` wide (a CSS length), down to one; or `columns` equal
+ * columns from the breakpoint given.
+ */
+export const Grid: Component<{ min?: string; gap?: Responsive<Space>; columns?: Responsive<number>; children?: Child }>;
+/** A centred column capped at `size`, with notch-safe side padding; a measuring region. */
+export const Container: Component<{ size?: Breakpoint | "full"; children?: Child }>;
 export const Card: Component<{ children?: Child }>;
 export const Divider: Component<{}>;
 
 export const AppShell: Component<{
-  /** Below this width (a CSS length) the sidebar is a drawer. Default "64rem". */
-  drawerBelow?: string;
+  /** Below this width — a breakpoint name or a CSS length — the sidebar is a drawer. Default "lg". */
+  drawerBelow?: Breakpoint | (string & {});
   skipLabel?: string;
   children?: Child;
 }>;

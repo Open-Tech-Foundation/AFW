@@ -184,6 +184,8 @@ async function load({ scripts = true, path = "/" } = {}) {
     await until(
       path === "/"
         ? `!!document.querySelector("#share")?.getAttribute("aria-describedby")`
+        : path === "/responsive/"
+        ? `document.readyState === "complete"`
         : `!!window.__afwShellReady || document.querySelector(".afw-ui-shell-sidebar")?.isConnected && document.readyState === "complete"`,
       5000,
     );
@@ -399,6 +401,53 @@ try {
   await press("Escape");
   check(await until(`!document.querySelector(".afw-ui-shell-sidebar").matches(":popover-open")`), "Esc closes it");
   check(await js(`document.activeElement.classList.contains("afw-ui-shell-menu-button") && !document.querySelector("main").inert`), "focus returns to the menu button; the page is live again");
+  await viewport(1100);
+
+  console.log("\n▶ responsive props (measured on their region)");
+  const layoutAt = async (width) => {
+    await viewport(width);
+    await load({ path: "/responsive/" });
+    await cdp.send("Page.captureScreenshot"); // a frame, so container queries apply
+    await sleep(200);
+    return js(`(() => {
+      const css = (sel) => getComputedStyle(document.querySelector(sel));
+      const cols = (sel) => css(sel).gridTemplateColumns.split(" ").length;
+      return {
+        direction: css("#stack").flexDirection, gap: css("#stack").rowGap,
+        cols: cols("#grid"), sideCols: cols("#side-grid"),
+        page: Math.round(document.querySelector("#page").getBoundingClientRect().width),
+        display: parseFloat(css("#display").fontSize),
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        errors: window.__errors,
+      };
+    })()`);
+  };
+  const phone = await layoutAt(375);
+  check(phone.direction === "column" && phone.gap === "8px", "phone: the Stack is a column with the base gap", phone);
+  check(phone.cols === 1, "phone: the Grid is one column", phone.cols);
+  check(phone.display < 36 && phone.display >= 27, "phone: the display heading eases down within its floor", phone.display);
+  check(phone.overflow <= 0, "phone: nothing scrolls sideways", phone.overflow);
+  const tablet = await layoutAt(900);
+  check(tablet.direction === "row" && tablet.cols === 2, "900px: md applies — a row and two columns", tablet);
+  const desktop = await layoutAt(1400);
+  check(desktop.cols === 4 && desktop.gap === "40px" && desktop.page === 1280, "1400px: lg applies — four columns, the xl gap, the page capped at 80rem", desktop);
+  check(desktop.sideCols === 1, "a Grid in an 18rem region stays one column on a wide window", desktop.sideCols);
+  check(desktop.display === 36, "the display heading is full size in a wide region", desktop.display);
+  check(desktop.errors.length === 0, "nothing logged", desktop.errors);
+  const tiny = await layoutAt(320);
+  check(tiny.overflow <= 0, "320px: no horizontal scroll (WCAG 1.4.10)", tiny.overflow);
+
+  console.log("\n▶ touch sizing");
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+  await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "pointer", value: "coarse" }, { name: "any-pointer", value: "coarse" }] });
+  await layoutAt(375);
+  const touch = await js(`({ coarse: matchMedia("(pointer: coarse)").matches, button: document.querySelector("#stack button").getBoundingClientRect().height })`);
+  check(touch.coarse && touch.button >= 44, "a coarse pointer makes controls at least 44px tall", touch);
+  await cdp.send("Emulation.setEmulatedMedia", { features: [] });
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+  await layoutAt(1400);
+  const mouse = await js(`document.querySelector("#stack button").getBoundingClientRect().height`);
+  check(mouse < 44, "a mouse keeps the compact height", mouse);
   await viewport(1100);
 
   const late = await js(`window.__errors`);

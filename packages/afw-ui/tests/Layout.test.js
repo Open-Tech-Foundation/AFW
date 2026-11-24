@@ -4,7 +4,8 @@
 import { afterEach, describe, expect, test } from "runtime:test";
 import { render } from "@opentf/afw-test";
 import { setRouteState } from "@opentf/afw";
-import { Pages, Primitives, Shell } from "./fixtures/LayoutDemo.jsx";
+import { Pages, Primitives, ResponsiveLayout, Shell } from "./fixtures/LayoutDemo.jsx";
+import { at, breakpointLength, breakpoints, viewport } from "../internal/responsive.js";
 import { pageRange } from "../components/Navigation.jsx";
 import { isCurrentPath } from "../internal/navigate.js";
 
@@ -20,6 +21,48 @@ describe("layout primitives", () => {
     expect(view.getByTestId("grid").style.getPropertyValue("--afw-ui-grid-min")).toBe("12rem");
     expect(view.getByTestId("card").tagName).toBe("ARTICLE");
     expect(view.container.querySelector("hr.afw-ui-divider")).toBeTruthy();
+  });
+});
+
+describe("responsive props", () => {
+  test("a value per breakpoint becomes data-<prop>-<bp> hooks; a plain value is the base", async () => {
+    const view = render(ResponsiveLayout);
+    await tick();
+    const stack = view.getByTestId("stack").dataset;
+    expect([stack.direction, stack.directionMd, stack.gap, stack.gapLg, stack.align]).toEqual(["column", "row", "sm", "xl", "center"]);
+    expect(stack.gapMd).toBe(undefined); // no entry, no hook: the smaller one carries on
+    const inline = view.getByTestId("inline").dataset;
+    expect([inline.justify, inline.justifyMd, inline.gap]).toEqual([undefined, "between", "sm"]);
+  });
+
+  test("Grid columns are counts per breakpoint, next to the auto-fill minimum", async () => {
+    const view = render(ResponsiveLayout);
+    await tick();
+    const grid = view.getByTestId("grid");
+    expect([grid.hasAttribute("data-columns"), grid.hasAttribute("data-columns-md"), grid.hasAttribute("data-columns-lg"), grid.hasAttribute("data-columns-xl")]).toEqual([true, true, false, true]);
+    const v = (name) => grid.style.getPropertyValue(name).trim();
+    expect([v("--afw-ui-grid-min"), v("--afw-ui-cols"), v("--afw-ui-cols-md"), v("--afw-ui-cols-xl")]).toEqual(["10rem", "1", "2", "4"]);
+    const auto = view.getByTestId("auto");
+    expect(auto.hasAttribute("data-columns")).toBe(false); // no columns: fit by min
+  });
+
+  test("Container caps the column by size", async () => {
+    const view = render(ResponsiveLayout);
+    await tick();
+    const c = view.getByTestId("container");
+    expect([c.className, c.dataset.size]).toEqual(["afw-ui-container", "md"]);
+  });
+
+  test("breakpoints, at() and lengths", () => {
+    expect(breakpoints).toEqual({ sm: "40rem", md: "48rem", lg: "64rem", xl: "80rem" });
+    expect([at("sm", "base"), at("sm", "md"), at({ md: "lg" }, "md"), at({ md: "lg" }, "base"), at(undefined, "base")]).toEqual(["sm", undefined, "lg", undefined, undefined]);
+    expect([breakpointLength("lg"), breakpointLength("50rem")]).toEqual(["64rem", "50rem"]);
+  });
+
+  test("viewport compares the window to a breakpoint, and rejects unknown names", () => {
+    expect(typeof viewport.atLeast("md")).toBe("boolean");
+    expect(viewport.below("md")).toBe(!viewport.atLeast("md"));
+    expect(() => viewport.atLeast("huge")).toThrow(/unknown breakpoint/);
   });
 });
 

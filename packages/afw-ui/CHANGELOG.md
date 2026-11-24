@@ -25,6 +25,13 @@
   hold the current page.
 - `PageHeader`, `Breadcrumbs` (`<nav>` + `<ol>`, the last link current, CSS separators)
   and `Pagination` (links with `href(page)` or buttons with `onPageChange`).
+- Responsive layout: breakpoints (`sm` 40rem, `md` 48rem, `lg` 64rem, `xl` 80rem,
+  exported as `breakpoints`). `Stack` (`gap`, `align`, new `direction`), `Inline` (`gap`,
+  `align`, `justify`) and `Grid` (`gap`, new `columns`) take one value or one per
+  breakpoint, measured on the space they sit in (`AppShellMain`, `Container`, `Card`), not
+  the window. New `Container` (a centred column capped at `size`). `viewport.atLeast()` /
+  `below()` for script. `AppShell drawerBelow` takes a breakpoint name; the default is
+  `lg`.
 - Typography: `Heading` (`level` picks h1–h6, `size` only the look), `Text` (`as`
   p/span/div, `size`, `tone`, `weight`, `truncate`, `lines`), `TextLink` (an always
   underlined `<a>` that navigates on the client; `external` opens a new tab and says so),
