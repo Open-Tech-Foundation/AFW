@@ -161,7 +161,9 @@ Spread works on both host elements and components. Rest props on components
 (`function Card({ title, ...rest })`) collect what the caller passed that the component
 does not name:
 
-- **Client:** a static snapshot of the host's attributes, taken at connect.
+- **Client:** a static snapshot of the host's attributes, taken at connect. They move
+  to the element you spread them on: the host no longer has them, so a forwarded
+  `role`, `id` or `aria-*` is not on two elements.
 - **Server:** the unnamed props, rendered into the HTML like any attribute.
 - **Not forwarded:** event handlers on the server (they attach on the client), the
   host's own styling hook (`afw-card`), and the framework's host markers (`data-h`,
