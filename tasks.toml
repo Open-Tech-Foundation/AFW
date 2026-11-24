@@ -117,6 +117,17 @@ run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup 
 deps = ["build-compiler", "warm-test-deps"]
 run = "esdev test --config=esdev.test.json --dom packages/afw-form/tests"
 
+# @opentf/afw-ui: the headless components under the DOM realm, compiled by the test
+# config's AFW plugin. The realm has no invoker commands, focusgroup, interest invokers
+# or anchor positioning, so these exercise our fallbacks.
+[tasks.test-afw-ui]
+deps = ["build-compiler", "warm-test-deps"]
+run = "esdev test --config=esdev.test.json --dom --setup=@opentf/afw-test/setup packages/afw-ui/tests"
+
+# @opentf/afw-ui-theme: Ember's color pairs meet WCAG in both modes.
+[tasks.test-afw-ui-theme]
+run = "esdev test --config=esdev.test.json packages/afw-ui-theme/tests"
+
 [tasks.test-afw-i18n]
 deps = ["build-compiler"]
 run = "esdev test --config=esdev.test.json --dom packages/afw-i18n/i18n.test.js"
@@ -137,7 +148,7 @@ run = "esdev test --config=esdev.test.json benchmarks/tests/tooling.test.js"
 
 # Independent processes — cargo and the ES-Runtime — so they overlap.
 [tasks.test]
-deps = ["test-rust", "test-esdev", "test-esdev-dom", "test-afw-build", "test-node", "test-esdev-plugin", "test-afw-docs", "test-afw-docs-dom", "test-afw-form", "test-afw-i18n", "test-afw-test", "test-site", "test-benchmark-tooling"]
+deps = ["test-rust", "test-esdev", "test-esdev-dom", "test-afw-build", "test-node", "test-esdev-plugin", "test-afw-docs", "test-afw-docs-dom", "test-afw-form", "test-afw-ui", "test-afw-ui-theme", "test-afw-i18n", "test-afw-test", "test-site", "test-benchmark-tooling"]
 parallel = true
 
 # Real-browser tier (docs/HYDRATION.md §5) — framework-behavior suites (docs shell

@@ -168,6 +168,21 @@ importers:
         specifier: '>=4'
         version: 5.0.5(@types/node@22.20.2)(happy-dom@21.0.4)(jsdom@30.1.3)(vite@8.3.5(@types/node@22.20.2)(esbuild@0.28.1)(jiti@2.7.0))
 
+  packages/afw-ui:
+    devDependencies:
+      '@opentf/afw':
+        specifier: workspace:*
+        version: link:../afw
+      '@opentf/afw-test':
+        specifier: workspace:*
+        version: link:../afw-test
+
+  packages/afw-ui-theme:
+    dependencies:
+      '@opentf/afw-ui':
+        specifier: workspace:*
+        version: link:../afw-ui
+
   packages/create-afw:
     dependencies:
       '@clack/prompts':
@@ -1895,6 +1910,7 @@ packages:
 
   tldts-core@7.4.20:
     resolution: {integrity: sha512-C630TWXZCZmLq0F2bW4QqwnaaxCQ/svpAqvJwnC4JvgEM5ohhBnGsEzTLSOXcN+xjz+kEaHS5uoWIw2klnqd0A==}
+    deprecated: Partial release, see https://github.com/remusao/tldts/issues/2735. Use >=7.4.22.
 
   tldts@7.4.19:
     resolution: {integrity: sha512-48dH6aSpQnpbzDUc4vIQZ1VjB8tkK+e8c1yx05/SZK+rkssgjEOlxDd/yU8/a4vGYQ9vRgJr9dwMq9TJ0b3X2Q==}

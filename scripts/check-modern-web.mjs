@@ -27,7 +27,7 @@ if (!(await file(bin).exists())) {
 
 // What ships to browsers: the runtime and its components, the docs theme, the form
 // package, the starter templates and the site.
-const TARGETS = ["packages/afw", "packages/afw-docs", "packages/afw-form", "packages/afw-i18n", "packages/create-afw", "website/app"];
+const TARGETS = ["packages/afw", "packages/afw-docs", "packages/afw-form", "packages/afw-ui", "packages/afw-ui-theme", "packages/afw-i18n", "packages/create-afw", "website/app"];
 
 const allow = JSON.parse(await file(`${root}/scripts/modern-web-allow.json`).text());
 const used = new Set();
