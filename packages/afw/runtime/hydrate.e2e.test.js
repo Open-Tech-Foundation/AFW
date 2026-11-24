@@ -20,6 +20,7 @@ import {
   attr,
   beginHydrationCollect,
   componentId as ssgComponentId,
+  ssgAttrs,
   ssgContext,
   ssgSlot,
   defineSSG,
@@ -62,6 +63,8 @@ import {
   setProp,
   skipNode,
   skipSlot,
+  slotChildren,
+  spread,
   template,
 } from "./index.js";
 // Side effect: registers the real <afw-internal-portal> custom element used by the Portal test.
@@ -943,6 +946,91 @@ describe.skipIf(!hasBin)("server context through a component's slot", () => {
     expect(html).toMatch(/<div class="g"><!--c\[afw-group[^>]*><afw-item[^>]*><i><!--\$-->provided<!--\/-->/);
     expect(html).toContain("<b><!--$-->2<!--/--></b>"); // plain slotted markup still renders
     expect(renders).toBe(2); // each child renders once, where it is placed
+  });
+});
+
+// `...rest` on the server: a headless component forwards the attributes it does not name
+// (`aria-label`, `data-*`, `name`) to the element it renders. The server build used to
+// skip rest props and fail soft to an empty component; the client snapshots the host's
+// attributes, never the framework's own host markers.
+describe.skipIf(!hasBin)("rest props across ssg → hydrate", () => {
+  const source =
+    "export default function Btn({ variant = \"plain\", children, ...rest }) {" +
+    " const id = $id(); return <button id={id} data-variant={variant} {...rest}>{children}</button>; }";
+
+  test("the server forwards unnamed props, and adoption keeps them without host markers", async () => {
+    const ssgFn = loadComponent(await compile(source, "ssg", true), "Btn_ssg", {
+      ssgAttrs,
+      defineSSG,
+      componentId: ssgComponentId,
+    });
+    const html = ssgComponent(
+      ssgFn.tag,
+      { variant: "primary", "aria-label": "Close", "data-track": "x", onclick: () => {} },
+      () => "×",
+    );
+    expect(html).toMatch(/<button[^>]* data-variant="primary" aria-label="Close" data-track="x"><!--c\[afw-btn[^>]*-->×/);
+    expect(html.match(/<button[^>]*>/)[0]).not.toContain("onclick"); // handlers stay client-only
+    expect(html.match(/data-afw-uid/g).length).toBe(1); // on the host only
+
+    const Btn = loadComponent(await compile(source, "hydrate", true), "BtnElement", {
+      signal,
+      bindAttr,
+      spread,
+      effect,
+      cursor,
+      claimElement,
+      skipNode,
+      skipSlot,
+      hydrationProps,
+      isHydrating,
+      runBuild,
+      HydrationMismatch,
+      reportError,
+      handleError,
+      componentId,
+      slotChildren,
+    });
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const serverButton = container.querySelector("button");
+    const errors = [];
+    const onError = (e) => errors.push(e.detail);
+    window.addEventListener("afw:error", onError);
+    beginHydration();
+    try {
+      document.body.appendChild(container);
+      const host = container.querySelector(Btn.tag);
+      if (!host._mounted) host.connectedCallback();
+    } finally {
+      endHydration();
+      window.removeEventListener("afw:error", onError);
+    }
+    try {
+      expect(errors).toEqual([]);
+      const button = container.querySelector("button");
+      expect(button).toBe(serverButton); // adopted
+      expect(button.getAttribute("aria-label")).toBe("Close");
+      expect(button.hasAttribute("data-afw-uid")).toBe(false);
+      expect(button.hasAttribute("data-h")).toBe(false);
+      expect(button.hasAttribute("class")).toBe(false); // the host hook stays on the host
+
+      // A client build: the consumer's own class forwards, the host hook does not.
+      const fresh = document.createElement(Btn.tag);
+      fresh.setAttribute("class", "mine extra");
+      fresh.setAttribute("aria-label", "Open");
+      document.body.appendChild(fresh);
+      try {
+        const inner = fresh.querySelector("button");
+        expect(fresh.classList.contains("afw-btn")).toBe(true);
+        expect(inner.getAttribute("class")).toBe("mine extra");
+        expect(inner.getAttribute("aria-label")).toBe("Open");
+      } finally {
+        fresh.remove();
+      }
+    } finally {
+      container.remove();
+    }
   });
 });
 
