@@ -141,6 +141,9 @@ import { Field, TextField, Select, Checkbox, Switch, RadioGroup, Radio } from "@
 - The controls are the native inputs: form submission, autofill and keyboard behavior
   work as usual.
 - `Select` takes `<option>` children; the theme opts it into the customizable select.
+- `Switch` shows its state as a word inside the track — "On" / "Off" by default, set with
+  `onLabel` / `offLabel` (`<Switch onLabel="Ein" offLabel="Aus">`). Screen readers
+  announce the state from the switch itself, so the word is not read twice.
 
 ## Toasts
 
