@@ -1,4 +1,4 @@
-// UI kit demo: every @opentf/afw-ui component in the Ember theme, with mode and
+// UI kit demo: every @opentf/afw-ui component in the default theme, with mode and
 // density switches. The kit sits on its own canvas so the playground's dark Tailwind
 // chrome does not leak into it.
 import "@opentf/afw-ui-theme";

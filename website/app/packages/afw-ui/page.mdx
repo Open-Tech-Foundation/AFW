@@ -1,13 +1,13 @@
 ---
 title: afw-ui
-description: Accessible, headless UI components on the platform's own dialog, popover and form controls, with Ember, the default theme.
+description: Accessible, headless UI components on the platform's own dialog, popover and form controls, with a default theme in the macOS system blue.
 ---
 
 import { Callout } from "@opentf/afw-docs";
 
 # @opentf/afw-ui
 
-Accessible, headless components for AFW apps, and **Ember**, the theme that styles them
+Accessible, headless components for AFW apps, and a default theme that styles them
 (`@opentf/afw-ui-theme`).
 
 <Callout type="note">
@@ -191,10 +191,10 @@ Native where the browser has it; otherwise the built-in fallback:
 | `ariaNotify()` | a live region |
 | Customizable `<select>` | the OS picker |
 
-## Ember theme
+## Default theme
 
-- **Primary action:** the brand orange with ink text.
-- **Ember edge:** one 2px orange edge for selected, current and focused.
+- **Primary action:** the macOS system blue with white text.
+- **Accent edge:** one 2px blue edge for selected, current and focused.
 - **Radius by role:** 6px controls, 10px overlays.
 - **Modes:** light and dark from the system, or `data-theme="light" | "dark"` on any
   element.
@@ -206,9 +206,9 @@ Native where the browser has it; otherwise the built-in fallback:
 
 ```css
 :root {
-  --afw-ui-ember: #2f6fed;
-  --afw-ui-ember-edge: #2457c5;
-  --afw-ui-ember-ink: #ffffff;
+  --afw-ui-accent: #4f46e5;
+  --afw-ui-accent-edge: #4338ca;
+  --afw-ui-accent-ink: #ffffff;
 }
 ```
 
