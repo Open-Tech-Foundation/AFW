@@ -48,7 +48,10 @@
     --afw-ui-text-lg: 1rem; /* 16 */
     --afw-ui-text-xl: 1.125rem; /* 18 */
     --afw-ui-text-2xl: 1.375rem; /* 22 */
-    --afw-ui-leading: 1.45;
+    --afw-ui-text-3xl: 1.75rem; /* 28 */
+    --afw-ui-text-display: 2.25rem; /* 36 */
+    --afw-ui-leading: 1.45; /* body */
+    --afw-ui-leading-tight: 1.25; /* headings; large sizes go tighter still */
 
     /* Shape: radius says what something is — controls 6, overlays 10, pills only for
        badges and switches. */

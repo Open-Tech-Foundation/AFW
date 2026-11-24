@@ -899,6 +899,197 @@
     rotate: 45deg;
   }
 
+  /* Typography ------------------------------------------------------------------------ */
+  /* Headings: one weight, tighter leading, and slightly closer tracking as they grow.
+     `balance` evens out the lines of a short heading (ignored where unsupported). */
+  .afw-ui-heading {
+    margin: 0;
+    color: var(--afw-ui-ink);
+    font-weight: 650;
+    line-height: var(--afw-ui-leading-tight);
+    text-wrap: balance;
+    overflow-wrap: break-word;
+  }
+  .afw-ui-heading[data-size="xs"] {
+    font-size: var(--afw-ui-text-xs);
+  }
+  .afw-ui-heading[data-size="sm"] {
+    font-size: var(--afw-ui-text-sm);
+  }
+  .afw-ui-heading[data-size="md"] {
+    font-size: var(--afw-ui-text-md);
+  }
+  .afw-ui-heading[data-size="lg"] {
+    font-size: var(--afw-ui-text-lg);
+  }
+  .afw-ui-heading[data-size="xl"] {
+    font-size: var(--afw-ui-text-xl);
+    letter-spacing: -0.005em;
+  }
+  .afw-ui-heading[data-size="2xl"] {
+    font-size: var(--afw-ui-text-2xl);
+    letter-spacing: -0.01em;
+  }
+  .afw-ui-heading[data-size="3xl"] {
+    font-size: var(--afw-ui-text-3xl);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+  .afw-ui-heading[data-size="display"] {
+    font-size: var(--afw-ui-text-display);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  /* Body text inherits its size unless given one; paragraphs avoid a lone last word. */
+  .afw-ui-text {
+    margin: 0;
+    overflow-wrap: break-word;
+  }
+  :is(p, div).afw-ui-text {
+    text-wrap: pretty;
+  }
+  .afw-ui-text[data-size="xs"] {
+    font-size: var(--afw-ui-text-xs);
+  }
+  .afw-ui-text[data-size="sm"] {
+    font-size: var(--afw-ui-text-sm);
+  }
+  .afw-ui-text[data-size="md"] {
+    font-size: var(--afw-ui-text-md);
+  }
+  .afw-ui-text[data-size="lg"] {
+    font-size: var(--afw-ui-text-lg);
+  }
+  .afw-ui-text[data-tone="muted"] {
+    color: var(--afw-ui-muted);
+  }
+  .afw-ui-text[data-tone="danger"] {
+    color: var(--afw-ui-danger);
+  }
+  .afw-ui-text[data-tone="success"] {
+    color: var(--afw-ui-success);
+  }
+  .afw-ui-text[data-tone="warning"] {
+    color: var(--afw-ui-warning);
+  }
+  .afw-ui-text[data-weight="regular"] {
+    font-weight: 400;
+  }
+  .afw-ui-text[data-weight="medium"] {
+    font-weight: 500;
+  }
+  .afw-ui-text[data-weight="semibold"] {
+    font-weight: 600;
+  }
+  .afw-ui-text[data-weight="bold"] {
+    font-weight: 700;
+  }
+  /* Visual only: the full text stays in the DOM. A span gets a box so it can clip. */
+  .afw-ui-text[data-truncate] {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  span.afw-ui-text:is([data-truncate], [data-lines]) {
+    display: inline-block;
+    max-inline-size: 100%;
+    vertical-align: bottom;
+  }
+  .afw-ui-text[data-lines] {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--afw-ui-lines);
+    line-clamp: var(--afw-ui-lines);
+    overflow: hidden;
+  }
+
+  /* Links are always underlined: colour alone never marks them (WCAG 1.4.1). Hover
+     thickens the line, which moves nothing. */
+  .afw-ui-link {
+    color: var(--afw-ui-accent-text);
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+    border-radius: 2px;
+  }
+  .afw-ui-link:hover {
+    text-decoration-thickness: 2px;
+  }
+  .afw-ui-link[data-external]::after {
+    content: "\2197" / "";
+    display: inline-block;
+    margin-inline-start: 0.15em;
+    font-size: 0.85em;
+    text-decoration: none;
+  }
+
+  /* Code and keys. Mono at 0.9em so a code word sits level with the text around it. */
+  .afw-ui-code {
+    padding: 0.1em 0.35em;
+    border: 1px solid var(--afw-ui-line);
+    border-radius: 4px;
+    background: var(--afw-ui-subtle);
+    color: var(--afw-ui-ink);
+    font-family: var(--afw-ui-mono);
+    font-size: 0.9em;
+    overflow-wrap: anywhere;
+  }
+  .afw-ui-kbd:not([data-combo]),
+  .afw-ui-kbd-key {
+    display: inline-block;
+    min-inline-size: 1.6em;
+    padding: 0.05em 0.4em;
+    border: 1px solid var(--afw-ui-control-border);
+    border-block-end-width: 2px;
+    border-radius: 4px;
+    background: var(--afw-ui-surface);
+    color: var(--afw-ui-ink);
+    font-family: var(--afw-ui-font);
+    font-size: 0.8em;
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .afw-ui-kbd[data-combo] {
+    font: inherit;
+    white-space: nowrap;
+  }
+  .afw-ui-kbd-separator {
+    margin-inline: 0.2em;
+    color: var(--afw-ui-muted);
+    font-size: 0.85em;
+  }
+  .afw-ui-code-block {
+    margin: 0;
+    padding: calc(0.75rem * var(--afw-ui-space)) calc(1rem * var(--afw-ui-space));
+    border: 1px solid var(--afw-ui-line);
+    border-radius: var(--afw-ui-radius-control);
+    background: var(--afw-ui-subtle);
+    color: var(--afw-ui-ink);
+    font-family: var(--afw-ui-mono);
+    font-size: var(--afw-ui-text-sm);
+    line-height: 1.6;
+    tab-size: 2;
+    overflow: auto;
+  }
+  .afw-ui-code-block > code {
+    font: inherit;
+  }
+  @media (forced-colors: active) {
+    .afw-ui-link {
+      color: LinkText;
+    }
+    .afw-ui-kbd:not([data-combo]),
+    .afw-ui-kbd-key,
+    .afw-ui-code,
+    .afw-ui-code-block {
+      border-color: CanvasText;
+    }
+  }
+
   /* Page header ------------------------------------------------------------------------ */
   .afw-ui-page-header {
     display: flex;
@@ -907,13 +1098,6 @@
     justify-content: space-between;
     gap: calc(1rem * var(--afw-ui-space));
     margin-block-end: calc(1.25rem * var(--afw-ui-space));
-  }
-  .afw-ui-page-title {
-    margin: 0;
-    font-size: var(--afw-ui-text-2xl);
-    font-weight: 650;
-    line-height: 1.25;
-    color: var(--afw-ui-ink);
   }
   .afw-ui-page-description {
     margin: 0.25rem 0 0;

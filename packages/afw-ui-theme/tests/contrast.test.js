@@ -37,7 +37,13 @@ const PAIRS = [
   ["--afw-ui-accent-ink", "--afw-ui-accent", 4.5], // primary button text, a switch's "On"
   ["--afw-ui-accent-text", "--afw-ui-surface", 4.5],
   ["--afw-ui-accent-text", "--afw-ui-raised", 4.5], // menu check marks
-  ["--afw-ui-danger", "--afw-ui-surface", 4.5], // field errors
+  ["--afw-ui-danger", "--afw-ui-surface", 4.5], // field errors, Text tone="danger"
+  ["--afw-ui-danger", "--afw-ui-canvas", 4.5],
+  ["--afw-ui-success", "--afw-ui-surface", 4.5], // Text tone="success"
+  ["--afw-ui-success", "--afw-ui-canvas", 4.5],
+  ["--afw-ui-warning", "--afw-ui-surface", 4.5], // Text tone="warning"
+  ["--afw-ui-warning", "--afw-ui-canvas", 4.5],
+  ["--afw-ui-accent-text", "--afw-ui-canvas", 4.5], // links on the page background
   ["--afw-ui-on-danger", "--afw-ui-danger", 4.5], // danger button text
   ["--afw-ui-accent-text", "--afw-ui-accent-wash", 4.5], // current side-nav item and page
   ["--afw-ui-accent-edge", "--afw-ui-accent-wash", 3], // its edge
