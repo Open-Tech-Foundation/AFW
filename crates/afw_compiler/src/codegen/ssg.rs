@@ -541,7 +541,7 @@ impl<'a> Emitter<'a> {
         }
         if static_tree::is_raw_text(tag) {
             pieces.extend(self.raw_text(tag, children));
-        } else if tag == "p" && static_tree::paragraph_has_component(children) {
+        } else if tag == "p" && static_tree::paragraph_is_region(children, !self.is_page) {
             // A recoverable region (see `paragraph_has_component`). `ssgParagraph` warns at
             // render time if a component's markup puts a block element in the paragraph,
             // and the marker after `</p>` bounds what the browser's parser makes of it, so
@@ -856,6 +856,12 @@ fn component_names(nodes: &[ViewNode], out: &mut Vec<String>) {
                 }
                 component_names(children, out);
             }
+            // The caller's content: the warning names what was slotted, not a component.
+            ViewNode::Children => {
+                if !out.iter().any(|l| l == "{children}") {
+                    out.push("{children}".to_string());
+                }
+            }
             ViewNode::Element { children, .. } | ViewNode::Fragment(children) => component_names(children, out),
             ViewNode::DynamicNode { branches, .. } => component_names(branches, out),
             ViewNode::List { item, .. } => component_names(std::slice::from_ref(item), out),
@@ -976,6 +982,18 @@ mod tests {
         );
         assert!(m.is_complete(), "errors: {:?}", m.errors);
         assert!(m.code.contains("{ a: \"1\", ...(o.value), b: \"2\" }"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn a_components_slot_in_a_paragraph_is_checked_and_closed_with_a_marker() {
+        let m = emit("export default function Lead({ children }){ return <p>{children}</p>; }", false);
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("ssgParagraph(\"<!--c[afw-lead-"), "check:\n{}", m.code);
+        assert!(m.code.contains("\"{children}\")"), "names:\n{}", m.code);
+        assert!(m.code.contains("</p><!--p]-->"), "marker:\n{}", m.code);
+        // A layout's slot is not a component slot: no region.
+        let page = emit("export default function L({ children }){ return <p>{children}</p>; }", true);
+        assert!(!page.code.contains("<!--p]-->"), "{}", page.code);
     }
 
     #[test]

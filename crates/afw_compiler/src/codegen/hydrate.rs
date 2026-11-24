@@ -408,6 +408,12 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Is a `{children}` slot inside a `<p>` a recoverable region here? In a component it
+    /// is: its slot markers carry its tag (see `static_tree::paragraph_is_region`).
+    fn slot_region(&self) -> bool {
+        !self.lowered.is_page && self.lowered.children_local.is_some()
+    }
+
     fn fresh(&mut self, prefix: &str) -> String {
         let name = format!("{prefix}{}", self.counter);
         self.counter += 1;
@@ -455,7 +461,7 @@ impl<'a> Emitter<'a> {
     /// the cause. Catching it here turns that into a clean CSR build plus a diagnostic that
     /// names the shape (see `static_tree::reparse_hazard`).
     fn check_reparse(&mut self, lowered: &Lowered) {
-        if let Some(reason) = static_tree::reparse_hazard(&lowered.ir.view) {
+        if let Some(reason) = static_tree::reparse_hazard(&lowered.ir.view, self.slot_region()) {
             self.errors.push(format!(
                 "hydrate: {reason} — the HTML parser rebuilds that, so the server DOM \
                  can't be adopted; rendering it on the client instead"
@@ -875,7 +881,7 @@ impl<'a> Emitter<'a> {
     fn emit_node(&mut self, cur: &str, node: &ViewNode) -> String {
         match node {
             ViewNode::Element { tag, props, children }
-                if tag == "p" && static_tree::paragraph_has_component(children) =>
+                if tag == "p" && static_tree::paragraph_is_region(children, self.slot_region()) =>
             {
                 self.emit_paragraph_region(cur, node, props, children)
             }
@@ -1078,7 +1084,21 @@ impl<'a> Emitter<'a> {
         for l in &body {
             self.line(format!("  {l}"));
         }
-        self.line(format!("}}, {build_fn});"));
+        // The paragraph holds this component's own slot: if the parser split it, the
+        // runtime gathers the slotted nodes from between this component's labeled markers
+        // (wherever they landed) and the rebuild re-slots them, markers and all, so the
+        // parent's `hydrateSlot` still finds its content.
+        let slot_local = self.lowered.children_local.clone().filter(|_| self.slot_region() && children.iter().any(has_children_slot));
+        match slot_local {
+            Some(local) => {
+                let tag = tags::def_tag(&self.lowered.name, &self.lowered.ir.id.module);
+                self.line(format!(
+                    "}}, (__slot) => {{ if (__slot) {local} = __slot; return {build_fn}(); }}, {});",
+                    js_string(&tag)
+                ));
+            }
+            None => self.line(format!("}}, {build_fn});")),
+        }
         var
     }
 
@@ -1750,9 +1770,22 @@ mod tests {
     }
 
     #[test]
-    fn a_children_slot_inside_a_paragraph_is_still_not_adopted() {
+    fn a_components_slot_inside_a_paragraph_adopts_as_a_recoverable_region() {
+        // `<p>{children}</p>` (a Text component): slotted inline content adopts as served;
+        // a block element the caller slots in costs this paragraph a rebuild, which re-slots
+        // the caller's nodes found between this component's labeled markers.
         let m = emit_component("export default function Lead({ children }){ return <p>{children}</p>; }");
-        assert!(m.errors.iter().any(|e| e.contains("{children} slot inside <p>")), "{:?}", m.errors);
+        assert!(m.is_complete(), "errors: {:?}", m.errors);
+        assert!(m.code.contains("children = skipSlot("), "slot stepped over:\n{}", m.code);
+        assert!(
+            m.code.contains("(__slot) => { if (__slot) children = __slot; return default_para0(); }, \"afw-lead-"),
+            "rebuild re-slots by label:\n{}",
+            m.code
+        );
+        // A paragraph that holds only a child component keeps the plain rebuild.
+        let island = emit_component("function Box(){ return <span/>; } export default function L(){ return <p>a <Box/></p>; }");
+        assert!(island.is_complete(), "errors: {:?}", island.errors);
+        assert!(!island.code.contains("(__slot)"), "{}", island.code);
     }
 
     #[test]
@@ -1997,21 +2030,21 @@ mod tests {
     #[test]
     fn a_build_that_can_run_mid_hydration_is_wrapped_in_run_build() {
         // Regression (docs/HYDRATION.md §3.5): a component the hydrate backend can't adopt —
-        // here because it puts an island inside a `<p>`, which the parser would restructure —
+        // here because it puts a `<div>` inside a `<p>`, which the parser would restructure —
         // falls to `RebuildIfServerChildren` and rebuilds on first paint. That rebuild runs
         // while `isHydrating()` is still set, so its fresh child islands must build, not adopt
         // DOM this component just created. Codegen brackets the build in `runBuild(() => …)`,
         // which clears the flag for the build's synchronous span.
         let m = emit_component(
             "export default function Panel({ framed, children }){ \
-             return framed ? <p>a <Box/> {children}</p> : <div class=\"b\">{children}</div>; }",
+             return framed ? <p>a <Box/> <div>{children}</div></p> : <div class=\"b\">{children}</div>; }",
         );
         // An unsupported shape is a *non-fatal* adopt error: it's reported (so the gap is
         // visible) but the module still emits — with this component demoted to
         // `RebuildIfServerChildren`.
         assert!(
             m.errors.iter().any(|e| e.contains("inside <p>")),
-            "the island in a paragraph makes it non-adoptable:\n{:?}",
+            "a block element in a paragraph makes it non-adoptable:\n{:?}",
             m.errors,
         );
         // The RebuildIfServerChildren build is wrapped in runBuild.
@@ -2675,7 +2708,7 @@ mod tests {
     fn hot_component_that_cannot_adopt_rebuilds_with_refresh() {
         let m = emit_hot(
             "export default function Panel({ framed, children }){ let n = $state(1); \
-             return framed ? <p>a <Box/> {children} {n}</p> : <div class=\"b\">{children}</div>; }",
+             return framed ? <p>a <Box/> <div>{children}</div> {n}</p> : <div class=\"b\">{children}</div>; }",
             "/app/Panel.tsx",
             false,
         );

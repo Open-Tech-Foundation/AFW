@@ -12,6 +12,13 @@
 
 ### Fixed
 
+- A component's `{children}` slot inside a `<p>` (`<p>{children}</p>`, a Text component)
+  hydrates in place. It was refused as a reparse hazard: the component rebuilt on every
+  page load and the compiler warned in every app that used it. It is now a recoverable
+  paragraph region, like a component inside a `<p>`: inline content adopts as served, and a
+  block element the caller slots in costs only that paragraph a rebuild, which keeps the
+  caller's nodes. A page or layout `{children}` in a `<p>` is still refused. Needs the
+  matching `@opentf/afw`.
 - Server rendering: a component's slot children render where the component places them,
   not before it runs. A component that wraps its `{children}` in a `<ContextProvider>`
   (`<Tabs>` around its `<Tab>`s) now provides to them on the server; they used to read

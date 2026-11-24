@@ -121,26 +121,32 @@ const CLOSES_P: &[&str] = &[
     "pre", "search", "section", "summary", "table", "ul", "xmp",
 ];
 
-/// Does a `<p>` with these children hold a component whose markup the compiler can't see?
+/// Does a `<p>` with these children hold content whose markup the compiler can't see — a
+/// component, or (with `slot`) a component's own `{children}` slot?
 ///
 /// Such a paragraph is a *recoverable region*: the SSG backend writes a `<!--p]-->` marker
 /// after it, and the hydrate backend adopts it through `hydrateParagraph`, which keeps the
-/// served paragraph when the parser left it intact (the component rendered inline markup)
-/// and rebuilds just that paragraph when a block element in the component made the parser
-/// close it early. Both backends call this, so they agree on which paragraphs get the
-/// marker. A scope barrier (`<button>`, …) or foreign content stops the parser from
-/// closing the `<p>`, so a component under one is not counted.
-pub fn paragraph_has_component(children: &[ViewNode]) -> bool {
+/// served paragraph when the parser left it intact (inline markup) and rebuilds just that
+/// paragraph when a block element made the parser close it early. Both backends call this
+/// with the same `slot`, so they agree on which paragraphs get the marker. A scope barrier
+/// (`<button>`, …) or foreign content stops the parser from closing the `<p>`, so content
+/// under one is not counted.
+///
+/// `slot` is true for a component module, whose slot is bracketed by its own labeled
+/// `<!--c[tag-->` markers — what lets the rebuild find the slotted nodes wherever the
+/// parser moved them. A page/layout slot has no such label and stays a hazard.
+pub fn paragraph_is_region(children: &[ViewNode], slot: bool) -> bool {
     children.iter().any(|child| match child {
         ViewNode::Component { .. } => true,
+        ViewNode::Children => slot,
         ViewNode::Element { tag, children, .. } => {
             !SCOPE_BARRIER.contains(&tag.as_str())
                 && !matches!(tag.as_str(), "svg" | "math")
-                && paragraph_has_component(children)
+                && paragraph_is_region(children, slot)
         }
-        ViewNode::Fragment(children) => paragraph_has_component(children),
-        ViewNode::DynamicNode { branches, .. } => paragraph_has_component(branches),
-        ViewNode::List { item, .. } => paragraph_has_component(std::slice::from_ref(item)),
+        ViewNode::Fragment(children) => paragraph_is_region(children, slot),
+        ViewNode::DynamicNode { branches, .. } => paragraph_is_region(branches, slot),
+        ViewNode::List { item, .. } => paragraph_is_region(std::slice::from_ref(item), slot),
         _ => false,
     })
 }
@@ -228,6 +234,9 @@ struct Ctx<'a> {
     /// Inside SVG/MathML, where the HTML insertion modes (and every rule above) are
     /// replaced by the foreign-content ones — nesting is taken at face value there.
     foreign: bool,
+    /// The view is a component's: its `{children}` slot inside a `<p>` is a recoverable
+    /// region (see [`paragraph_is_region`]), not a hazard.
+    slot_region: bool,
 }
 
 impl<'a> Ctx<'a> {
@@ -318,8 +327,11 @@ pub fn build_stmt_count(node: &ViewNode) -> usize {
 /// walk addresses nodes positionally. Content the walk cannot see through (a component's
 /// own view, a `{children}` slot) is treated as arbitrary element content: fine in an
 /// ordinary parent, refused where an implied end tag or foster parenting could fire.
-pub fn reparse_hazard(view: &ViewNode) -> Option<String> {
-    walk(view, Ctx::default(), Mode::Adopt).err()
+///
+/// `component`: the view is a component's, so its own `{children}` slot in a `<p>` is
+/// recovered at runtime like a component there (see [`paragraph_is_region`]).
+pub fn reparse_hazard(view: &ViewNode, component: bool) -> Option<String> {
+    walk(view, Ctx { slot_region: component, ..Ctx::default() }, Mode::Adopt).err()
 }
 
 /// The shared parser model. `Mode::Clone` answers "byte-identical after a re-parse?"
@@ -370,11 +382,13 @@ fn walk(node: &ViewNode, ctx: Ctx, mode: Mode) -> Result<(), String> {
                 return Err(table_text_err(ctx));
             }
             // A component inside a `<p>` is adopted through a recoverable region
-            // (`paragraph_has_component`, the `hydrateParagraph` runtime): most render
+            // (`paragraph_is_region`, the `hydrateParagraph` runtime): most render
             // inline markup and adopt as served, and one that renders a block element
-            // costs only its paragraph a rebuild. A `{children}` slot there is the
-            // parent's content and stays a hazard.
-            let recoverable = mode == Mode::Adopt && matches!(node, ViewNode::Component { .. });
+            // costs only its paragraph a rebuild. A component's own `{children}` slot is
+            // recovered the same way; a page/layout slot there stays a hazard.
+            let recoverable = mode == Mode::Adopt
+                && (matches!(node, ViewNode::Component { .. })
+                    || (ctx.slot_region && matches!(node, ViewNode::Children)));
             if ctx.fragile() && !recoverable {
                 return Err(format!(
                     "{} inside <p>: content the parser hoists out would close the <p> early",
@@ -501,7 +515,7 @@ fn element(
 
 fn child_ctx<'a>(tag: &'a str, ctx: Ctx<'a>, foreign: bool) -> Ctx<'a> {
     if foreign {
-        return Ctx { parent: Some(tag), foreign: true, ..Ctx::default() };
+        return Ctx { parent: Some(tag), foreign: true, slot_region: ctx.slot_region, ..Ctx::default() };
     }
     let barrier = SCOPE_BARRIER.contains(&tag);
     Ctx {
@@ -516,6 +530,7 @@ fn child_ctx<'a>(tag: &'a str, ctx: Ctx<'a>, foreign: bool) -> Ctx<'a> {
         in_item: !ITEM_BARRIER.contains(&tag) && (ctx.in_item || matches!(tag, "dd" | "dt")),
         in_form: ctx.in_form || tag == "form",
         foreign: false,
+        slot_region: ctx.slot_region,
     }
 }
 
@@ -733,6 +748,32 @@ mod tests {
     }
 
     /// `<div>` wrapper so a subtree under test is never the template root itself.
+    /// The walk as a page sees it (no component slot).
+    fn reparse_hazard_page(view: &ViewNode) -> Option<String> {
+        reparse_hazard(view, false)
+    }
+
+    fn paragraph_is_region_t(children: &[ViewNode]) -> bool {
+        paragraph_is_region(children, false)
+    }
+
+    #[test]
+    fn a_components_own_slot_in_a_paragraph_is_a_recoverable_region() {
+        // `<p>{children}</p>` — a Text component. In a component the slot is bracketed by
+        // its labeled markers, so a block element a caller slots in costs one paragraph
+        // rebuild; on a page (a layout's slot) it stays a hazard.
+        let tree = wrap(vec![el("p", vec![], vec![ViewNode::Children])]);
+        assert_eq!(reparse_hazard(&tree, true), None);
+        assert!(reparse_hazard(&tree, false).is_some_and(|r| r.contains("slot inside <p>")));
+        assert!(paragraph_is_region(&[ViewNode::Children], true));
+        assert!(paragraph_is_region(&[el("strong", vec![], vec![ViewNode::Children])], true));
+        assert!(!paragraph_is_region(&[ViewNode::Children], false));
+        assert!(!paragraph_is_region(&[el("button", vec![], vec![ViewNode::Children])], true));
+        // A literal block element is refused in a component too.
+        let div = wrap(vec![el("p", vec![], vec![ViewNode::Children, el("div", vec![], vec![])])]);
+        assert!(reparse_hazard(&div, true).is_some_and(|r| r.contains("<div> inside <p>")));
+    }
+
     fn wrap(children: Vec<ViewNode>) -> ViewNode {
         el("div", vec![attr("class", "w")], children)
     }
@@ -959,13 +1000,13 @@ mod tests {
             ),
             component("Card"),
         ]);
-        assert_eq!(reparse_hazard(&tree), None);
+        assert_eq!(reparse_hazard_page(&tree), None);
     }
 
     #[test]
     fn a_block_element_in_a_paragraph_is_a_hazard() {
         let tree = wrap(vec![el("p", vec![], vec![hole(), el("div", vec![], vec![text("x")])])]);
-        assert!(reparse_hazard(&tree).is_some_and(|r| r.contains("<div> inside <p>")));
+        assert!(reparse_hazard_page(&tree).is_some_and(|r| r.contains("<div> inside <p>")));
     }
 
     #[test]
@@ -973,17 +1014,17 @@ mod tests {
         // The component's *own* view may start with a block element, which closes the
         // `<p>` early. That is recovered at runtime (`hydrateParagraph`), not refused.
         let tree = wrap(vec![el("p", vec![], vec![text("a "), component("Box"), text(" b")])]);
-        assert_eq!(reparse_hazard(&tree), None);
+        assert_eq!(reparse_hazard_page(&tree), None);
         let ViewNode::Element { children: outer, .. } = &tree else { unreachable!() };
         let ViewNode::Element { children, .. } = &outer[0] else { unreachable!() };
-        assert!(paragraph_has_component(children));
+        assert!(paragraph_is_region_t(children));
         // Nested inline markup still counts; a scope barrier stops the parser closing the <p>.
-        assert!(paragraph_has_component(&[el("em", vec![], vec![component("Box")])]));
-        assert!(!paragraph_has_component(&[el("button", vec![], vec![component("Box")])]));
-        assert!(!paragraph_has_component(&[text("plain")]));
+        assert!(paragraph_is_region_t(&[el("em", vec![], vec![component("Box")])]));
+        assert!(!paragraph_is_region_t(&[el("button", vec![], vec![component("Box")])]));
+        assert!(!paragraph_is_region_t(&[text("plain")]));
         // A literal block element in a paragraph is still refused: it always breaks.
         let div = wrap(vec![el("p", vec![], vec![el("div", vec![], vec![])])]);
-        assert!(reparse_hazard(&div).is_some_and(|r| r.contains("<div> inside <p>")));
+        assert!(reparse_hazard_page(&div).is_some_and(|r| r.contains("<div> inside <p>")));
     }
 
     #[test]
@@ -992,12 +1033,12 @@ mod tests {
         // nav. Neither is at risk: an `<a>` is closed only by another `<a>` start tag (a
         // `<div>` inside one is valid HTML the parser keeps), and an `<li>` only by
         // another `<li>` — unlike `<p>`, which any block-level tag ends.
-        assert_eq!(reparse_hazard(&wrap(vec![el("a", vec![], vec![ViewNode::Children])])), None);
+        assert_eq!(reparse_hazard_page(&wrap(vec![el("a", vec![], vec![ViewNode::Children])])), None);
         assert_eq!(
-            reparse_hazard(&wrap(vec![el("ul", vec![], vec![el("li", vec![], vec![component("Icon")])])])),
+            reparse_hazard_page(&wrap(vec![el("ul", vec![], vec![el("li", vec![], vec![component("Icon")])])])),
             None
         );
-        assert_eq!(reparse_hazard(&wrap(vec![el("button", vec![], vec![component("Icon")])])), None);
+        assert_eq!(reparse_hazard_page(&wrap(vec![el("button", vec![], vec![component("Icon")])])), None);
     }
 
     #[test]
@@ -1005,7 +1046,7 @@ mod tests {
         for (outer, inner) in [("a", "a"), ("button", "button"), ("li", "li"), ("form", "form")] {
             let tree = wrap(vec![el(outer, vec![], vec![el(inner, vec![], vec![hole()])])]);
             assert!(
-                reparse_hazard(&tree).is_some(),
+                reparse_hazard_page(&tree).is_some(),
                 "<{inner}> inside <{outer}> must refuse adoption"
             );
         }
@@ -1016,30 +1057,30 @@ mod tests {
         // A bare `<tr>` under `<table>` gains an implied `<tbody>` (lowering normalizes
         // the static shape; a dynamic one still has to be refused).
         let bare_row = el("table", vec![], vec![el("tr", vec![], vec![el("td", vec![], vec![hole()])])]);
-        assert!(reparse_hazard(&bare_row).is_some());
+        assert!(reparse_hazard_page(&bare_row).is_some());
         // A list region directly inside the table: the rows move into an implied section
         // but the `<!--[-->`/`<!--]-->` markers do not follow them.
         let rows = el("table", vec![], vec![list(el("tr", vec![], vec![el("td", vec![], vec![hole()])]))]);
-        assert!(reparse_hazard(&rows).is_some_and(|r| r.contains("<tbody>")));
+        assert!(reparse_hazard_page(&rows).is_some_and(|r| r.contains("<tbody>")));
         // Wrapped in a section, the same list adopts.
         let wrapped = el(
             "table",
             vec![],
             vec![el("tbody", vec![], vec![list(el("tr", vec![], vec![el("td", vec![], vec![hole()])]))])],
         );
-        assert_eq!(reparse_hazard(&wrapped), None);
+        assert_eq!(reparse_hazard_page(&wrapped), None);
     }
 
     #[test]
     fn raw_text_holds_one_piece_of_content() {
         // One hole is adoptable (`claimRawText` binds the element's single text node)…
-        assert_eq!(reparse_hazard(&wrap(vec![el("textarea", vec![], vec![hole()])])), None);
+        assert_eq!(reparse_hazard_page(&wrap(vec![el("textarea", vec![], vec![hole()])])), None);
         // …but static text *and* a hole come back as one merged text node.
         let mixed = wrap(vec![el("textarea", vec![], vec![text("a"), hole()])]);
         assert!(mixed.clone().pipe_hazard().contains("single text node"));
         // An element inside raw text is not markup at all.
         let markup = wrap(vec![el("title", vec![], vec![el("b", vec![], vec![text("x")])])]);
-        assert!(reparse_hazard(&markup).is_some());
+        assert!(reparse_hazard_page(&markup).is_some());
     }
 
     #[test]
@@ -1051,7 +1092,7 @@ mod tests {
             vec![],
             vec![el("title", vec![], vec![text("t")]), el("g", vec![], vec![el("path", vec![], vec![])])],
         )]);
-        assert_eq!(reparse_hazard(&svg), None);
+        assert_eq!(reparse_hazard_page(&svg), None);
     }
 
     /// Test helper: the hazard reason, panicking when the shape was accepted.
@@ -1060,7 +1101,7 @@ mod tests {
     }
     impl PipeHazard for ViewNode {
         fn pipe_hazard(self) -> String {
-            reparse_hazard(&self).expect("expected a reparse hazard")
+            reparse_hazard_page(&self).expect("expected a reparse hazard")
         }
     }
 }
