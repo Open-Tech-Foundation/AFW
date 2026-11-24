@@ -638,3 +638,19 @@ test("router.query keeps the last value of a repeated name; searchParams has the
     expect(router.searchParams.getAll("tag")).toEqual(["a", "b"]);
   } finally { app.remove(); }
 });
+
+// A route folder named `app` below the app directory (`app/settings/app/page.jsx`) is
+// the route /settings/app. Stripping "everything up to the last /app" made it "/" and
+// left its real URL a 404.
+test("a route folder named app keeps its place in the URL", () => {
+  const settings = () => document.createElement("div");
+  const nested = () => document.createElement("div");
+  registerRoutes({
+    "/app/settings/page.jsx": { default: settings },
+    "/app/settings/app/page.jsx": { default: nested },
+    "/app/app/page.jsx": { default: nested },
+  });
+  expect(matchRoute("/settings/app").route).toBe("/settings/app");
+  expect(matchRoute("/app").route).toBe("/app");
+  expect(matchRoute("/settings").route).toBe("/settings");
+});

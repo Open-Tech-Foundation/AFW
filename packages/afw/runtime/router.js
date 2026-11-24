@@ -234,12 +234,13 @@ export const router = {
   replace: (path) => navigate(path, true),
 };
 
-/** Derive the route ("/counter", "/") from a `.../app/<route>/page.jsx` path. The
- *  lookahead pins `/app` to a complete path segment, so a route folder that merely
- *  starts with "app" (`/appointments`) isn't clipped. */
+/** Derive the route ("/counter", "/") from a `.../app/<route>/page.jsx` path. A
+ *  route-table key (`/app/<route>/…`, what `@afw/routes` emits) loses exactly its leading
+ *  `/app`, so a route folder that is itself named `app` (`/settings/app`) keeps it. Any
+ *  other path falls back to the last complete `/app` segment; the lookahead keeps a
+ *  folder that merely starts with "app" (`/appointments`) intact. */
 function routeFromPath(filePath) {
-  const r = filePath
-    .replace(/^.*\/app(?=\/)/, "")
+  const r = (filePath.startsWith("/app/") ? filePath.slice(4) : filePath.replace(/^.*\/app(?=\/)/, ""))
     .replace(/\/(page|layout|404|loading|error)\.(jsx|tsx|mdx|md)$/, "");
   return r === "" ? "/" : r;
 }

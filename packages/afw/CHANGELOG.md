@@ -9,12 +9,15 @@
   stamps each host's id base as `data-afw-uid` and hydration reads it back, so ids match
   the server HTML; hosts built on the client get their own base that cannot collide with
   a server one. Typed in the macro globals (`$id(): string`).
-
-### Fixed
-
 - `setHandler(el, name, fn)`: binds an `on*` prop on a child component — its declared
   callback prop or a standard handler property, otherwise a listener on the host.
   Compiler-emitted; needs the matching `@opentf/afw-compiler`.
+
+### Fixed
+
+- A route folder named `app` below the app directory (`app/settings/app/page.jsx`) is
+  the route `/settings/app`. The router stripped everything up to the last `/app`, so
+  the page answered `/` and its own URL was a 404.
 - A component that does not declare `value`, `checked`, `selected` or `disabled` gets
   them from its parent as host attributes, so `...rest` forwards them. They used to be
   set as properties on the host and never reached the element the component renders.
