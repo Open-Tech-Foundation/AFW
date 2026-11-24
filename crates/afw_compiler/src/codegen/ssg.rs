@@ -212,6 +212,9 @@ impl<'a> Emitter<'a> {
         if lowered.uses_id {
             self.server.insert("componentId");
         }
+        if lowered.children_local.is_some() {
+            self.server.insert("ssgSlot");
+        }
         self.emit_prop_setup(lowered, &mut decls);
         for item in &lowered.body {
             self.emit_stmt(item, &mut decls);
@@ -232,6 +235,9 @@ impl<'a> Emitter<'a> {
         // readable name (mirrors the CSR `classList.add`).
         out.push_str(&format!("{name}_ssg.tag = {};\n", js_string(&tag)));
         out.push_str(&format!("{name}_ssg.hostClass = {};\n", js_string(&tags::css_hook(name))));
+        // Its slot children arrive as a thunk it renders where `{children}` sits (`ssgSlot`),
+        // so they render inside any `<ContextProvider>` it wraps them in.
+        out.push_str(&format!("{name}_ssg.lazyChildren = true;\n"));
         out.push_str(&format!("defineSSG({name}_ssg.tag, {name}_ssg);\n"));
         if lowered.is_default_export {
             out.push_str(&format!("export default {name}_ssg;\n"));
@@ -250,8 +256,11 @@ impl<'a> Emitter<'a> {
     /// props in and wraps them).
     fn emit_prop_setup(&mut self, lowered: &Lowered, out: &mut String) {
         // `children` read as a value is the slotted HTML; `{ __html }` keeps it
-        // trusted when it lands in a hole (a `{children}` slot uses `__children`).
-        let children_value = "{ __html: __children ?? \"\" }";
+        // trusted when it lands in a hole (a `{children}` slot uses `__children`). A
+        // getter, so the call site's thunk renders only where the value is used — not
+        // once more up front, outside any provider the component wraps its slot in. It
+        // caches, since a hole reads `__html` more than once.
+        let children_value = "{ get __html() { return (this.h ??= ssgSlot(__children)); } }";
         if let Some(local) = &lowered.props_object {
             let children = lowered.children_local.as_ref()
                 .map(|_| format!("children: {children_value}"));
@@ -412,9 +421,10 @@ impl<'a> Emitter<'a> {
                     // and the parent's `hydrateSlot` guessed by tree order and adopted against
                     // another component's region. The tag makes both lookups exact.
                     let tag = self.self_tag.clone().unwrap_or_default();
+                    self.server.insert("ssgSlot");
                     vec![
                         format!("\"<!--c[{tag}-->\""),
-                        "(__children ?? \"\")".to_string(),
+                        "ssgSlot(__children)".to_string(),
                         format!("\"<!--c]{tag}-->\""),
                     ]
                 }
@@ -613,9 +623,12 @@ impl<'a> Emitter<'a> {
         // into one expression here rather than spliced into the parent's term list.
         let children_terms = self.concat(children);
         let mut children_html = join_plus(&children_terms);
-        // A `<ContextProvider>`'s children render inside it: passed as a thunk, so the
-        // provider's value is in scope for their `$context` reads (`ssgContext`).
-        if tag_expr == "\"afw-internal-context-provider\"" {
+        // Children render where the component places them, not before it: passed as a
+        // thunk, so a provider around them is in scope for their `$context` reads
+        // (`ssgContext`) — a `<ContextProvider>` here, or one a component wraps its own
+        // `{children}` slot in (`<Tabs>` providing to its `<Tab>`s). `ssgComponent` resolves
+        // the thunk up front for a renderer that takes plain HTML (built-ins).
+        if !children.is_empty() {
             children_html = format!("() => ({children_html})");
         }
         self.server.insert("ssgComponent");
@@ -1214,14 +1227,14 @@ mod tests {
     #[test]
     fn props_children_value_is_trusted_slot_html() {
         let m = emit("export function Wrap(props) { return <Inner list={[props.children]} />; }\nfunction Inner(props) { return <p>{props.list}</p>; }", false);
-        assert!(m.code.contains("const props = { children: { __html: __children ?? \"\" } };"), "code:\n{}", m.code);
+        assert!(m.code.contains("const props = { children: { get __html() { return (this.h ??= ssgSlot(__children)); } } };"), "code:\n{}", m.code);
     }
 
     #[test]
     fn props_children_value_joins_the_keyed_props() {
         let m = emit("export function Wrap(props) { return <p title={props.title}>{[props.children].length}</p>; }", false);
         assert!(
-            m.code.contains("const props = { title: { value: __props?.[\"title\"]  }, children: { __html: __children ?? \"\" } };"),
+            m.code.contains("const props = { title: { value: __props?.[\"title\"]  }, children: { get __html() { return (this.h ??= ssgSlot(__children)); } } };"),
             "code:\n{}",
             m.code
         );
@@ -1230,12 +1243,31 @@ mod tests {
     #[test]
     fn destructured_children_value_is_trusted_slot_html() {
         let m = emit("export function Wrap({ children }) { return <Inner list={[children]} />; }\nfunction Inner(props) { return <p>{props.list}</p>; }", false);
-        assert!(m.code.contains("const children = { __html: __children ?? \"\" };"), "code:\n{}", m.code);
+        assert!(m.code.contains("const children = { get __html() { return (this.h ??= ssgSlot(__children)); } };"), "code:\n{}", m.code);
     }
 
     #[test]
     fn a_children_slot_still_renders_the_raw_slot_html() {
         let m = emit("export function Wrap({ children }) { return <div>{children}</div>; }", false);
-        assert!(m.code.contains("(__children ?? \"\")"), "code:\n{}", m.code);
+        assert!(m.code.contains("ssgSlot(__children)"), "code:\n{}", m.code);
+        assert!(m.code.contains("Wrap_ssg.lazyChildren = true;"), "code:\n{}", m.code);
+    }
+
+    #[test]
+    fn call_site_children_are_a_thunk_rendered_at_the_slot() {
+        // `<Wrap><b/></Wrap>`: the children render when Wrap places them, inside any
+        // provider Wrap wraps them in, not before Wrap runs.
+        let m = emit(
+            "function Wrap({ children }) { return <div>{children}</div>; }\n\
+             export default function P() { return <Wrap><b>x</b></Wrap>; }",
+            true,
+        );
+        assert!(m.code.contains("() => (\"<b>x</b>\")"), "code:\n{}", m.code);
+        // No children: no thunk to call.
+        let m = emit(
+            "function Wrap() { return <div/>; }\nexport default function P() { return <Wrap/>; }",
+            true,
+        );
+        assert!(m.code.contains("ssgComponent(Wrap_ssg.tag, {  }, \"\")"), "code:\n{}", m.code);
     }
 }

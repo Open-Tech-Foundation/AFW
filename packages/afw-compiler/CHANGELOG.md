@@ -10,6 +10,14 @@
   arguments, at module scope, or in a page or layout) is a compile error that says where
   it belongs.
 
+### Fixed
+
+- Server rendering: a component's slot children render where the component places them,
+  not before it runs. A component that wraps its `{children}` in a `<ContextProvider>`
+  (`<Tabs>` around its `<Tab>`s) now provides to them on the server; they used to read
+  the context default and render different markup than the client. Slotted content also
+  renders once: a destructured `children` value no longer renders it a second time.
+
 ## [0.28.0] - 2026-11-19
 
 ### Changed

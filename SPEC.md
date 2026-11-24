@@ -503,6 +503,8 @@ el0.setAttribute("class", "box");
 _renderDynamic(el0, () => _waf_props.children.value);
 ```
 
+**Server (SSG/SSR)**: the call site passes its children as a thunk (`ssgComponent(tag, props, () => html)`), and the component renders them where `{children}` sits (`ssgSlot(__children)`; a `children` value is a caching `{ get __html() }`). So slotted content renders once, inside whatever the component wraps it in — a `<ContextProvider>` around its own slot provides to the slotted components on the server as on the client (`<Tabs>` providing to its `<Tab>`s). Compiled renderers are marked `lazyChildren`; built-in renderers receive plain HTML.
+
 ### 4.6 Exposed Properties (`$expose`)
 Components can expose methods and state to their parent via `$expose`.
 **Input**:
