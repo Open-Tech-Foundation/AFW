@@ -1022,9 +1022,11 @@ describe.skipIf(!hasBin)("rest props across ssg → hydrate", () => {
       document.body.appendChild(fresh);
       try {
         const inner = fresh.querySelector("button");
-        expect(fresh.classList.contains("afw-btn")).toBe(true);
         expect(inner.getAttribute("class")).toBe("mine extra");
         expect(inner.getAttribute("aria-label")).toBe("Open");
+        // Moved, not copied: the host keeps only its hook.
+        expect(fresh.getAttribute("class")).toBe("afw-btn");
+        expect(fresh.hasAttribute("aria-label")).toBe(false);
       } finally {
         fresh.remove();
       }

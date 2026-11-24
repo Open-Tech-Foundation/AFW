@@ -246,7 +246,13 @@ export function setProp(el, name, value) {
     customElements.upgrade(el);
   }
   if (name in el) el[name] = value;
-  else setAttr(el, name, value);
+  else if (AS_PROPERTY.has(name) && el.tagName?.includes("-") && (value === null || typeof value !== "object")) {
+    // A component that does not declare `value`/`checked`/`disabled`/… forwards it with
+    // `...rest`, which snapshots the host's *attributes*: as an expando property it would
+    // never reach the element the component renders (`<Trigger disabled>` that is not).
+    if (value == null || value === false) el.removeAttribute(name);
+    else el.setAttribute(name, value === true ? "" : String(value));
+  } else setAttr(el, name, value);
 }
 
 /**

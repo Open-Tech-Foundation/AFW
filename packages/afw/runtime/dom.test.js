@@ -2,7 +2,7 @@ import { describe, expect, test } from "runtime:test";
 
 import { resetWarnings } from "../core/dev.js";
 import { signal } from "../core/signals.js";
-import { bindChild, bindList } from "./dom.js";
+import { bindChild, bindList, setProp } from "./dom.js";
 
 function render(items, keyFn) {
   const parent = document.createElement("div");
@@ -136,5 +136,44 @@ describe("bindList — multi-node items", () => {
     items.value = [b, { id: "a", n: 4 }]; // and moves after b
     expect(shown(ul)).toEqual(["even2", "even4"]);
     expect(ul.querySelectorAll("li").length).toBe(2);
+  });
+});
+
+// A component host that does not declare `value`/`disabled`/… gets them as attributes, so
+// a `...rest` snapshot (which reads attributes) forwards them to the element it renders.
+describe("setProp on a component host", () => {
+  class Plain extends HTMLElement {}
+  if (!customElements.get("afw-test-plain-host")) customElements.define("afw-test-plain-host", Plain);
+  class Declares extends HTMLElement {
+    set value(v) { this._v = v; }
+    get value() { return this._v; }
+  }
+  if (!customElements.get("afw-test-declares-host")) customElements.define("afw-test-declares-host", Declares);
+
+  test("undeclared value/disabled/checked land as attributes", () => {
+    const el = document.createElement("afw-test-plain-host");
+    setProp(el, "value", "delete");
+    setProp(el, "disabled", true);
+    setProp(el, "checked", false);
+    expect(el.getAttribute("value")).toBe("delete");
+    expect(el.getAttribute("disabled")).toBe("");
+    expect(el.hasAttribute("checked")).toBe(false);
+    setProp(el, "disabled", false);
+    expect(el.hasAttribute("disabled")).toBe(false);
+  });
+
+  test("a declared prop still receives the property, rich values included", () => {
+    const el = document.createElement("afw-test-declares-host");
+    const rich = { a: 1 };
+    setProp(el, "value", rich);
+    expect(el.value).toBe(rich);
+    expect(el.hasAttribute("value")).toBe(false);
+  });
+
+  test("a plain element keeps property semantics", () => {
+    const input = document.createElement("input");
+    setProp(input, "value", "typed");
+    expect(input.value).toBe("typed");
+    expect(input.hasAttribute("value")).toBe(false);
   });
 });

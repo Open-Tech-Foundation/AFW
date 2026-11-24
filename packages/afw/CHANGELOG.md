@@ -12,6 +12,9 @@
 
 ### Fixed
 
+- A component that does not declare `value`, `checked`, `selected` or `disabled` gets
+  them from its parent as host attributes, so `...rest` forwards them. They used to be
+  set as properties on the host and never reached the element the component renders.
 - Server rendering renders a component's slot children inside the component (`ssgSlot`),
   so a provider the component wraps its `{children}` in reaches them. Needs the matching
   `@opentf/afw-compiler`.
