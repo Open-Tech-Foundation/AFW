@@ -440,6 +440,60 @@
     border-block-start: 1px solid var(--afw-ui-line);
   }
 
+  /* Combobox: the popup matches the menu; the highlighted option (aria-activedescendant,
+     data-active) gets the accent edge, the chosen one a check. */
+  .afw-ui-combobox-popup {
+    max-block-size: min(18rem, 50vh);
+    padding: 0.25rem;
+    overflow: auto;
+    border: 1px solid var(--afw-ui-line);
+    border-radius: var(--afw-ui-radius-overlay);
+    background: var(--afw-ui-raised);
+    color: var(--afw-ui-ink);
+    box-shadow: var(--afw-ui-shadow);
+    font-size: var(--afw-ui-text-md);
+  }
+  .afw-ui-combobox-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .afw-ui-combobox-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-block-size: var(--afw-ui-row-h);
+    padding: 0 var(--afw-ui-pad-x) 0 calc(var(--afw-ui-pad-x) - 2px);
+    border-inline-start: 2px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .afw-ui-combobox-option::before {
+    content: "";
+    flex: none;
+    inline-size: 1rem;
+  }
+  .afw-ui-combobox-option[aria-selected="true"] {
+    font-weight: 600;
+  }
+  .afw-ui-combobox-option[aria-selected="true"]::before {
+    content: "✓";
+    color: var(--afw-ui-accent-text);
+  }
+  .afw-ui-combobox-option[data-active] {
+    background: var(--afw-ui-subtle);
+    border-inline-start-color: var(--afw-ui-accent-edge);
+  }
+  .afw-ui-combobox-option[aria-disabled="true"] {
+    color: var(--afw-ui-muted);
+    cursor: not-allowed;
+  }
+  .afw-ui-combobox-empty {
+    margin: 0;
+    padding: 0.5rem var(--afw-ui-pad-x);
+    color: var(--afw-ui-muted);
+  }
+
   .afw-ui-tooltip {
     max-inline-size: 18rem;
     padding: 0.25rem 0.5rem;
