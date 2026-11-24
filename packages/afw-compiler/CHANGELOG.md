@@ -20,9 +20,11 @@
 - Server rendering supports rest props (`function Button({ variant, ...rest })`) and
   nested prop destructures (`{ user: { name } }`). Both used to emit a warning and render
   the component as empty HTML until the client rebuilt it.
-- A rest-prop snapshot no longer copies the host's styling hook (`afw-<name>`) or the
-  framework's host markers (`data-h`, `data-hp`, `data-afw-uid`) onto the element it is
-  spread on. The consumer's own classes still forward.
+- A rest-prop snapshot moves the forwarded attributes off the host instead of copying
+  them, so a forwarded `role`, `id` or `aria-*` is no longer on both the host and the
+  inner element. It no longer forwards the host's styling hook (`afw-<name>`) or the
+  framework's host markers (`data-h`, `data-hp`, `data-afw-uid`). The consumer's own
+  classes still forward.
 
 ## [0.28.0] - 2026-11-19
 

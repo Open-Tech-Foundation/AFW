@@ -138,11 +138,12 @@ impl Uses {
 }
 
 /// The statements building a component's `...rest` snapshot (SPEC §2.7): the host's
-/// attributes minus the named props and the framework's host markers. The host's own
-/// styling hook (`afw-<name>`, stamped before the body runs) is taken out of `class`, so
-/// spreading `rest` onto the component's root does not give that element the host's
-/// class too — the consumer's own classes still forward. Shared by the CSR and hydrate
-/// bodies; empty when the component has no rest prop.
+/// attributes minus the named props and the framework's host markers. They *move*: each
+/// is removed from the host as it is taken, so a forwarded `role`, `id` or `aria-*` is not
+/// on both the host and the element `rest` is spread onto (two roles, a duplicate id). The
+/// host's own styling hook (`afw-<name>`, stamped before the body runs) stays on the host
+/// and is taken out of the forwarded `class`; the consumer's classes move. Shared by the
+/// CSR and hydrate bodies; empty when the component has no rest prop.
 pub(crate) fn rest_snapshot(lowered: &Lowered) -> Vec<String> {
     let Some(rest) = &lowered.rest else { return Vec::new() };
     let excl = rest
@@ -157,13 +158,13 @@ pub(crate) fn rest_snapshot(lowered: &Lowered) -> Vec<String> {
     let mut lines = vec![
         format!("const {name} = {{}};"),
         format!(
-            "for (const __a of Array.from(this.attributes)) if (![{excl}].includes(__a.name)) {name}[__a.name] = __a.value;"
+            "for (const __a of Array.from(this.attributes)) if (![{excl}].includes(__a.name)) {{ {name}[__a.name] = __a.value; if (__a.name !== \"class\") this.removeAttribute(__a.name); }}"
         ),
     ];
     if !rest.exclude.iter().any(|k| k == "class") {
         let hook = js_string(&tags::css_hook(&lowered.name));
         lines.push(format!(
-            "if ({name}.class != null) {{ const __c = {name}.class.split(/\\s+/).filter((c) => c && c !== {hook}).join(\" \"); if (__c) {name}.class = __c; else delete {name}.class; }}"
+            "if ({name}.class != null) {{ const __c = {name}.class.split(/\\s+/).filter((c) => c && c !== {hook}).join(\" \"); if (__c) {name}.class = __c; else delete {name}.class; this.setAttribute(\"class\", {hook}); }}"
         ));
     }
     lines
@@ -2572,7 +2573,7 @@ mod tests {
         assert!(m.code.contains("static observedAttributes = [\"a\"];"), "code: {}", m.code);
         assert!(m.code.contains("const rest = {};"), "code: {}", m.code);
         assert!(
-            m.code.contains("for (const __a of Array.from(this.attributes)) if (![\"a\", \"data-h\", \"data-hp\", \"data-afw-uid\"].includes(__a.name)) rest[__a.name] = __a.value;"),
+            m.code.contains("for (const __a of Array.from(this.attributes)) if (![\"a\", \"data-h\", \"data-hp\", \"data-afw-uid\"].includes(__a.name)) { rest[__a.name] = __a.value; if (__a.name !== \"class\") this.removeAttribute(__a.name); }"),
             "code: {}",
             m.code
         );
