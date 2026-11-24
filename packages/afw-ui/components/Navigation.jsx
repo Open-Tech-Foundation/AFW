@@ -18,6 +18,7 @@
 
 import { localizePath, router } from "@opentf/afw";
 import { isCurrentPath, navigateOnClick } from "../internal/navigate.js";
+import { Heading } from "./Typography.jsx";
 
 export function SideNav({ label = "Main", children, ...rest }) {
   return (
@@ -67,7 +68,9 @@ export function PageHeader({ title, description, children, ...rest }) {
   return (
     <div {...rest} class={["afw-ui-page-header", rest.class]}>
       <div class="afw-ui-page-header-text">
-        <h1 class="afw-ui-page-title">{title}</h1>
+        <Heading level={1} size="2xl" class="afw-ui-page-title">
+          {title}
+        </Heading>
         {description ? <p class="afw-ui-page-description">{description}</p> : null}
       </div>
       <div class="afw-ui-page-actions">{children}</div>

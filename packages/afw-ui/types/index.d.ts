@@ -133,6 +133,31 @@ export const Combobox: Component<{
   resultsText?: (count: number) => string;
 }>;
 
+type TextSize = "xs" | "sm" | "md" | "lg";
+/** `level` is the element (h1–h6); `size` only the look (default: by level, h1 → 2xl … h6 → xs). */
+export const Heading: Component<{
+  level?: 1 | 2 | 3 | 4 | 5 | 6;
+  size?: TextSize | "xl" | "2xl" | "3xl" | "display";
+  children?: Child;
+}>;
+export const Text: Component<{
+  as?: "p" | "span" | "div";
+  size?: TextSize;
+  tone?: "muted" | "danger" | "success" | "warning";
+  weight?: "regular" | "medium" | "semibold" | "bold";
+  /** One line with an ellipsis (visual only: the full text stays in the DOM). */
+  truncate?: boolean;
+  /** At most this many lines, then an ellipsis. */
+  lines?: number;
+  children?: Child;
+}>;
+/** An app path ("/…") follows the locale and navigates on the client. */
+export const TextLink: Component<{ href: string; external?: boolean; newTabLabel?: string; children?: Child }>;
+export const Code: Component<{ children?: Child }>;
+/** `keys={["Ctrl", "K"]}`: one <kbd> per key, joined by `separator`; otherwise `children`. */
+export const Kbd: Component<{ keys?: string[]; separator?: string; children?: Child }>;
+export const CodeBlock: Component<{ label?: string; language?: string; children?: Child }>;
+
 type Space = "xs" | "sm" | "md" | "lg" | "xl";
 export const Stack: Component<{ gap?: Space; align?: "start" | "center" | "end"; children?: Child }>;
 export const Inline: Component<{

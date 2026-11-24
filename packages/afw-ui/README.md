@@ -59,10 +59,11 @@ export default function DeleteProject() {
 | `Field`, `TextField`, `Textarea` | `<label>`, `<input>`, `<textarea>` |
 | `Checkbox`, `Switch`, `RadioGroup`, `Radio`, `Select` | native inputs, `<fieldset>`, `<select>` |
 | `Combobox` | `<input role="combobox">` + `listbox` in a `popover="manual"` |
+| `Heading`, `Text`, `TextLink`, `Code`, `Kbd`, `CodeBlock` | `<h1>`–`<h6>`, `<p>`/`<span>`/`<div>`, `<a>`, `<code>`, nested `<kbd>`, `<pre>` |
 | `Stack`, `Inline`, `Grid`, `Card`, `Divider` | flex, auto-fill grid, `<article>`, `<hr>` |
 | `AppShell` (+ `Header`, `MenuButton`, `Sidebar`, `Main`) | landmarks + skip link; the sidebar is a `popover="manual"` dialog on narrow screens |
 | `SideNav`, `SideNavItem`, `SideNavGroup` | `<nav>` list, `aria-current="page"` from the route, `<details>` groups |
-| `PageHeader`, `Breadcrumbs`, `Pagination` | `<h1>` row; `<nav>` + `<ol>`; links or buttons with `aria-current` |
+| `PageHeader`, `Breadcrumbs`, `Pagination` | a level-1 `Heading` row; `<nav>` + `<ol>`; links or buttons with `aria-current` |
 | `Toaster`, `toast()` | `popover="manual"` region + `ariaNotify` |
 
 ## Fallbacks

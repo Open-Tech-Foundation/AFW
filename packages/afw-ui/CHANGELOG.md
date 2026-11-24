@@ -25,6 +25,11 @@
   hold the current page.
 - `PageHeader`, `Breadcrumbs` (`<nav>` + `<ol>`, the last link current, CSS separators)
   and `Pagination` (links with `href(page)` or buttons with `onPageChange`).
+- Typography: `Heading` (`level` picks h1–h6, `size` only the look), `Text` (`as`
+  p/span/div, `size`, `tone`, `weight`, `truncate`, `lines`), `TextLink` (an always
+  underlined `<a>` that navigates on the client; `external` opens a new tab and says so),
+  `Code`, `Kbd` (`keys={["Ctrl", "K"]}` renders the nested `<kbd>` combination) and
+  `CodeBlock` (a named, scrollable tab stop). `PageHeader`'s title is a level-1 `Heading`.
 - `DialogDescription` renders a `<div>`, so rich descriptions hydrate in place.
 - Built-in fallbacks (no polyfill packages) for invoker commands, anchor positioning,
   `focusgroup`, interest invokers and `popover="hint"`, `<dialog closedby>`, the

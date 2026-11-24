@@ -161,7 +161,7 @@ const OBSERVER = `
   new MutationObserver((records) => {
     for (const r of records) {
       for (const n of r.addedNodes) if (!window.__parsed && !n.__server) n.__server = true;
-      for (const n of r.removedNodes) if (n.__server && n.nodeType === 1 && (n.className || "").toString().includes("afw-ui-")) window.__removed.push(n.className);
+      for (const n of r.removedNodes) if (n.__server && n.nodeType === 1 && (n.className || "").toString().includes("afw-ui-")) window.__removed.push(n.id ? n.className + "#" + n.id : n.className);
     }
   }).observe(document, { childList: true, subtree: true }); // no documentElement yet at document start
   document.addEventListener("readystatechange", () => {
@@ -212,7 +212,11 @@ try {
       commandfor: document.querySelector(".afw-ui-dialog-trigger").getAttribute("commandfor") === dialog.id,
     };
   })()`);
-  check(hydration.removed.length === 0, "no server-rendered kit node was replaced", hydration.removed);
+  // #split is the one paragraph a slotted <div> makes the parser split: rebuilt on purpose.
+  const replaced = hydration.removed.filter((c) => !c.endsWith("#split"));
+  check(replaced.length === 0, "no server-rendered kit node was replaced", replaced);
+  const split = await js(`(() => { const p = document.querySelector("#split"); return { tag: p?.tagName, block: !!p?.querySelector(".blk")?.__server, text: p?.textContent.replace(/\\s+/g, " ").trim(), paras: p?.parentElement.querySelectorAll("p").length }; })()`);
+  check(split.tag === "P" && split.block && split.text === "Before block after" && split.paras === 1, "a block slotted into Text: one paragraph, rebuilt around the served nodes", split);
   check(hydration.dialogAdopted && hydration.tabAdopted, "the dialog and tabs are the server nodes");
   check(hydration.idsKept && hydration.serverIds > 0, "every server id is still there", hydration.serverIds);
   check(hydration.commandfor, "trigger and dialog still agree after hydration");
@@ -234,8 +238,10 @@ try {
       panelLabels: panels.map((p, i) => p.getAttribute("aria-labelledby") === tabs[i].id),
       labelFor: label.getAttribute("for") === input.id, described: input.getAttribute("aria-describedby"),
       uidHosts: document.querySelectorAll("[data-afw-uid]").length,
+      type: [...document.querySelectorAll("#type .afw-ui-heading, #type .afw-ui-text, #type .afw-ui-link, #type kbd, #type pre")].map((e) => e.tagName),
     };
   })()`);
+  check(server.type.join() === "H2,H3,P,P,P,P,A,KBD,KBD,KBD,PRE", "typography renders its real elements on the server", server.type);
   check(server.commandfor && server.commandfor === server.dialogId, "the trigger's commandfor names the dialog", server);
   check(server.title === "Delete this project?", "the dialog is named by its title");
   check(JSON.stringify(server.selected) === '["false","true","false"]', "the default tab is selected in the HTML", server.selected);
@@ -320,6 +326,34 @@ try {
   await click("#first");
   check(await until(`document.querySelector(".afw-ui-toaster")?.matches(":popover-open")`), "a toast shows its region");
   check((await js(`document.querySelector(".afw-ui-toast-message")?.textContent`)) === "Saved", "with the message");
+
+  console.log("\n▶ typography (rendered by the theme)");
+  const type = await js(`(() => {
+    const css = (sel) => getComputedStyle(document.querySelector(sel));
+    const clamp = document.querySelector("#clamp"), cut = document.querySelector("#cut"), block = document.querySelector("#block");
+    return {
+      headings: [...document.querySelectorAll("#type .afw-ui-heading")].map((h) => h.tagName + ":" + h.dataset.size),
+      h2px: css("#type h2").fontSize, h3px: css("#type h3").fontSize,
+      // A one-line Text (#cut) is the line height.
+      clamped: clamp.scrollHeight > clamp.clientHeight + 1 && Math.round(clamp.clientHeight / cut.clientHeight) === 2,
+      cut: cut.scrollWidth > cut.clientWidth && css("#cut").textOverflow === "ellipsis",
+      cutText: cut.textContent,
+      underline: css("#ext").textDecorationLine,
+      extName: document.querySelector("#ext").textContent.trim(),
+      mono: css("#code").fontFamily.includes("Mono") || css("#code").fontFamily.includes("mono"),
+      keys: [...document.querySelectorAll("#combo kbd")].map((k) => k.textContent),
+      keyBorder: css("#combo kbd").borderBottomWidth,
+      scrolls: block.scrollWidth > block.clientWidth, blockTab: block.tabIndex,
+    };
+  })()`);
+  check(type.headings.join() === "H2:3xl,H3:lg", "level picks the element, size the look", type.headings);
+  check(type.h2px === "28px" && type.h3px === "16px", "sizes come from the scale", [type.h2px, type.h3px]);
+  check(type.clamped, "lines={2} clips the paragraph to two lines");
+  check(type.cut && type.cutText === "quarterly-usage-report-final-version-two.pdf", "truncate ends in an ellipsis and keeps the full text");
+  check(type.underline === "underline", "links are underlined", type.underline);
+  check(type.extName === "Status page (opens in a new tab)", "an external link says it opens a new tab", type.extName);
+  check(type.mono && type.keys.join() === "Ctrl,K" && type.keyBorder === "2px", "code is mono; a combo is one keycap per key", type);
+  check(type.scrolls && type.blockTab === 0, "a long code block scrolls sideways and is a tab stop", type);
 
   console.log("\n▶ app shell: server HTML");
   await load({ scripts: false, path: "/shell/" });

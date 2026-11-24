@@ -4,6 +4,7 @@ import {
   Button, Combobox, Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger,
   Field, Menu, MenuContent, MenuItem, MenuTrigger, Popover, PopoverContent, PopoverTrigger,
   Switch, Tab, TabList, TabPanel, Tabs, TextField, Toaster, toast, Tooltip,
+  Code, CodeBlock, Heading, Kbd, Text, TextLink,
 } from "@opentf/afw-ui";
 
 export default function Kit() {
@@ -51,6 +52,17 @@ export default function Kit() {
         <Combobox name="fruit" defaultValue="banana" options={[{ value: "apple", label: "Apple" }, { value: "apricot", label: "Apricot" }, { value: "banana", label: "Banana" }, { value: "grape", label: "Grape" }]} />
       </Field>
       <Switch checked>Email alerts</Switch>
+      <section id="type" style="inline-size: 240px">
+        <Heading level={2} size="3xl">Usage report</Heading>
+        <Heading level={3}>This week</Heading>
+        <Text id="clamp" lines={2}>Requests rose by a fifth on Tuesday after the billing export moved to the nightly queue, then settled.</Text>
+        <Text id="cut" truncate>quarterly-usage-report-final-version-two.pdf</Text>
+        <Text tone="muted" size="sm">Updated hourly.</Text>
+        <Text id="split">Before <div class="blk">block</div> after</Text>
+        <TextLink id="ext" href="https://status.example.com" external>Status page</TextLink>
+        <p>Press <Kbd id="combo" keys={["Ctrl", "K"]} /> or run <Code id="code">afw dev</Code>.</p>
+        <CodeBlock id="block" label="Install">{"npm install @opentf/afw-ui @opentf/afw-ui-theme --save-exact"}</CodeBlock>
+      </section>
       <Toaster />
     </div>
   );
