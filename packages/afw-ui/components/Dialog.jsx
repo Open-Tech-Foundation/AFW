@@ -157,9 +157,9 @@ export function DialogTitle({ children, ...rest }) {
 export function DialogDescription({ children, ...rest }) {
   const dialog = $context(DialogContext);
   return (
-    <p {...rest} id={dialog?.descriptionId} class={["afw-ui-dialog-description", rest.class]}>
+    <div {...rest} id={dialog?.descriptionId} class={["afw-ui-dialog-description", rest.class]}>
       {children}
-    </p>
+    </div>
   );
 }
 

@@ -1,0 +1,23 @@
+{
+  "plugins": [
+    {
+      "module": "@opentf/esdev-plugin-afw",
+      "options": {
+        "appDir": "packages/afw-ui/e2e/app"
+      }
+    }
+  ],
+  "build": {
+    "targets": {
+      "web": {
+        "entry": "packages/afw-ui/e2e/index.html",
+        "outDir": "packages/afw-ui/e2e/dist"
+      },
+      "site-ssg": {
+        "entry": "packages/afw-ui/e2e/ssg.js",
+        "out": "packages/afw-ui/e2e/dist/ssg.js",
+        "then": "run"
+      }
+    }
+  }
+}
