@@ -72,6 +72,7 @@ Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE
 * [ ] Phase 1 follow-ups: submenus (safe triangle), menu typeahead, Popover/Tooltip arrows, `Select` options adopted on hydration (a slot inside `<select>` is client-rendered today).
 * [x] Phase 2: Combobox (list autocomplete).
 * [x] Layout: Stack, Inline, Grid, Card, Divider; AppShell (sidebar ↔ drawer), SideNav, PageHeader, Breadcrumbs, Pagination.
+* [x] Typography: Heading, Text (truncate, line clamp), TextLink, Code, Kbd, CodeBlock; a component's `{children}` in a `<p>` hydrates in place.
 * [ ] Layout follow-ups: swipe-to-close drawer (scroll snap), long-trail breadcrumb collapse.
 * [ ] Phase 2: Listbox, Toolbar, DataTable (sort, selection, sticky header), Slider, Progress/Meter, Skeleton.
 * [ ] Phase 3: date and date-range pickers, tree view, command palette, file upload, virtualized grid.

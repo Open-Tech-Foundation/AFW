@@ -9,6 +9,7 @@ import {
   MenuSeparator, MenuTrigger, Popover, PopoverClose, PopoverContent, PopoverTrigger,
   Radio, RadioGroup, Select, Switch, Tab, TabList, TabPanel, Tabs, Textarea, TextField,
   Toaster, toast, Tooltip,
+  Code, CodeBlock, Heading, Kbd, Text, TextLink,
 } from "@opentf/afw-ui";
 
 export const metadata = { title: "UI Kit" };
@@ -152,6 +153,31 @@ export default function UiKit() {
           <AccordionItem summary="Returns">30 days, no questions asked.</AccordionItem>
           <AccordionItem summary="Warranty">Two years on every part.</AccordionItem>
         </Accordion>
+      </section>
+
+      <section style="display: grid; gap: 12px">
+        <h2 style="margin: 0; font-size: 16px">Typography</h2>
+        <Heading level={3} size="display">Quarterly usage</Heading>
+        <Heading level={3} size="3xl">Billing overview</Heading>
+        <Heading level={3} size="2xl">Team members</Heading>
+        <Heading level={4}>Invoices (h4, its default size)</Heading>
+        <Text>
+          Requests rose by a fifth on Tuesday after the export moved to the nightly queue. Read the{" "}
+          <TextLink href="/ui-kit/shell">app shell demo</TextLink> or the{" "}
+          <TextLink href="https://developer.mozilla.org/docs/Web/HTML/Element/p" external>paragraph reference</TextLink>.
+        </Text>
+        <Text tone="muted" size="sm">Updated hourly. Times are in your time zone.</Text>
+        <Text tone="success" weight="semibold">All checks passed</Text>
+        <Text tone="warning">Your plan renews in 3 days</Text>
+        <Text tone="danger">2 invoices failed to send</Text>
+        <div style="max-inline-size: 260px; display: grid; gap: 8px">
+          <Text truncate>quarterly-usage-report-final-version-two.pdf</Text>
+          <Text lines={2}>A long description that wraps onto a third line in this narrow column, so it is clipped after two with an ellipsis.</Text>
+        </div>
+        <Text>
+          Press <Kbd keys={["Ctrl", "K"]} /> to search, <Kbd>Esc</Kbd> to close, or run <Code>afw dev</Code>.
+        </Text>
+        <CodeBlock label="Install" language="sh">{"npm install @opentf/afw-ui @opentf/afw-ui-theme"}</CodeBlock>
       </section>
 
       <Toaster />

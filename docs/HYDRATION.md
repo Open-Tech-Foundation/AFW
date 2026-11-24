@@ -473,10 +473,17 @@ optimization (`template_html`); the same model now answers the hydrate question 
   there. The hydrate backend adopts the paragraph through `hydrateParagraph`: kept as served
   when intact (inline markup, the usual MDX case), otherwise everything from the `<p>` to
   its marker is removed and that one paragraph is rebuilt. The parser never moves comments,
-  so the marker always bounds what it made of the paragraph. A `{children}` slot inside a
-  `<p>` is the parent's content and is still refused (below).
+  so the marker always bounds what it made of the paragraph.
+- **A component's own `{children}` slot inside a `<p>` is a recoverable region too**
+  (`<p>{children}</p>`, a Text component). Inline content adopts as served. When the
+  caller slotted a block element, the parser splits the paragraph; `hydrateParagraph`
+  then gathers the caller's nodes from between the component's labeled
+  `<!--c[tag-->`/`<!--c]tag-->` markers (wherever the parser left them) and the rebuilt
+  paragraph re-slots them, markers included. The caller's `hydrateSlot` still finds and
+  wires its content, and the served attributes the build has no source for (`...rest`)
+  carry over. A page/layout slot in a `<p>` has no labeled markers and is still refused.
 - **Anything else the parser reshapes is refused at compile time.** `<p><div>`, a
-  `{children}` slot inside a `<p>`, `<a><a>`, `<form><form>`,
+  page/layout `{children}` slot inside a `<p>`, `<a><a>`, `<form><form>`,
   a dynamic region directly inside `<table>`: the view is not adoptable, the page/component
   falls back to a clean CSR build, and the compiler says which shape and why. The refusal is
   deliberately narrow — an `<a>` is closed only by another `<a>`, an `<li>` only by another

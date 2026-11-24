@@ -217,6 +217,43 @@ import { Stack, Inline, Grid, Card, Divider } from "@opentf/afw-ui";
 - `Card` is an `<article>`. Its regions are its direct children, in order: media, a
   heading, content, and a `<footer>` of actions.
 
+## Typography
+
+```jsx
+import { Heading, Text, TextLink, Code, Kbd, CodeBlock } from "@opentf/afw-ui";
+
+<Heading level={2} size="lg">Billing</Heading>
+<Text tone="muted" size="sm">Invoices are sent on the 1st.</Text>
+<Text as="span" truncate>{fileName}</Text>
+<TextLink href="/settings/billing">Change plan</TextLink>
+<TextLink href="https://status.example.com" external>Status page</TextLink>
+<Text>Press <Kbd keys={["Ctrl", "K"]} /> to search, or run <Code>afw dev</Code>.</Text>
+<CodeBlock label="Install" language="sh">{"npm i @opentf/afw-ui"}</CodeBlock>
+```
+
+- The element carries the meaning, the props only the look:
+  - `Heading`: `level` (1–6) picks `<h1>`–`<h6>`; `size` (`xs`–`3xl`, `display`) defaults
+    by level. An `<h3>` in a card can look small without breaking the page outline.
+  - `Text`: `as` is `p` (default), `span` or `div`; `size` (`xs`–`lg`), `tone` (`muted`,
+    `success`, `warning`, `danger`) and `weight` are styling hooks.
+- Truncation is visual only — the full text stays the accessible name and what copy and
+  find-in-page see:
+  - `truncate`: one line with an ellipsis.
+  - `lines={n}`: at most `n` lines.
+  - Give touch users another way to read it in full (a detail view, a tooltip).
+- `TextLink` is a plain `<a>`, always underlined so colour never marks it alone:
+  - An app path (`/…`) follows the locale and navigates on the client.
+  - `external` opens a new tab with `rel="noopener noreferrer"` and adds "(opens in a new
+    tab)" for screen readers (`newTabLabel` translates it).
+  - It is not called `Link`: that name is the framework's own component.
+- `Kbd`: one key as children, or `keys` for a combination (one `<kbd>` per key inside an
+  outer `<kbd>`, joined by `separator`).
+- `CodeBlock` keeps its line breaks and scrolls sideways, so it is a tab stop named by
+  `label`; `language` sets `language-*` on the `<code>` for a highlighter.
+- A `<p>` holding slotted content hydrates in place; a block element slotted into `Text`
+  splits the paragraph in the browser, which costs only that paragraph a rebuild. Use
+  `as="div"` for block content.
+
 ## App shell
 
 ```jsx
