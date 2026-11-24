@@ -58,6 +58,7 @@ export default function DeleteProject() {
 | `Accordion`, `AccordionItem` | `<details name>` |
 | `Field`, `TextField`, `Textarea` | `<label>`, `<input>`, `<textarea>` |
 | `Checkbox`, `Switch`, `RadioGroup`, `Radio`, `Select` | native inputs, `<fieldset>`, `<select>` |
+| `Combobox` | `<input role="combobox">` + `listbox` in a `popover="manual"` |
 | `Toaster`, `toast()` | `popover="manual"` region + `ariaNotify` |
 
 ## Fallbacks

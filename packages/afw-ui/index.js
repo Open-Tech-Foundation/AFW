@@ -24,5 +24,6 @@ export { Tabs, TabList, Tab, TabPanel } from "./components/Tabs.jsx";
 export { Accordion, AccordionItem } from "./components/Accordion.jsx";
 export { Field, TextField, Textarea } from "./components/Field.jsx";
 export { Checkbox, Switch, RadioGroup, Radio, Select } from "./components/Choice.jsx";
+export { Combobox } from "./components/Combobox.jsx";
 export { Toaster, toast, dismissToast, clearToasts } from "./components/Toast.jsx";
 export { announce } from "./internal/announce.js";

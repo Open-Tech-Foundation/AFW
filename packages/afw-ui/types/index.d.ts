@@ -113,6 +113,26 @@ export const RadioGroup: Component<{
 export const Radio: Component<{ value: string; children?: Child }>;
 export const Select: Component<{ value?: string; onValueChange?: (value: string) => void; children?: Child }>;
 
+export type ComboboxOption = string | { value: string; label?: string; disabled?: boolean };
+export const Combobox: Component<{
+  options: ComboboxOption[];
+  value?: string;
+  /** The initial value when uncontrolled. */
+  defaultValue?: string;
+  onValueChange?: (value: string | undefined) => void;
+  /** Each change to the text (for server-side search with `filter={false}`). */
+  onInputChange?: (text: string) => void;
+  /** Filter `options` by the text (case-insensitive substring). Default true. */
+  filter?: boolean;
+  /** Keep text that matches no option, and report it as the value. */
+  allowCustomValue?: boolean;
+  /** Submit the chosen option's value under this name. */
+  name?: string;
+  placeholder?: string;
+  emptyText?: string;
+  resultsText?: (count: number) => string;
+}>;
+
 export interface ToastOptions {
   title?: string;
   tone?: "info" | "success" | "warning" | "danger";

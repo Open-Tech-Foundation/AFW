@@ -292,6 +292,21 @@ try {
   check(await until(`!document.querySelector(".afw-ui-popover").matches(":popover-open")`), "a click outside closes it (light dismiss)");
   check(await until(`document.querySelector(".afw-ui-popover-trigger").getAttribute("aria-expanded") === "false"`), "the trigger follows");
 
+  console.log("\n▶ combobox (typing)");
+  check((await js(`document.querySelector("[role=combobox]").value`)) === "Banana", "the chosen option's label is the text");
+  await js(`(() => { const i = document.querySelector("[role=combobox]"); i.focus(); i.select(); })()`);
+  await cdp.send("Input.insertText", { text: "ap" });
+  check(await until(`document.querySelector(".afw-ui-combobox-popup").matches(":popover-open")`), "typing opens the list");
+  const typed = await js(`(() => { const i = document.querySelector("[role=combobox]").getBoundingClientRect(); const p = document.querySelector(".afw-ui-combobox-popup").getBoundingClientRect(); return { options: [...document.querySelectorAll("[role=option]")].map((o) => o.textContent), below: p.top >= i.bottom - 1 && p.top - i.bottom <= 8, wide: p.width >= i.width - 1 }; })()`);
+  check(JSON.stringify(typed.options) === '["Apple","Apricot","Grape"]', "and filters it", typed.options);
+  check(typed.below && typed.wide, "the list sits under the input, at least as wide", typed);
+  await press("ArrowDown");
+  check((await js(`document.getElementById(document.querySelector("[role=combobox]").getAttribute("aria-activedescendant"))?.textContent`)) === "Apple", "ArrowDown highlights the first option");
+  await press("Enter");
+  const chosen = await js(`({ text: document.querySelector("[role=combobox]").value, hidden: document.querySelector("input[name=fruit]").value, open: document.querySelector(".afw-ui-combobox-popup").matches(":popover-open"), focus: document.activeElement.getAttribute("role") })`);
+  check(chosen.text === "Apple" && chosen.hidden === "apple" && !chosen.open, "Enter chooses it and closes the list", chosen);
+  check(chosen.focus === "combobox", "focus stays in the input");
+
   console.log("\n▶ toast");
   await click("#first");
   check(await until(`document.querySelector(".afw-ui-toaster")?.matches(":popover-open")`), "a toast shows its region");

@@ -20,8 +20,10 @@ export function Field({ label, description, error, required = false, children, .
   const controlId = $id();
   const descriptionId = $id();
   const errorId = $id();
+  const labelId = $id();
   const api = {
     controlId,
+    labelId,
     required: () => Boolean(required),
     invalid: () => Boolean(error),
     describedBy: () =>
@@ -30,7 +32,7 @@ export function Field({ label, description, error, required = false, children, .
   return (
     <ContextProvider context={FieldContext} value={api}>
       <div {...rest} class={["afw-ui-field", rest.class]} data-invalid={error ? "" : undefined}>
-        <label for={controlId} class="afw-ui-field-label">
+        <label id={labelId} for={controlId} class="afw-ui-field-label">
           {label}
         </label>
         {children}

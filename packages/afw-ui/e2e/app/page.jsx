@@ -1,7 +1,7 @@
 // The kit as a server-rendered page: every part whose ids, context or initial state
 // must survive hydration, plus the controls the e2e drives with real keyboard input.
 import {
-  Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger,
+  Button, Combobox, Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger,
   Field, Menu, MenuContent, MenuItem, MenuTrigger, Popover, PopoverContent, PopoverTrigger,
   Switch, Tab, TabList, TabPanel, Tabs, TextField, Toaster, toast, Tooltip,
 } from "@opentf/afw-ui";
@@ -46,6 +46,9 @@ export default function Kit() {
       </Tabs>
       <Field label="Email" description="Receipts only." required>
         <TextField name="email" type="email" />
+      </Field>
+      <Field label="Fruit">
+        <Combobox name="fruit" defaultValue="banana" options={[{ value: "apple", label: "Apple" }, { value: "apricot", label: "Apricot" }, { value: "banana", label: "Banana" }, { value: "grape", label: "Grape" }]} />
       </Field>
       <Switch checked>Email alerts</Switch>
       <Toaster />
