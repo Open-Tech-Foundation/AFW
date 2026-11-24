@@ -86,12 +86,21 @@ describe("choice controls", () => {
     expect(sw.hasAttribute("switch")).toBe(true);
     expect(sw.getAttribute("role")).toBe("switch"); // the fallback role (no native switch here)
     expect(sw.checked).toBe(true);
+    // Visible state words for the theme, default English.
+    expect([sw.dataset.on, sw.dataset.off]).toEqual(["On", "Off"]);
     expect(view.getByLabelText("Country").value).toBe("in");
     const mixed = view.getByLabelText("Select all");
     expect(mixed.indeterminate).toBe(true);
     mixed.click();
     await tick();
     expect(mixed.indeterminate).toBe(false);
+  });
+
+  test("switch state words are translatable", async () => {
+    const view = render(Choices);
+    await tick();
+    const sw = view.getByLabelText("Benachrichtigungen");
+    expect([sw.dataset.on, sw.dataset.off]).toEqual(["Ein", "Aus"]);
   });
 
   test("radios share one name in a fieldset named by its legend", async () => {

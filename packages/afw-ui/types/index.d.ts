@@ -94,7 +94,14 @@ export const Field: Component<{ label: Child; description?: Child; error?: Child
 export const TextField: Component<{ value?: string; type?: string; onValueChange?: (value: string) => void }>;
 export const Textarea: Component<{ value?: string; onValueChange?: (value: string) => void }>;
 export const Checkbox: Component<{ checked?: boolean; indeterminate?: boolean; onCheckedChange?: (checked: boolean) => void; children?: Child }>;
-export const Switch: Component<{ checked?: boolean; onCheckedChange?: (checked: boolean) => void; children?: Child }>;
+export const Switch: Component<{
+  checked?: boolean;
+  /** Visible state words inside the track (default "On" / "Off"); translate them here. */
+  onLabel?: string;
+  offLabel?: string;
+  onCheckedChange?: (checked: boolean) => void;
+  children?: Child;
+}>;
 export const RadioGroup: Component<{
   label: Child;
   name?: string;

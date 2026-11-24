@@ -30,11 +30,11 @@ const PAIRS = [
   ["--afw-ui-ink", "--afw-ui-surface", 4.5],
   ["--afw-ui-ink", "--afw-ui-canvas", 4.5],
   ["--afw-ui-ink", "--afw-ui-raised", 4.5],
-  ["--afw-ui-ink", "--afw-ui-subtle", 4.5],
+  ["--afw-ui-ink", "--afw-ui-subtle", 4.5], // also a switch's "Off"
   ["--afw-ui-muted", "--afw-ui-surface", 4.5],
   ["--afw-ui-muted", "--afw-ui-canvas", 4.5],
   ["--afw-ui-muted", "--afw-ui-raised", 4.5],
-  ["--afw-ui-accent-ink", "--afw-ui-accent", 4.5], // primary button text
+  ["--afw-ui-accent-ink", "--afw-ui-accent", 4.5], // primary button text, a switch's "On"
   ["--afw-ui-accent-text", "--afw-ui-surface", 4.5],
   ["--afw-ui-accent-text", "--afw-ui-raised", 4.5], // menu check marks
   ["--afw-ui-danger", "--afw-ui-surface", 4.5], // field errors

@@ -33,6 +33,7 @@ export function Choices() {
       <Checkbox checked={terms} onCheckedChange={(v) => (terms = v)} data-testid="terms">I accept the terms</Checkbox>
       <Checkbox indeterminate={mixed} data-testid="mixed" onCheckedChange={() => (mixed = false)}>Select all</Checkbox>
       <Switch checked={alerts} onCheckedChange={(v) => (alerts = v)} data-testid="alerts">Email alerts</Switch>
+      <Switch onLabel="Ein" offLabel="Aus">Benachrichtigungen</Switch>
       <RadioGroup label="Plan" value={plan} onValueChange={(v) => (plan = v)} description="Change it any time.">
         <Radio value="free">Free</Radio>
         <Radio value="team">Team</Radio>

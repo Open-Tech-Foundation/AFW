@@ -259,13 +259,17 @@
   }
 
   /* Switch: one look whether the native `switch` exists or the fallback role is used.
-     The thumb is a bordered pseudo-element, so forced colors keep it visible. */
+     The thumb is a bordered pseudo-element, so forced colors keep it visible. The state
+     word ("On"/"Off", from the component's data-on/data-off) sits in the free side of
+     the track, so the state reads without color; its alt text is empty, since the
+     switch already announces its state. */
   .afw-ui-switch input {
+    --afw-ui-thumb: calc(1.375rem - 6px);
     appearance: none;
     position: relative;
     flex: none;
-    inline-size: 2.25rem;
-    block-size: 1.25rem;
+    inline-size: 3.25rem;
+    block-size: 1.375rem;
     margin: 0;
     border: 1px solid var(--afw-ui-control-border);
     border-radius: var(--afw-ui-radius-pill);
@@ -275,20 +279,40 @@
   .afw-ui-switch input::before {
     content: "";
     position: absolute;
+    z-index: 1;
     inset-block: 2px;
     inset-inline-start: 2px;
-    aspect-ratio: 1;
+    inline-size: var(--afw-ui-thumb);
     border: 1px solid var(--afw-ui-control-border);
     border-radius: var(--afw-ui-radius-pill);
     background: var(--afw-ui-surface);
+  }
+  .afw-ui-switch input::after {
+    content: attr(data-off);
+    content: attr(data-off) / "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0.4rem;
+    display: grid;
+    place-items: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--afw-ui-ink);
   }
   .afw-ui-switch input:checked {
     border-color: var(--afw-ui-accent-edge);
     background: var(--afw-ui-accent);
   }
   .afw-ui-switch input:checked::before {
-    inset-inline-start: calc(100% - 2px - (1.25rem - 6px));
+    inset-inline-start: calc(100% - 2px - var(--afw-ui-thumb));
     border-color: var(--afw-ui-accent-edge);
+  }
+  .afw-ui-switch input:checked::after {
+    content: attr(data-on);
+    content: attr(data-on) / "";
+    inset-inline: 0.5rem auto;
+    color: var(--afw-ui-accent-ink);
   }
   @media (prefers-reduced-motion: no-preference) {
     .afw-ui-switch input::before {
@@ -296,8 +320,14 @@
     }
   }
   @media (forced-colors: active) {
-    .afw-ui-switch input:checked::before {
+    .afw-ui-switch input:checked {
       background: Highlight;
+    }
+    .afw-ui-switch input:checked::before {
+      background: Canvas;
+    }
+    .afw-ui-switch input:checked::after {
+      color: HighlightText;
     }
   }
 

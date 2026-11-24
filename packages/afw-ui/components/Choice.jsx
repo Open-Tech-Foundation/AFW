@@ -44,8 +44,10 @@ export function Checkbox({ checked, indeterminate = false, onCheckedChange, chil
 
 // A checkbox with the `switch` attribute: native switch semantics where supported, and
 // `role="switch"` (the same accessible role) where not. Its state is on/off, read with
-// `.checked`.
-export function Switch({ checked, onCheckedChange, children, ...rest }) {
+// `.checked`. `onLabel`/`offLabel` ("On"/"Off") are the visible state words a theme draws
+// inside the track (`data-on`/`data-off`), so the state reads without relying on color
+// or thumb position; screen readers already announce it, so they are not exposed again.
+export function Switch({ checked, onLabel = "On", offLabel = "Off", onCheckedChange, children, ...rest }) {
   const field = $context(FieldContext);
   const input = $ref();
   onMount(() => {
@@ -58,6 +60,8 @@ export function Switch({ checked, onCheckedChange, children, ...rest }) {
         ref={input}
         type="checkbox"
         switch=""
+        data-on={onLabel}
+        data-off={offLabel}
         id={field?.controlId ?? rest.id}
         checked={checked}
         aria-describedby={field?.describedBy() ?? rest["aria-describedby"]}
