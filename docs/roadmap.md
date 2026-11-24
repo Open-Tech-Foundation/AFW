@@ -71,7 +71,9 @@ Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE
 * [x] Real-browser suite (`tsr test-e2e-afw-ui`): a prerendered page adopted by the client, then driven with trusted input — no-script invokers, adoption without replacement, native focusgroup/interest/positioning.
 * [ ] Phase 1 follow-ups: submenus (safe triangle), menu typeahead, Popover/Tooltip arrows, `Select` options adopted on hydration (a slot inside `<select>` is client-rendered today).
 * [x] Phase 2: Combobox (list autocomplete).
-* [ ] Phase 2: Listbox, Toolbar, DataTable (sort, selection, sticky header), Pagination, Breadcrumbs, navigation drawer, Slider, Progress/Meter, Skeleton.
+* [x] Layout: Stack, Inline, Grid, Card, Divider; AppShell (sidebar ↔ drawer), SideNav, PageHeader, Breadcrumbs, Pagination.
+* [ ] Layout follow-ups: swipe-to-close drawer (scroll snap), long-trail breadcrumb collapse.
+* [ ] Phase 2: Listbox, Toolbar, DataTable (sort, selection, sticky header), Slider, Progress/Meter, Skeleton.
 * [ ] Phase 3: date and date-range pickers, tree view, command palette, file upload, virtualized grid.
 * [ ] Move afw-docs' own Tabs/Tooltip/Search dialog/ThemeToggle onto afw-ui.
 

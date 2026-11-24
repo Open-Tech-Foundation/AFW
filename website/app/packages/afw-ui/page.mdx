@@ -190,6 +190,79 @@ toast("Upload failed", { tone: "danger", title: "report.pdf", duration: 8000 });
 - Announced to screen readers without moving focus.
 - Held back while a modal dialog is open.
 
+## Layout
+
+```jsx
+import { Stack, Inline, Grid, Card, Divider } from "@opentf/afw-ui";
+
+<Stack gap="lg">
+  <Inline gap="sm" justify="end">
+    <Button>Cancel</Button>
+    <Button variant="primary">Save</Button>
+  </Inline>
+  <Grid min="16rem">
+    <Card>
+      <h2>Usage</h2>
+      <p>4,210 requests today.</p>
+      <footer><Button size="sm">Open</Button></footer>
+    </Card>
+  </Grid>
+</Stack>
+```
+
+- `Stack` (vertical), `Inline` (a wrapping row) and `Grid`: `gap` is `xs`–`xl`, scaled by
+  the density.
+- `Grid` fits as many `min`-wide columns as the space allows, down to one — no
+  breakpoints.
+- `Card` is an `<article>`. Its regions are its direct children, in order: media, a
+  heading, content, and a `<footer>` of actions.
+
+## App shell
+
+```jsx
+import {
+  AppShell, AppShellHeader, AppShellMenuButton, AppShellSidebar, AppShellMain,
+  SideNav, SideNavItem, SideNavGroup, Breadcrumbs, PageHeader, Pagination,
+} from "@opentf/afw-ui";
+
+<AppShell drawerBelow="64rem">
+  <AppShellHeader>
+    <AppShellMenuButton />
+    <strong>Acme Console</strong>
+  </AppShellHeader>
+  <AppShellSidebar label="Main navigation">
+    <SideNav label="Main">
+      <SideNavItem href="/" exact>Overview</SideNavItem>
+      <SideNavGroup label="Projects">
+        <SideNavItem href="/projects">All projects</SideNavItem>
+      </SideNavGroup>
+    </SideNav>
+  </AppShellSidebar>
+  <AppShellMain>
+    <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Projects", href: "/projects" }]} />
+    <PageHeader title="Projects" description="Everything your team runs.">
+      <Button variant="primary">New project</Button>
+    </PageHeader>
+    <Pagination page={page} pageCount={8} onPageChange={(p) => (page = p)} />
+  </AppShellMain>
+</AppShell>
+```
+
+- **Landmarks:** a header, the sidebar's navigation and `<main>`. "Skip to content" is
+  the first Tab stop and moves focus into main.
+- **Narrow screens** (below `drawerBelow`): the sidebar becomes a drawer opened by the
+  menu button. The page is inert while it is open; Esc, a press outside, or choosing a
+  link closes it, and focus returns to the menu button.
+- **Current page:** `SideNavItem` is `aria-current="page"` for the route and the pages
+  below it (`exact` for "/" and overviews), on the server and after client navigation. A
+  group holding the current page opens.
+- **Breadcrumbs:** a labelled `<nav>` with an ordered list; the last item is the current
+  page; separators are CSS only.
+- **Pagination:** `href` (a function from page number to URL) renders links, one URL per
+  page; `onPageChange` renders buttons. The first and last pages and the neighbors of
+  the current one are shown, with "…" for gaps.
+- Put the shell in a layout whose own markup has no `<main>`: the shell brings it.
+
 ## Accordion and Button
 
 ```jsx
