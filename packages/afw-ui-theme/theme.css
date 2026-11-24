@@ -1,0 +1,617 @@
+/* @opentf/afw-ui-theme — Ember: the default look for @opentf/afw-ui.
+ *
+ * A calm, dense interface for people who work in it all day, in AFW's own identity:
+ * - The primary action is the brand orange with ink text (white on that orange fails
+ *   contrast), so the main action on a screen is unmistakable without being loud.
+ * - The "Ember edge": one language for selected, current and focused — a 2px orange
+ *   edge on the active tab, menu item, selected row and toast, and the focus ring.
+ *   Selection always has a second cue (weight, a check), never color alone.
+ * - Radius by role: 6px controls, 10px overlays, pills only for switches and badges.
+ * - Depth only for what floats: dialogs, menus, popovers, toasts. Panels in the page get
+ *   a 1px line and no shadow.
+ *
+ * Everything sits in `afw-ui.*` cascade layers, so any unlayered app CSS overrides it
+ * without specificity games. Components are styled by their `.afw-ui-*` part classes and
+ * ARIA/data state — never by internal structure.
+ */
+
+@import url("./tokens.css");
+
+@layer afw-ui.tokens, afw-ui.base, afw-ui.components;
+
+/* ── base ─────────────────────────────────────────────────────────────────────────── */
+
+@layer afw-ui.base {
+  :where([class^="afw-ui-"], [class*=" afw-ui-"]) {
+    font-family: var(--afw-ui-font);
+    font-variant-numeric: tabular-nums;
+    box-sizing: border-box;
+  }
+
+  /* One focus ring everywhere: the Ember edge, outside the element. An outline survives
+     forced colors (a box-shadow would not). */
+  :where([class^="afw-ui-"], [class*=" afw-ui-"]):focus-visible {
+    outline: var(--afw-ui-focus-width) solid var(--afw-ui-ember-edge);
+    outline-offset: 2px;
+  }
+  :where([class^="afw-ui-"], [class*=" afw-ui-"]):focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Interest invokers (tooltips): a short wait before showing, a shorter one before hiding. */
+  [interestfor] {
+    interest-delay-start: 400ms;
+    interest-delay-end: 100ms;
+  }
+}
+
+/* ── components ───────────────────────────────────────────────────────────────────── */
+
+@layer afw-ui.components {
+  /* Button ------------------------------------------------------------------------- */
+  .afw-ui-button,
+  .afw-ui-dialog-trigger,
+  .afw-ui-popover-trigger,
+  .afw-ui-menu-trigger,
+  .afw-ui-dialog-close,
+  .afw-ui-popover-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--afw-ui-gap);
+    min-block-size: var(--afw-ui-control-h);
+    padding: 0 var(--afw-ui-pad-x);
+    border: 1px solid var(--afw-ui-control-border);
+    border-radius: var(--afw-ui-radius-control);
+    background: var(--afw-ui-surface);
+    color: var(--afw-ui-ink);
+    font-size: var(--afw-ui-text-md);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--afw-ui-fast) var(--afw-ui-ease), border-color var(--afw-ui-fast) var(--afw-ui-ease);
+  }
+  :is(.afw-ui-button, .afw-ui-dialog-trigger, .afw-ui-popover-trigger, .afw-ui-menu-trigger, .afw-ui-dialog-close, .afw-ui-popover-close):hover {
+    background: var(--afw-ui-subtle);
+  }
+  .afw-ui-menu-trigger[aria-expanded="true"],
+  .afw-ui-popover-trigger[aria-expanded="true"] {
+    background: var(--afw-ui-subtle);
+    border-color: var(--afw-ui-ember-edge);
+  }
+  .afw-ui-button[data-variant="primary"] {
+    background: var(--afw-ui-ember);
+    border-color: var(--afw-ui-ember-edge);
+    color: var(--afw-ui-ember-ink);
+    font-weight: 600;
+  }
+  .afw-ui-button[data-variant="primary"]:hover {
+    background: color-mix(in srgb, var(--afw-ui-ember) 88%, var(--afw-ui-ink));
+  }
+  .afw-ui-button[data-variant="ghost"] {
+    border-color: transparent;
+    background: transparent;
+  }
+  .afw-ui-button[data-variant="ghost"]:hover {
+    background: var(--afw-ui-subtle);
+  }
+  .afw-ui-button[data-variant="danger"] {
+    background: var(--afw-ui-danger);
+    border-color: var(--afw-ui-danger);
+    color: var(--afw-ui-on-danger);
+  }
+  .afw-ui-button[data-variant="danger"]:hover {
+    background: color-mix(in srgb, var(--afw-ui-danger) 88%, var(--afw-ui-ink));
+  }
+  .afw-ui-button[data-size="sm"] {
+    min-block-size: calc(var(--afw-ui-control-h) - 0.25rem);
+    padding-inline: calc(var(--afw-ui-pad-x) * 0.75);
+    font-size: var(--afw-ui-text-sm);
+  }
+  .afw-ui-button[data-size="lg"] {
+    min-block-size: calc(var(--afw-ui-control-h) + 0.25rem);
+    padding-inline: calc(var(--afw-ui-pad-x) * 1.25);
+    font-size: var(--afw-ui-text-lg);
+  }
+  .afw-ui-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .afw-ui-button[aria-busy="true"] {
+    cursor: progress;
+  }
+  .afw-ui-button[aria-busy="true"]::before {
+    content: "";
+    inline-size: 0.875em;
+    block-size: 0.875em;
+    border: 2px solid currentColor;
+    border-inline-end-color: transparent;
+    border-radius: var(--afw-ui-radius-pill);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .afw-ui-button[aria-busy="true"]::before {
+      animation: afw-ui-spin 0.8s linear infinite;
+    }
+  }
+  @keyframes afw-ui-spin {
+    to {
+      rotate: 1turn;
+    }
+  }
+
+  /* Form controls ------------------------------------------------------------------ */
+  .afw-ui-field {
+    display: grid;
+    gap: 0.25rem;
+    color: var(--afw-ui-ink);
+  }
+  .afw-ui-field-label,
+  .afw-ui-radio-group-label {
+    font-size: var(--afw-ui-text-sm);
+    font-weight: 600;
+  }
+  .afw-ui-field-description {
+    margin: 0;
+    font-size: var(--afw-ui-text-sm);
+    color: var(--afw-ui-muted);
+  }
+  .afw-ui-field-error {
+    margin: 0;
+    font-size: var(--afw-ui-text-sm);
+    font-weight: 500;
+    color: var(--afw-ui-danger);
+  }
+  /* The error carries a shape too, not color alone. */
+  .afw-ui-field-error::before {
+    content: "! ";
+    font-weight: 700;
+  }
+
+  .afw-ui-input,
+  .afw-ui-textarea,
+  .afw-ui-select {
+    inline-size: 100%;
+    min-block-size: var(--afw-ui-control-h);
+    padding: var(--afw-ui-pad-y) var(--afw-ui-pad-x);
+    border: 1px solid var(--afw-ui-control-border);
+    border-radius: var(--afw-ui-radius-control);
+    background: var(--afw-ui-surface);
+    color: var(--afw-ui-ink);
+    font: inherit;
+    font-size: var(--afw-ui-text-md);
+    line-height: var(--afw-ui-leading);
+  }
+  .afw-ui-textarea {
+    resize: vertical;
+    field-sizing: content;
+    min-block-size: calc(var(--afw-ui-control-h) * 2.5);
+  }
+  .afw-ui-input::placeholder,
+  .afw-ui-textarea::placeholder {
+    color: var(--afw-ui-muted);
+  }
+  :is(.afw-ui-input, .afw-ui-textarea, .afw-ui-select):focus-visible {
+    outline-offset: 0;
+    border-color: var(--afw-ui-ember-edge);
+  }
+  :is(.afw-ui-input, .afw-ui-textarea, .afw-ui-select)[aria-invalid="true"] {
+    border-color: var(--afw-ui-danger);
+    border-width: 2px;
+  }
+  :is(.afw-ui-input, .afw-ui-textarea, .afw-ui-select):disabled {
+    background: var(--afw-ui-subtle);
+    cursor: not-allowed;
+  }
+
+  /* The customizable select: the brand look where supported, the OS picker elsewhere. */
+  .afw-ui-select,
+  .afw-ui-select::picker(select) {
+    appearance: base-select;
+  }
+  .afw-ui-select::picker(select) {
+    margin-block: var(--afw-ui-offset);
+    padding: 0.25rem;
+    border: 1px solid var(--afw-ui-line);
+    border-radius: var(--afw-ui-radius-overlay);
+    background: var(--afw-ui-raised);
+    color: var(--afw-ui-ink);
+    box-shadow: var(--afw-ui-shadow);
+  }
+  .afw-ui-select option {
+    min-block-size: var(--afw-ui-row-h);
+    padding-inline: var(--afw-ui-pad-x);
+    border-inline-start: 2px solid transparent;
+    border-radius: 4px;
+  }
+  .afw-ui-select option:is(:hover, :focus-visible) {
+    background: var(--afw-ui-subtle);
+    border-inline-start-color: var(--afw-ui-ember-edge);
+  }
+  .afw-ui-select option:checked {
+    font-weight: 600;
+  }
+
+  /* Checkbox, radio and switch: native, tinted. */
+  .afw-ui-checkbox,
+  .afw-ui-radio,
+  .afw-ui-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--afw-ui-gap);
+    font-size: var(--afw-ui-text-md);
+    color: var(--afw-ui-ink);
+    cursor: pointer;
+  }
+  .afw-ui-checkbox input,
+  .afw-ui-radio input {
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin: 0;
+    accent-color: var(--afw-ui-ember-edge);
+  }
+  .afw-ui-radio-group {
+    display: grid;
+    gap: var(--afw-ui-gap);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  /* Switch: one look whether the native `switch` exists or the fallback role is used.
+     The thumb is a bordered pseudo-element, so forced colors keep it visible. */
+  .afw-ui-switch input {
+    appearance: none;
+    position: relative;
+    flex: none;
+    inline-size: 2.25rem;
+    block-size: 1.25rem;
+    margin: 0;
+    border: 1px solid var(--afw-ui-control-border);
+    border-radius: var(--afw-ui-radius-pill);
+    background: var(--afw-ui-subtle);
+    cursor: pointer;
+  }
+  .afw-ui-switch input::before {
+    content: "";
+    position: absolute;
+    inset-block: 2px;
+    inset-inline-start: 2px;
+    aspect-ratio: 1;
+    border: 1px solid var(--afw-ui-control-border);
+    border-radius: var(--afw-ui-radius-pill);
+    background: var(--afw-ui-surface);
+  }
+  .afw-ui-switch input:checked {
+    border-color: var(--afw-ui-ember-edge);
+    background: var(--afw-ui-ember);
+  }
+  .afw-ui-switch input:checked::before {
+    inset-inline-start: calc(100% - 2px - (1.25rem - 6px));
+    border-color: var(--afw-ui-ember-edge);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .afw-ui-switch input::before {
+      transition: inset-inline-start var(--afw-ui-fast) var(--afw-ui-ease);
+    }
+  }
+  @media (forced-colors: active) {
+    .afw-ui-switch input:checked::before {
+      background: Highlight;
+    }
+  }
+
+  /* Overlays: dialog, popover, menu, tooltip, toast ---------------------------------- */
+  .afw-ui-dialog,
+  .afw-ui-popover,
+  .afw-ui-menu,
+  .afw-ui-tooltip,
+  .afw-ui-toast {
+    border: 1px solid var(--afw-ui-line);
+    background: var(--afw-ui-raised);
+    color: var(--afw-ui-ink);
+    box-shadow: var(--afw-ui-shadow);
+    font-size: var(--afw-ui-text-md);
+    line-height: var(--afw-ui-leading);
+  }
+
+  .afw-ui-dialog {
+    inline-size: min(32rem, calc(100vw - 2rem));
+    max-block-size: calc(100dvh - 2rem);
+    padding: 1.25rem;
+    border-radius: var(--afw-ui-radius-overlay);
+  }
+  .afw-ui-dialog[open] {
+    display: grid;
+    gap: 0.75rem;
+  }
+  /* Centered in the viewport — restated, since a CSS reset's `margin: 0` removes the
+     UA's centering. Scroll inside it or over its backdrop must not scroll the page. */
+  .afw-ui-dialog:modal {
+    inset: 0;
+    margin: auto;
+    overscroll-behavior: contain;
+  }
+  .afw-ui-dialog::backdrop {
+    background: var(--afw-ui-backdrop);
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+  .afw-ui-dialog-title {
+    margin: 0;
+    font-size: var(--afw-ui-text-xl);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .afw-ui-dialog-description {
+    margin: 0;
+    color: var(--afw-ui-muted);
+  }
+
+  .afw-ui-popover {
+    min-inline-size: 12rem;
+    max-inline-size: min(24rem, calc(100vw - 1rem));
+    padding: 0.75rem;
+    border-radius: var(--afw-ui-radius-overlay);
+  }
+
+  .afw-ui-menu {
+    min-inline-size: 11rem;
+    padding: 0.25rem;
+    border-radius: var(--afw-ui-radius-overlay);
+  }
+  .afw-ui-menu-list,
+  .afw-ui-menu-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .afw-ui-menu-item {
+    display: flex;
+    inline-size: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    min-block-size: var(--afw-ui-row-h);
+    padding: 0 var(--afw-ui-pad-x) 0 calc(var(--afw-ui-pad-x) - 2px);
+    border: 0;
+    border-inline-start: 2px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--afw-ui-ink);
+    font: inherit;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  /* Leading slot for the check mark, so labels align with or without one. */
+  .afw-ui-menu-item::before {
+    content: "";
+    flex: none;
+    inline-size: 1rem;
+    text-align: center;
+  }
+  .afw-ui-menu-item[aria-checked="true"]::before {
+    content: "✓";
+    font-weight: 700;
+    color: var(--afw-ui-ember-text);
+  }
+  /* Hover follows focus (the component focuses the hovered item); the Ember edge marks it. */
+  .afw-ui-menu-item:focus {
+    outline: none;
+    background: var(--afw-ui-subtle);
+    border-inline-start-color: var(--afw-ui-ember-edge);
+  }
+  .afw-ui-menu-item[aria-disabled="true"] {
+    color: var(--afw-ui-muted);
+    cursor: not-allowed;
+  }
+  .afw-ui-menu-separator {
+    margin: 0.25rem 0;
+    border: 0;
+    border-block-start: 1px solid var(--afw-ui-line);
+  }
+
+  .afw-ui-tooltip {
+    max-inline-size: 18rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--afw-ui-radius-control);
+    font-size: var(--afw-ui-text-sm);
+  }
+
+  /* Open/close motion for everything in the top layer: a short fade and lift. */
+  @media (prefers-reduced-motion: no-preference) {
+    :is(.afw-ui-dialog, .afw-ui-popover, .afw-ui-menu, .afw-ui-tooltip) {
+      opacity: 0;
+      translate: 0 -0.25rem;
+      transition: opacity, translate, display, overlay;
+      transition-duration: var(--afw-ui-fast);
+      transition-timing-function: var(--afw-ui-ease);
+      transition-behavior: allow-discrete;
+    }
+    :is(.afw-ui-popover, .afw-ui-menu, .afw-ui-tooltip):popover-open,
+    .afw-ui-dialog[open] {
+      opacity: 1;
+      translate: 0 0;
+      @starting-style {
+        opacity: 0;
+        translate: 0 -0.25rem;
+      }
+    }
+    .afw-ui-dialog::backdrop {
+      opacity: 0;
+      transition: opacity, display, overlay;
+      transition-duration: var(--afw-ui-fast);
+      transition-behavior: allow-discrete;
+    }
+    .afw-ui-dialog[open]::backdrop {
+      opacity: 1;
+      @starting-style {
+        opacity: 0;
+      }
+    }
+  }
+
+  /* Tabs ------------------------------------------------------------------------------ */
+  .afw-ui-tab-list {
+    display: flex;
+    gap: 0.25rem;
+    border-block-end: 1px solid var(--afw-ui-line);
+    /* Too many tabs scroll sideways on one row (never wrap); never vertically. */
+    overflow: auto hidden;
+    scrollbar-width: thin;
+  }
+  .afw-ui-tab {
+    position: relative;
+    flex: none;
+    min-block-size: var(--afw-ui-control-h);
+    padding: 0 var(--afw-ui-pad-x);
+    border: 0;
+    background: transparent;
+    color: var(--afw-ui-muted);
+    font: inherit;
+    font-size: var(--afw-ui-text-md);
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .afw-ui-tab:hover {
+    color: var(--afw-ui-ink);
+  }
+  /* Selected: ink, heavier, and the Ember edge — a border on a pseudo-element, which
+     forced colors keep (a box-shadow or background would vanish). */
+  .afw-ui-tab[aria-selected="true"] {
+    color: var(--afw-ui-ink);
+    font-weight: 600;
+  }
+  .afw-ui-tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    inset-inline: var(--afw-ui-pad-x);
+    inset-block-end: 0;
+    border-block-end: 2px solid var(--afw-ui-ember-edge);
+  }
+  .afw-ui-tab[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  /* No padding or border on the panel itself: `hidden=until-found` keeps a hidden panel's
+     box, so its spacing would show as an empty strip. */
+  .afw-ui-tab-panel > * {
+    margin-block-start: 0.75rem;
+  }
+
+  /* Accordion ---------------------------------------------------------------------- */
+  .afw-ui-accordion-item {
+    border-block-end: 1px solid var(--afw-ui-line);
+    color: var(--afw-ui-ink);
+    font-size: var(--afw-ui-text-md);
+    line-height: var(--afw-ui-leading);
+  }
+  .afw-ui-accordion-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--afw-ui-gap);
+    min-block-size: calc(var(--afw-ui-row-h) + 0.5rem);
+    padding-inline: 0.25rem;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+  .afw-ui-accordion-summary::-webkit-details-marker {
+    display: none;
+  }
+  .afw-ui-accordion-summary::after {
+    content: "";
+    flex: none;
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border-inline-end: 2px solid currentColor;
+    border-block-end: 2px solid currentColor;
+    rotate: 45deg;
+    translate: 0 -0.125rem;
+  }
+  .afw-ui-accordion-item[open] > .afw-ui-accordion-summary::after {
+    rotate: -135deg;
+    translate: 0 0.125rem;
+  }
+  .afw-ui-accordion-content {
+    padding: 0 0.25rem 0.75rem;
+    color: var(--afw-ui-ink);
+  }
+
+  /* Toasts --------------------------------------------------------------------------- */
+  .afw-ui-toaster {
+    position: fixed;
+    inset: auto 1rem 1rem auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+    max-inline-size: min(24rem, calc(100vw - 2rem));
+  }
+  .afw-ui-toast-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .afw-ui-toast {
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+    padding: 0.75rem 0.75rem 0.75rem 1rem;
+    border-inline-start: 3px solid var(--afw-ui-ember-edge);
+    border-radius: var(--afw-ui-radius-overlay);
+  }
+  .afw-ui-toast[data-tone="success"] {
+    border-inline-start-color: var(--afw-ui-success);
+  }
+  .afw-ui-toast[data-tone="warning"] {
+    border-inline-start-color: var(--afw-ui-warning);
+  }
+  .afw-ui-toast[data-tone="danger"] {
+    border-inline-start-color: var(--afw-ui-danger);
+  }
+  .afw-ui-toast[data-tone="info"] {
+    border-inline-start-color: var(--afw-ui-info);
+  }
+  .afw-ui-toast-body {
+    flex: 1;
+    min-inline-size: 0;
+  }
+  .afw-ui-toast-title {
+    margin: 0 0 0.125rem;
+    font-weight: 600;
+  }
+  .afw-ui-toast-message {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .afw-ui-toast-close {
+    flex: none;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    border: 0;
+    border-radius: var(--afw-ui-radius-control);
+    background: transparent;
+    color: var(--afw-ui-muted);
+    font-size: 1.125rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .afw-ui-toast-close:hover {
+    background: var(--afw-ui-subtle);
+    color: var(--afw-ui-ink);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .afw-ui-toast {
+      transition: opacity var(--afw-ui-fast) var(--afw-ui-ease), translate var(--afw-ui-fast) var(--afw-ui-ease);
+      @starting-style {
+        opacity: 0;
+        translate: 0 0.5rem;
+      }
+    }
+  }
+}

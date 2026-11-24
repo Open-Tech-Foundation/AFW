@@ -1,0 +1,39 @@
+{
+  "name": "@opentf/afw-ui-theme",
+  "version": "0.1.0",
+  "description": "Ember, the default theme for @opentf/afw-ui: plain CSS in cascade layers, light and dark, three densities.",
+  "type": "module",
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE"
+  },
+  "exports": {
+    ".": "./theme.css",
+    "./tokens": "./tokens.css"
+  },
+  "files": [
+    "theme.css",
+    "tokens.css"
+  ],
+  "keywords": [
+    "afw",
+    "opentf",
+    "ui",
+    "theme",
+    "css",
+    "design-tokens"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Open-Tech-Foundation/afw.git",
+    "directory": "packages/afw-ui-theme"
+  },
+  "homepage": "https://afw.opentechf.org/packages/afw-ui-theme",
+  "bugs": "https://github.com/Open-Tech-Foundation/afw/issues",
+  "license": "MIT",
+  "peerDependencies": {
+    "@opentf/afw-ui": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

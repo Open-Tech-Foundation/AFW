@@ -1,0 +1,175 @@
+/* @opentf/afw-ui-theme — Ember design tokens.
+ *
+ * Built from AFW's own identity: the brand orange, Geist, and the docs site's slate.
+ * Everything a component reads is a `--afw-ui-*` custom property, so an app re-themes by
+ * overriding tokens (unlayered CSS always beats these layers), not by fighting selectors.
+ *
+ * Modes: light by default, dark from `prefers-color-scheme`, and either forced with
+ * `data-theme="light" | "dark"` on any element (the afw-docs convention).
+ * Density: `data-density="compact" | "comfortable" | "spacious"` on any element; tokens
+ * inherit, so the nearest setting wins.
+ */
+
+@layer afw-ui.tokens {
+  :root {
+    /* Raw palette — light. Text pairs meet 4.5:1, indicator and boundary pairs 3:1. */
+    --afw-ui-ink: #0f172a; /* 17.9:1 on surface */
+    --afw-ui-muted: #64748b; /* 4.8:1 on surface, 4.6:1 on canvas — never on --afw-ui-subtle */
+    --afw-ui-canvas: #f8fafc;
+    --afw-ui-surface: #ffffff;
+    --afw-ui-raised: #ffffff; /* overlays: dialogs, menus, popovers, toasts */
+    --afw-ui-subtle: #f1f5f9; /* hover and pressed fills */
+    --afw-ui-line: #e2e8f0; /* dividers (decorative) */
+    --afw-ui-control-border: #7b8799; /* 3.6:1: a control's boundary must be seen */
+    --afw-ui-ember: #ff851b; /* brand fill; text on it is ink (7.3:1) */
+    --afw-ui-ember-ink: #0f172a;
+    --afw-ui-ember-edge: #d2650a; /* selection and focus indicators (3.8:1) */
+    --afw-ui-ember-text: #ad5100; /* links and accented text (5.3:1) */
+    --afw-ui-ember-wash: #fff4ea; /* a selected row's fill */
+    --afw-ui-danger: #c2261d;
+    --afw-ui-danger-wash: #fdecea;
+    --afw-ui-success: #18794e;
+    --afw-ui-success-wash: #e9f7ef;
+    --afw-ui-warning: #9a5b00;
+    --afw-ui-warning-wash: #fdf3e1;
+    --afw-ui-info: #1d5fbf;
+    --afw-ui-info-wash: #eaf1fb;
+    --afw-ui-on-danger: #ffffff;
+    --afw-ui-backdrop: rgb(15 23 42 / 0.45);
+    --afw-ui-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 8px 24px -6px rgb(15 23 42 / 0.18);
+
+    /* Type: Geist (AFW's face) with system fallbacks. 14px body, tabular figures. */
+    --afw-ui-font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --afw-ui-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --afw-ui-text-xs: 0.75rem; /* 12 */
+    --afw-ui-text-sm: 0.8125rem; /* 13 */
+    --afw-ui-text-md: 0.875rem; /* 14 */
+    --afw-ui-text-lg: 1rem; /* 16 */
+    --afw-ui-text-xl: 1.125rem; /* 18 */
+    --afw-ui-text-2xl: 1.375rem; /* 22 */
+    --afw-ui-leading: 1.45;
+
+    /* Shape: radius says what something is — controls 6, overlays 10, pills only for
+       badges and switches. */
+    --afw-ui-radius-control: 6px;
+    --afw-ui-radius-overlay: 10px;
+    --afw-ui-radius-pill: 999px;
+    --afw-ui-offset: 4px; /* trigger → overlay gap (read by the positioning fallback too) */
+    --afw-ui-focus-width: 2px;
+
+    /* Motion: only for what changed (open, close). */
+    --afw-ui-ease: cubic-bezier(0.2, 0, 0, 1);
+    --afw-ui-fast: 120ms;
+
+    color-scheme: light dark;
+  }
+
+  /* Density — control height, padding and gaps. Comfortable is the default. */
+  :root,
+  [data-density="comfortable"] {
+    --afw-ui-control-h: 2rem; /* 32 */
+    --afw-ui-pad-x: 0.75rem;
+    --afw-ui-pad-y: 0.375rem;
+    --afw-ui-gap: 0.5rem;
+    --afw-ui-row-h: 2rem;
+  }
+  [data-density="compact"] {
+    --afw-ui-control-h: 1.75rem; /* 28 */
+    --afw-ui-pad-x: 0.5rem;
+    --afw-ui-pad-y: 0.25rem;
+    --afw-ui-gap: 0.375rem;
+    --afw-ui-row-h: 1.75rem;
+  }
+  [data-density="spacious"] {
+    --afw-ui-control-h: 2.25rem; /* 36 */
+    --afw-ui-pad-x: 1rem;
+    --afw-ui-pad-y: 0.5rem;
+    --afw-ui-gap: 0.75rem;
+    --afw-ui-row-h: 2.25rem;
+  }
+
+  /* Dark — from the system preference unless forced light, or forced with data-theme. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --afw-ui-ink: #e2e8f0;
+      --afw-ui-muted: #94a3b8;
+      --afw-ui-canvas: #0b1220;
+      --afw-ui-surface: #0f172a;
+      --afw-ui-raised: #162033;
+      --afw-ui-subtle: #1e293b;
+      --afw-ui-line: #1e293b;
+      --afw-ui-control-border: #6b7a90;
+      --afw-ui-ember: #ff943d;
+      --afw-ui-ember-ink: #0b1220;
+      --afw-ui-ember-edge: #ff943d;
+      --afw-ui-ember-text: #ffb071;
+      --afw-ui-ember-wash: #2a1d12;
+      --afw-ui-danger: #f87171;
+      --afw-ui-danger-wash: #2a1515;
+      --afw-ui-success: #4ade80;
+      --afw-ui-success-wash: #102519;
+      --afw-ui-warning: #fbbf24;
+      --afw-ui-warning-wash: #2a2210;
+      --afw-ui-info: #7aa7ff;
+      --afw-ui-info-wash: #131f36;
+      --afw-ui-on-danger: #0b1220;
+      --afw-ui-backdrop: rgb(2 6 23 / 0.6);
+      --afw-ui-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -8px rgb(0 0 0 / 0.6);
+      color-scheme: dark;
+    }
+  }
+  [data-theme="dark"] {
+    --afw-ui-ink: #e2e8f0;
+    --afw-ui-muted: #94a3b8;
+    --afw-ui-canvas: #0b1220;
+    --afw-ui-surface: #0f172a;
+    --afw-ui-raised: #162033;
+    --afw-ui-subtle: #1e293b;
+    --afw-ui-line: #1e293b;
+    --afw-ui-control-border: #6b7a90;
+    --afw-ui-ember: #ff943d;
+    --afw-ui-ember-ink: #0b1220;
+    --afw-ui-ember-edge: #ff943d;
+    --afw-ui-ember-text: #ffb071;
+    --afw-ui-ember-wash: #2a1d12;
+    --afw-ui-danger: #f87171;
+    --afw-ui-danger-wash: #2a1515;
+    --afw-ui-success: #4ade80;
+    --afw-ui-success-wash: #102519;
+    --afw-ui-warning: #fbbf24;
+    --afw-ui-warning-wash: #2a2210;
+    --afw-ui-info: #7aa7ff;
+    --afw-ui-info-wash: #131f36;
+    --afw-ui-on-danger: #0b1220;
+    --afw-ui-backdrop: rgb(2 6 23 / 0.6);
+    --afw-ui-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -8px rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+  }
+
+  /* Windows High Contrast and other forced palettes: system colors, so every boundary
+     and state stays visible (shadows and backgrounds are dropped there). */
+  @media (forced-colors: active) {
+    :root {
+      --afw-ui-ink: CanvasText;
+      --afw-ui-muted: CanvasText;
+      --afw-ui-canvas: Canvas;
+      --afw-ui-surface: Canvas;
+      --afw-ui-raised: Canvas;
+      --afw-ui-subtle: Canvas;
+      --afw-ui-line: CanvasText;
+      --afw-ui-control-border: ButtonText;
+      --afw-ui-ember: ButtonFace;
+      --afw-ui-ember-ink: ButtonText;
+      --afw-ui-ember-edge: Highlight;
+      --afw-ui-ember-text: LinkText;
+      --afw-ui-ember-wash: Canvas;
+      --afw-ui-danger: CanvasText;
+      --afw-ui-success: CanvasText;
+      --afw-ui-warning: CanvasText;
+      --afw-ui-info: CanvasText;
+    }
+  }
+}
