@@ -9,6 +9,13 @@ import { clearToasts, dismissToast, toast } from "../components/Toast.jsx";
 
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+// Poll for a condition the page reaches after queued tasks (the dialog's `close` event,
+// then the flush timer), however long a loaded machine takes to run them.
+async function until(check, ms = 2000) {
+  const end = Date.now() + ms;
+  while (!check() && Date.now() < end) await tick(5);
+  return check();
+}
 
 afterEach(() => clearToasts());
 
@@ -92,7 +99,6 @@ describe("Toast", () => {
     await tick();
     expect(v.items().length).toBe(0);
     modal.close();
-    await tick(5);
-    expect(v.items().length).toBe(1);
+    expect(await until(() => v.items().length === 1)).toBe(true);
   });
 });
