@@ -65,6 +65,14 @@ Both workflows compile the same `app/` through `@opentf/afw-build` (ARCHITECTURE
 * [ ] Streamed SSR. Today `renderRoute()` returns one complete HTML string and loaders block rendering.
 * [ ] Evaluate [Declarative Partial Updates](https://github.com/WICG/declarative-partial-updates/blob/main/patching-explainer.md) (`<?start>`/`<?marker>` placeholders filled by `<template for>`) for out-of-order streaming. A WICG proposal shipping in one browser so far; the hydration walk would need to adopt content the parser moves into place.
 
+## UI kit — `@opentf/afw-ui` + `@opentf/afw-ui-theme` (Ember)
+* [x] Framework groundwork: `$id()`; slot children render inside their component on the server (context reaches compound parts); server rest props; rest moves attributes off the host; listeners for events without handler properties; detached connects wait.
+* [x] Phase 1: Button, VisuallyHidden, Dialog, Popover, Tooltip, Menu (no submenus), Tabs, Accordion, Field, TextField, Textarea, Checkbox, Switch, RadioGroup, Select, Toast; own fallbacks for invokers, anchor positioning, focusgroup, interest/hint, closedby, switch, ariaNotify. Ember theme: tokens, light/dark, densities, forced colors.
+* [ ] Phase 1 follow-ups: submenus (safe triangle), menu typeahead, Popover/Tooltip arrows, a server-render + hydrate test of the kit, a real-browser test tier for the native paths.
+* [ ] Phase 2: Combobox/Autocomplete, Listbox, Toolbar, DataTable (sort, selection, sticky header), Pagination, Breadcrumbs, navigation drawer, Slider, Progress/Meter, Skeleton.
+* [ ] Phase 3: date and date-range pickers, tree view, command palette, file upload, virtualized grid.
+* [ ] Move afw-docs' own Tabs/Tooltip/Search dialog/ThemeToggle onto afw-ui.
+
 ## Everyday gaps — tracked on the site at /docs/roadmap
 Features React, Vue, Svelte and Solid developers expect, built in or from their ecosystems (surveyed 2026-11).
 * [x] Enter/exit transitions for conditionals and lists (`transition`/`in`/`out`, `@opentf/afw/transition`).

@@ -1,0 +1,222 @@
+---
+title: afw-ui
+description: Accessible, headless UI components on the platform's own dialog, popover and form controls, with Ember, the default theme.
+---
+
+import { Callout } from "@opentf/afw-docs";
+
+# @opentf/afw-ui
+
+Accessible, headless components for AFW apps, and **Ember**, the theme that styles them
+(`@opentf/afw-ui-theme`).
+
+<Callout type="note">
+  Both packages ship with the next AFW release. Until then, the code below is the API
+  they will publish.
+</Callout>
+
+- **Native first:** `<dialog>`, `popover`, invoker commands, `interestfor`, `focusgroup`,
+  `<details name>`, the customizable `<select>`. The browser handles focus, the top
+  layer, light dismiss and keyboard behavior.
+- **Works before hydration:** triggers are invokers (`commandfor`), so a dialog opens
+  from the server HTML.
+- **Own fallbacks:** where a feature is missing, a small built-in fallback takes over —
+  no polyfill packages.
+- **Headless:** nothing is drawn. Style the `.afw-ui-*` classes and the ARIA state, or
+  import the theme.
+- **Server-rendered:** ids, context between parts and forwarded attributes match on the
+  server and the client.
+
+## Installation
+
+```bash
+pnpm add @opentf/afw-ui @opentf/afw-ui-theme
+```
+
+```css
+/* app/global.css */
+@import "@opentf/afw-ui-theme";
+```
+
+## Dialog
+
+A modal on the native `<dialog>`. The page goes inert, focus stays inside and returns to
+the trigger, and `Esc` closes it.
+
+```jsx
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@opentf/afw-ui";
+
+<Dialog onOpenChange={(open, value) => value === "delete" && remove()}>
+  <DialogTrigger>Delete project</DialogTrigger>
+  <DialogContent role="alertdialog" closedby="none">
+    <DialogTitle>Delete this project?</DialogTitle>
+    <DialogDescription>Its pages and history are removed.</DialogDescription>
+    <DialogClose autofocus>Keep it</DialogClose>
+    <DialogClose value="delete">Delete</DialogClose>
+  </DialogContent>
+</Dialog>
+```
+
+- `closedby`: `"closerequest"` (default, `Esc`), `"any"` (also click outside), `"none"`
+  (only its buttons).
+- `onOpenChange(open, returnValue)`: the closing button's `value`, or `""` when dismissed.
+- Controlled: pass `open` and update it in `onOpenChange`.
+
+## Menu
+
+```jsx
+import { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator, MenuCheckboxItem } from "@opentf/afw-ui";
+
+<Menu>
+  <MenuTrigger>Actions</MenuTrigger>
+  <MenuContent placement="bottom-start">
+    <MenuItem onSelect={rename}>Rename</MenuItem>
+    <MenuItem href="/settings">Settings</MenuItem>
+    <MenuSeparator />
+    <MenuCheckboxItem checked={grid} onCheckedChange={(v) => (grid = v)}>Show grid</MenuCheckboxItem>
+  </MenuContent>
+</Menu>
+```
+
+- Enter, Space or click open it; a keyboard open focuses the first item.
+- `ArrowDown` / `ArrowUp` on the trigger open onto the first / last item.
+- Arrows, `Home` and `End` move; `Esc` closes and returns focus to the trigger.
+- Choosing an item closes the menu; `event.preventDefault()` in `onSelect` keeps it open.
+- A checkbox item: `Space` toggles and stays open, `Enter` toggles and closes.
+
+## Popover and Tooltip
+
+```jsx
+import { Popover, PopoverTrigger, PopoverContent, Tooltip } from "@opentf/afw-ui";
+
+<Popover>
+  <PopoverTrigger>Filters</PopoverTrigger>
+  <PopoverContent aria-label="Filters" placement="bottom-end">…</PopoverContent>
+</Popover>
+
+<Tooltip content="Copy the share link">
+  <button>Share</button>
+</Tooltip>
+```
+
+- A popover is tethered to its trigger and flips when it does not fit.
+- A tooltip opens on hover, focus and long-press, and stays while the pointer is on it.
+- The tooltip names or describes its trigger, depending on whether the trigger has a name.
+
+## Tabs
+
+```jsx
+import { Tabs, TabList, Tab, TabPanel } from "@opentf/afw-ui";
+
+<Tabs defaultValue="overview">
+  <TabList aria-label="Project">
+    <Tab value="overview">Overview</Tab>
+    <Tab value="activity">Activity</Tab>
+  </TabList>
+  <TabPanel value="overview">…</TabPanel>
+  <TabPanel value="activity">…</TabPanel>
+</Tabs>
+```
+
+- One Tab stop; arrows, `Home` and `End` move between tabs.
+- `activation="automatic"` (default): selection follows focus. `"manual"`: Enter selects.
+- Hidden panels are `hidden="until-found"`: find-in-page reveals them and selects their tab.
+
+## Forms
+
+```jsx
+import { Field, TextField, Select, Checkbox, Switch, RadioGroup, Radio } from "@opentf/afw-ui";
+
+<Field label="Email" description="Receipts only." error={errors.email} required>
+  <TextField name="email" type="email" value={email} onValueChange={(v) => (email = v)} />
+</Field>
+
+<RadioGroup label="Plan" value={plan} onValueChange={(v) => (plan = v)}>
+  <Radio value="free">Free</Radio>
+  <Radio value="team">Team</Radio>
+</RadioGroup>
+```
+
+- `Field` labels its control, describes it, and marks it `aria-invalid` while `error` is set.
+- The controls are the native inputs: form submission, autofill and keyboard behavior
+  work as usual.
+- `Select` takes `<option>` children; the theme opts it into the customizable select.
+
+## Toasts
+
+```jsx
+import { Toaster, toast } from "@opentf/afw-ui";
+
+// once, in the root layout
+<Toaster label="Notifications" />;
+
+toast("Project saved", { tone: "success" });
+toast("Upload failed", { tone: "danger", title: "report.pdf", duration: 8000 });
+```
+
+- Persistent by default; `duration` dismisses after that many ms, paused while hovered or
+  focused.
+- Announced to screen readers without moving focus.
+- Held back while a modal dialog is open.
+
+## Accordion and Button
+
+```jsx
+import { Accordion, AccordionItem, Button } from "@opentf/afw-ui";
+
+<Accordion type="single">
+  <AccordionItem summary="Shipping">…</AccordionItem>
+  <AccordionItem summary="Returns">…</AccordionItem>
+</Accordion>
+
+<Button variant="primary" loading={saving}>Save changes</Button>
+```
+
+- `type="single"`: at most one item open (a shared `<details name>`).
+- `Button`: `variant` (`primary`, `secondary`, `ghost`, `danger`) and `size` are styling
+  hooks; `loading` keeps it focusable and ignores clicks.
+
+## Browser support
+
+Native where the browser has it; otherwise the built-in fallback:
+
+| Feature | Fallback |
+| --- | --- |
+| Invoker commands | the trigger's click runs the command |
+| Anchor positioning | fixed coordinates, flipped and clamped to the viewport |
+| `focusgroup` | roles, roving `tabindex` and arrow keys |
+| `interestfor`, `popover="hint"` | hover after a delay, or keyboard focus, opens the hint |
+| `<dialog closedby>` | press and release outside closes it |
+| `<input switch>` | `role="switch"` |
+| `ariaNotify()` | a live region |
+| Customizable `<select>` | the OS picker |
+
+## Ember theme
+
+- **Primary action:** the brand orange with ink text.
+- **Ember edge:** one 2px orange edge for selected, current and focused.
+- **Radius by role:** 6px controls, 10px overlays.
+- **Modes:** light and dark from the system, or `data-theme="light" | "dark"` on any
+  element.
+- **Density:** `data-density="compact" | "comfortable" | "spacious"` on any element.
+- **Accessibility:** WCAG contrast for every pair in both modes, forced colors, reduced
+  motion.
+- **Customize:** override `--afw-ui-*` tokens in unlayered CSS; the theme sits in
+  `afw-ui.*` cascade layers.
+
+```css
+:root {
+  --afw-ui-ember: #2f6fed;
+  --afw-ui-ember-edge: #2457c5;
+  --afw-ui-ember-ink: #ffffff;
+}
+```
+
+## Styling your own way
+
+Skip the theme and style the hooks directly:
+
+- Part classes: `.afw-ui-dialog`, `.afw-ui-menu-item`, `.afw-ui-tab`, `.afw-ui-toast`, …
+- State: `[aria-expanded]`, `[aria-selected]`, `[aria-checked]`, `[aria-invalid]`,
+  `[aria-busy]`, `:popover-open`, `[open]`, `data-variant`, `data-tone`, `data-placement`.
+- `--afw-ui-offset`: the gap between a trigger and its overlay.
